@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { fetchNodes, createNode } from './services/api.js'
+import CytoscapeStudio from './CytoscapeStudio'; // adjust path as needed
 
 export default function App() {
   const [nodes, setNodes] = useState([])
@@ -47,7 +48,13 @@ export default function App() {
           <li key={idx}>{typeof n === 'string' ? n : n.name || JSON.stringify(n)}</li>
         ))}
       </ul>
+     <div>
+      <h1 style={{ padding: '1rem' }}>🧠 Knowledge Graph Studio</h1>
+      <CytoscapeStudio />
     </div>
+
+    </div>
+
   )
 }
 

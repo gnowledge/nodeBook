@@ -52,6 +52,8 @@ def list_all_nodes():
     for file in os.listdir(GRAPH_DATA_PATH):
         if file.endswith(".yaml"):
             data = load_node(file[:-5])
+            if not data:
+                continue
             node = data.get("node", {})
             nodes.append({
                 "id": node.get("id"),
