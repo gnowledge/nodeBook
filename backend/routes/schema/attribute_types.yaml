@@ -1,0 +1,47 @@
+- name: mass
+  data_type: float
+  allowed_values: null
+  unit: kilogram (kg)
+  domain:
+  - particle
+  - planet
+  - organism
+  description: 'Measures the amount of matter in an object. Example: Earth''s mass
+    is ~5.97 × 10^24 kg.'
+- name: velocity
+  data_type: float
+  allowed_values: null
+  unit: meters per second (m/s)
+  domain:
+  - particle
+  - vehicle
+  description: 'Describes the rate of change of position. Example: A car moving at
+    60 km/h.'
+- name: energy
+  data_type: float
+  allowed_values: null
+  unit: joule (J)
+  domain:
+  - particle
+  - field
+  - reaction
+  description: 'Quantifies the capacity to do work. Example: A battery stores electrical
+    energy.'
+- name: charge
+  data_type: float
+  allowed_values: null
+  unit: coulomb (C)
+  domain:
+  - electron
+  - ion
+  description: 'Measures electric charge. Example: An electron has a charge of -1.602×10⁻¹⁹
+    C.'
+- name: temperature
+  data_type: float
+  allowed_values: null
+  unit: kelvin (K)
+  domain:
+  - gas
+  - liquid
+  - solid
+  description: 'Indicates thermal energy level. Example: Water boils at 373.15 K.'
