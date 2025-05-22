@@ -6,7 +6,7 @@ import os, yaml
 
 router = APIRouter()
 GRAPH_DATA_PATH = "graph_data"
-SCHEMA_PATH = "schema"
+
 
 class Attribute(BaseModel):
     node_id: str
@@ -15,7 +15,7 @@ class Attribute(BaseModel):
 
 class Relation(BaseModel):
     node_id: str
-    type: str
+    name: str
     target: str
     role: Optional[str] = None  # class or individual
 
@@ -43,7 +43,7 @@ def save_node(node_id, data):
         yaml.dump(data, f, allow_unicode=True, sort_keys=False)
 
 def load_schema(filename):
-    path = os.path.join(SCHEMA_PATH, filename)
+    path = os.path.join(GRAPH_DATA_PATH, filename)
     if not os.path.exists(path):
         return []
     with open(path, encoding="utf-8") as f:
@@ -66,32 +66,56 @@ def create_attribute(attr: Attribute):
     save_node(attr.node_id, data)
     return {"status": "attribute added"}
 
+
 @router.post("/relation/create")
 def create_relation(rel: Relation):
+    # Load relation type definitions
+    print("Received relation name:", repr(rel.name))
     rel_types = load_schema("relation_types.yaml")
     rel_type_map = {r["name"]: r for r in rel_types}
-
-    if rel.type not in rel_type_map:
+    print("Raw relation_types loaded:", rel_types)
+    print("Available relation types:", list(rel_type_map.keys()))
+    # Validate relation type
+    if rel.name not in rel_type_map:
         raise HTTPException(status_code=400, detail="Invalid relation type")
 
-    data = load_node(rel.node_id)
-    if any(r["type"] == rel.type and r["target"] == rel.target for r in data.get("relations", [])):
+    # Load source node
+    try:
+        data = load_node(rel.node_id)
+    except HTTPException:
+        data = {
+            "node": {"name": rel.node_id, "label": rel.node_id, "attributes": []},
+            "relations": []
+        }
+
+    # Check for duplicate forward relation
+    if any(r["type"] == rel.name and r["target"] == rel.target for r in data.get("relations", [])):
         raise HTTPException(status_code=400, detail="Relation already exists")
 
     # Add forward relation
-    data.setdefault("relations", []).append({"type": rel.type, "target": rel.target})
+    data.setdefault("relations", []).append({
+        "type": rel.name,
+        "target": rel.target
+    })
     save_node(rel.node_id, data)
 
-    # Auto-create inverse if defined
-    inverse = rel_type_map[rel.type].get("inverse_name")
-    target_data = None
+    # Load or create target node for inverse relation
+    inverse = rel_type_map[rel.name].get("inverse_name")
     if inverse:
         try:
             target_data = load_node(rel.target)
         except HTTPException:
-            target_data = {"node": {"id": rel.target, "label": rel.target, "attributes": []}, "relations": []}
+            target_data = {
+                "node": {"name": rel.target, "label": rel.target, "attributes": []},
+                "relations": []
+            }
+
+        # Check for duplicate inverse relation
         if not any(r["type"] == inverse and r["target"] == rel.node_id for r in target_data.get("relations", [])):
-            target_data.setdefault("relations", []).append({"type": inverse, "target": rel.node_id})
+            target_data.setdefault("relations", []).append({
+                "type": inverse,
+                "target": rel.node_id
+            })
             save_node(rel.target, target_data)
 
     return {"status": "relation and inverse added" if inverse else "relation added"}

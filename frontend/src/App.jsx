@@ -31,25 +31,7 @@ export default function App() {
 
   return (
     <div style={{ padding: "1rem" }}>
-      <h1>NDF Studio</h1>
-
-      <form onSubmit={handleSubmit} style={{ marginBottom: '1rem' }}>
-        <input
-          type="text"
-          value={newNode}
-          placeholder="Enter node name"
-          onChange={(e) => setNewNode(e.target.value)}
-        />
-        <button type="submit">Add Node</button>
-      </form>
-
-      <ul>
-        {nodes.map((n, idx) => (
-          <li key={idx}>{typeof n === 'string' ? n : n.name || JSON.stringify(n)}</li>
-        ))}
-      </ul>
      <div>
-      <h1 style={{ padding: '1rem' }}>🧠 Knowledge Graph Studio</h1>
       <CytoscapeStudio />
     </div>
 

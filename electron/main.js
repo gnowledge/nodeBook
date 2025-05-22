@@ -1,46 +1,57 @@
-const { app, BrowserWindow } = require('electron')
-const path = require('path')
-const { spawn } = require('child_process')
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const { exec } = require('child_process');
+const http = require('http');
 
-let backendProcess
+let backendProcess;
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
-  })
+  });
 
-  if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173')
-  } else {
-    win.loadFile(path.join(__dirname, '../frontend/dist/index.html'))
-  }
+  win.loadFile('dist/index.html');
+}
+
+function pingBackend(url, timeout = 1000) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(url, res => {
+      res.statusCode === 200 ? resolve(true) : reject(false);
+    });
+    req.on('error', () => reject(false));
+    req.setTimeout(timeout, () => {
+      req.abort();
+      reject(false);
+    });
+  });
+}
+
+function startBackendIfNeeded() {
+  pingBackend('http://localhost:8000/health')
+    .then(() => {
+      console.log("✅ Backend already running.");
+    })
+    .catch(() => {
+      console.log("🚀 Starting backend...");
+      backendProcess = exec('uvicorn main:app --reload --port 8000', {
+        cwd: path.join(__dirname, '../backend'), // Adjust if needed
+        env: process.env,
+      });
+
+      backendProcess.stdout.on('data', data => console.log(`[backend]: ${data}`));
+      backendProcess.stderr.on('data', data => console.error(`[backend error]: ${data}`));
+    });
 }
 
 app.whenReady().then(() => {
-  backendProcess = spawn('python', ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
-    cwd: path.join(__dirname, '../backend'),
-    shell: true,
-  })
+  startBackendIfNeeded();
+  createWindow();
+});
 
-  backendProcess.stdout.on('data', data => {
-    console.log(`Backend: ${data}`)
-  })
-  backendProcess.stderr.on('data', data => {
-    console.error(`Backend error: ${data}`)
-  })
-
-  createWindow()
-
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
-  })
-
-  app.on('quit', () => {
-    if (backendProcess) backendProcess.kill()
-  })
-})
+app.on('will-quit', () => {
+  if (backendProcess) backendProcess.kill();
+});

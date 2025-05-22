@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-
+import RelationTypeModal from './RelationTypeModal'; // adjust path as needed
 cytoscape.use(dagre);
 
 
@@ -15,55 +15,56 @@ export default function CytoscapeStudio() {
   const [relationTypes, setRelationTypes] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const API_BASE = 'http://localhost:8000';
+  const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-      console.log("🚀 useEffect triggered: initializing cytoscape");
-    const cy = cytoscape({
-      container: containerRef.current,
-      elements: [],
-      style: [
-        {
-          selector: 'node',
-          style: {
-            label: 'data(label)',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'background-color': '#6FB1FC',
-            'text-outline-color': '#555',
-            'text-outline-width': 1,
-            color: '#fff',
-            shape: 'roundrectangle',
-            padding: '10px'
-          },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 2,
-            'line-color': '#ccc',
-            'target-arrow-color': '#ccc',
-            'target-arrow-shape': 'triangle',
-            label: 'data(label)',
-            'text-rotation': 'autorotate',
-            'font-size': 10,
-            'text-background-color': '#fff',
-            'text-background-opacity': 1,
-            'text-background-shape': 'roundrectangle',
-            'text-margin-y': -10
-          },
-        }
-      ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'TB',
-        nodeSep: 100,
-        edgeSep: 50,
-        rankSep: 100,
-        animate: true,
-      },
-    });
-
+    useEffect(() => {
+	if (!containerRef.current) return;
+	console.log("🚀 useEffect triggered: initializing cytoscape");
+	const cy = cytoscape({
+	    container: containerRef.current,
+	    elements: [],
+	    style: [
+		{
+		    selector: 'node',
+		    style: {
+			label: 'data(label)',
+			'text-valign': 'center',
+			'text-halign': 'center',
+			'background-color': '#6FB1FC',
+			'text-outline-color': '#555',
+			'text-outline-width': 1,
+			color: '#fff',
+			shape: 'roundrectangle',
+			padding: '10px'
+		    },
+		},
+		{
+		    selector: 'edge',
+		    style: {
+			width: 2,
+			'line-color': '#ccc',
+			'target-arrow-color': '#ccc',
+			'target-arrow-shape': 'triangle',
+			label: 'data(label)',
+			'text-rotation': 'autorotate',
+			'font-size': 10,
+			'text-background-color': '#fff',
+			'text-background-opacity': 1,
+			'text-background-shape': 'roundrectangle',
+			'text-margin-y': -10
+		    },
+		}
+	    ],
+	    layout: {
+		name: 'dagre',
+		rankDir: 'TB',
+		nodeSep: 100,
+		edgeSep: 50,
+		rankSep: 100,
+		animate: true,
+	    },
+	});
+	
     cyRef.current = cy;
       fetch(`${API_BASE}/api/graph`)
 
@@ -107,25 +108,27 @@ const handleCreateRelation = async () => {
   const targetId = existingTargetId || targetLabel.toLowerCase();
   const newTarget = !existingTargetId;
 
-  // 1. Add to Cytoscape view if not already
+  // Create new source node if needed
   if (newSource) {
     cy.add({ data: { id: sourceId, label: sourceLabel } });
     await fetch('http://localhost:8000/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ node: { id: sourceId, label: sourceLabel } })
-    });
+      body: JSON.stringify({ name: sourceId, label: sourceLabel })
+    }).then(res => res.json()).then(console.log).catch(console.error);
   }
 
+  // Create new target node if needed
   if (newTarget) {
     cy.add({ data: { id: targetId, label: targetLabel } });
     await fetch('http://localhost:8000/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ node: { id: targetId, label: targetLabel } })
-    });
+      body: JSON.stringify({ name: targetId, label: targetLabel })
+    }).then(res => res.json()).then(console.log).catch(console.error);
   }
 
+  // Add relation (edge)
   const edgeId = `${sourceId}-${label}->${targetId}`;
   if (!cy.getElementById(edgeId).length) {
     cy.add({ data: { id: edgeId, source: sourceId, target: targetId, label } });
@@ -133,15 +136,14 @@ const handleCreateRelation = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        subject: sourceId,
-        predicate: label,
-        object: targetId
+        node_id: sourceId,
+        name: label,
+        target: targetId
       })
-    });
+    }).then(res => res.json()).then(console.log).catch(console.error);
   }
 
   cy.layout({ name: 'dagre' }).run();
-
   setSource('');
   setTarget('');
   setLabel('');
@@ -240,7 +242,21 @@ return (
         />
       </div>
       <button onClick={handleCreateRelation} disabled={!label}>Add Relation</button>
-      <datalist id="existing-nodes">
+
+
+	<button onClick={() => setShowModal(true)}>Add Relation Type</button>
+
+	<RelationTypeModal
+	    isOpen={showModal}
+	    onClose={() => setShowModal(false)}
+	    onSuccess={() => {
+		alert('Relation type added!');
+		// optionally refresh relation type list
+	    }}
+	/>
+
+
+	<datalist id="existing-nodes">
         {getNodeLabels().map((label, idx) => (
           <option key={idx} value={label} />
         ))}
