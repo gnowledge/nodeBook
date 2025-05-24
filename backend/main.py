@@ -5,7 +5,6 @@ import os
 import yaml
 
 from routes import nodes, graph_ops, schema_routes, graph
-from routes.nbh import router as nbh_router
 
 app = FastAPI(title="NDF: Node-neighborhood Description Framework")
 
@@ -24,13 +23,8 @@ app.add_middleware(
 )
 
 # ✅ Include all routers
-#app.include_router(schema.router, prefix="/api")
-#app.include_router(node_types.router, prefix="/api")
-#app.include_router(attribute_types.router, prefix="/api")
-#app.include_router(relation_types.router, prefix="/api")
 app.include_router(nodes.router, prefix="/api")
 app.include_router(graph_ops.router, prefix="/api")
-app.include_router(nbh_router, prefix="/api/nbh")
 app.include_router(graph.router, prefix="/api")
 app.include_router(schema_routes.router, prefix="/api")
 

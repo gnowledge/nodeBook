@@ -1,3 +1,4 @@
+
 import os
 import yaml
 from fastapi import HTTPException
@@ -5,11 +6,9 @@ from fastapi import HTTPException
 GRAPH_DATA_PATH = "graph_data"
 
 def node_path(node_id: str) -> str:
-    """Return the full file path for a node ID."""
     return os.path.join(GRAPH_DATA_PATH, f"{node_id}.yaml")
 
 def load_node(node_id: str) -> dict:
-    """Load a node from its YAML file."""
     path = node_path(node_id)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
@@ -17,7 +16,45 @@ def load_node(node_id: str) -> dict:
         return yaml.safe_load(f)
 
 def save_node(node_id: str, data: dict):
-    """Save a node's data to its YAML file."""
     path = node_path(node_id)
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
+
+def safe_node_summary(file: str) -> dict | None:
+    data = load_node(file[:-5])
+    if not data or "node" not in data or not isinstance(data["node"], dict):
+        return None
+
+    node = data["node"]
+    node_id = node.get("id") or node.get("name") or file[:-5]
+    label = node.get("name") or node.get("label") or node_id
+    qualifier = node.get("qualifier")
+
+    return {
+        "id": node_id,
+        "label": label,
+        "qualifier": qualifier
+    }
+
+def safe_edge_summaries(node_id: str, node_data: dict) -> list:
+    edges = []
+    relations = node_data.get("relations", [])
+    for rel in relations:
+        if not isinstance(rel, dict):
+            continue
+        rel_type = rel.get("name") or rel.get("type")
+        target = rel.get("target")
+        if not rel_type or not target:
+            continue
+        edge_id = f"{node_id}-{rel_type}->{target}"
+        edges.append({
+            "data": {
+                "id": edge_id,
+                "source": node_id,
+                "target": target,
+                "label": rel_type
+            }
+        })
+    return edges
+
+

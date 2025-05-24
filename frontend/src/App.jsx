@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { fetchNodes, createNode } from './services/api.js'
 import CytoscapeStudio from './CytoscapeStudio'; // adjust path as needed
+import './tailwind.css'; // ✅ should be relative to src/
+import StyledCard from './StyledCard';
+
+
 
 export default function App() {
   const [nodes, setNodes] = useState([])
@@ -39,4 +43,5 @@ export default function App() {
 
   )
 }
+
 

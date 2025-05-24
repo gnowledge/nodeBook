@@ -3,15 +3,20 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import os, yaml
+from typing import Union
 
 router = APIRouter()
 GRAPH_DATA_PATH = "graph_data"
 
 
+
 class Attribute(BaseModel):
     node_id: str
     name: str
-    value: str
+    value: Union[str, float, int, bool]  # depending on data_type
+    unit: Optional[str] = None
+    quantifier: Optional[str] = None     # e.g., "some", "none", "all", "most"
+    modality: Optional[str] = None       # e.g., "possible", "necessary", "impossible"
 
 class Relation(BaseModel):
     node_id: str
@@ -49,26 +54,75 @@ def load_schema(filename):
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or []
 
-
-
+@router.post("/attribute/create")
 def create_attribute(attr: Attribute):
+    """
+    Create an attribute for a node.
+
+    Expected JSON payload:
+        {
+            "node_id": "node_id",
+            "name": "attribute_name",
+            "value": "attribute_value",
+            "unit": "optional",
+            "quantifier": "optional",
+            "modality": "optional"
+        }
+
+    Returns:
+        {
+            "status": "attribute added"
+        }
+    """
     attr_types = load_schema("attribute_types.yaml")
     attr_type_map = {a["name"]: a for a in attr_types}
+    
     if attr.name not in attr_type_map:
         raise HTTPException(status_code=400, detail="Invalid attribute name")
 
     data = load_node(attr.node_id)
     node_attrs = data["node"].get("attributes", [])
+
     if any(a["name"] == attr.name for a in node_attrs):
         raise HTTPException(status_code=400, detail="Attribute already exists")
 
-    data["node"].setdefault("attributes", []).append({"name": attr.name, "value": attr.value})
+    # Compose the full attribute entry
+    entry = {
+        "name": attr.name,
+        "value": attr.value,
+        "unit": attr.unit,
+        "quantifier": attr.quantifier,
+        "modality": attr.modality
+    }
+
+    data["node"].setdefault("attributes", []).append(entry)
     save_node(attr.node_id, data)
+
     return {"status": "attribute added"}
 
 
 @router.post("/relation/create")
 def create_relation(rel: Relation):
+    """
+    Create a relation between two nodes.
+
+    Expected JSON payload:
+        {
+            "node_id": "source_node_id",
+            "name": "relation_type",
+            "target": "target_node_id",
+            "role": "optional"
+        }
+
+    Returns:
+        {
+            "status": "relation added"
+        }
+        or
+        {
+            "status": "relation and inverse added"
+        }
+    """
     # Load relation type definitions
     print("Received relation name:", repr(rel.name))
     rel_types = load_schema("relation_types.yaml")
@@ -122,6 +176,18 @@ def create_relation(rel: Relation):
 
 @router.delete("/attribute/{node_id}/{attr_name}")
 def delete_attribute(node_id: str, attr_name: str):
+    """
+    Delete an attribute from a node.
+
+    Args:
+        node_id (str): The node's ID.
+        attr_name (str): The attribute's name.
+
+    Returns:
+        {
+            "status": "attribute deleted"
+        }
+    """
     data = load_node(node_id)
     original = data["node"].get("attributes", [])
     filtered = [a for a in original if a["name"] != attr_name]
@@ -133,6 +199,23 @@ def delete_attribute(node_id: str, attr_name: str):
 
 @router.delete("/relation/{node_id}/{target}")
 def delete_relation(node_id: str, target: str, type: Optional[str] = None):
+    """
+    Delete a relation (and its inverse if defined) from a node.
+
+    Args:
+        node_id (str): The source node's ID.
+        target (str): The target node's ID.
+        type (str, optional): The relation type.
+
+    Returns:
+        {
+            "status": "relation deleted"
+        }
+        or
+        {
+            "status": "relation and inverse deleted"
+        }
+    """
     rel_types = load_schema("relation_types.yaml")
     rel_type_map = {r["name"]: r for r in rel_types}
 
