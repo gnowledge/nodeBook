@@ -1,92 +1,66 @@
-# routes/graph_ops.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
 import os, yaml
-from typing import Union
+from core.id_utils import get_graph_path
 
 router = APIRouter()
-GRAPH_DATA_PATH = "graph_data"
-
-
 
 class Attribute(BaseModel):
     node_id: str
     name: str
-    value: Union[str, float, int, bool]  # depending on data_type
+    value: Union[str, float, int, bool]
     unit: Optional[str] = None
-    quantifier: Optional[str] = None     # e.g., "some", "none", "all", "most"
-    modality: Optional[str] = None       # e.g., "possible", "necessary", "impossible"
+    quantifier: Optional[str] = None
+    modality: Optional[str] = None
 
 class Relation(BaseModel):
     node_id: str
     name: str
     target: str
-    role: Optional[str] = None  # class or individual
-
-class Node(BaseModel):
-    id: str
-    label: str
-    role: Optional[str] = None  # top-level role field
-    # attributes and relations omitted here but should be handled in routes/nodes.py
+    role: Optional[str] = None
 
 # Helpers
 
-def node_path(node_id):
-    return os.path.join(GRAPH_DATA_PATH, f"{node_id}.yaml")
+def node_path(graph_path, node_id):
+    return os.path.join(graph_path, f"{node_id}.yaml")
 
-def load_node(node_id):
-    path = node_path(node_id)
+def load_node(graph_path, node_id):
+    path = node_path(graph_path, node_id)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def save_node(node_id, data):
-    path = node_path(node_id)
+def save_node(graph_path, node_id, data):
+    path = node_path(graph_path, node_id)
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(data, f, allow_unicode=True, sort_keys=False)
 
-def load_schema(filename):
-    path = os.path.join(GRAPH_DATA_PATH, filename)
+def load_schema(global_path, filename):
+    path = os.path.join(global_path, filename)
     if not os.path.exists(path):
         return []
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or []
 
-@router.post("/attribute/create")
-def create_attribute(attr: Attribute):
-    """
-    Create an attribute for a node.
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute/create")
+def create_attribute(user_id: str, graph_id: str, attr: Attribute):
+    graph_path = get_graph_path(user_id, graph_id)
+    global_path = os.path.join("graph_data", "global")
 
-    Expected JSON payload:
-        {
-            "node_id": "node_id",
-            "name": "attribute_name",
-            "value": "attribute_value",
-            "unit": "optional",
-            "quantifier": "optional",
-            "modality": "optional"
-        }
-
-    Returns:
-        {
-            "status": "attribute added"
-        }
-    """
-    attr_types = load_schema("attribute_types.yaml")
+    attr_types = load_schema(global_path, "attribute_types.yaml")
     attr_type_map = {a["name"]: a for a in attr_types}
-    
+
     if attr.name not in attr_type_map:
         raise HTTPException(status_code=400, detail="Invalid attribute name")
 
-    data = load_node(attr.node_id)
+    data = load_node(graph_path, attr.node_id)
     node_attrs = data["node"].get("attributes", [])
 
     if any(a["name"] == attr.name for a in node_attrs):
         raise HTTPException(status_code=400, detail="Attribute already exists")
 
-    # Compose the full attribute entry
     entry = {
         "name": attr.name,
         "value": attr.value,
@@ -96,152 +70,41 @@ def create_attribute(attr: Attribute):
     }
 
     data["node"].setdefault("attributes", []).append(entry)
-    save_node(attr.node_id, data)
+    save_node(graph_path, attr.node_id, data)
 
     return {"status": "attribute added"}
 
+@router.post("/users/{user_id}/graphs/{graph_id}/relation/create")
+def create_relation(user_id: str, graph_id: str, rel: Relation):
+    graph_path = get_graph_path(user_id, graph_id)
+    global_path = os.path.join("graph_data", "global")
 
-@router.post("/relation/create")
-def create_relation(rel: Relation):
-    """
-    Create a relation between two nodes.
-
-    Expected JSON payload:
-        {
-            "node_id": "source_node_id",
-            "name": "relation_type",
-            "target": "target_node_id",
-            "role": "optional"
-        }
-
-    Returns:
-        {
-            "status": "relation added"
-        }
-        or
-        {
-            "status": "relation and inverse added"
-        }
-    """
-    # Load relation type definitions
-    print("Received relation name:", repr(rel.name))
-    rel_types = load_schema("relation_types.yaml")
+    rel_types = load_schema(global_path, "relation_types.yaml")
     rel_type_map = {r["name"]: r for r in rel_types}
-    print("Raw relation_types loaded:", rel_types)
-    print("Available relation types:", list(rel_type_map.keys()))
-    # Validate relation type
+
     if rel.name not in rel_type_map:
         raise HTTPException(status_code=400, detail="Invalid relation type")
 
-    # Load source node
     try:
-        data = load_node(rel.node_id)
+        data = load_node(graph_path, rel.node_id)
     except HTTPException:
-        data = {
-            "node": {"name": rel.node_id, "label": rel.node_id, "attributes": []},
-            "relations": []
-        }
+        data = {"node": {"name": rel.node_id, "label": rel.node_id, "attributes": []}, "relations": []}
 
-    # Check for duplicate forward relation
     if any(r["type"] == rel.name and r["target"] == rel.target for r in data.get("relations", [])):
         raise HTTPException(status_code=400, detail="Relation already exists")
 
-    # Add forward relation
-    data.setdefault("relations", []).append({
-        "type": rel.name,
-        "target": rel.target
-    })
-    save_node(rel.node_id, data)
+    data.setdefault("relations", []).append({"type": rel.name, "target": rel.target})
+    save_node(graph_path, rel.node_id, data)
 
-    # Load or create target node for inverse relation
     inverse = rel_type_map[rel.name].get("inverse_name")
     if inverse:
         try:
-            target_data = load_node(rel.target)
+            target_data = load_node(graph_path, rel.target)
         except HTTPException:
-            target_data = {
-                "node": {"name": rel.target, "label": rel.target, "attributes": []},
-                "relations": []
-            }
+            target_data = {"node": {"name": rel.target, "label": rel.target, "attributes": []}, "relations": []}
 
-        # Check for duplicate inverse relation
         if not any(r["type"] == inverse and r["target"] == rel.node_id for r in target_data.get("relations", [])):
-            target_data.setdefault("relations", []).append({
-                "type": inverse,
-                "target": rel.node_id
-            })
-            save_node(rel.target, target_data)
+            target_data.setdefault("relations", []).append({"type": inverse, "target": rel.node_id})
+            save_node(graph_path, rel.target, target_data)
 
     return {"status": "relation and inverse added" if inverse else "relation added"}
-
-@router.delete("/attribute/{node_id}/{attr_name}")
-def delete_attribute(node_id: str, attr_name: str):
-    """
-    Delete an attribute from a node.
-
-    Args:
-        node_id (str): The node's ID.
-        attr_name (str): The attribute's name.
-
-    Returns:
-        {
-            "status": "attribute deleted"
-        }
-    """
-    data = load_node(node_id)
-    original = data["node"].get("attributes", [])
-    filtered = [a for a in original if a["name"] != attr_name]
-    if len(filtered) == len(original):
-        raise HTTPException(status_code=404, detail="Attribute not found")
-    data["node"]["attributes"] = filtered
-    save_node(node_id, data)
-    return {"status": "attribute deleted"}
-
-@router.delete("/relation/{node_id}/{target}")
-def delete_relation(node_id: str, target: str, type: Optional[str] = None):
-    """
-    Delete a relation (and its inverse if defined) from a node.
-
-    Args:
-        node_id (str): The source node's ID.
-        target (str): The target node's ID.
-        type (str, optional): The relation type.
-
-    Returns:
-        {
-            "status": "relation deleted"
-        }
-        or
-        {
-            "status": "relation and inverse deleted"
-        }
-    """
-    rel_types = load_schema("relation_types.yaml")
-    rel_type_map = {r["name"]: r for r in rel_types}
-
-    data = load_node(node_id)
-    original = data.get("relations", [])
-    if type:
-        filtered = [r for r in original if not (r["target"] == target and r["type"] == type)]
-    else:
-        filtered = [r for r in original if r["target"] != target]
-    if len(filtered) == len(original):
-        raise HTTPException(status_code=404, detail="Relation not found")
-    data["relations"] = filtered
-    save_node(node_id, data)
-
-    # Also remove inverse if defined
-    if type and type in rel_type_map:
-        inverse = rel_type_map[type].get("inverse_name")
-        if inverse:
-            try:
-                target_data = load_node(target)
-                target_rels = target_data.get("relations", [])
-                target_filtered = [r for r in target_rels if not (r["type"] == inverse and r["target"] == node_id)]
-                if len(target_filtered) < len(target_rels):
-                    target_data["relations"] = target_filtered
-                    save_node(target, target_data)
-            except HTTPException:
-                pass
-
-    return {"status": "relation and inverse deleted" if type else "relation deleted"}

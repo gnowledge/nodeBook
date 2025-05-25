@@ -1,27 +1,25 @@
-
 import os
 import yaml
 from fastapi import HTTPException
 
-GRAPH_DATA_PATH = "graph_data"
+def node_path(user_id: str, graph_id: str, node_id: str) -> str:
+    return os.path.join("graph_data", user_id, graph_id, f"{node_id}.yaml")
 
-def node_path(node_id: str) -> str:
-    return os.path.join(GRAPH_DATA_PATH, f"{node_id}.yaml")
-
-def load_node(node_id: str) -> dict:
-    path = node_path(node_id)
+def load_node(user_id: str, graph_id: str, node_id: str) -> dict:
+    path = node_path(user_id, graph_id, node_id)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-def save_node(node_id: str, data: dict):
-    path = node_path(node_id)
+def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
+    path = node_path(user_id, graph_id, node_id)
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
 
-def safe_node_summary(file: str) -> dict | None:
-    data = load_node(file[:-5])
+def safe_node_summary(user_id: str, graph_id: str, file: str) -> dict | None:
+    node_id = file[:-5]
+    data = load_node(user_id, graph_id, node_id)
     if not data or "node" not in data or not isinstance(data["node"], dict):
         return None
 

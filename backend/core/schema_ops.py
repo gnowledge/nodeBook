@@ -1,11 +1,12 @@
 import os
 import yaml
 
-GRAPH_DATA_PATH = "graph_data"
+GLOBAL_SCHEMA_PATH = os.path.join("graph_data", "global")
 
 def ensure_schema_file(file_name, default_data):
-    file_path = os.path.join(GRAPH_DATA_PATH, file_name)
+    file_path = os.path.join(GLOBAL_SCHEMA_PATH, file_name)
     if not os.path.exists(file_path):
+        os.makedirs(GLOBAL_SCHEMA_PATH, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             yaml.dump(default_data, f)
     return file_path
@@ -17,7 +18,7 @@ def load_schema(file_name, default_data):
     return data or default_data
 
 def save_schema(file_name, data):
-    file_path = os.path.join(GRAPH_DATA_PATH, file_name)
+    file_path = os.path.join(GLOBAL_SCHEMA_PATH, file_name)
     with open(file_path, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
 
@@ -31,4 +32,4 @@ def load_schema_yaml(file_name: str, default_data: list):
         return default_data
     return data
 
-        
+

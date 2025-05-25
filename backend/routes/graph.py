@@ -1,81 +1,44 @@
 from fastapi import APIRouter
-from networkx.readwrite import json_graph
-from core.graph_state import graph, populate_graph
-import os, yaml
+from core.node_ops import load_node, safe_node_summary, safe_edge_summaries
+from core.id_utils import get_graph_path
+import os
+
 router = APIRouter()
-GRAPH_DATA_PATH = "graph_data"
-from core.node_ops import node_path, load_node, safe_node_summary, safe_edge_summaries
 
-
-
-@router.get("/graph")
-def get_graph():
+@router.get("/users/{user_id}/graphs/{graph_id}/graphdb")
+def get_graph(user_id: str, graph_id: str):
     """
-    Get the entire graph as a list of node and edge elements.
-
-    Returns:
-        {
-            "elements": [
-                {
-                    "data": {
-                        "id": "node_id",
-                        "label": "Node Label",
-                        "attributes": {
-                            "attr1": "value1",
-                            ...
-                        }
-                    }
-                },
-                {
-                    "data": {
-                        "id": "edge_id",
-                        "source": "source_node_id",
-                        "target": "target_node_id",
-                        "name": "relation_type",
-                        ... // other edge properties
-                    }
-                },
-                ...
-            ]
-        }
+    Get the entire graph (nodes + relations) for a specific user's graph.
     """
     elements = []
+    graph_path = get_graph_path(user_id, graph_id)
+    if not os.path.exists(graph_path):
+        return {"elements": []}
 
-    for file in os.listdir(GRAPH_DATA_PATH):
-        if file.endswith(".yaml"):
-            summary = safe_node_summary(file)
-            if not summary:
-                continue
-
-            # Load full node data to extract attributes
-            try:
-                data = load_node(file[:-5])
-                node_attrs = data.get("node", {}).get("attributes", [])
-                # Compose attributes as a dict: {name: value, ...}
-                attr_dict = {a["name"]: a.get("value") for a in node_attrs if "name" in a}
-            except Exception:
-                attr_dict = {}
-
-            # Node element with attributes
-            node_data = {
-                "id": summary["id"],
-                "label": summary["label"]
-            }
-            if attr_dict:
-                node_data["attributes"] = attr_dict
-
-            elements.append({
-                "data": node_data
-            })
-
-            # Edge elements
-            try:
-                data = load_node(file[:-5])
-                elements.extend(safe_edge_summaries(summary["id"], data))
-            except:
-                continue
+    for file in os.listdir(graph_path):
+        if not file.endswith(".yaml"):
+            continue
+        node_id = file[:-5]
+        summary = safe_node_summary(user_id, graph_id, file)
+        if not summary:
+            continue
+        try:
+            data = load_node(user_id, graph_id, node_id)
+            node_attrs = data.get("node", {}).get("attributes", [])
+            attr_dict = {a["name"]: a.get("value") for a in node_attrs if "name" in a}
+        except Exception:
+            attr_dict = {}
+            data = {}
+        node_data = {
+            "id": summary["id"],
+            "label": summary["label"]
+        }
+        if attr_dict:
+            node_data["attributes"] = attr_dict
+        elements.append({"data": node_data})
+        try:
+            elements.extend(safe_edge_summaries(summary["id"], data))
+        except Exception:
+            continue
 
     return {"elements": elements}
-
-
-

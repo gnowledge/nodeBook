@@ -1,22 +1,13 @@
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const userId = "user0";
 
-
-
-export async function fetchNodes() {
-  const res = await fetch(`${API_BASE}/api/nodes`);
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    console.error("❌ Failed to parse /api/nodes response:", err);
-    throw err;
-  }
+export async function fetchNodes(userId = "user0", graphId = "graph1") {
+  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes`);
+  return res.json();
 }
 
-
-
 export async function createNode(data) {
-  const res = await fetch(`${API_BASE}/api/nodes`, {
+  const res = await fetch(`${API_BASE}/nodes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -24,22 +15,27 @@ export async function createNode(data) {
   return res.json();
 }
 
-
-export async function fetchRelationTypes() {
-  const res = await fetch(`${API_BASE}/api/relation-types`);
+export async function fetchRelationTypes(userId = "user0", graphId = "graph1") {
+  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/relation-types`);
   return res.json();
 }
 
-export async function fetchAttributeTypes() {
-  const res = await fetch(`${API_BASE}/api/attribute-types`);
+export async function fetchAttributeTypes(userId = "user0", graphId = "graph1") {
+  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute-types`);
   return res.json();
 }
 
-export async function assignAttribute(payload) {
-  const res = await fetch(`${API_BASE}/api/attribute/create`, {
+export async function listGraphs(user = userId) {
+  const res = await fetch(`${API_BASE}/api/users/${user}/graphs`);
+  return res.json();
+}
+
+export async function createGraphFolder(graphId, user = userId) {
+  const res = await fetch(`${API_BASE}/api/users/${user}/graphs/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ graph_id: graphId }),
   });
   return res.json();
 }
+

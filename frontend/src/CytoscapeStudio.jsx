@@ -8,16 +8,26 @@ import { API_BASE } from './config';
 
 cytoscape.use(dagre);
 
-export default function CytoscapeStudio() {
+export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const [modal, setModal] = useState({ open: false, content: '' });
   const [editNodeId, setEditNodeId] = useState(null);
+  const [layoutName, setLayoutName] = useState('Force-Directed');
+
+  const layoutOptions = {
+    'Breadthfirst': { name: 'breadthfirst', orientation: 'vertical', padding: 30 },
+    'Force-Directed': { name: 'cose' },
+    'Grid': { name: 'grid', cols: 1, avoidOverlap: true }
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    const apiPrefix = `${base}/api/users/${userId}/graphs/${graphId}`;
 
     requestAnimationFrame(() => {
       const cy = cytoscape({
@@ -26,217 +36,265 @@ export default function CytoscapeStudio() {
           {
             selector: 'node',
             style: {
-              "shape": "round-rectangle",
-              "width": "label",
-              "height": "label",
-              "content": 'data(label)',
-              "padding": "10pt",
+              shape: 'round-rectangle',
+              width: 'label',
+              height: 'label',
+              content: 'data(label)',
+              padding: '10pt',
               'text-valign': 'center',
-              "text-wrap": "wrap",
+              'text-wrap': 'wrap',
               'background-color': '#e4ebec',
               color: '#000',
-              "outline-width": "2pt",
-              "outline-color": "#6073ec"
+              'outline-width': '2pt',
+              'outline-color': '#6073ec'
             }
           },
           {
-            selector: "edge",
+            selector: 'edge',
             style: {
-              "label": "data(name)",  // Always show label
-              "font-size": 12,
-              "text-rotation": "autorotate",
-              "text-rotation-strict": "true", // Ensure label follows edge direction
-              "text-background-color": "#f9f9f9",
-              "text-background-opacity": 1,
-              "text-background-shape": "roundrectangle",
-              "color": "#2c3e50",
-              "width": 2,
-              "line-color": "#95a5a6",
-              "target-arrow-shape": "triangle",
-              "target-arrow-color": "#95a5a6",
-              "curve-style": "bezier",
-              // Optional: adjust label position along the edge
-              "text-margin-y": -10
+              label: 'data(name)',
+              'font-size': 12,
+              'text-rotation': 'autorotate',
+              'text-rotation-strict': 'true',
+              'text-background-color': '#f9f9f9',
+              'text-background-opacity': 1,
+              'text-background-shape': 'roundrectangle',
+              color: '#2c3e50',
+              width: 2,
+              'line-color': '#95a5a6',
+              'target-arrow-shape': 'triangle',
+              'target-arrow-color': '#95a5a6',
+              'curve-style': 'bezier',
+              'text-margin-y': -10
             }
           }
         ],
-        layout: { name: 'dagre' }
+        layout: {
+          name: 'grid',
+          directed: true,
+          padding: 10,
+          spacingFactor: 1.5,
+          orientation: 'vertical'
+        }
       });
 
       cyRef.current = cy;
 
-      // Add this block for click-to-select edge label
-      cy.on('tap', 'edge', (evt) => {
-        cy.elements('edge').unselect(); // Unselect all edges
-        evt.target.select(); // Select the clicked edge
+      // Store nodes with inverted colors
+      let invertedNodes = [];
+
+      // Helper to reset node colors
+      const resetNodeColors = () => {
+        invertedNodes.forEach(node => {
+          node.style({
+            'background-color': '#e4ebec',
+            color: '#000'
+          });
+        });
+        invertedNodes = [];
+      };
+
+      // Edge mouseover: Show tooltip and invert node colors
+      cy.on('mouseover', 'edge', (evt) => {
+        const edge = evt.target;
+        const midpoint = edge.midpoint();
+        const rendered = cy.renderer().projectToRenderedCoordinates(midpoint);
+        const name = edge.data('name') || edge.data('label') || '';
+        const sourceLabel = edge.source().data('label') || edge.source().id();
+        const targetLabel = edge.target().data('label') || edge.target().id();
+        const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
+
+        // Ensure tooltip stays within viewport
+        const canvasRect = containerRef.current.getBoundingClientRect();
+        const tooltipWidth = 200; // Approximate tooltip width
+        const tooltipHeight = 100; // Approximate tooltip height
+        let x = rendered.x + 10;
+        let y = rendered.y + 10;
+
+        // Adjust if tooltip would go off-screen
+        if (x + tooltipWidth > canvasRect.width) x = rendered.x - tooltipWidth - 10;
+        if (y + tooltipHeight > canvasRect.height) y = rendered.y - tooltipHeight - 10;
+
+        setTooltip({ visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+
+        // Invert colors for source and target nodes
+        resetNodeColors(); // Reset previous inversions
+        const source = edge.source();
+        const target = edge.target();
+        [source, target].forEach(node => {
+          const origBg = node.style('background-color') || '#e4ebec';
+          const origColor = node.style('color') || '#000';
+          node.style({
+            'background-color': origColor,
+            color: origBg
+          });
+          invertedNodes.push(node);
+        });
       });
+
+      // Edge mouseout: Hide tooltip and reset node colors
+      cy.on('mouseout', 'edge', () => {
+        setTooltip({ visible: false, x: 0, y: 0, content: '' });
+        resetNodeColors();
+      });
+
+      // Edge tap: Select edge and keep tooltip
+      cy.on('tap', 'edge', (evt) => {
+        cy.elements('edge').unselect();
+        evt.target.select();
+        // Tooltip and color inversion are handled by mouseover
+      });
+
+      // Canvas tap: Clear selections, tooltip, and reset colors
       cy.on('tap', (evt) => {
         if (evt.target === cy) {
-          cy.elements('edge').unselect(); // Unselect all edges when background is clicked
+          cy.elements('edge').unselect();
+          setTooltip({ visible: false, x: 0, y: 0, content: '' });
+          resetNodeColors();
         }
       });
 
-      // Tooltip on node hover (use getInfo API)
+      // Node mouseover: Show node details
       cy.on('mouseover', 'node', async (evt) => {
         const node = evt.target;
         const pos = node.renderedPosition();
         const nodeId = node.data().id;
 
         try {
-          const res = await fetch(`${API_BASE}/api/getInfo/${nodeId}`);
+          const res = await fetch(`${apiPrefix}/nodes/${nodeId}`);
           const data = await res.json();
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
-          if (data.qualifier) {
-            content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
-          }
-          if (data.description) {
-            content += `<div><b>Description:</b> ${data.description}</div>`;
-          }
-          if (data.role) {
-            content += `<div><b>Role:</b> ${data.role}</div>`;
-          }
-          if (data.attributes && data.attributes.length) {
-            content += `<div style="margin-top:8px;"><b>Attributes:</b><ul style="margin:0;padding-left:18px;">` +
+          if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
+          if (data.description) content += `<div><b>Description:</b> ${data.description}</div>`;
+          if (data.role) content += `<div><b>Role:</b> ${data.role}</div>`;
+          if (data.attributes?.length) {
+            content += `<div><b>Attributes:</b><ul>` +
               data.attributes.map(attr =>
-                `<li><b>${attr.name}</b>: ${attr.value ?? ''}${attr.unit ? ' <span style="color:#888">[' + attr.unit + ']</span>' : ''} ${attr.quantifier ? '(' + attr.quantifier + ')' : ''} ${attr.modality ? '[' + attr.modality + ']' : ''}</li>`
-              ).join('') +
-              `</ul></div>`;
+                `<li><b>${attr.name}</b>: ${attr.value ?? ''}${attr.unit ? ' [' + attr.unit + ']' : ''} ${attr.quantifier ? '(' + attr.quantifier + ')' : ''} ${attr.modality ? '[' + attr.modality + ']' : ''}</li>`
+              ).join('') + `</ul></div>`;
           }
-          if (data.relations && data.relations.length) {
-            content += `<div style="margin-top:8px;"><b>Relations:</b><ul style="margin:0;padding-left:18px;">` +
+          if (data.relations?.length) {
+            content += `<div><b>Relations:</b><ul>` +
               data.relations.map(rel => {
-                // Try to show rel.type or rel.name for edge label
                 const name = rel.name || rel.type || '';
                 const target = rel.target ?? '';
                 const subjQ = rel.subject_quantifier ? `(${rel.subject_quantifier})` : '';
                 const objQ = rel.object_quantifier ? `(${rel.object_quantifier})` : '';
                 const modality = rel.modality ? `[${rel.modality}]` : '';
                 return `<li><b>${name}</b> → ${target} ${subjQ} ${objQ} ${modality}</li>`;
-              }).join('') +
-              `</ul></div>`;
+              }).join('') + `</ul></div>`;
           }
 
-          setTooltip({
-            visible: true,
-            x: pos.x,
-            y: pos.y,
-            content
-          });
+          // Adjust tooltip position for node
+          const canvasRect = containerRef.current.getBoundingClientRect();
+          const tooltipWidth = 200;
+          const tooltipHeight = 100;
+          let x = pos.x + 10;
+          let y = pos.y + 10;
+          if (x + tooltipWidth > canvasRect.width) x = pos.x - tooltipWidth - 10;
+          if (y + tooltipHeight > canvasRect.height) y = pos.y - tooltipHeight - 10;
+
+          setTooltip({ visible: true, x, y, content });
         } catch {
-          setTooltip({
-            visible: true,
-            x: pos.x,
-            y: pos.y,
-            content: '<i>Failed to load node info</i>'
-          });
+          setTooltip({ visible: true, x: pos.x, y: pos.y, content: '<i>Failed to load node info</i>' });
         }
       });
-      cy.on('mouseout', 'node', () => setTooltip({ visible: false, x: 0, y: 0, content: '' }));
 
-      // Tooltip on edge hover
-      cy.on('mouseover', 'edge', (evt) => {
-        const edge = evt.target;
-        const pos = edge.midpoint();
-        const name = edge.data('name') || edge.data('label') || '';
-        // Get source and target node labels
-        const sourceNode = edge.source();
-        const targetNode = edge.target();
-        const sourceLabel = sourceNode.data('label') || sourceNode.data('name') || sourceNode.id();
-        const targetLabel = targetNode.data('label') || targetNode.data('name') || targetNode.id();
-        const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
-        setTooltip({
-          visible: true,
-          x: pos.x,
-          y: pos.y,
-          content: name ? proposition : '<i>No name</i>'
-        });
+      // Node mouseout: Hide tooltip
+      cy.on('mouseout', 'node', () => {
+        setTooltip({ visible: false, x: 0, y: 0, content: '' });
       });
-      cy.on('mouseout', 'edge', () => setTooltip({ visible: false, x: 0, y: 0, content: '' }));
 
-      // Popup modal on node click (show info using getInfo API)
+      // Node tap: Show modal with details
       cy.on('tap', 'node', async (evt) => {
         const node = evt.target;
         const nodeId = node.data().id;
 
         try {
-          const res = await fetch(`${API_BASE}/api/getInfo/${nodeId}`);
+          const res = await fetch(`${apiPrefix}/nodes/${nodeId}`);
           const data = await res.json();
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
-          if (data.qualifier) {
-            content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
-          }
-          if (data.description) {
-            content += `<div><b>Description:</b> ${data.description}</div>`;
-          }
-          if (data.role) {
-            content += `<div><b>Role:</b> ${data.role}</div>`;
-          }
-          if (data.attributes && data.attributes.length) {
-            content += `<div style="margin-top:8px;"><b>Attributes:</b><ul style="margin:0;padding-left:18px;">` +
+          if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
+          if (data.description) content += `<div><b>Description:</b> ${data.description}</div>`;
+          if (data.role) content += `<div><b>Role:</b> ${data.role}</div>`;
+          if (data.attributes?.length) {
+            content += `<div><b>Attributes:</b><ul>` +
               data.attributes.map(attr =>
-                `<li><b>${attr.name}</b>: ${attr.value ?? ''}${attr.unit ? ' <span style="color:#888">[' + attr.unit + ']</span>' : ''} ${attr.quantifier ? '(' + attr.quantifier + ')' : ''} ${attr.modality ? '[' + attr.modality + ']' : ''}</li>`
-              ).join('') +
-              `</ul></div>`;
+                `<li><b>${attr.name}</b>: ${attr.value ?? ''}${attr.unit ? ' [' + attr.unit + ']' : ''} ${attr.quantifier ? '(' + attr.quantifier + ')' : ''} ${attr.modality ? '[' + attr.modality + ']' : ''}</li>`
+              ).join('') + `</ul></div>`;
           }
-          if (data.relations && data.relations.length) {
-            content += `<div style="margin-top:8px;"><b>Relations:</b><ul style="margin:0;padding-left:18px;">` +
+          if (data.relations?.length) {
+            content += `<div><b>Relations:</b><ul>` +
               data.relations.map(rel => {
-                // Try to show rel.type or rel.name for edge label
                 const name = rel.name || rel.type || '';
                 const target = rel.target ?? '';
                 const subjQ = rel.subject_quantifier ? `(${rel.subject_quantifier})` : '';
                 const objQ = rel.object_quantifier ? `(${rel.object_quantifier})` : '';
                 const modality = rel.modality ? `[${rel.modality}]` : '';
                 return `<li><b>${name}</b> → ${target} ${subjQ} ${objQ} ${modality}</li>`;
-              }).join('') +
-              `</ul></div>`;
+              }).join('') + `</ul></div>`;
           }
 
-          setModal({
-            open: true,
-            content,
-            nodeId
-          });
+          setModal({ open: true, content, nodeId });
           setEditNodeId(null);
         } catch {
-          setModal({
-            open: true,
-            content: "<div style='color:red'>Failed to load node details.</div>",
-            nodeId
-          });
+          setModal({ open: true, content: '<div style="color:red">Failed to load node details.</div>', nodeId });
           setEditNodeId(null);
         }
       });
 
-      cy.on('render', () => {
-        console.log("✅ Cytoscape render complete");
-      });
+      cy.on('render', () => console.log("✅ Cytoscape render complete"));
 
-      fetch(`${API_BASE}/api/graph`)
+      fetch(`${apiPrefix}/graphdb`)
         .then(res => res.json())
         .then(data => {
-          console.log("🌐 Graph data:", data);
           if (data?.elements) {
             cy.add(data.elements);
-            cy.layout({ name: 'dagre' }).run();
+            cy.layout(layoutOptions[layoutName]).run();
           }
         })
         .catch(err => console.warn("❌ Failed to fetch graph:", err));
-    });
 
-    return () => {
-      try {
-        cyRef.current?.destroy();
-      } catch (err) {
-        console.warn("⚠️ Cytoscape destroy error:", err);
-      }
-    };
-  }, []);
+      return () => {
+        try {
+          cyRef.current?.destroy();
+        } catch (err) {
+          console.warn("⚠️ Cytoscape destroy error:", err);
+        }
+      };
+    });
+  }, [userId, graphId, layoutName]);
 
   return (
     <div style={{ position: 'relative', height: '100vh', overflow: 'hidden' }}>
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        zIndex: 1000,
+        background: '#fff',
+        padding: '6px 10px',
+        borderRadius: '6px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+      }}>
+        <label style={{ marginRight: '6px', fontSize: '14px' }}>Layout:</label>
+        <select
+          value={layoutName}
+          onChange={(e) => {
+            setLayoutName(e.target.value);
+            if (cyRef.current) {
+              cyRef.current.layout(layoutOptions[e.target.value]).run();
+            }
+          }}
+        >
+          {Object.keys(layoutOptions).map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      </div>
+
       {!drawerOpen && (
         <button
           onClick={() => setDrawerOpen(true)}
@@ -263,12 +321,8 @@ export default function CytoscapeStudio() {
           top: 0,
           left: 0,
           height: '100%',
-          width: drawerOpen
-            ? (window.innerWidth > 640 ? '75vw' : '100%')
-            : '0',
-          maxWidth: drawerOpen
-            ? (window.innerWidth < 640 ? '75vw' : '75%')
-            : '0',
+          width: drawerOpen ? (window.innerWidth > 640 ? '75vw' : '100%') : '0',
+          maxWidth: drawerOpen ? (window.innerWidth < 640 ? '75vw' : '75%') : '0',
           backgroundColor: '#f9f9f9',
           overflowX: 'hidden',
           padding: drawerOpen ? '1rem' : '0',
@@ -299,12 +353,13 @@ export default function CytoscapeStudio() {
           zIndex: 0
         }}
       ></div>
+
       {tooltip.visible && (
         <div
           style={{
             position: 'absolute',
-            left: tooltip.x + 10,
-            top: tooltip.y + 10,
+            left: tooltip.x,
+            top: tooltip.y,
             background: 'rgba(255,255,255,0.95)',
             border: '1px solid #ccc',
             borderRadius: 4,
@@ -312,11 +367,14 @@ export default function CytoscapeStudio() {
             fontSize: 13,
             pointerEvents: 'none',
             zIndex: 2000,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            maxWidth: '200px',
+            wordWrap: 'break-word'
           }}
           dangerouslySetInnerHTML={{ __html: tooltip.content }}
         />
       )}
+
       {modal.open && (
         <div
           style={{
@@ -340,14 +398,12 @@ export default function CytoscapeStudio() {
               onSuccess={() => {
                 setEditNodeId(null);
                 setModal({ open: false, content: '' });
-                // Optionally refresh graph/nodes here
               }}
               onCancel={() => setEditNodeId(null)}
             />
           ) : (
             <>
-              <div
-                style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}
+              <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}
                 dangerouslySetInnerHTML={{ __html: modal.content }}
               />
               <div className="flex justify-end gap-2">
@@ -371,6 +427,3 @@ export default function CytoscapeStudio() {
     </div>
   );
 }
-
-
-

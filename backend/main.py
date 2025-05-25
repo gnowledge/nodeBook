@@ -4,13 +4,11 @@ from pydantic import BaseModel
 import os
 import yaml
 
-from routes import nodes, graph_ops, schema_routes, graph
+from routes import graph, nodes, graph_ops, schema_routes, graphs
 
 app = FastAPI(title="NDF: Node-neighborhood Description Framework")
 
-from core.graph_state import populate_graph
-populate_graph()
-
+# from core.graph_state import populate_graph
 
 
 # ✅ Apply CORS middleware once
@@ -27,6 +25,7 @@ app.include_router(nodes.router, prefix="/api")
 app.include_router(graph_ops.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
 app.include_router(schema_routes.router, prefix="/api")
+app.include_router(graphs.router, prefix="/api")
 
 # ✅ Health check route
 @app.get("/api/health")
@@ -47,3 +46,6 @@ class NodeType(BaseModel):
 
 # Mount custom node-type YAML router
 app.include_router(router, prefix="/api")
+
+# Double-check that you do not have another route (in any router) that matches
+# /api/users/{user_id}/graphs/{graph_id}/graph, which could shadow or override this one.

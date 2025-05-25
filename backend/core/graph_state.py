@@ -1,12 +1,12 @@
 import os
 import networkx as nx
-from routes.nodes import GRAPH_DATA_PATH, load_node
-
+from routes.nodes import load_node
+from core.id_utils import normalize_id, get_graph_path
 graph = nx.DiGraph()
 
 def populate_graph():
     graph.clear()
-    for file in os.listdir("graph_data"):
+    for file in os.listdir("graph_data/global/"):
         if not file.endswith(".yaml"):
             continue
         if file in {"relation_types.yaml", "attribute_types.yaml", "node_types.yaml"}:

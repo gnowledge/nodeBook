@@ -2,10 +2,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  plugins: [react()],
-  base: './', // 🔥 This ensures relative paths in built index.html
-  build: {
-    outDir: 'dist',
-  },
-})
+export default {
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
+    }
+  }
+}
+

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { API_BASE } from './config';
 
-export default function RelationTypeModal({ isOpen, onClose, onSuccess }) {
+export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId = "user0", graphId = "graph1" }) {
   const [name, setName] = useState('');
   const [inverseName, setInverseName] = useState('');
   const [symmetric, setSymmetric] = useState(false);
@@ -16,18 +17,21 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess }) {
 
     const payload = {
       name: name.trim(),
-      inverse_name: inverseName.trim() || name.trim(), // fallback if symmetric
+      inverse_name: inverseName.trim() || name.trim(),
       symmetric,
       transitive,
       description
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/relation-types/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res = await fetch(
+        `${API_BASE}/api/users/${userId}/graphs/${graphId}/relation-types/create`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
 
       if (!res.ok) {
         const data = await res.json();
