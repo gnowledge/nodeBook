@@ -73,6 +73,13 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
               'curve-style': 'bezier',
               'text-margin-y': -10
             }
+          },
+          {
+            selector: 'node.highlighted',
+            style: {
+              'background-color': '#000',
+              'color': '#fff'
+            }
           }
         ],
         layout: {
@@ -92,27 +99,25 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
       console.log('useEffect: Initialized invertedNodes array');
 
       // Helper to reset node colors
-      const resetNodeColors = () => {
-        console.log('resetNodeColors: Restoring colors for', invertedNodes.length, 'nodes');
-        invertedNodes.forEach(node => {
-          console.log('resetNodeColors: Restoring node', node.id());
-          node.style({
-            'background-color': '#e4ebec',
-            color: '#000'
-          });
-        });
-        invertedNodes = [];
-      };
+const resetNodeColors = () => {
+  invertedNodes.forEach(node => {
+    node.removeClass('highlighted');
+  });
+  invertedNodes = [];
+};
 
       // Edge mouseover: Show tooltip
       cy.on('mouseover', 'edge', (evt) => {
         const edge = evt.target;
-        console.log('edge.mouseover: Triggered for edge', edge.id(), { data: edge.data() });
+        // Use cy.project() for compatibility with most Cytoscape.js versions
         const midpoint = edge.midpoint();
-        const rendered = cy.renderer().projectToRenderedCoordinates(midpoint);
+        let rendered = midpoint;
+        if (typeof cy.project === 'function') {
+          rendered = cy.project(midpoint);
+        }
         console.log('edge.mouseover: Midpoint and rendered coordinates', { midpoint, rendered });
 
-        const name = edge.data('name') || edge.data('label') || '';
+        const name = edge.data('label') || 'unnamed';
         const sourceLabel = edge.source().data('label') || edge.source().id();
         const targetLabel = edge.target().data('label') || edge.target().id();
         const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
@@ -129,7 +134,7 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         if (y + tooltipHeight > canvasRect.height) y = rendered.y - tooltipHeight - 10;
         console.log('edge.mouseover: Tooltip position', { x, y, canvasRect });
 
-        setTooltip({ visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+        setTooltip({ visible: true, x: rendered.x + 10, y: rendered.y + 10, content: name ? proposition : '<i>No name</i>' });
         console.log('edge.mouseover: Set tooltip state', { visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
       });
 
@@ -151,8 +156,11 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
 
         const edge = evt.target;
         const midpoint = edge.midpoint();
-        const rendered = cy.renderer().projectToRenderedCoordinates(midpoint);
-        const name = edge.data('name') || edge.data('label') || '';
+        let rendered = midpoint;
+        if (typeof cy.project === 'function') {
+          rendered = cy.project(midpoint);
+        }
+        const name = edge.data('label') || 'unnamed';
         const sourceLabel = edge.source().data('label') || edge.source().id();
         const targetLabel = edge.target().data('label') || edge.target().id();
         const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
@@ -169,7 +177,7 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         if (y + tooltipHeight > canvasRect.height) y = rendered.y - tooltipHeight - 10;
         console.log('edge.tap: Tooltip position', { x, y, canvasRect });
 
-        setTooltip({ visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+        setTooltip({ visible: true, x: rendered.x + 10, y: rendered.y + 10, content: name ? proposition : '<i>No name</i>' });
         console.log('edge.tap: Set tooltip state', { visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
 
         // Invert colors for source and target nodes
@@ -177,25 +185,9 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         const target = edge.target();
         console.log('edge.tap: Inverting colors for nodes', { source: source.id(), target: target.id() });
         [source, target].forEach(node => {
-          const origBg = node.style('background-color') || '#e4ebec';
-          const origColor = node.style('color') || '#000';
-          console.log('edge.tap: Node styles before inversion', {
-            nodeId: node.id(),
-            origBg,
-            origColor
-          });
-          node.style({
-            'background-color': origColor,
-            color: origBg
-          });
-          console.log('edge.tap: Node styles after inversion', {
-            nodeId: node.id(),
-            newBg: node.style('background-color'),
-            newColor: node.style('color')
-          });
+          node.addClass('highlighted');
           invertedNodes.push(node);
         });
-        console.log('edge.tap: Updated invertedNodes', invertedNodes.map(n => n.id()));
       });
 
       // Canvas tap: Clear selections, tooltip, and reset colors
@@ -223,7 +215,7 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
           if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
-          if (data.description) content += `<div><b>Description:</b> ${data.description}</div>`;
+
           if (data.role) content += `<div><b>Role:</b> ${data.role}</div>`;
           if (data.attributes?.length) {
             content += `<div><b>Attributes:</b><ul>` +
@@ -278,10 +270,16 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
           const res = await fetch(`${apiPrefix}/nodes/${nodeId}`);
           const data = await res.json();
           console.log('node.tap: Node data received', data);
+          console.log('node.tap: typeof data.description_html:', typeof data.description_html, 'value:', data.description_html);
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
           if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
-          if (data.description) content += `<div><b>Description:</b> ${data.description}</div>`;
+          // Only one of description_html or description should be rendered, not both
+          if (data.description_html) {
+            content += `<div><b>Description:</b>${data.description_html}</div>`;
+          } else if (data.description) {
+            content += `<div><b>Description:</b> ${data.description}</div>`;
+          }
           if (data.role) content += `<div><b>Role:</b> ${data.role}</div>`;
           if (data.attributes?.length) {
             content += `<div><b>Attributes:</b><ul>` +
@@ -313,7 +311,7 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
 
       cy.on('render', () => console.log('cy.render: Cytoscape render complete'));
 
-      console.log('useEffect: Fetching graph data from', `${apiPrefix}/graphdb`);
+      // Defensive: Check if data.elements exists and is an array before adding to cy
       fetch(`${apiPrefix}/graphdb`)
         .then(res => {
           console.log('useEffect: Graph fetch response', { status: res.status });
@@ -321,13 +319,13 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         })
         .then(data => {
           console.log('useEffect: Graph data received', data);
-          if (data?.elements) {
+          if (Array.isArray(data?.elements) && data.elements.length > 0) {
             cy.add(data.elements);
             console.log('useEffect: Added elements to Cytoscape', data.elements);
             cy.layout(layoutOptions[layoutName]).run();
             console.log('useEffect: Layout applied', layoutName);
           } else {
-            console.warn('useEffect: No elements in graph data');
+            console.warn('useEffect: No elements in graph data or elements is not an array');
           }
         })
         .catch(err => console.error('useEffect: Failed to fetch graph', err));

@@ -5,3 +5,5 @@ networkx
 pyyaml
 python-multipart
 pydantic
+markdown
+bleach

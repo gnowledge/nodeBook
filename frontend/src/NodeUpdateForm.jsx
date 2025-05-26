@@ -64,6 +64,11 @@ export default function NodeUpdateForm({ nodeId, userId = "user0", graphId = "gr
     }
   };
 
+  // Defensive: If nodeId is missing, do not render the form
+  if (!nodeId) {
+    return <div className="p-4 text-red-500">No node selected for editing.</div>;
+  }
+
   if (loading) return <div className="p-4 text-gray-500">Loading...</div>;
 
   return (
@@ -94,6 +99,7 @@ export default function NodeUpdateForm({ nodeId, userId = "user0", graphId = "gr
           value={description}
           onChange={e => setDescription(e.target.value)}
           className="w-full border border-gray-300 rounded px-3 py-2"
+          rows={5}
         />
       </div>
       <div>

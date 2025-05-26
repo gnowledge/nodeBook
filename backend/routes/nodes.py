@@ -192,42 +192,13 @@ def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def get_node(user_id: str, graph_id: str, node_id: str):
-    try:
-        user_id = get_user_id(user_id)
-    except TypeError:
-        user_id = get_user_id()
-    
-    """
-    Get a node's details by node_id.
-
-    Args:
-        node_id (str): The node's ID (normalized).
-
-    Returns:
-        {
-            "id": "node_id",
-            "name": "Node Name",
-            "qualifier": "optional qualifier",
-            "role": "optional role",
-            "description": "optional description",
-            "attributes": [...],
-            "relations": [...]
-        }
-    """
-    user_id = get_user_id(user_id)
-    graph_path = get_graph_path(user_id, graph_id)
-    file_path = os.path.join(graph_path, f"{node_id}.yaml")
-    if not os.path.exists(file_path):
+    # Use safe_node_summary to get description_html
+    file = f"{node_id}.yaml"
+    summary = safe_node_summary(user_id, graph_id, file)
+    if summary:
+        return summary
+    else:
         raise HTTPException(status_code=404, detail="Node not found")
-
-    with open(file_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    node_data = data.get("node", {})
-    # Ensure attributes and relations are always present and are lists
-    node_data["attributes"] = node_data.get("attributes", [])
-    node_data["relations"] = data.get("relations", [])
-    return node_data
 
 @router.get("/users/{user_id}/graphs/{graph_id}/getInfo/{node_id}")
 def get_node_info(user_id: str, graph_id: str, node_id: str):

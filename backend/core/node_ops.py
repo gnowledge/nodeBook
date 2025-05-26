@@ -1,6 +1,7 @@
 import os
 import yaml
 from fastapi import HTTPException
+from core.utils import render_description_md
 
 def node_path(user_id: str, graph_id: str, node_id: str) -> str:
     return os.path.join("graph_data", user_id, graph_id, f"{node_id}.yaml")
@@ -17,6 +18,7 @@ def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(data, f)
 
+
 def safe_node_summary(user_id: str, graph_id: str, file: str) -> dict | None:
     node_id = file[:-5]
     data = load_node(user_id, graph_id, node_id)
@@ -27,12 +29,16 @@ def safe_node_summary(user_id: str, graph_id: str, file: str) -> dict | None:
     node_id = node.get("id") or node.get("name") or file[:-5]
     label = node.get("name") or node.get("label") or node_id
     qualifier = node.get("qualifier")
+    description = node.get("description", "")
 
     return {
         "id": node_id,
         "label": label,
-        "qualifier": qualifier
+        "qualifier": qualifier,
+        "description": description,
+        "description_html": render_description_md(description)
     }
+
 
 def safe_edge_summaries(node_id: str, node_data: dict) -> list:
     edges = []
