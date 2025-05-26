@@ -24,12 +24,18 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
   };
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    console.log('useEffect: Initializing Cytoscape', { userId, graphId, containerRef: !!containerRef.current });
+    if (!containerRef.current) {
+      console.error('useEffect: containerRef.current is null or undefined');
+      return;
+    }
 
     const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
     const apiPrefix = `${base}/api/users/${userId}/graphs/${graphId}`;
+    console.log('useEffect: API prefix', apiPrefix);
 
     requestAnimationFrame(() => {
+      console.log('useEffect: Creating Cytoscape instance');
       const cy = cytoscape({
         container: containerRef.current,
         style: [
@@ -79,13 +85,17 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
       });
 
       cyRef.current = cy;
+      console.log('useEffect: Cytoscape instance created', { cy: !!cy });
 
       // Store nodes with inverted colors
       let invertedNodes = [];
+      console.log('useEffect: Initialized invertedNodes array');
 
       // Helper to reset node colors
       const resetNodeColors = () => {
+        console.log('resetNodeColors: Restoring colors for', invertedNodes.length, 'nodes');
         invertedNodes.forEach(node => {
+          console.log('resetNodeColors: Restoring node', node.id());
           node.style({
             'background-color': '#e4ebec',
             color: '#000'
@@ -94,8 +104,51 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         invertedNodes = [];
       };
 
-      // Edge mouseover: Show tooltip and invert node colors
+      // Edge mouseover: Show tooltip
       cy.on('mouseover', 'edge', (evt) => {
+        const edge = evt.target;
+        console.log('edge.mouseover: Triggered for edge', edge.id(), { data: edge.data() });
+        const midpoint = edge.midpoint();
+        const rendered = cy.renderer().projectToRenderedCoordinates(midpoint);
+        console.log('edge.mouseover: Midpoint and rendered coordinates', { midpoint, rendered });
+
+        const name = edge.data('name') || edge.data('label') || '';
+        const sourceLabel = edge.source().data('label') || edge.source().id();
+        const targetLabel = edge.target().data('label') || edge.target().id();
+        const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
+        console.log('edge.mouseover: Tooltip content', { name, sourceLabel, targetLabel, proposition });
+
+        // Ensure tooltip stays within viewport
+        const canvasRect = containerRef.current.getBoundingClientRect();
+        const tooltipWidth = 200;
+        const tooltipHeight = 100;
+        let x = rendered.x + 10;
+        let y = rendered.y + 10;
+
+        if (x + tooltipWidth > canvasRect.width) x = rendered.x - tooltipWidth - 10;
+        if (y + tooltipHeight > canvasRect.height) y = rendered.y - tooltipHeight - 10;
+        console.log('edge.mouseover: Tooltip position', { x, y, canvasRect });
+
+        setTooltip({ visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+        console.log('edge.mouseover: Set tooltip state', { visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+      });
+
+      // Edge mouseout: Hide tooltip
+      cy.on('mouseout', 'edge', () => {
+        console.log('edge.mouseout: Hiding tooltip');
+        setTooltip({ visible: false, x: 0, y: 0, content: '' });
+      });
+
+      // Edge tap: Select edge and invert node colors
+      cy.on('tap', 'edge', (evt) => {
+        console.log('edge.tap: Triggered for edge', evt.target.id(), { data: evt.target.data() });
+        cy.elements('edge').unselect();
+        evt.target.select();
+        console.log('edge.tap: Edge selected', evt.target.id());
+
+        // Reset previous inverted nodes
+        resetNodeColors();
+
         const edge = evt.target;
         const midpoint = edge.midpoint();
         const rendered = cy.renderer().projectToRenderedCoordinates(midpoint);
@@ -103,51 +156,52 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         const sourceLabel = edge.source().data('label') || edge.source().id();
         const targetLabel = edge.target().data('label') || edge.target().id();
         const proposition = `<b>${sourceLabel}</b> <span style="color:#6073ec">${name}</span> <b>${targetLabel}</b>`;
+        console.log('edge.tap: Tooltip content', { name, sourceLabel, targetLabel, proposition });
 
         // Ensure tooltip stays within viewport
         const canvasRect = containerRef.current.getBoundingClientRect();
-        const tooltipWidth = 200; // Approximate tooltip width
-        const tooltipHeight = 100; // Approximate tooltip height
+        const tooltipWidth = 200;
+        const tooltipHeight = 100;
         let x = rendered.x + 10;
         let y = rendered.y + 10;
 
-        // Adjust if tooltip would go off-screen
         if (x + tooltipWidth > canvasRect.width) x = rendered.x - tooltipWidth - 10;
         if (y + tooltipHeight > canvasRect.height) y = rendered.y - tooltipHeight - 10;
+        console.log('edge.tap: Tooltip position', { x, y, canvasRect });
 
         setTooltip({ visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
+        console.log('edge.tap: Set tooltip state', { visible: true, x, y, content: name ? proposition : '<i>No name</i>' });
 
         // Invert colors for source and target nodes
-        resetNodeColors(); // Reset previous inversions
         const source = edge.source();
         const target = edge.target();
+        console.log('edge.tap: Inverting colors for nodes', { source: source.id(), target: target.id() });
         [source, target].forEach(node => {
           const origBg = node.style('background-color') || '#e4ebec';
           const origColor = node.style('color') || '#000';
+          console.log('edge.tap: Node styles before inversion', {
+            nodeId: node.id(),
+            origBg,
+            origColor
+          });
           node.style({
             'background-color': origColor,
             color: origBg
           });
+          console.log('edge.tap: Node styles after inversion', {
+            nodeId: node.id(),
+            newBg: node.style('background-color'),
+            newColor: node.style('color')
+          });
           invertedNodes.push(node);
         });
-      });
-
-      // Edge mouseout: Hide tooltip and reset node colors
-      cy.on('mouseout', 'edge', () => {
-        setTooltip({ visible: false, x: 0, y: 0, content: '' });
-        resetNodeColors();
-      });
-
-      // Edge tap: Select edge and keep tooltip
-      cy.on('tap', 'edge', (evt) => {
-        cy.elements('edge').unselect();
-        evt.target.select();
-        // Tooltip and color inversion are handled by mouseover
+        console.log('edge.tap: Updated invertedNodes', invertedNodes.map(n => n.id()));
       });
 
       // Canvas tap: Clear selections, tooltip, and reset colors
       cy.on('tap', (evt) => {
         if (evt.target === cy) {
+          console.log('canvas.tap: Clearing selections and resetting state');
           cy.elements('edge').unselect();
           setTooltip({ visible: false, x: 0, y: 0, content: '' });
           resetNodeColors();
@@ -157,12 +211,15 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
       // Node mouseover: Show node details
       cy.on('mouseover', 'node', async (evt) => {
         const node = evt.target;
+        console.log('node.mouseover: Triggered for node', node.id());
         const pos = node.renderedPosition();
         const nodeId = node.data().id;
 
         try {
+          console.log('node.mouseover: Fetching node data', `${apiPrefix}/nodes/${nodeId}`);
           const res = await fetch(`${apiPrefix}/nodes/${nodeId}`);
           const data = await res.json();
+          console.log('node.mouseover: Node data received', data);
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
           if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
@@ -186,7 +243,7 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
               }).join('') + `</ul></div>`;
           }
 
-          // Adjust tooltip position for node
+          // Adjust tooltip position
           const canvasRect = containerRef.current.getBoundingClientRect();
           const tooltipWidth = 200;
           const tooltipHeight = 100;
@@ -194,26 +251,33 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
           let y = pos.y + 10;
           if (x + tooltipWidth > canvasRect.width) x = pos.x - tooltipWidth - 10;
           if (y + tooltipHeight > canvasRect.height) y = pos.y - tooltipHeight - 10;
+          console.log('node.mouseover: Tooltip position', { x, y, canvasRect });
 
           setTooltip({ visible: true, x, y, content });
-        } catch {
+          console.log('node.mouseover: Set tooltip state', { visible: true, x, y, content });
+        } catch (err) {
+          console.error('node.mouseover: Failed to fetch node info', err);
           setTooltip({ visible: true, x: pos.x, y: pos.y, content: '<i>Failed to load node info</i>' });
         }
       });
 
       // Node mouseout: Hide tooltip
       cy.on('mouseout', 'node', () => {
+        console.log('node.mouseout: Hiding tooltip');
         setTooltip({ visible: false, x: 0, y: 0, content: '' });
       });
 
-      // Node tap: Show modal with details
+      // Node tap: Show modal
       cy.on('tap', 'node', async (evt) => {
         const node = evt.target;
         const nodeId = node.data().id;
+        console.log('node.tap: Triggered for node', nodeId);
 
         try {
+          console.log('node.tap: Fetching node data', `${apiPrefix}/nodes/${nodeId}`);
           const res = await fetch(`${apiPrefix}/nodes/${nodeId}`);
           const data = await res.json();
+          console.log('node.tap: Node data received', data);
 
           let content = `<div><b>Node:</b> ${data.label || data.name || nodeId}</div>`;
           if (data.qualifier) content += `<div><b>Qualifier:</b> ${data.qualifier}</div>`;
@@ -239,34 +303,48 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
 
           setModal({ open: true, content, nodeId });
           setEditNodeId(null);
-        } catch {
+          console.log('node.tap: Set modal state', { open: true, nodeId });
+        } catch (err) {
+          console.error('node.tap: Failed to load node details', err);
           setModal({ open: true, content: '<div style="color:red">Failed to load node details.</div>', nodeId });
           setEditNodeId(null);
         }
       });
 
-      cy.on('render', () => console.log("✅ Cytoscape render complete"));
+      cy.on('render', () => console.log('cy.render: Cytoscape render complete'));
 
+      console.log('useEffect: Fetching graph data from', `${apiPrefix}/graphdb`);
       fetch(`${apiPrefix}/graphdb`)
-        .then(res => res.json())
+        .then(res => {
+          console.log('useEffect: Graph fetch response', { status: res.status });
+          return res.json();
+        })
         .then(data => {
+          console.log('useEffect: Graph data received', data);
           if (data?.elements) {
             cy.add(data.elements);
+            console.log('useEffect: Added elements to Cytoscape', data.elements);
             cy.layout(layoutOptions[layoutName]).run();
+            console.log('useEffect: Layout applied', layoutName);
+          } else {
+            console.warn('useEffect: No elements in graph data');
           }
         })
-        .catch(err => console.warn("❌ Failed to fetch graph:", err));
+        .catch(err => console.error('useEffect: Failed to fetch graph', err));
 
       return () => {
+        console.log('useEffect: Cleaning up Cytoscape instance');
         try {
           cyRef.current?.destroy();
+          console.log('useEffect: Cytoscape instance destroyed');
         } catch (err) {
-          console.warn("⚠️ Cytoscape destroy error:", err);
+          console.error('useEffect: Cytoscape destroy error', err);
         }
       };
     });
   }, [userId, graphId, layoutName]);
 
+  console.log('render: Tooltip state', tooltip);
   return (
     <div style={{ position: 'relative', height: '100vh', overflow: 'hidden' }}>
       <div style={{
@@ -283,9 +361,13 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         <select
           value={layoutName}
           onChange={(e) => {
+            console.log('layout.select: Changing layout to', e.target.value);
             setLayoutName(e.target.value);
             if (cyRef.current) {
               cyRef.current.layout(layoutOptions[e.target.value]).run();
+              console.log('layout.select: Layout applied', e.target.value);
+            } else {
+              console.error('layout.select: cyRef.current is null');
             }
           }}
         >
@@ -297,7 +379,10 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
 
       {!drawerOpen && (
         <button
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => {
+            console.log('button.click: Opening panel');
+            setDrawerOpen(true);
+          }}
           style={{
             position: 'absolute',
             top: '10px',
@@ -333,7 +418,10 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
         <div className="flex justify-between items-center mb-4">
           <button
             className="text-sm px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => {
+              console.log('button.click: Closing panel');
+              setDrawerOpen(false);
+            }}
           >
             Close Panel
           </button>
@@ -396,10 +484,14 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
             <NodeUpdateForm
               nodeId={editNodeId}
               onSuccess={() => {
+                console.log('NodeUpdateForm: Success, closing modal');
                 setEditNodeId(null);
                 setModal({ open: false, content: '' });
               }}
-              onCancel={() => setEditNodeId(null)}
+              onCancel={() => {
+                console.log('NodeUpdateForm: Cancelled');
+                setEditNodeId(null);
+              }}
             />
           ) : (
             <>
@@ -408,13 +500,19 @@ export default function CytoscapeStudio({ userId = "user0", graphId = "graph1" }
               />
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => setEditNodeId(modal.nodeId)}
+                  onClick={() => {
+                    console.log('modal.button: Opening edit form for node', modal.nodeId);
+                    setEditNodeId(modal.nodeId);
+                  }}
                   className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
                 >
                   Edit
                 </button>
                 <button
-                  onClick={() => setModal({ open: false, content: '' })}
+                  onClick={() => {
+                    console.log('modal.button: Closing modal');
+                    setModal({ open: false, content: '' });
+                  }}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   Close
