@@ -1,41 +1,45 @@
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-export const userId = "user0";
+import yaml from "js-yaml";
 
-export async function fetchNodes(userId = "user0", graphId = "graph1") {
-  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes`);
-  return res.json();
+const API_BASE = "/api/ndf";
+
+export async function loadGraph(userId, graphId) {
+  const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}`);
+  const text = await res.text();
+  try {
+    const parsed = yaml.load(text);
+    console.log("Parsed .ndf graph:", parsed);
+    return parsed;
+  } catch (e) {
+    console.error("Failed to parse YAML:", e);
+    throw new Error("Invalid NDF format");
+  }
 }
 
-export async function createNode(data) {
-  const res = await fetch(`${API_BASE}/nodes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+export async function listGraphs(userId) {
+  const res = await fetch(`${API_BASE}/users/${userId}/graphs`);
+  const json = await res.json();
+  return json;
+}
+
+export async function saveGraph(userId, graphId, graph) {
+  const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(graph),
   });
-  return res.json();
+  if (!res.ok) {
+    throw new Error("Failed to save graph");
+  }
 }
 
-export async function fetchRelationTypes(userId = "user0", graphId = "graph1") {
-  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/relation-types`);
-  return res.json();
-}
-
-export async function fetchAttributeTypes(userId = "user0", graphId = "graph1") {
-  const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute-types`);
-  return res.json();
-}
-
-export async function listGraphs(user = userId) {
-  const res = await fetch(`${API_BASE}/api/users/${user}/graphs`);
-  return res.json();
-}
-
-export async function createGraphFolder(graphId, user = userId) {
-  const res = await fetch(`${API_BASE}/api/users/${user}/graphs/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ graph_id: graphId }),
+export async function parseMarkdown(markdown) {
+  const res = await fetch(`${API_BASE}/parse-markdown`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ raw_markdown: markdown }),
   });
+  if (!res.ok) {
+    throw new Error("Failed to parse CNL");
+  }
   return res.json();
 }
-

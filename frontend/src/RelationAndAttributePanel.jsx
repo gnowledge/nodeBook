@@ -9,6 +9,8 @@ import StyledCard from './StyledCard';
 import RelationForm from './RelationForm';
 import AttributeForm from './AttributeForm';
 import NodeForm from './NodeForm';
+import CNLInput from './CNLInput';
+import NDFPreview from './NDFPreview';
 
 // --- Remove NodeForm definition from this file ---
 
@@ -31,6 +33,10 @@ export default function RelationAndAttributePanel({ userId = "user0", graphId = 
 
   const [showRelationModal, setShowRelationModal] = useState(false);
   const [showAttributeModal, setShowAttributeModal] = useState(false);
+
+  const [cnlText, setCnlText] = useState("Mumbai is_a city.");
+  const [cnlOutput, setCnlOutput] = useState(null);
+
 
   useEffect(() => {
     fetchNodes(userId, graphId).then(setNodes).catch(console.error);
@@ -106,6 +112,34 @@ export default function RelationAndAttributePanel({ userId = "user0", graphId = 
         >
           Add/Edit Node
         </button>
+
+<button
+  className={`px-5 py-2 -mb-px rounded-t-lg border border-b-0 transition-all duration-150
+    ${tab === 'cnl'
+      ? 'bg-blue-200 text-blue-800 shadow font-bold z-10 border-gray-300'
+      : 'bg-gray-100 text-gray-500 hover:text-blue-700 border-transparent'
+    }`}
+  onClick={() => setTab('cnl')}
+  style={{ minWidth: 120 }}
+  aria-selected={tab === 'cnl'}
+>
+  CNL Input
+</button>
+
+<button
+  className={`px-5 py-2 -mb-px rounded-t-lg border border-b-0 transition-all duration-150
+    ${tab === 'preview'
+      ? 'bg-blue-200 text-blue-800 shadow font-bold z-10 border-gray-300'
+      : 'bg-gray-100 text-gray-500 hover:text-blue-700 border-transparent'
+    }`}
+  onClick={() => setTab('preview')}
+  style={{ minWidth: 120 }}
+  aria-selected={tab === 'preview'}
+>
+  Graph Preview
+</button>
+
+	  
       </div>
       <div className="bg-blue-50 rounded-b-lg p-4">
         {tab === 'relation' && (
@@ -132,6 +166,23 @@ export default function RelationAndAttributePanel({ userId = "user0", graphId = 
             onSuccess={() => fetchNodes(userId, graphId).then(setNodes)}
           />
         )}
+
+{tab === 'cnl' && (
+  <CNLInput
+    userId={userId}
+    graphId={graphId}
+    cnlText={cnlText}
+    setCnlText={setCnlText}
+    cnlOutput={cnlOutput}
+    setCnlOutput={setCnlOutput}
+  />
+)}
+	  
+
+{tab === 'preview' && (
+  <NDFPreview userId={userId} graphId={graphId} />
+)}
+	  
 
       </div>
 

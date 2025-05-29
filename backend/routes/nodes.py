@@ -107,6 +107,7 @@ def create_node(user_id: str, graph_id: str, node: Node):
     user_id = get_user_id(user_id)
     graph_id = get_graph_path(user_id, graph_id)
     node_id = normalize_id(node.name)
+    graph_path = get_graph_path(user_id, graph_id)
     file_path = os.path.join(graph_path, f"{node_id}.yaml")
 
     qualifier = node.qualifier

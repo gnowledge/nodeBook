@@ -1,10 +1,13 @@
+
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import yaml
 
-from routes import graph, nodes, graph_ops, schema_routes, graphs
+from routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes
+# backend/app.py
+
 
 app = FastAPI(title="NDF: Node-neighborhood Description Framework")
 
@@ -26,6 +29,9 @@ app.include_router(graph_ops.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
 app.include_router(schema_routes.router, prefix="/api")
 app.include_router(graphs.router, prefix="/api")
+app.include_router(cnl.router, prefix="/api")
+app.include_router(ndf_routes.router, prefix="/api")
+
 
 # ✅ Health check route
 @app.get("/api/health")
@@ -37,7 +43,7 @@ os.makedirs("graph_data", exist_ok=True)
 
 # ✅ YAML-based NodeType CRUD (kept inline for now)
 router = APIRouter()
-NODE_TYPES_FILE = "schema/node_types.yaml"
+NODE_TYPES_FILE = "global/node_types.yaml"
 
 class NodeType(BaseModel):
     name: str
