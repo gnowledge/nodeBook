@@ -1,31 +1,61 @@
 import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
+import yaml from "js-yaml";
 
 const CNLInput = ({ userId, graphId, graph, onGraphUpdate }) => {
   const [code, setCode] = useState("");
+  const [status, setStatus] = useState("");
+    
+useEffect(() => {
+  if (graph?.raw_markdown) {
+    let s = graph.raw_markdown;
 
-    useEffect(() => {
-	console.log("Loaded graph data:", graphData);
-    }, [graphData]);
-
-  useEffect(() => {
-    if (graph?.raw_markdown) {
-      setCode(graph.raw_markdown);
+    // Decode visible "\\n" into real newlines
+    if (s.includes("\\n")) {
+      s = s.replace(/\\n/g, "\n");
     }
-  }, [graph]);
+
+    // Remove any stray carriage returns
+    s = s.replace(/\r/g, "");
+    setCode(s);
+  }
+}, [graph]);
 
   const handleParse = async () => {
     try {
-      const res = await fetch("/api/ndf/parse-markdown", {
+      setStatus("Parsing...");
+      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parse`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_markdown: code }),
       });
       if (!res.ok) throw new Error("Parse failed");
-      const yamlText = await res.text(); // get raw YAML response
-      onGraphUpdate({ _raw_yaml: yamlText, raw_markdown: code });
+      const parsed = await res.json();
+      setStatus("✅ Parsed successfully.");
+      onGraphUpdate({
+        ...parsed,
+        raw_markdown: code,
+        _parsed_at: new Date().toISOString()
+      });
     } catch (err) {
       console.error("Parse failed", err);
+      setStatus("❌ Parse failed.");
+    }
+  };
+
+  const normalizeLineEndings = (text) => text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  const handleSave = async () => {
+    try {
+      setStatus("Saving...");
+      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`, {
+        method: "PUT",
+        headers: { "Content-Type": "text/plain" },
+        body: normalizeLineEndings(code),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setStatus("✅ Saved successfully.");
+    } catch (err) {
+      console.error("Save failed", err);
+      setStatus("❌ Save failed.");
     }
   };
 
@@ -34,18 +64,36 @@ const CNLInput = ({ userId, graphId, graph, onGraphUpdate }) => {
       <div className="flex justify-between bg-gray-100 p-1 border-b">
         <span className="text-xs text-gray-600">Controlled Natural Language Editor</span>
         <div className="space-x-2">
+          <button onClick={handleSave} className="text-xs px-2 py-1 bg-green-600 text-white rounded">Save</button>
           <button onClick={handleParse} className="text-xs px-2 py-1 bg-blue-500 text-white rounded">Parse</button>
         </div>
       </div>
 
       <Editor
+        key={graphId}
         height="200px"
         language="markdown"
         theme="vs-dark"
         value={code}
-        onChange={(val) => setCode(val || "")}
-        options={{ fontSize: 14 }}
+        onChange={(val) => {
+          setCode(val || "");
+          if (val) {
+            const lastChar = val[val.length - 1];
+            console.log("Last char:", JSON.stringify(lastChar), "Code:", lastChar.charCodeAt(0));
+          }
+        }}
+        onMount={(editor, monaco) => {
+          console.log("Initial EOL:", JSON.stringify(editor.getModel().getEOL()));
+          editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
+        }}
+        options={{
+          fontSize: 14,
+          lineNumbers: "on",
+          wordWrap: "on",
+          scrollBeyondLastLine: false
+        }}
       />
+      <div className="text-xs text-right text-gray-500 pr-2 py-1">{status}</div>
     </div>
   );
 };

@@ -3,6 +3,15 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
 
+const [graphData, setGraphData] = useState(null);
+
+useEffect(() => {
+  if (userId && graphId) {
+    fetchGraph(userId, graphId).then(data => setGraphData(data));
+  }
+}, [userId, graphId]);
+
+
 const TabbedGraphEditor = ({ userId = "user0", initialGraphs = ["graph1"] }) => {
   const [tabs, setTabs] = useState(initialGraphs.map((id) => ({ id, name: id })));
   const [activeTab, setActiveTab] = useState(tabs[0].id);

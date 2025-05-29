@@ -50,7 +50,13 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate }) => {
 
       {/* Bottom: Preview */}
       <div className="flex-1 overflow-auto">
-        <NDFPreview graph={graph} />
+          <NDFPreview
+	      userId={userId}
+	      graphId={graphId}
+	      graph={graph}
+	      onGraphUpdate={onGraphUpdate}
+	  />
+
       </div>
     </div>
   );

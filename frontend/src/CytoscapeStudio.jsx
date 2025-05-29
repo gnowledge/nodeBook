@@ -4,6 +4,30 @@ import dagre from "cytoscape-dagre";
 
 cytoscape.use(dagre);
 
+// ✅ Transform function to extract only relevant node and edge data
+function ndfToCytoscapeGraph(ndfData) {
+  const nodes = (ndfData.nodes || []).map(node => ({
+    data: {
+      id: node.id,
+      label: node.name || node.id,
+      description: node.description || ""
+    }
+  }));
+
+  const edges = (ndfData.nodes || []).flatMap((node) =>
+    (node.relations || []).map((rel, i) => ({
+      data: {
+        id: `${node.id}_${rel.name}_${rel.target}_${i}`,
+        source: node.id,
+        target: rel.target,
+        label: rel.name
+      }
+    }))
+  );
+
+  return { nodes, edges };
+}
+
 const CytoscapeStudio = ({ graph }) => {
   const cyRef = useRef(null);
   const containerRef = useRef(null);
@@ -16,24 +40,7 @@ const CytoscapeStudio = ({ graph }) => {
 
     console.log("GRAPH DATA LOADED:", graph);
 
-    const nodes = graph.nodes.map((node) => ({
-      data: {
-        id: node.id,
-        label: node.name || node.id,
-        description: node.description || ""
-      }
-    }));
-
-    const edges = graph.nodes.flatMap((node, i) =>
-      (node.relations || []).map((rel, j) => ({
-        data: {
-          id: `${node.id}_${rel.name}_${rel.target}_${j}`,
-          source: node.id,
-          target: rel.target,  // ✅ rel.target, not rel.object
-          label: rel.name
-        }
-      }))
-    );
+    const { nodes, edges } = ndfToCytoscapeGraph(graph);
 
     console.log("NODES:", nodes);
     console.log("EDGES:", edges);

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import CytoscapeStudio from "./CytoscapeStudio";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
+import { listGraphs, loadGraphCNL } from "./services/api";
+
 
 const NDFStudioLayout = ({ userId = "user0" }) => {
   const [graphs, setGraphs] = useState([]);
@@ -9,49 +11,72 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [graphData, setGraphData] = useState(null);
 
   useEffect(() => {
-    const fetchGraphs = async () => {
+    async function initTabs() {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs`);
-        const data = await res.json();
-        setGraphs(data);
-        if (data.length > 0) {
-          setActiveGraph(data[0]);
+        const graphIds = await listGraphs(userId);
+        if (!graphIds || graphIds.length === 0) {
+          console.warn("No graphs found.");
+          return;
         }
-      } catch (err) {
-        console.error("Failed to list graphs:", err);
-      }
-    };
 
-    fetchGraphs();
+        const defaultGraph = graphIds[0];
+        const raw = await loadGraphCNL(userId, defaultGraph);
+        const parsed = yaml.load(raw);
+	  const fullGraph = {
+	      ...parsed,
+	      raw_markdown: raw,
+	  };
+	  
+        setGraphs(graphIds);
+        setActiveGraph(defaultGraph);
+        setGraphData(fullGraph);
+      } catch (err) {
+        console.error("Error initializing tabs:", err);
+      }
+    }
+
+    initTabs();
   }, [userId]);
 
-  useEffect(() => {
-    const fetchGraphData = async () => {
-      if (!activeGraph) return;
-      try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}`);
-        const text = await res.text();
-        const parsed = yaml.load(text);
-        setGraphData(parsed);
-      } catch (err) {
-        console.error("Failed to load graph:", err);
-      }
-    };
+ const handleAddGraph = async () => {
+  const name = prompt("Enter a name for the new graph:");
+  if (!name) return;
 
-    fetchGraphData();
-  }, [userId, activeGraph]);
+  const newId = name.trim().replace(/\s+/g, "_").toLowerCase();
 
+  try {
+    const res = await fetch(`/api/ndf/users/${userId}/graphs/${newId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: name,
+        description: ""
+      }),
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`Server error: ${msg}`);
+    }
+
+      const rawMarkdown = await loadGraphCNL(userId, defaultGraph);
+      setGraphData({ raw_markdown: rawMarkdown });
+
+    setGraphs([...graphs, newId]);
+    setActiveGraph(newId);
+    setGraphData(parsed);
+  } catch (err) {
+    console.error("Failed to create graph:", err);
+    alert("Failed to create graph. See console for details.");
+  }
+};
+
+    
   const handleGraphUpdate = (updated) => {
     setGraphData(updated);
   };
 
-  const handleAddGraph = () => {
-    const newId = `graph${graphs.length + 1}`;
-    setGraphs([...graphs, newId]);
-    setActiveGraph(newId);
-    setGraphData(null); // Reset editor
-  };
-
+ 
   return (
     <div className="p-2 h-full flex flex-col">
       <div className="flex space-x-2 border-b pb-2">
