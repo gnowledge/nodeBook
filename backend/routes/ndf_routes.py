@@ -251,9 +251,13 @@ class GraphInitRequest(BaseModel):
     title: str
     description: str = ""
 
+
+from shutil import copyfile
+
 @router.post("/users/{user_id}/graphs/{graph_id}")
 async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
     graph_dir = GRAPH_BASE / user_id / "graphs" / graph_id
+    template_dir = Path("graph_data/global/templates/defaultFiles")
 
     if graph_dir.exists():
         raise HTTPException(status_code=400, detail="Graph already exists")
@@ -261,61 +265,33 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
     try:
         graph_dir.mkdir(parents=True)
 
-        timestamp = datetime.utcnow().isoformat()
+        # Copy template files
+        for fname in ["cnl.md", "parsed.yaml", "metadata.yaml"]:
+            src = template_dir / fname
+            dest = graph_dir / fname
+            if not src.exists():
+                raise HTTPException(status_code=500, detail=f"Template file missing: {fname}")
+            copyfile(src, dest)
 
-        # Write graph.ndf
-        ndf_content = f"""% ndformat 0.1
-
-# graph_metadata
-
-```cnl
-title is "{req.title}";
-created is {timestamp};
-modified is {timestamp};
-```
-
-# example_node
-
-This is a sample node in your graph.
-
-```cnl
-example_node is a concept;
-example_node has description "This is a sample node to show how CNL works.";
-```
-"""
-        (graph_dir / "graph.ndf").write_text(ndf_content)
-
-        # Write parsed.yaml
-        parsed = {
-            "nodes": [
-                {
-                    "id": "example_node",
-                    "name": "example_node",
-                    "role": "class",
-                    "description": "This is a sample node to show how CNL works.",
-                    "attributes": [
-                        {"name": "description", "value": "This is a sample node to show how CNL works."}
-                    ]
-                }
-            ],
-            "relations": [
-                {"name": "is_a", "source": "example_node", "target": "concept"}
-            ]
-        }
-        with (graph_dir / "parsed.yaml").open("w") as f:
-            yaml.dump(parsed, f, sort_keys=False)
-
-        # Write metadata.yaml
-        metadata = {
-            "title": req.title,
-            "description": req.description,
-            "created": timestamp,
-            "modified": timestamp
-        }
-        with (graph_dir / "metadata.yaml").open("w") as f:
-            yaml.dump(metadata, f, sort_keys=False)
+        # Optional: update metadata.yaml with title/description
+        metadata_path = graph_dir / "metadata.yaml"
+        if metadata_path.exists():
+            metadata = yaml.safe_load(metadata_path.read_text())
+            metadata["title"] = req.title
+            metadata["description"] = req.description
+            metadata["modified"] = datetime.utcnow().isoformat()
+            metadata["created"] = datetime.utcnow().isoformat()
+            with metadata_path.open("w") as f:
+                yaml.dump(metadata, f, sort_keys=False)
 
         return {"status": "created", "graph": graph_id}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating graph: {e}")
+
+@router.get("/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+def get_metadata_yaml(user_id: str, graph_id: str):
+    metadata_path = GRAPH_BASE / user_id / "graphs" / graph_id / "metadata.yaml"
+    if not metadata_path.exists():
+        raise HTTPException(status_code=404, detail="metadata.yaml not found")
+    return FileResponse(metadata_path, media_type="text/plain")

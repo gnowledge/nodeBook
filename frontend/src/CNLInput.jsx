@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import yaml from "js-yaml";
 
-const CNLInput = ({ userId, graphId, graph, onGraphUpdate }) => {
+const CNLInput = ({ userId, graphId, graph, onGraphUpdate, onAfterParse }) => {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState("");
     
@@ -27,10 +27,12 @@ useEffect(() => {
       const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parse`, {
         method: "POST",
       });
+      if (onAfterParse) onAfterParse();
       if (!res.ok) throw new Error("Parse failed");
       const parsed = await res.json();
       setStatus("✅ Parsed successfully.");
       onGraphUpdate({
+        
         ...parsed,
         raw_markdown: code,
         _parsed_at: new Date().toISOString()
@@ -60,7 +62,8 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex flex-col">
+    <div  className="flex flex-col flex-1 h-full"
+>
       <div className="flex justify-between bg-gray-100 p-1 border-b">
         <span className="text-xs text-gray-600">Controlled Natural Language Editor</span>
         <div className="space-x-2">
@@ -71,7 +74,8 @@ useEffect(() => {
 
       <Editor
         key={graphId}
-        height="200px"
+          height="100%"
+	  classname="flex-1"
         language="markdown"
         theme="vs-dark"
         value={code}
@@ -79,11 +83,9 @@ useEffect(() => {
           setCode(val || "");
           if (val) {
             const lastChar = val[val.length - 1];
-            console.log("Last char:", JSON.stringify(lastChar), "Code:", lastChar.charCodeAt(0));
           }
         }}
         onMount={(editor, monaco) => {
-          console.log("Initial EOL:", JSON.stringify(editor.getModel().getEOL()));
           editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
         }}
         options={{

@@ -3,6 +3,8 @@ import CNLInput from "./CNLInput";
 import DevPanel from "./DevPanel";
 
 const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate }) => {
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const forcePreviewReload = () => setForceUpdate(prev => prev + 1);
   const containerRef = useRef(null);
   const [topHeight, setTopHeight] = useState(300); // Editor height
   const [isDragging, setIsDragging] = useState(false);
@@ -48,6 +50,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate }) => {
         className="overflow-auto"
       >
         <CNLInput
+          onAfterParse={forcePreviewReload}
           userId={userId}
           graphId={graphId}
           graph={graph}

@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-const API_BASE = "/api/ndf";
+export const API_BASE = "/api/ndf";
 
 export async function loadGraphCNL(userId, graphId) {
   const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`);
@@ -21,11 +21,32 @@ export async function loadGraph(userId, graphId) {
   }
 }
 
+export async function listGraphsWithTitles(userId) {
+  const res = await fetch(`${API_BASE}/users/${userId}/graphs`);
+  const ids = await res.json();
+
+  const graphList = await Promise.all(ids.map(async (id) => {
+    try {
+      const metaRes = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}/metadata.yaml`);
+      const meta = await metaRes.text();
+      const parsed = yaml.load(meta);
+      return { id, title: parsed?.title || id };
+    } catch (e) {
+      return { id, title: id };
+    }
+  }));
+
+  return graphList;
+}
+
+
+
 export async function listGraphs(userId = "user0") {
   const res = await fetch(`${API_BASE}/users/${userId}/graphs`);
   if (!res.ok) throw new Error("Failed to list graphs");
   return await res.json();  // Returns ["graph1", "graph2", ...]
 }
+
 
 export async function saveGraph(userId, graphId, rawMarkdown) {
   const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}`, {

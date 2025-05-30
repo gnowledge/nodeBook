@@ -3,6 +3,7 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
 import { listGraphs, loadGraphCNL } from "./services/api";
+import { listGraphsWithTitles } from "./services/graphUtils"; // 👈 new helper (see below)
 
 
 const NDFStudioLayout = ({ userId = "user0" }) => {
@@ -13,21 +14,25 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   useEffect(() => {
     async function initTabs() {
       try {
-        const graphIds = await listGraphs(userId);
-        if (!graphIds || graphIds.length === 0) {
+      const graphList = await listGraphsWithTitles(userId);
+      if (!graphList || graphList.length === 0) {
           console.warn("No graphs found.");
           return;
-        }
+      }
 
-        const defaultGraph = graphIds[0];
-        const raw = await loadGraphCNL(userId, defaultGraph);
-        const parsed = yaml.load(raw);
+      setGraphs(graphList);
+      await handleTabSwitch(graphList[0].id);
+
+
+	  const defaultGraph = graphList[0].id; 
+	  const raw = await loadGraphCNL(userId, defaultGraph);
+          const parsed = yaml.load(raw);
 	  const fullGraph = {
 	      ...parsed,
 	      raw_markdown: raw,
 	  };
 	  
-        setGraphs(graphIds);
+        setGraphs(graphList);
         setActiveGraph(defaultGraph);
         setGraphData(fullGraph);
       } catch (err) {
@@ -38,59 +43,83 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     initTabs();
   }, [userId]);
 
- const handleAddGraph = async () => {
-  const name = prompt("Enter a name for the new graph:");
-  if (!name) return;
-
-  const newId = name.trim().replace(/\s+/g, "_").toLowerCase();
-
-  try {
-    const res = await fetch(`/api/ndf/users/${userId}/graphs/${newId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: name,
-        description: ""
-      }),
-    });
-
-    if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(`Server error: ${msg}`);
-    }
-
-      const rawMarkdown = await loadGraphCNL(userId, defaultGraph);
-      setGraphData({ raw_markdown: rawMarkdown });
-
-    setGraphs([...graphs, newId]);
-    setActiveGraph(newId);
-    setGraphData(parsed);
-  } catch (err) {
-    console.error("Failed to create graph:", err);
-    alert("Failed to create graph. See console for details.");
-  }
-};
-
     
-  const handleGraphUpdate = (updated) => {
-    setGraphData(updated);
-  };
+    const handleTabSwitch = async (graphId) => {
+      try {
+        const raw = await loadGraphCNL(userId, graphId); // loads cnl.md
+	  const parsedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parsed`);
+	  const parsedText = await parsedRes.text();
+	  const parsed = yaml.load(parsedText);
 
+        const fullGraph = {
+          ...parsed,
+          raw_markdown: raw,
+        };
+
+        setActiveGraph(graphId);
+        setGraphData(fullGraph);
+      } catch (err) {
+        console.error("Failed to load selected graph:", err);
+      }
+    };
+
+const handleAddGraph = async () => {
+	const name = prompt("Enter a name for the new graph:");
+	if (!name) return;
+	
+	const newId = name.trim().replace(/\s+/g, "_").toLowerCase();
+	
+	try {
+	    const res = await fetch(`/api/ndf/users/${userId}/graphs/${newId}`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+		    title: name,
+		    description: ""
+		}),
+	    });
+	    
+	    if (!res.ok) {
+		const msg = await res.text();
+		throw new Error(`Server error: ${msg}`);
+	    }
+
+	    const rawMarkdown = await loadGraphCNL(userId, newId); // FIXED
+	    const parsed = yaml.load(rawMarkdown);
+	    const fullGraph = {
+		...parsed,
+		raw_markdown: rawMarkdown,
+	    };
+
+	    setGraphs([...graphs, newId]);
+	    setActiveGraph(newId);
+	    setGraphData(fullGraph);
+	} catch (err) {
+	    console.error("Failed to create graph:", err);
+	    alert("Failed to create graph. See console for details.");
+	}
+    };
+    
+    
+    
+    const handleGraphUpdate = (updated) => {
+	setGraphData(updated);
+    };
+    
  
   return (
     <div className="p-2 h-full flex flex-col">
       <div className="flex space-x-2 border-b pb-2">
-        {graphs.map((id) => (
-          <button
-            key={id}
-            onClick={() => setActiveGraph(id)}
-            className={`px-4 py-1 rounded-t-md ${
-              activeGraph === id ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            {id}
-          </button>
-        ))}
+	  {graphs.map(({ id, title }) => (
+	      <button
+		  key={id}
+		  onClick={() => handleTabSwitch(id)}
+		  className={`px-4 py-1 rounded-t-md ${activeGraph === id ? "bg-blue-600 text-white" : "bg-gray-200"}`}
+	      >
+		  {title}
+	      </button>
+	  ))}
+	  
         <button
           onClick={handleAddGraph}
           className="px-3 py-1 rounded bg-green-500 text-white"
