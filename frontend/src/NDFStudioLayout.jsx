@@ -99,21 +99,73 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         </button>
       </div>
 
-      <div className="flex flex-1 border border-gray-300 rounded-b-md">
-        <div className="w-1/2 border-r overflow-auto">
+      {/* Resizable split layout */}
+      <ResizableSplitPanel
+        left={
           <NDFStudioPanel
             userId={userId}
             graphId={activeGraph}
             graph={graphData}
             onGraphUpdate={handleGraphUpdate}
           />
-        </div>
-        <div className="w-1/2 overflow-auto">
-          <CytoscapeStudio graph={graphData} />
-        </div>
-      </div>
+        }
+        right={
+          <CytoscapeStudio
+            userId={userId}
+            graphId={activeGraph}
+            graph={graphData}
+          />
+        }
+      />
     </div>
   );
 };
+
+// Add a simple resizable split panel component
+function ResizableSplitPanel({ left, right, minLeft = 200, minRight = 200, initial = 0.5 }) {
+  const containerRef = React.useRef(null);
+  const [ratio, setRatio] = React.useState(initial);
+  const [dragging, setDragging] = React.useState(false);
+
+  React.useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!dragging || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      let newRatio = (e.clientX - rect.left) / rect.width;
+      newRatio = Math.max(minLeft / rect.width, Math.min(1 - minRight / rect.width, newRatio));
+      setRatio(newRatio);
+    };
+    const onMouseUp = () => setDragging(false);
+    if (dragging) {
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [dragging, minLeft, minRight]);
+
+  return (
+    <div ref={containerRef} className="flex flex-1 border border-gray-300 rounded-b-md relative" style={{ minHeight: 0 }}>
+      <div style={{ width: `${ratio * 100}%`, minWidth: minLeft, overflow: "auto" }}>
+        {left}
+      </div>
+      <div
+        style={{
+          width: 6,
+          cursor: "col-resize",
+          background: "#e0e0e0",
+          zIndex: 10,
+          userSelect: "none"
+        }}
+        onMouseDown={() => setDragging(true)}
+      />
+      <div style={{ flex: 1, minWidth: minRight, overflow: "auto" }}>
+        {right}
+      </div>
+    </div>
+  );
+}
 
 export default NDFStudioLayout;
