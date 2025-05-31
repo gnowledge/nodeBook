@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { API_BASE } from './config';
 
 export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId = "user0", graphId = "graph1" }) {
   const [name, setName] = useState('');
   const [inverseName, setInverseName] = useState('');
   const [symmetric, setSymmetric] = useState(false);
   const [transitive, setTransitive] = useState(false);
+  const [domain, setDomain] = useState('');
+  const [range, setRange] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState(null);
 
@@ -15,17 +16,22 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
       return;
     }
 
+    const domainList = domain ? domain.split(',').map(d => d.trim()).filter(Boolean) : [];
+    const rangeList = range ? range.split(',').map(r => r.trim()).filter(Boolean) : [];
+
     const payload = {
       name: name.trim(),
       inverse_name: inverseName.trim() || name.trim(),
       symmetric,
       transitive,
-      description
+      domain: domainList,
+      range: rangeList,
+      description: description.trim()
     };
 
     try {
       const res = await fetch(
-        `${API_BASE}/api/users/${userId}/graphs/${graphId}/relation-types/create`,
+        `/api/users/${userId}/graphs/${graphId}/relation-types/create`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -34,7 +40,9 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
       );
 
       if (!res.ok) {
-        const data = await res.json();
+        const contentType = res.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+        const data = isJson ? await res.json() : { detail: await res.text() };
         throw new Error(data.detail || "Failed to create relation type");
       }
 
@@ -60,6 +68,16 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
         <div style={styles.field}>
           <label>Inverse Name:</label>
           <input value={inverseName} onChange={e => setInverseName(e.target.value)} style={styles.input} />
+        </div>
+
+        <div style={styles.field}>
+          <label>Domain (comma-separated):</label>
+          <input value={domain} onChange={e => setDomain(e.target.value)} style={styles.input} />
+        </div>
+
+        <div style={styles.field}>
+          <label>Range (comma-separated):</label>
+          <input value={range} onChange={e => setRange(e.target.value)} style={styles.input} />
         </div>
 
         <div style={styles.field}>

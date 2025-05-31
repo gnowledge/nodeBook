@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import NDFPreview from "./NDFPreview";
 import Statistics from "./Statistics";
+import RelationTypeList from "./RelationTypeList";
+import AttributeTypeList from "./AttributeTypeList";
 
 export default function DevPanel({ userId, graphId, graph, onGraphUpdate }) {
   const [tab, setTab] = useState("yaml");
@@ -20,6 +22,18 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate }) {
         >
           Stats
         </button>
+        <button
+          className={`px-4 py-2 ${tab === "relation-types" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setTab("relation-types")}
+        >
+          RelationTypes
+        </button>
+        <button
+          className={`px-4 py-2 ${tab === "attribute-types" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setTab("attribute-types")}
+        >
+          AttributeTypes
+        </button>
       </div>
       <div className="flex-1 overflow-auto bg-white">
         {tab === "yaml" && (
@@ -36,6 +50,12 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate }) {
             graphId={graphId}
             graph={graph}
           />
+        )}
+        {tab === "relation-types" && (
+          <RelationTypeList userId={userId} graphId={graphId} />
+        )}
+        {tab === "attribute-types" && (
+          <AttributeTypeList />
         )}
       </div>
     </div>

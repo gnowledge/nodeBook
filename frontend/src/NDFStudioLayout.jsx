@@ -110,16 +110,20 @@ const handleAddGraph = async () => {
   return (
     <div className="p-2 h-full flex flex-col">
       <div className="flex space-x-2 border-b pb-2">
-	  {graphs.map(({ id, title }) => (
-	      <button
-		  key={id}
-		  onClick={() => handleTabSwitch(id)}
-		  className={`px-4 py-1 rounded-t-md ${activeGraph === id ? "bg-blue-600 text-white" : "bg-gray-200"}`}
-	      >
-		  {title}
-	      </button>
-	  ))}
-	  
+        {graphs.map(({ id, title }) => (
+          <button
+            key={id}
+            onClick={() => handleTabSwitch(id)}
+            className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
+              activeGraph === id
+                ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-50"
+            }`}
+            style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
+          >
+            {title}
+          </button>
+        ))}
         <button
           onClick={handleAddGraph}
           className="px-3 py-1 rounded bg-green-500 text-white"

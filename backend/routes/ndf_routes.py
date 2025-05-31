@@ -9,10 +9,14 @@ import os
 import yaml
 from ruamel.yaml import YAML
 from io import StringIO
+#from core.cnl_parser import parse_logical_cnl, build_nbh_with_networkx
 
+import re
+import networkx as nx
 
+from core.clean_cnl_payload import clean_cnl_payload
 from core.path_utils import get_graph_path
-from core.cnl_parser import extract_cnl_blocks, parse_logical_cnl, extract_node_sections_from_markdown, ensure_nodes_exist
+#from core.cnl_parser import extract_cnl_blocks, parse_logical_cnl, extract_node_sections_from_markdown, ensure_nodes_exist
 from core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
 from core.organize_nbh import organize_nbh
 from core.ndf_ops import convert_parsed_to_nodes
@@ -22,6 +26,137 @@ router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
 
 GRAPH_BASE = Path("graph_data/users")
 
+
+@router.put("/users/{user_id}/graphs/{graph_id}/cnl")
+def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain")):
+    cleaned = clean_cnl_payload(body)
+    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
+    cnl_path.write_text(cleaned, encoding="utf-8")
+    return {"status": "ok"}
+
+
+
+def parse_logical_cnl(raw_md):
+    entries = []
+    current_node = None
+
+    sections = re.split(r'^# (.+)$', raw_md, flags=re.MULTILINE)
+    if sections[0].strip():
+        entries.append({
+            "type": "document",
+            "description": sections[0].strip()
+        })
+
+    for i in range(1, len(sections), 2):
+        node_id = sections[i].strip()
+        content = sections[i + 1].strip()
+        current_node = node_id
+        entries.append({
+            "type": "node",
+            "id": node_id,
+            "description": ""
+        })
+
+        block_pattern = re.compile(r':::cnl\s*\n?(.*?)\n?:::', flags=re.DOTALL)
+        cnl_blocks = block_pattern.findall(content)
+
+        description = block_pattern.sub('', content).strip()
+        if description:
+            entries[-1]["description"] = description
+
+        for block in cnl_blocks:
+            for line in block.strip().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # New attribute format: has name: value (unit)
+                if line.startswith("has "):
+                    m = re.match(r'has ([a-zA-Z0-9_ ]+): ([^()]+)(?:\(([^()]+)\))?', line)
+                    if m:
+                        name, value, unit = m.groups()
+                        entries.append({
+                            "type": "attribute",
+                            "subject": current_node,
+                            "name": name.strip(),
+                            "value": value.strip(),
+                            "unit": unit.strip() if unit else ""
+                        })
+                elif line.startswith("<"):
+                    m = re.match(r'<(.*?)> (.*)', line)
+                    if m:
+                        rel, obj = m.groups()
+                        entries.append({
+                            "type": "relation",
+                            "subject": current_node,
+                            "name": rel.strip(),
+                            "object": obj.strip()
+                        })
+    return entries
+
+
+def build_nbh_with_networkx(flat_entries):
+    G = nx.MultiDiGraph()
+    node_descriptions = {}
+    node_attributes = {}
+
+    for entry in flat_entries:
+        if entry["type"] == "node":
+            G.add_node(entry["id"])
+            node_descriptions[entry["id"]] = entry.get("description", "")
+        elif entry["type"] == "attribute":
+            subj = entry["subject"]
+            if subj not in node_attributes:
+                node_attributes[subj] = []
+            node_attributes[subj].append({
+                "name": entry["name"],
+                "value": entry["value"],
+                "unit": entry["unit"]
+            })
+        elif entry["type"] == "relation":
+            G.add_edge(entry["subject"], entry["object"], key=entry["name"], label=entry["name"])
+
+    output = {"nodes": []}
+    for node_id in G.nodes:
+        node_data = {
+            "id": node_id,
+            "description": node_descriptions.get(node_id, ""),
+            "attributes": node_attributes.get(node_id, []),
+            "relations": []
+        }
+        for source, target, key, edge_data in G.out_edges(node_id, keys=True, data=True):
+            node_data["relations"].append({
+                "name": edge_data["label"],
+                "source": source,
+                "target": target
+            })
+        output["nodes"].append(node_data)
+
+    return output
+
+@router.post("/users/{user_id}/graphs/{graph_id}/parse")
+def parse_graph(user_id: str, graph_id: str):
+    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
+    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
+
+    print(f"[DEBUG] Reading cnl.md from: {cnl_path}")
+    if not cnl_path.exists():
+        raise HTTPException(status_code=404, detail="cnl.md not found")
+
+    raw = cnl_path.read_text(encoding="utf-8")
+    print(f"[DEBUG] Raw content (first 200 chars):\n{raw[:200]}")
+
+    flat_list = parse_logical_cnl(raw)
+    print(f"[DEBUG] Flat entries extracted: {len(flat_list)}")
+    if flat_list:
+        print(f"[DEBUG] First entry: {flat_list[0]}")
+
+    structured = build_nbh_with_networkx(flat_list)
+    print(f"[DEBUG] Nodes parsed: {len(structured['nodes'])}")
+
+    parsed_path.write_text(yaml.dump(structured, sort_keys=False), encoding="utf-8")
+    print(f"[DEBUG] Parsed YAML written to: {parsed_path}")
+
+    return structured
 
 
 # -----------------------
@@ -35,68 +170,9 @@ def get_cnl_block(user_id: str, graph_id: str):
     return cnl_path.read_text()
 
 # -----------------------
-# Save CNL block
-# -----------------------
-# @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
-# async def save_cnl(user_id: str, graph_id: str, data: dict):
-#     raw_markdown = data.get("raw_markdown", "")
-#     # optional normalization
-#     raw_markdown = raw_markdown.replace("\r\n", "\n").replace("\r", "\n")
-#     save_to_file(user_id, graph_id, raw_markdown)
-#     return {"status": "saved"}
-
-
-
-@router.put("/users/{user_id}/graphs/{graph_id}/cnl")
-def save_cnl_block(user_id: str, graph_id: str, content: str = Body(...)):
-    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
-    cnl_path.parent.mkdir(parents=True, exist_ok=True)
-    cnl_path.write_text(content, encoding="utf-8")
-    return {"status": "saved", "path": str(cnl_path)}
-
-# -----------------------
 # Parse CNL and produce parsed.yaml
 # -----------------------
 
-@router.post("/users/{user_id}/graphs/{graph_id}/parse")
-def parse_graph(user_id: str, graph_id: str):
-    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
-    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
-
-    if not cnl_path.exists():
-        raise HTTPException(status_code=404, detail="cnl.md not found")
-
-    raw = cnl_path.read_text()
-    parsed = parse_logical_cnl(raw)       # flat list: node, relation, attribute
-    structured = {"nodes": organize_nbh(parsed)}  # embed relations and attributes
-
-    with parsed_path.open("w") as f:
-        yaml.dump(structured, f, sort_keys=False)
-
-    return structured
-
-# @router.post("/users/{user_id}/graphs/{graph_id}/parse")
-# def parse_graph(user_id: str, graph_id: str):
-#     cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
-#     parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
-
-#     if not cnl_path.exists():
-#         raise HTTPException(status_code=404, detail="cnl.md not found")
-
-#     raw = cnl_path.read_text()
-#     parsed = parse_logical_cnl(raw)
-
-#     with parsed_path.open("w") as f:
-#         yaml.dump(parsed, f, sort_keys=False)
-
-#     # Filter schema from parsed.yaml
-#     filter_used_schema(
-#         parsed_yaml_path=parsed_path,
-#         relation_schema_path="schema/relation_types.yaml",
-#         attribute_schema_path="schema/attribute_types.yaml",
-#         output_path=GRAPH_BASE / user_id / "graphs" / graph_id / "used_schema.yaml"
-#     )
-#     return parsed
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/parsed")

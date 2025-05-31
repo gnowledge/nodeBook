@@ -9,3 +9,4 @@ def render_description_md(text: str) -> str:
         attributes={"a": ["href"]},
     )
     return safe_html
+

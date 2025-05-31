@@ -2,8 +2,109 @@ import re
 from typing import List, Dict, Optional
 from core.schema_ops import load_schema
 
+from pathlib import Path
+import yaml
+import re
+import networkx as nx
+
 def normalize_id(name: str) -> str:
     return name.strip().lower().replace(" ", "_")
+
+def parse_logical_cnl(raw_md):
+    entries = []
+    current_node = None
+
+    sections = re.split(r'^# (.+)$', raw_md, flags=re.MULTILINE)
+    if sections[0].strip():
+        entries.append({
+            "type": "document",
+            "description": sections[0].strip()
+        })
+
+    for i in range(1, len(sections), 2):
+        node_id = sections[i].strip()
+        content = sections[i + 1].strip()
+        current_node = node_id
+        entries.append({
+            "type": "node",
+            "id": node_id,
+            "description": ""
+        })
+
+        parts = re.split(r':::cnl\s*\n(.*?)\n:::', content, flags=re.DOTALL)
+        text_blocks = parts[::2]
+        cnl_blocks = parts[1::2]
+
+        if text_blocks and text_blocks[0].strip():
+            entries[-1]["description"] = text_blocks[0].strip()
+
+        for block in cnl_blocks:
+            for line in block.strip().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("has <"):
+                    m = re.match(r'has <(.*?)> (.*?) ?(?:\[(.*?)\])?', line)
+                    if m:
+                        name, value, unit = m.groups()
+                        entries.append({
+                            "type": "attribute",
+                            "subject": current_node,
+                            "name": name.strip(),
+                            "value": value.strip(),
+                            "unit": (unit or "").strip()
+                        })
+                elif line.startswith("<"):
+                    m = re.match(r'<(.*?)> (.*)', line)
+                    if m:
+                        rel, obj = m.groups()
+                        entries.append({
+                            "type": "relation",
+                            "subject": current_node,
+                            "name": rel.strip(),
+                            "object": obj.strip()
+                        })
+    return entries
+
+def build_nbh_with_networkx(flat_entries):
+    G = nx.MultiDiGraph()
+    node_descriptions = {}
+
+    for entry in flat_entries:
+        if entry["type"] == "node":
+            G.add_node(entry["id"])
+            node_descriptions[entry["id"]] = entry.get("description", "")
+        elif entry["type"] == "attribute":
+            subj = entry["subject"]
+            if "attributes" not in G.nodes[subj]:
+                G.nodes[subj]["attributes"] = []
+            G.nodes[subj]["attributes"].append({
+                "name": entry["name"],
+                "value": entry["value"],
+                "unit": entry["unit"]
+            })
+        elif entry["type"] == "relation":
+            G.add_edge(entry["subject"], entry["object"], key=entry["name"], label=entry["name"])
+
+    output = {"nodes": []}
+    for node_id in G.nodes:
+        node_data = {
+            "id": node_id,
+            "description": node_descriptions.get(node_id, ""),
+            "attributes": G.nodes[node_id].get("attributes", []),
+            "relations": []
+        }
+        for _, target, key, edge_data in G.out_edges(node_id, keys=True, data=True):
+            node_data["relations"].append({
+                "name": edge_data["label"],
+                "object": target
+            })
+        output["nodes"].append(node_data)
+
+    return output
+
+
+
 
 def parse_cnl_block(block: str, log: Optional[List[str]] = None) -> List[Dict]:
     lines = block.strip().splitlines()
@@ -250,3 +351,5 @@ def ensure_nodes_exist(parsed_statements):
             })
 
     return parsed_statements + new_nodes
+
+

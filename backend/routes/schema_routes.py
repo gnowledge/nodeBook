@@ -14,7 +14,9 @@ class RelationType(BaseModel):
     symmetric: Optional[bool] = False
     transitive: Optional[bool] = False
     description: Optional[str] = ""
-
+    domain: list[str] = []
+    range: list[str] = []
+    
 class NodeType(BaseModel):
     name: str
     description: str
@@ -23,6 +25,28 @@ class AttributeType(BaseModel):
     name: str
     data_type: str
     description: str
+    unit: Optional[str] = None
+    domain: list[str] = []
+
+@router.get("/users/{user_id}/graphs/{graph_id}/relation-names", operation_id="get_relation_names")
+def get_relation_names(user_id: str, graph_id: str):
+    default = [
+        {"name": "member_of", "inverse_name": "has_member"},
+        {"name": "is_a", "inverse_name": "has_instance"}
+    ]
+    relation_types = load_schema_yaml("relation_types.yaml", default)
+    return [r["name"] for r in relation_types]
+
+
+@router.get("/users/{user_id}/graphs/{graph_id}/attribute-names", operation_id="get_attribute_names")
+def get_attribute_names(user_id: str, graph_id: str):
+    default = [
+        {"name": "population", "data_type": "number", "description": "Number of inhabitants"}
+    ]
+    attribute_types = load_schema_yaml("attribute_types.yaml", default)
+    return [a["name"] for a in attribute_types]
+
+
 
 @router.get("/users/{user_id}/graphs/{graph_id}/relation-types", operation_id="get_relation_types_schema")
 def get_relation_types(user_id: str, graph_id: str):

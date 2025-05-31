@@ -1,103 +1,165 @@
-import React, { useEffect, useState } from "react";
-import Editor from "@monaco-editor/react";
-import yaml from "js-yaml";
+import React, { useEffect, useRef, useState } from 'react';
+import MonacoEditor from '@monaco-editor/react';
+import * as monaco from 'monaco-editor';
 
-const CNLInput = ({ userId, graphId, graph, onGraphUpdate, onAfterParse }) => {
-  const [code, setCode] = useState("");
-  const [status, setStatus] = useState("");
-    
+export default function CNLInput({ userId, graphId }) {
+  const editorRef = useRef(null);
+  const containerRef = useRef(null);
+  const [value, setValue] = useState('');
+  const [relationNames, setRelationNames] = useState([]);
+  const [attributeNames, setAttributeNames] = useState([]);
+  // Removed dropdown state — using Monaco completions now
+
+  useEffect(() => {
+    async function loadCNL() {
+      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`);
+      let text = await res.text();
+      if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+        try {
+          text = JSON.parse(text);
+        } catch {
+          text = text.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n');
+        }
+      }
+      setValue(text.replace(/\\n/g, "\n"));
+    }
+    loadCNL();
+  }, [userId, graphId]);
+
+  
+
+  
 useEffect(() => {
-  if (graph?.raw_markdown) {
-    let s = graph.raw_markdown;
+  async function fetchSuggestions() {
+    try {
+      const [relsRes, attrsRes] = await Promise.all([
+        fetch(`/api/users/${userId}/graphs/${graphId}/relation-names`),
+        fetch(`/api/users/${userId}/graphs/${graphId}/attribute-names`)
+      ]);
 
-    // Decode visible "\\n" into real newlines
-    if (s.includes("\\n")) {
-      s = s.replace(/\\n/g, "\n");
+      const relationNamesRaw = await relsRes.json();
+      const attributeNamesRaw = await attrsRes.json();
+
+      console.log("📥 Raw relation names:", relationNamesRaw);
+      const cleanedRelations = relationNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
+      console.log("✅ Cleaned relation names:", cleanedRelations);
+      setRelationNames(cleanedRelations);
+
+      console.log("📥 Raw attribute names:", attributeNamesRaw);
+      const cleanedAttributes = attributeNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
+      console.log("✅ Cleaned attribute names:", cleanedAttributes);
+      setAttributeNames(cleanedAttributes);
+    } catch (err) {
+      console.error('Schema fetch error:', err);
     }
-
-    // Remove any stray carriage returns
-    s = s.replace(/\r/g, "");
-    setCode(s);
   }
-}, [graph]);
 
-  const handleParse = async () => {
-    try {
-      setStatus("Parsing...");
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parse`, {
-        method: "POST",
-      });
-      if (onAfterParse) onAfterParse();
-      if (!res.ok) throw new Error("Parse failed");
-      const parsed = await res.json();
-      setStatus("✅ Parsed successfully.");
-      onGraphUpdate({
-        
-        ...parsed,
-        raw_markdown: code,
-        _parsed_at: new Date().toISOString()
-      });
-    } catch (err) {
-      console.error("Parse failed", err);
-      setStatus("❌ Parse failed.");
+  fetchSuggestions();
+}, [userId, graphId]);
+
+  // Register Monaco completion provider when relationNames/attributeNames change and editor is ready
+  useEffect(() => {
+    if (!editorRef.current || !window._monaco) return;
+    if (!relationNames.length && !attributeNames.length) return;
+
+    // Remove previous providers to avoid duplicates
+    if (window._staticCompletionProvider) {
+      window._staticCompletionProvider.dispose();
     }
-  };
 
-  const normalizeLineEndings = (text) => text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    window._staticCompletionProvider = window._monaco.languages.registerCompletionItemProvider('plaintext', {
+      triggerCharacters: [' ', '<'],
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
 
-  const handleSave = async () => {
-    try {
-      setStatus("Saving...");
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`, {
-        method: "PUT",
-        headers: { "Content-Type": "text/plain" },
-        body: normalizeLineEndings(code),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      setStatus("✅ Saved successfully.");
-    } catch (err) {
-      console.error("Save failed", err);
-      setStatus("❌ Save failed.");
-    }
-  };
+        const relationSuggestions = relationNames.map(name => ({
+          label: `<${name}>`,
+          kind: window._monaco.languages.CompletionItemKind.Keyword,
+          insertText: `<${name}>`,
+          range
+        }));
+
+        const attributeSuggestions = attributeNames.map(name => ({
+          label: `has ${name}:`,
+          kind: window._monaco.languages.CompletionItemKind.Property,
+          insertText: `has ${name}: `,
+          range
+        }));
+
+        return {
+          suggestions: [...relationSuggestions, ...attributeSuggestions]
+        };
+      }
+    });
+  }, [relationNames, attributeNames, editorRef.current, window._monaco]);
+
+  function insertTextTemplate(editor, template) {
+    if (!editor) return;
+    const pos = editor.getPosition();
+    editor.executeEdits('', [{
+      range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, 1),
+      text: template + '\n',
+      forceMoveMarkers: true,
+    }]);
+    editor.focus();
+  }
+
+  async function saveCNL() {
+    const raw = editorRef.current.getValue();
+    const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: raw,
+    });
+    alert(res.ok ? 'CNL saved!' : 'Save failed.');
+  }
+
+  async function parseCNL() {
+    const raw = editorRef.current.getValue();
+    await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: raw,
+    });
+    await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parse`, {
+      method: 'POST'
+    });
+    alert('Parsed and saved!');
+  }
 
   return (
-    <div  className="flex flex-col flex-1 h-full"
->
-      <div className="flex justify-between bg-gray-100 p-1 border-b">
-        <span className="text-xs text-gray-600">Controlled Natural Language Editor</span>
-        <div className="space-x-2">
-          <button onClick={handleSave} className="text-xs px-2 py-1 bg-green-600 text-white rounded">Save</button>
-          <button onClick={handleParse} className="text-xs px-2 py-1 bg-blue-500 text-white rounded">Parse</button>
-        </div>
+    <div ref={containerRef} className="p-4 relative">
+      <div className="flex justify-end gap-2 mb-2">
+        <button onClick={saveCNL} className="px-3 py-1 bg-blue-700 text-white rounded">Save</button>
+        <button onClick={parseCNL} className="px-3 py-1 bg-green-700 text-white rounded">Parse</button>
       </div>
 
-      <Editor
-        key={graphId}
-          height="100%"
-	  classname="flex-1"
-        language="markdown"
-        theme="vs-dark"
-        value={code}
-        onChange={(val) => {
-          setCode(val || "");
-          if (val) {
-            const lastChar = val[val.length - 1];
-          }
-        }}
-        onMount={(editor, monaco) => {
-          editor.getModel().setEOL(monaco.editor.EndOfLineSequence.LF);
-        }}
-        options={{
-          fontSize: 14,
-          lineNumbers: "on",
-          wordWrap: "on",
-          scrollBeyondLastLine: false
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-600 text-white rounded">Node</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-gray-300 rounded">CNL</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-300 rounded">C-Relation</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-300 rounded">C-Attribute</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `subject <relation> object`)} className="px-2 py-1 bg-gray-300 rounded">Relation</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `subject has attribute: value (unit)`)} className="px-2 py-1 bg-gray-300 rounded">Attribute</button>
+      </div>
+
+      <MonacoEditor
+        height="400px"
+        language="plaintext"
+        value={value}
+        onChange={setValue}
+        options={{ wordWrap: 'on' }}
+        onMount={(editor, monacoInstance) => {
+          editorRef.current = editor;
+          window._monaco = monacoInstance;
         }}
       />
-      <div className="text-xs text-right text-gray-500 pr-2 py-1">{status}</div>
     </div>
-  );
-};
-
-export default CNLInput;
+  )
+}

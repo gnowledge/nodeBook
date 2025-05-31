@@ -1,9 +1,10 @@
-
 import React, { useState } from 'react';
 
-export default function AttributeTypeModal({ isOpen, onClose, onSuccess }) {
+export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId = "user0", graphId = "graph1", endpoint }) {
   const [name, setName] = useState('');
   const [dataType, setDataType] = useState('');
+  const [unit, setUnit] = useState('');
+  const [domain, setDomain] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState(null);
 
@@ -16,18 +17,22 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess }) {
     const payload = {
       name: name.trim(),
       data_type: dataType.trim(),
-      description
+      unit: unit.trim() || null,
+      domain: domain ? domain.split(',').map(d => d.trim()).filter(Boolean) : [],
+      description: description.trim()
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/attribute-types', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const contentType = res.headers.get('content-type');
+        const isJson = contentType && contentType.includes('application/json');
+        const data = isJson ? await res.json() : { detail: await res.text() };
         throw new Error(data.detail || "Failed to create attribute type");
       }
 
@@ -61,7 +66,18 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess }) {
             <option value="string">string</option>
             <option value="number">number</option>
             <option value="boolean">boolean</option>
+            <option value="float">float</option>
           </select>
+        </div>
+
+        <div style={styles.field}>
+          <label>Unit (optional):</label>
+          <input value={unit} onChange={e => setUnit(e.target.value)} style={styles.input} />
+        </div>
+
+        <div style={styles.field}>
+          <label>Domain (comma-separated):</label>
+          <input value={domain} onChange={e => setDomain(e.target.value)} style={styles.input} />
         </div>
 
         <div style={styles.field}>
@@ -112,3 +128,5 @@ const styles = {
     justifyContent: 'space-between'
   }
 };
+
+
