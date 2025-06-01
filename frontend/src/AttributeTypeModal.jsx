@@ -1,12 +1,41 @@
-import React, { useState } from 'react';
+// Updated AttributeTypeModal.jsx to support both POST (create) and PUT (edit) modes
+import React, { useState, useEffect } from 'react';
 
-export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId = "user0", graphId = "graph1", endpoint }) {
+export default function AttributeTypeModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  userId = "user0",
+  graphId = "graph1",
+  endpoint,
+  method = 'POST',
+  initialData = null
+}) {
   const [name, setName] = useState('');
   const [dataType, setDataType] = useState('');
   const [unit, setUnit] = useState('');
   const [domain, setDomain] = useState('');
   const [description, setDescription] = useState('');
+  const [allowedValues, setAllowedValues] = useState('');
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setDataType(initialData.data_type || '');
+      setUnit(initialData.unit || '');
+      setDomain((initialData.domain || []).join(', '));
+      setDescription(initialData.description || '');
+      setAllowedValues((initialData.allowed_values || []).join(', '));
+    } else {
+      setName('');
+      setDataType('');
+      setUnit('');
+      setDomain('');
+      setDescription('');
+      setAllowedValues('');
+    }
+  }, [initialData, isOpen]);
 
   const handleSubmit = async () => {
     if (!name.trim() || !dataType.trim()) {
@@ -19,12 +48,13 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId 
       data_type: dataType.trim(),
       unit: unit.trim() || null,
       domain: domain ? domain.split(',').map(d => d.trim()).filter(Boolean) : [],
+      allowed_values: allowedValues ? allowedValues.split(',').map(v => v.trim()).filter(Boolean) : null,
       description: description.trim()
     };
 
     try {
       const res = await fetch(endpoint, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -33,7 +63,7 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId 
         const contentType = res.headers.get('content-type');
         const isJson = contentType && contentType.includes('application/json');
         const data = isJson ? await res.json() : { detail: await res.text() };
-        throw new Error(data.detail || "Failed to create attribute type");
+        throw new Error(data.detail || `Failed to ${method === 'PUT' ? 'update' : 'create'} attribute type`);
       }
 
       onSuccess?.();
@@ -48,11 +78,11 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId 
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h3>Create Attribute Type</h3>
+        <h3>{method === 'PUT' ? 'Edit' : 'Create'} Attribute Type</h3>
 
         <div style={styles.field}>
           <label>Name:</label>
-          <input value={name} onChange={e => setName(e.target.value)} style={styles.input} />
+          <input value={name} onChange={e => setName(e.target.value)} style={styles.input} disabled={method === 'PUT'} />
         </div>
 
         <div style={styles.field}>
@@ -81,6 +111,11 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId 
         </div>
 
         <div style={styles.field}>
+          <label>Allowed Values (comma-separated, optional):</label>
+          <input value={allowedValues} onChange={e => setAllowedValues(e.target.value)} style={styles.input} />
+        </div>
+
+        <div style={styles.field}>
           <label>Description:</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)} style={styles.textarea} />
         </div>
@@ -89,7 +124,7 @@ export default function AttributeTypeModal({ isOpen, onClose, onSuccess, userId 
 
         <div style={styles.actions}>
           <button onClick={onClose}>Cancel</button>
-          <button onClick={handleSubmit}>Add Attribute Type</button>
+          <button onClick={handleSubmit}>{method === 'PUT' ? 'Update' : 'Add'} Attribute Type</button>
         </div>
       </div>
     </div>
@@ -128,5 +163,3 @@ const styles = {
     justifyContent: 'space-between'
   }
 };
-
-

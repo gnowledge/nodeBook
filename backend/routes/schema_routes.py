@@ -2,11 +2,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import os
-import yaml
-from core.schema_ops import load_schema, save_schema, ensure_schema_file, load_schema_yaml
-from core.id_utils import normalize_id
+import json
+import time
+from pathlib import Path
 
 router = APIRouter()
+
+SCHEMA_DIR = Path("graph_data/global")
+
+# ==== Schema Models ====
 
 class RelationType(BaseModel):
     name: str
@@ -16,7 +20,7 @@ class RelationType(BaseModel):
     description: Optional[str] = ""
     domain: list[str] = []
     range: list[str] = []
-    
+
 class NodeType(BaseModel):
     name: str
     description: str
@@ -27,68 +31,97 @@ class AttributeType(BaseModel):
     description: str
     unit: Optional[str] = None
     domain: list[str] = []
+    allowed_values: Optional[list[str]] = None
 
-@router.get("/users/{user_id}/graphs/{graph_id}/relation-names", operation_id="get_relation_names")
+# ==== File IO Utilities ====
+
+def load_json(filename, fallback):
+    file_path = SCHEMA_DIR / filename
+    if not file_path.exists():
+        return fallback
+    with open(file_path, encoding="utf-8") as f:
+        return json.load(f)
+
+def save_json(filename, data):
+    file_path = SCHEMA_DIR / filename
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+def with_file_lock(lockfile: Path, timeout=5.0):
+    start = time.time()
+    while lockfile.exists():
+        if time.time() - start > timeout:
+            raise HTTPException(status_code=423, detail="Resource is locked")
+        time.sleep(0.1)
+    lockfile.touch()
+    return lambda: lockfile.unlink()
+
+# ==== Routes ====
+
+@router.get("/users/{user_id}/graphs/{graph_id}/relation-names")
 def get_relation_names(user_id: str, graph_id: str):
-    default = [
-        {"name": "member_of", "inverse_name": "has_member"},
-        {"name": "is_a", "inverse_name": "has_instance"}
-    ]
-    relation_types = load_schema_yaml("relation_types.yaml", default)
-    return [r["name"] for r in relation_types]
+    data = load_json("relation_types.json", [])
+    return [r["name"] for r in data]
 
-
-@router.get("/users/{user_id}/graphs/{graph_id}/attribute-names", operation_id="get_attribute_names")
+@router.get("/users/{user_id}/graphs/{graph_id}/attribute-names")
 def get_attribute_names(user_id: str, graph_id: str):
-    default = [
-        {"name": "population", "data_type": "number", "description": "Number of inhabitants"}
-    ]
-    attribute_types = load_schema_yaml("attribute_types.yaml", default)
-    return [a["name"] for a in attribute_types]
+    data = load_json("attribute_types.json", [])
+    return [a["name"] for a in data]
 
-
-
-@router.get("/users/{user_id}/graphs/{graph_id}/relation-types", operation_id="get_relation_types_schema")
+@router.get("/users/{user_id}/graphs/{graph_id}/relation-types")
 def get_relation_types(user_id: str, graph_id: str):
-    default = [
-        {"name": "member_of", "inverse_name": "has_member", "symmetric": False, "transitive": False, "description": "X is a member of Y"},
-        {"name": "is_a", "inverse_name": "has_instance", "symmetric": False, "transitive": True, "description": "X is a subtype of Y"}
-    ]
-    return load_schema_yaml("relation_types.yaml", default)
+    return load_json("relation_types.json", [])
 
 @router.post("/users/{user_id}/graphs/{graph_id}/relation-types/create")
 def create_relation_type(user_id: str, graph_id: str, rt: RelationType):
-    default = [
-        {"name": "member_of", "inverse_name": "has_member", "symmetric": False, "transitive": False, "description": "X is a member of Y"},
-        {"name": "is_a", "inverse_name": "has_instance", "symmetric": False, "transitive": True, "description": "X is a subtype of Y"}
-    ]
-    types = load_schema_yaml("relation_types.yaml", default)
+    types = load_json("relation_types.json", [])
     if any(r["name"] == rt.name for r in types):
         raise HTTPException(status_code=400, detail="Relation type already exists")
     types.append(rt.dict())
-    save_schema("relation_types.yaml", types)
+    save_json("relation_types.json", types)
     return {"status": "relation type added"}
 
-@router.get("/users/{user_id}/graphs/{graph_id}/node-types", operation_id="get_node_types_schema")
-def get_node_types(user_id: str, graph_id: str):
-    default = [
-        {"name": "entity", "description": "Generic node type"}
-    ]
-    return load_schema_yaml("node_types.yaml", default)
+@router.put("/users/{user_id}/graphs/{graph_id}/relation-types/{name}")
+def update_relation_type(user_id: str, graph_id: str, name: str, rt: RelationType):
+    lock_path = SCHEMA_DIR / "relation_types.lock"
+    unlock = with_file_lock(lock_path)
+    try:
+        data = load_json("relation_types.json", [])
+        for i, entry in enumerate(data):
+            if entry["name"] == name:
+                data[i] = rt.dict()
+                save_json("relation_types.json", data)
+                return {"status": "updated"}
+        raise HTTPException(status_code=404, detail="Relation type not found")
+    finally:
+        unlock()
 
-@router.get("/users/{user_id}/graphs/{graph_id}/attribute-types", operation_id="get_attribute_types_schema")
+@router.get("/users/{user_id}/graphs/{graph_id}/attribute-types")
 def get_attribute_types(user_id: str, graph_id: str):
-    default = [
-        {"name": "population", "data_type": "number", "description": "Number of inhabitants"}
-    ]
-    return load_schema_yaml("attribute_types.yaml", default)
+    return load_json("attribute_types.json", [])
 
-@router.post("/users/{user_id}/graphs/{graph_id}/attribute-types", operation_id="create_attribute_type")
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute-types")
 def create_attribute_type(user_id: str, graph_id: str, item: AttributeType):
-    file_path = ensure_schema_file("attribute_types.yaml", [])
-    with open(file_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or []
+    data = load_json("attribute_types.json", [])
     data.append(item.dict())
-    with open(file_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f)
-    return {"status": "success"}
+    save_json("attribute_types.json", data)
+    return {"status": "attribute type added"}
+
+@router.put("/users/{user_id}/graphs/{graph_id}/attribute-types/{name}")
+def update_attribute_type(user_id: str, graph_id: str, name: str, item: AttributeType):
+    lock_path = SCHEMA_DIR / "attribute_types.lock"
+    unlock = with_file_lock(lock_path)
+    try:
+        data = load_json("attribute_types.json", [])
+        for i, entry in enumerate(data):
+            if entry["name"] == name:
+                data[i] = item.dict()
+                save_json("attribute_types.json", data)
+                return {"status": "updated"}
+        raise HTTPException(status_code=404, detail="Attribute type not found")
+    finally:
+        unlock()
+
+@router.get("/users/{user_id}/graphs/{graph_id}/node-types")
+def get_node_types(user_id: str, graph_id: str):
+    return load_json("node_types.json", [{"name": "entity", "description": "Generic node type"}])

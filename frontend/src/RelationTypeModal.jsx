@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
+// Updated RelationTypeModal.jsx to support both POST (create) and PUT (edit) modes
+import React, { useState, useEffect } from 'react';
 
-export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId = "user0", graphId = "graph1" }) {
+export default function RelationTypeModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  userId = "user0",
+  graphId = "graph1",
+  endpoint,
+  method = 'POST',
+  initialData = null
+}) {
   const [name, setName] = useState('');
   const [inverseName, setInverseName] = useState('');
   const [symmetric, setSymmetric] = useState(false);
@@ -9,6 +19,26 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
   const [range, setRange] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setInverseName(initialData.inverse_name || '');
+      setSymmetric(!!initialData.symmetric);
+      setTransitive(!!initialData.transitive);
+      setDomain((initialData.domain || []).join(', '));
+      setRange((initialData.range || []).join(', '));
+      setDescription(initialData.description || '');
+    } else {
+      setName('');
+      setInverseName('');
+      setSymmetric(false);
+      setTransitive(false);
+      setDomain('');
+      setRange('');
+      setDescription('');
+    }
+  }, [initialData, isOpen]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -30,20 +60,17 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
     };
 
     try {
-      const res = await fetch(
-        `/api/users/${userId}/graphs/${graphId}/relation-types/create`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
       if (!res.ok) {
         const contentType = res.headers.get('content-type');
         const isJson = contentType && contentType.includes('application/json');
         const data = isJson ? await res.json() : { detail: await res.text() };
-        throw new Error(data.detail || "Failed to create relation type");
+        throw new Error(data.detail || `Failed to ${method === 'PUT' ? 'update' : 'create'} relation type`);
       }
 
       onSuccess?.();
@@ -58,11 +85,11 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h3>Create Relation Type</h3>
+        <h3>{method === 'PUT' ? 'Edit' : 'Create'} Relation Type</h3>
 
         <div style={styles.field}>
           <label>Name:</label>
-          <input value={name} onChange={e => setName(e.target.value)} style={styles.input} />
+          <input value={name} onChange={e => setName(e.target.value)} style={styles.input} disabled={method === 'PUT'} />
         </div>
 
         <div style={styles.field}>
@@ -103,7 +130,7 @@ export default function RelationTypeModal({ isOpen, onClose, onSuccess, userId =
 
         <div style={styles.actions}>
           <button onClick={onClose}>Cancel</button>
-          <button onClick={handleSubmit}>Add Relation Type</button>
+          <button onClick={handleSubmit}>{method === 'PUT' ? 'Update' : 'Add'} Relation Type</button>
         </div>
       </div>
     </div>
