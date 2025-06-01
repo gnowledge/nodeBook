@@ -15,11 +15,11 @@
     "cytoscape": "^3.32.0",
     "cytoscape-dagre": "^2.5.0",
     "js-yaml": "^4.1.0",
+    "marked": "^15.0.12",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-monaco-editor": "^0.58.0",
-    "react-simplemde-editor": "^5.2.0",
-    "simplemde": "^1.11.2"
+    "react-simplemde-editor": "^5.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.7",

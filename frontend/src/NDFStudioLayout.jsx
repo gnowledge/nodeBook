@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import CytoscapeStudio from "./CytoscapeStudio";
+import DisplayTabs from "./DisplayTabs";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
 import { listGraphs, loadGraphCNL } from "./services/api";
@@ -142,13 +142,13 @@ const handleAddGraph = async () => {
             onGraphUpdate={handleGraphUpdate}
           />
         }
-        right={
-          <CytoscapeStudio
-            userId={userId}
-            graphId={activeGraph}
-            graph={graphData}
-          />
-        }
+	  right={
+	      <DisplayTabs
+		  userId={userId}
+		  graphId={activeGraph}
+		  graph={graphData}
+	      />
+	  }
       />
     </div>
   );
