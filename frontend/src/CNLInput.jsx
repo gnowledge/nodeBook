@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 
-export default function CNLInput({ userId, graphId }) {
+export default function CNLInput({ userId, graphId, onGraphUpdate, onSave }) {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const [value, setValue] = useState('');
   const [relationNames, setRelationNames] = useState([]);
   const [attributeNames, setAttributeNames] = useState([]);
-  // Removed dropdown state — using Monaco completions now
 
   useEffect(() => {
     async function loadCNL() {
@@ -21,48 +20,40 @@ export default function CNLInput({ userId, graphId }) {
           text = text.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n');
         }
       }
-      setValue(text.replace(/\\n/g, "\n"));
+      const decoded = text.replace(/\\n/g, "\n");
+      setValue(decoded);
+      if (onGraphUpdate) onGraphUpdate({ raw_markdown: decoded });
     }
     loadCNL();
   }, [userId, graphId]);
 
-  
+  useEffect(() => {
+    async function fetchSuggestions() {
+      try {
+        const [relsRes, attrsRes] = await Promise.all([
+          fetch(`/api/users/${userId}/graphs/${graphId}/relation-names`),
+          fetch(`/api/users/${userId}/graphs/${graphId}/attribute-names`)
+        ]);
 
-  
-useEffect(() => {
-  async function fetchSuggestions() {
-    try {
-      const [relsRes, attrsRes] = await Promise.all([
-        fetch(`/api/users/${userId}/graphs/${graphId}/relation-names`),
-        fetch(`/api/users/${userId}/graphs/${graphId}/attribute-names`)
-      ]);
+        const relationNamesRaw = await relsRes.json();
+        const attributeNamesRaw = await attrsRes.json();
 
-      const relationNamesRaw = await relsRes.json();
-      const attributeNamesRaw = await attrsRes.json();
-
-      console.log("📥 Raw relation names:", relationNamesRaw);
-      const cleanedRelations = relationNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
-      console.log("✅ Cleaned relation names:", cleanedRelations);
-      setRelationNames(cleanedRelations);
-
-      console.log("📥 Raw attribute names:", attributeNamesRaw);
-      const cleanedAttributes = attributeNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
-      console.log("✅ Cleaned attribute names:", cleanedAttributes);
-      setAttributeNames(cleanedAttributes);
-    } catch (err) {
-      console.error('Schema fetch error:', err);
+        const cleanedRelations = relationNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
+        const cleanedAttributes = attributeNamesRaw.map(s => s.trim().replace(/\u00A0/g, ""));
+        setRelationNames(cleanedRelations);
+        setAttributeNames(cleanedAttributes);
+      } catch (err) {
+        console.error('Schema fetch error:', err);
+      }
     }
-  }
 
-  fetchSuggestions();
-}, [userId, graphId]);
+    fetchSuggestions();
+  }, [userId, graphId]);
 
-  // Register Monaco completion provider when relationNames/attributeNames change and editor is ready
   useEffect(() => {
     if (!editorRef.current || !window._monaco) return;
     if (!relationNames.length && !attributeNames.length) return;
 
-    // Remove previous providers to avoid duplicates
     if (window._staticCompletionProvider) {
       window._staticCompletionProvider.dispose();
     }
@@ -117,7 +108,12 @@ useEffect(() => {
       headers: { 'Content-Type': 'text/plain' },
       body: raw,
     });
-    alert(res.ok ? 'CNL saved!' : 'Save failed.');
+    if (res.ok) {
+      alert('CNL saved!');
+      if (onSave) onSave();
+    } else {
+      alert('Save failed.');
+    }
   }
 
   async function parseCNL() {
@@ -134,32 +130,40 @@ useEffect(() => {
   }
 
   return (
-    <div ref={containerRef} className="p-4 relative">
-      <div className="flex justify-end gap-2 mb-2">
-        <button onClick={saveCNL} className="px-3 py-1 bg-blue-700 text-white rounded">Save</button>
-        <button onClick={parseCNL} className="px-3 py-1 bg-green-700 text-white rounded">Parse</button>
+    <div ref={containerRef} className="relative h-full flex flex-col">
+      <div className="flex flex-wrap justify-center gap-2 px-4 py-3 border-b bg-gray-50">
+        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-600 text-white text-sm rounded shadow-sm">Node</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-white border border-gray-300 text-sm rounded shadow-sm">CNL</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">C-Relation</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">C-Attribute</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `subject <relation> object`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `subject has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Attribute</button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-600 text-white rounded">Node</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-gray-300 rounded">CNL</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-300 rounded">C-Relation</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-300 rounded">C-Attribute</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `subject <relation> object`)} className="px-2 py-1 bg-gray-300 rounded">Relation</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `subject has attribute: value (unit)`)} className="px-2 py-1 bg-gray-300 rounded">Attribute</button>
+      <div className="flex-1 overflow-auto">
+        <MonacoEditor
+          height="100%"
+          language="plaintext"
+          value={value}
+          onChange={(val) => {
+            setValue(val);
+            if (onGraphUpdate) onGraphUpdate({ raw_markdown: val });
+          }}
+          options={{ wordWrap: 'on' }}
+          onMount={(editor, monacoInstance) => {
+            editorRef.current = editor;
+            window._monaco = monacoInstance;
+          }}
+        />
       </div>
 
-      <MonacoEditor
-        height="400px"
-        language="plaintext"
-        value={value}
-        onChange={setValue}
-        options={{ wordWrap: 'on' }}
-        onMount={(editor, monacoInstance) => {
-          editorRef.current = editor;
-          window._monaco = monacoInstance;
-        }}
-      />
+      <div className="flex justify-end gap-3 px-4 py-2 border-t bg-white sticky bottom-0">
+        <button onClick={saveCNL} className="px-4 py-1 bg-blue-700 text-white rounded shadow-sm bg-white text-blue-700 border border-blue-700">Save</button>
+        <button onClick={parseCNL} className="px-4 py-1 bg-green-700 text-white rounded shadow-sm bg-white text-green-700 border border-green-700">Parse</button>
+      </div>
     </div>
-  )
+  );
 }
+
+
+

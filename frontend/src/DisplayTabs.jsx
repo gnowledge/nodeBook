@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import CytoscapeStudio from './CytoscapeStudio';
 import DisplayHTML from './DisplayHTML'; // Viewer-friendly rendering of cnl.md
 
-export default function DisplayTabs({ userId, graphId, graph}) {
-  const [tab, setTab] = useState('graph');
+export default function DisplayTabs({ userId, graphId }) {
+  const [tab, setTab] = useState('html'); // Default to Document View
 
   return (
     <div className="h-full flex flex-col">
@@ -25,11 +25,11 @@ export default function DisplayTabs({ userId, graphId, graph}) {
 
       {/* Viewport */}
       <div className="flex-1 overflow-auto border p-4 rounded-b bg-white">
-        {tab === 'graph' ? (
-            <CytoscapeStudio userId={userId} graphId={graphId} graph={graph}/>
+        {tab === 'html' ? (
+          <DisplayHTML userId={userId} graphId={graphId}/>
         ) : (
-          <DisplayHTML userId={userId} graphId={graphId} />
-        )}
+          <CytoscapeStudio userId={userId} graphId={graphId}/>
+        )}  
       </div>
     </div>
   );
