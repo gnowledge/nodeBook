@@ -1,9 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CNLInput from "./CNLInput";
 import DevPanel from "./DevPanel";
 
 const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave }) => {
   const [activeTab, setActiveTab] = useState("CNL");
+
+  // Reset to CNL tab when graphId changes (i.e., when a new graph is selected)
+  useEffect(() => {
+    setActiveTab("CNL");
+  }, [graphId]);
 
   return (
     <div className="flex flex-col h-full w-full bg-white border-r border-gray-300">
@@ -27,9 +32,8 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave }) => {
           <CNLInput
             userId={userId}
             graphId={graphId}
-            graph={graph}
-            onGraphUpdate={onGraphUpdate}
             onSave={onSave}
+            onParsed={onSave} // Call onSave after parse to trigger parent re-fetch
           />
         ) : (
           <DevPanel

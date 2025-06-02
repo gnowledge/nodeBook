@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import CytoscapeStudio from './CytoscapeStudio';
 import DisplayHTML from './DisplayHTML'; // Viewer-friendly rendering of cnl.md
 
-export default function DisplayTabs({ userId, graphId }) {
+export default function DisplayTabs({ userId, graphId, graph }) {
   const [tab, setTab] = useState('html'); // Default to Document View
 
   return (
@@ -28,7 +28,7 @@ export default function DisplayTabs({ userId, graphId }) {
         {tab === 'html' ? (
           <DisplayHTML userId={userId} graphId={graphId}/>
         ) : (
-          <CytoscapeStudio userId={userId} graphId={graphId}/>
+          <CytoscapeStudio graph={graph}/>
         )}  
       </div>
     </div>

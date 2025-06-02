@@ -8,7 +8,8 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [allGraphs, setAllGraphs] = useState([]); // All available graphs
   const [openGraphs, setOpenGraphs] = useState([]); // Tabs
   const [activeGraph, setActiveGraph] = useState(null);
-  const [graphData, setGraphData] = useState(null);
+  const [rawMarkdowns, setRawMarkdowns] = useState({}); // { graphId: rawMarkdown }
+  const [parsedYamls, setParsedYamls] = useState({});   // { graphId: parsedYaml }
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({}); // Track modified state
 
@@ -17,9 +18,10 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       try {
         const graphList = await listGraphsWithTitles(userId);
         setAllGraphs(graphList);
-        if (graphList.length > 0) {
-          await openGraphInTab(graphList[0].id);
-        }
+        // Do not open any graph by default
+        // if (graphList.length > 0) {
+        //   await openGraphInTab(graphList[0].id);
+        // }
       } catch (err) {
         console.error("Error loading graph list:", err);
       }
@@ -27,22 +29,24 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     init();
   }, [userId]);
 
+  // Update openGraphInTab to use per-graph state
   const openGraphInTab = async (graphId) => {
     if (openGraphs.find((g) => g.id === graphId)) {
       setActiveGraph(graphId);
       return;
     }
     try {
+      // Fetch raw markdown (for editor)
       const raw = await loadGraphCNL(userId, graphId);
+      // Fetch parsed.yaml for graph and HTML
       const parsedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parsed`);
       const parsedText = await parsedRes.text();
       const parsed = yaml.load(parsedText);
-      const fullGraph = { ...parsed, raw_markdown: raw };
-
+      setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
+      setParsedYamls((prev) => ({ ...prev, [graphId]: parsed }));
       const graphMeta = allGraphs.find((g) => g.id === graphId) || { id: graphId, title: graphId };
       setOpenGraphs((prev) => [...prev, graphMeta]);
       setActiveGraph(graphId);
-      setGraphData(fullGraph);
     } catch (err) {
       console.error("Failed to open graph:", err);
     }
@@ -82,9 +86,20 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     }
   };
 
-  const handleSaveGraph = () => {
-    if (activeGraph) {
+  // When saving or parsing, re-fetch and update only the relevant entry
+  const handleSaveGraph = async () => {
+    if (!activeGraph) return;
+    try {
+      // Re-fetch both raw and parsed after save/parse
+      const raw = await loadGraphCNL(userId, activeGraph);
+      const parsedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/parsed`);
+      const parsedText = await parsedRes.text();
+      const parsed = yaml.load(parsedText);
+      setRawMarkdowns((prev) => ({ ...prev, [activeGraph]: raw }));
+      setParsedYamls((prev) => ({ ...prev, [activeGraph]: parsed }));
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));
+    } catch (err) {
+      console.error("Failed to re-fetch after save/parse:", err);
     }
   };
 
@@ -173,17 +188,14 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
           <NDFStudioPanel
             userId={userId}
             graphId={activeGraph}
-            graph={graphData}
+            graph={parsedYamls[activeGraph]}
             onGraphUpdate={handleGraphUpdate}
             onSave={handleSaveGraph}
+            rawMarkdown={rawMarkdowns[activeGraph]}
           />
         }
         right={
-          <DisplayTabs
-            userId={userId}
-            graphId={activeGraph}
-            graph={graphData}
-          />
+          <DisplayTabs userId={userId} graphId={activeGraph} graph={parsedYamls[activeGraph]} />
         }
       />
     </div>

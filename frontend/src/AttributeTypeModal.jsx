@@ -76,21 +76,21 @@ export default function AttributeTypeModal({
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <h3>{method === 'PUT' ? 'Edit' : 'Create'} Attribute Type</h3>
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
+      <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
+        <h3 className="text-lg font-bold mb-4">{method === 'PUT' ? 'Edit' : 'Create'} Attribute Type</h3>
 
-        <div style={styles.field}>
-          <label>Name:</label>
-          <input value={name} onChange={e => setName(e.target.value)} style={styles.input} disabled={method === 'PUT'} />
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Name:</label>
+          <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded" disabled={method === 'PUT'} />
         </div>
 
-        <div style={styles.field}>
-          <label>Data Type:</label>
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Data Type:</label>
           <select
             value={dataType}
             onChange={e => setDataType(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full border rounded px-3 py-2"
           >
             <option value="">-- Select Data Type --</option>
             <option value="string">string</option>
@@ -100,66 +100,33 @@ export default function AttributeTypeModal({
           </select>
         </div>
 
-        <div style={styles.field}>
-          <label>Unit (optional):</label>
-          <input value={unit} onChange={e => setUnit(e.target.value)} style={styles.input} />
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Unit (optional):</label>
+          <input value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-2 border rounded" />
         </div>
 
-        <div style={styles.field}>
-          <label>Domain (comma-separated):</label>
-          <input value={domain} onChange={e => setDomain(e.target.value)} style={styles.input} />
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Domain (comma-separated):</label>
+          <input value={domain} onChange={e => setDomain(e.target.value)} className="w-full p-2 border rounded" />
         </div>
 
-        <div style={styles.field}>
-          <label>Allowed Values (comma-separated, optional):</label>
-          <input value={allowedValues} onChange={e => setAllowedValues(e.target.value)} style={styles.input} />
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Allowed Values (comma-separated, optional):</label>
+          <input value={allowedValues} onChange={e => setAllowedValues(e.target.value)} className="w-full p-2 border rounded" />
         </div>
 
-        <div style={styles.field}>
-          <label>Description:</label>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} style={styles.textarea} />
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Description:</label>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full p-2 border rounded h-20" />
         </div>
 
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {error && <p className="text-red-600 mb-2">{error}</p>}
 
-        <div style={styles.actions}>
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={handleSubmit}>{method === 'PUT' ? 'Update' : 'Add'} Attribute Type</button>
+        <div className="flex justify-between mt-4">
+          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+          <button onClick={handleSubmit} className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">{method === 'PUT' ? 'Update' : 'Add'} Attribute Type</button>
         </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  overlay: {
-    position: 'fixed', top: 0, left: 0,
-    width: '100vw', height: '100vh',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    display: 'flex', justifyContent: 'center', alignItems: 'center',
-    zIndex: 1000
-  },
-  modal: {
-    backgroundColor: 'white',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    width: '400px',
-    boxShadow: '0 0 10px rgba(0,0,0,0.25)'
-  },
-  field: {
-    marginBottom: '1rem'
-  },
-  input: {
-    width: '100%',
-    padding: '0.5rem'
-  },
-  textarea: {
-    width: '100%',
-    height: '4rem',
-    padding: '0.5rem'
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'space-between'
-  }
-};

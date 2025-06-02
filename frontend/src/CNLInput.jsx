@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 
-export default function CNLInput({ userId, graphId, onGraphUpdate, onSave }) {
+export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed }) {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const [value, setValue] = useState('');
@@ -127,10 +127,11 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave }) {
       method: 'POST'
     });
     alert('Parsed and saved!');
+    if (onParsed) onParsed(); // Notify parent to re-fetch parsed YAML
   }
 
   return (
-    <div ref={containerRef} className="relative h-full flex flex-col">
+    <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
       <div className="flex flex-wrap justify-center gap-2 px-4 py-3 border-b bg-gray-50">
         <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-600 text-white text-sm rounded shadow-sm">Node</button>
         <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-white border border-gray-300 text-sm rounded shadow-sm">CNL</button>
@@ -140,7 +141,7 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave }) {
         <button onClick={() => insertTextTemplate(editorRef.current, `subject has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Attribute</button>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0">
         <MonacoEditor
           height="100%"
           language="plaintext"
@@ -157,9 +158,9 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave }) {
         />
       </div>
 
-      <div className="flex justify-end gap-3 px-4 py-2 border-t bg-white sticky bottom-0">
-        <button onClick={saveCNL} className="px-4 py-1 bg-blue-700 text-white rounded shadow-sm bg-white text-blue-700 border border-blue-700">Save</button>
-        <button onClick={parseCNL} className="px-4 py-1 bg-green-700 text-white rounded shadow-sm bg-white text-green-700 border border-green-700">Parse</button>
+      <div className="absolute left-0 right-0 bottom-0 flex justify-end gap-4 px-8 py-4 bg-gradient-to-t from-white via-white/90 to-transparent border-t z-10">
+        <button onClick={saveCNL} className="px-6 py-2 text-lg font-semibold rounded bg-blue-700 text-white shadow hover:bg-blue-800 transition">Save</button>
+        <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
       </div>
     </div>
   );
