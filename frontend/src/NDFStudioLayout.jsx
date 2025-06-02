@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import DisplayTabs from "./DisplayTabs";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
 import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
@@ -125,6 +124,11 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     }
   };
 
+  // Accepts (graphId, parsed) to update per-document parsed YAML
+  const setParsedYaml = (graphId, parsed) => {
+    setParsedYamls((prev) => ({ ...prev, [graphId]: parsed }));
+  };
+
   return (
     <div className="p-2 h-full flex flex-col">
       <div className="flex items-center space-x-2 border-b pb-2 relative">
@@ -183,59 +187,18 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         ))}
       </div>
 
-      <ResizableSplitPanel
-        left={
-          <NDFStudioPanel
-            userId={userId}
-            graphId={activeGraph}
-            graph={parsedYamls[activeGraph]}
-            onGraphUpdate={handleGraphUpdate}
-            onSave={handleSaveGraph}
-            rawMarkdown={rawMarkdowns[activeGraph]}
-          />
-        }
-        right={
-          <DisplayTabs userId={userId} graphId={activeGraph} graph={parsedYamls[activeGraph]} />
-        }
+      {/* Remove ResizableSplitPanel, just render NDFStudioPanel directly */}
+      <NDFStudioPanel
+        userId={userId}
+        graphId={activeGraph}
+        graph={parsedYamls[activeGraph]}
+        onGraphUpdate={handleGraphUpdate}
+        onSave={handleSaveGraph}
+        setParsedYaml={setParsedYaml}
+        rawMarkdown={rawMarkdowns[activeGraph]}
       />
     </div>
   );
 };
-
-function ResizableSplitPanel({ left, right, minLeft = 200, minRight = 200, initial = 0.5 }) {
-  const containerRef = React.useRef(null);
-  const [ratio, setRatio] = useState(initial);
-  const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    const onMouseMove = (e) => {
-      if (!dragging || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      let newRatio = (e.clientX - rect.left) / rect.width;
-      newRatio = Math.max(minLeft / rect.width, Math.min(1 - minRight / rect.width, newRatio));
-      setRatio(newRatio);
-    };
-    const onMouseUp = () => setDragging(false);
-    if (dragging) {
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [dragging, minLeft, minRight]);
-
-  return (
-    <div ref={containerRef} className="flex flex-1 border border-gray-300 rounded-b-md relative" style={{ minHeight: 0 }}>
-      <div style={{ width: `${ratio * 100}%`, minWidth: minLeft, overflow: "auto" }}>{left}</div>
-      <div
-        style={{ width: 6, cursor: "col-resize", background: "#e0e0e0", zIndex: 10, userSelect: "none" }}
-        onMouseDown={() => setDragging(true)}
-      />
-      <div style={{ flex: 1, minWidth: minRight, overflow: "auto" }}>{right}</div>
-    </div>
-  );
-}
 
 export default NDFStudioLayout;

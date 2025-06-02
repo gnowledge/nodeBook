@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import RelationTypeModal from './RelationTypeModal';
+import AttributeTypeModal from './AttributeTypeModal';
 
 export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed }) {
   const editorRef = useRef(null);
@@ -132,13 +134,28 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
 
   return (
     <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
-      <div className="flex flex-wrap justify-center gap-2 px-4 py-3 border-b bg-gray-50">
-        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-600 text-white text-sm rounded shadow-sm">Node</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-white border border-gray-300 text-sm rounded shadow-sm">CNL</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">C-Relation</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">C-Attribute</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `subject <relation> object`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `subject has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Attribute</button>
+      <div className="flex flex-wrap  gap-2 px-4 py-3 border-b bg-gray-50 items-center">
+        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-light-blue-600 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-white border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation ➛ </button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">🏷 Attribute:</button>
+        {/* Schema modals as chip-style links, right next to insertion buttons */}
+        <RelationTypeModal userId={userId} graphId={graphId}>
+          <span
+            className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
+            title="Add a new relation type to the schema"
+          >
+            + Relation Type
+          </span>
+        </RelationTypeModal>
+        <AttributeTypeModal userId={userId} graphId={graphId}>
+          <span
+            className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
+            title="Add a new attribute type to the schema"
+          >
+            + Attribute Type
+          </span>
+        </AttributeTypeModal>
       </div>
 
       <div className="flex-1 min-h-0">
