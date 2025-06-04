@@ -135,8 +135,8 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
   return (
     <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
       <div className="flex flex-wrap  gap-2 px-4 py-3 border-b bg-gray-50 items-center">
-        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-light-blue-600 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-white border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-300 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
+        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-darkgrey border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
         <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation ➛ </button>
         <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">🏷 Attribute:</button>
         {/* Schema modals as chip-style links, right next to insertion buttons */}
