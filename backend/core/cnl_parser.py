@@ -1,70 +1,70 @@
 import re
+import json
+import networkx as nx
+from pathlib import Path
 from typing import List, Dict, Optional
+
+from core.utils import normalize_id, load_text_file, save_json_file, load_json_file
+from core.registry import load_node_registry, update_node_registry, create_node_if_missing
 from core.schema_ops import load_schema
 
-from pathlib import Path
-import yaml
-import re
-import networkx as nx
 
-def normalize_id(name: str) -> str:
-    return name.strip().lower().replace(" ", "_")
 
-def parse_logical_cnl(raw_md):
-    entries = []
-    current_node = None
+def parse_logical_cnl(cnl_text: str, subject: str | None = None) -> list:
+    """
+    Parses a block of Controlled Natural Language into structured facts.
+    If 'subject' is provided, it is injected as subject (for relations)
+    or target (for attributes).
+    """
+    lines = [line.strip() for line in cnl_text.strip().splitlines() if line.strip()]
+    facts = []
+    
+    for line in lines:
+        if line.startswith("<") and ">" in line:
+            # Parse a relation
+            rel_end = line.index(">")
+            name = line[1:rel_end].strip()
+            obj = line[rel_end+1:].strip()
+            if not obj:
+                continue
+            facts.append({
+                "type": "relation",
+                "name": name,
+                "subject": subject,
+                "object": obj.lower()
+            })
+        elif line.lower().startswith("has ") or line.startswith("<has ") or ":" in line:
+            parts = line.split(":", 1)
+            if len(parts) == 2:
+                label = parts[0].replace("<", "").replace(">", "").strip()
+                name = label.replace("has", "").strip()
+                value_part = parts[1].strip()
 
-    sections = re.split(r'^# (.+)$', raw_md, flags=re.MULTILINE)
-    if sections[0].strip():
-        entries.append({
-            "type": "document",
-            "description": sections[0].strip()
-        })
+                # Extract unit if in parentheses
+                if value_part.endswith(")"):
+                    unit_start = value_part.rfind("(")
+                    if unit_start != -1:
+                        value = value_part[:unit_start].strip()
+                        unit = value_part[unit_start+1:-1].strip()
+                    else:
+                        value = value_part
+                        unit = ""
+                else:
+                    value = value_part
+                    unit = ""
 
-    for i in range(1, len(sections), 2):
-        node_id = sections[i].strip()
-        content = sections[i + 1].strip()
-        current_node = node_id
-        entries.append({
-            "type": "node",
-            "id": node_id,
-            "description": ""
-        })
+                facts.append({
+                    "type": "attribute",
+                    "name": name,
+                    "value": value,
+                    "unit": unit,
+                    "target": subject
+                })
 
-        parts = re.split(r':::cnl\s*\n(.*?)\n:::', content, flags=re.DOTALL)
-        text_blocks = parts[::2]
-        cnl_blocks = parts[1::2]
+        # Note: target node creation moved to parse_graph where user_id and graph_id are available
 
-        if text_blocks and text_blocks[0].strip():
-            entries[-1]["description"] = text_blocks[0].strip()
+    return facts
 
-        for block in cnl_blocks:
-            for line in block.strip().splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("has <"):
-                    m = re.match(r'has <(.*?)> (.*?) ?(?:\[(.*?)\])?', line)
-                    if m:
-                        name, value, unit = m.groups()
-                        entries.append({
-                            "type": "attribute",
-                            "subject": current_node,
-                            "name": name.strip(),
-                            "value": value.strip(),
-                            "unit": (unit or "").strip()
-                        })
-                elif line.startswith("<"):
-                    m = re.match(r'<(.*?)> (.*)', line)
-                    if m:
-                        rel, obj = m.groups()
-                        entries.append({
-                            "type": "relation",
-                            "subject": current_node,
-                            "name": rel.strip(),
-                            "object": obj.strip()
-                        })
-    return entries
 
 def build_nbh_with_networkx(flat_entries):
     G = nx.MultiDiGraph()
@@ -198,92 +198,13 @@ def parse_cnl_block(block: str, log: Optional[List[str]] = None) -> List[Dict]:
 
 def extract_cnl_blocks(markdown: str) -> List[str]:
     """
-    Extract all ```cnl code blocks from the markdown text.
-    Returns a list of code block strings (without ```cnl ... ``` markers).
+    Extract all :::cnl code blocks from the markdown text.
+    Returns a list of code block strings (without :::cnl ... ::: markers).
     """
-    pattern = r"```cnl(.*?)```"
+    pattern = r":::cnl(.*?):::"
     matches = re.findall(pattern, markdown, re.DOTALL | re.IGNORECASE)
     return [block.strip() for block in matches]
 
-def parse_logical_cnl(text: str, log: Optional[List[str]] = None) -> List[Dict]:
-    relation_types = load_schema("relation_types.yaml", default_data=[])
-    attribute_types = load_schema("attribute_types.yaml", default_data=[])
-
-    known_relations = {r["name"] for r in relation_types}
-    known_attributes = {a["name"] for a in attribute_types}
-
-    statements = []
-    nodes_seen = set()
-
-    clauses = re.split(r"[;\n]+", text)
-
-    for idx, clause in enumerate(clauses):
-        line = clause.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        # --- Relation: subject <relation> object ---
-        m_rel = re.match(r"(.+?)\s*<(.+?)>\s*(.+)", line)
-        if m_rel:
-            subject, rel, obj = m_rel.groups()
-            if rel in known_relations:
-                subj_id = normalize_id(subject)
-                obj_id = normalize_id(obj)
-
-                # Add nodes if new
-                for nid in (subj_id, obj_id):
-                    if nid not in nodes_seen:
-                        statements.append({"type": "node", "id": nid, "name": nid})
-                        nodes_seen.add(nid)
-
-                statements.append({
-                    "type": "relation",
-                    "subject": subj_id,
-                    "object": obj_id,
-                    "name": rel
-                })
-                continue
-
-        # --- Attribute: subject has attr value unit ---
-        m_attr1 = re.match(r"(.+?) has (\w+)(?: (.+?))(?: ([a-zA-Z]+))?$", line)
-        if m_attr1:
-            subj, attr, val, unit = m_attr1.groups()
-            subj_id = normalize_id(subj)
-            if attr in known_attributes:
-                if subj_id not in nodes_seen:
-                    statements.append({"type": "node", "id": subj_id, "name": subj_id})
-                    nodes_seen.add(subj_id)
-                statements.append({
-                    "type": "attribute",
-                    "target": subj_id,
-                    "name": attr,
-                    "value": val.strip(),
-                    "unit": unit or ""
-                })
-                continue
-
-        # --- Attribute: attr of subject is value unit ---
-        m_attr2 = re.match(r"(\w+) of (.+?) is (.+?)(?: ([a-zA-Z]+))?$", line)
-        if m_attr2:
-            attr, subj, val, unit = m_attr2.groups()
-            subj_id = normalize_id(subj)
-            if attr in known_attributes:
-                if subj_id not in nodes_seen:
-                    statements.append({"type": "node", "id": subj_id, "name": subj_id})
-                    nodes_seen.add(subj_id)
-                statements.append({
-                    "type": "attribute",
-                    "target": subj_id,
-                    "name": attr,
-                    "value": val.strip(),
-                    "unit": unit or ""
-                })
-                continue
-
-        if log is not None:
-            log.append(f"Unrecognized line {idx + 1}: {line.strip()}")
-
-    return statements
 
 def extract_node_sections_from_markdown(md_text: str) -> List[Dict]:
     sections = []
@@ -309,9 +230,9 @@ def extract_node_sections_from_markdown(md_text: str) -> List[Dict]:
             current_desc_lines = []
             current_cnl_lines = []
             in_cnl_block = False
-        elif line_strip.startswith("```cnl"):
+        elif line_strip.startswith(":::cnl"):
             in_cnl_block = True
-        elif line_strip.startswith("```") and in_cnl_block:
+        elif line_strip.startswith(":::") and in_cnl_block:
             in_cnl_block = False
         else:
             if in_cnl_block:
@@ -353,3 +274,61 @@ def ensure_nodes_exist(parsed_statements):
     return parsed_statements + new_nodes
 
 
+def parse_cnl_to_parsed_json(user_id: str, graph_id: str) -> dict:
+    from core.utils import load_text_file, save_json_file
+    from core.registry import load_node_registry, update_node_registry, create_node_if_missing
+
+    from pathlib import Path
+    from core.cnl_parser import extract_node_sections_from_markdown, parse_logical_cnl, normalize_id
+
+    # 🔧 Correct path to cnl.md inside graph folder
+    graph_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/cnl.md")
+    parsed_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/parsed.json")
+
+    if not graph_path.exists():
+        raise FileNotFoundError(f"Graph file not found: {graph_path}")
+
+    raw_md = load_text_file(graph_path)
+    sections = extract_node_sections_from_markdown(raw_md)
+    registry = load_node_registry(user_id)
+
+    parsed = {
+        "graph_id": graph_id,
+        "nodes": [],
+        "relations": [],
+        "attributes": []
+    }
+
+    for section in sections:
+        node_id = normalize_id(section["id"])
+        parsed["nodes"].append(node_id)
+
+        # Ensure node is registered and optionally created
+        if node_id not in registry:
+            create_node_if_missing(user_id, node_id, name=section["id"])
+            update_node_registry(registry, node_id, graph_id)
+        else:
+            if graph_id not in registry[node_id].get("graphs", []):
+                registry[node_id]["graphs"].append(graph_id)
+
+        facts = parse_logical_cnl(section["cnl"])
+
+        for fact in facts:
+            if fact["type"] == "relation":
+                parsed["relations"].append({
+                    "name": fact["name"],
+                    "source": fact["subject"],
+                    "target": fact["object"]
+                })
+            elif fact["type"] == "attribute":
+                parsed["attributes"].append({
+                    "name": fact["name"],
+                    "value": fact["value"],
+                    "unit": fact.get("unit", ""),
+                    "target": fact["target"]
+                })
+
+    save_json_file(Path(f"data/users/{user_id}/node_registry.json"), registry)
+    save_json_file(parsed_path, parsed)
+
+    return parsed
