@@ -7,11 +7,11 @@ const NDFPreview = ({ userId, graphId }) => {
   useEffect(() => {
     const fetchParsed = async () => {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parsed`);
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/preview`);
         const text = await res.text();
         setYamlText(text);
       } catch (err) {
-        setYamlText("# Failed to load parsed.yaml");
+        setYamlText("# Failed to load composed.yaml");
         console.error(err);
       }
     };

@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from "react";
 import NDFStudioPanel from "./NDFStudioPanel";
-import yaml from "js-yaml";
 import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
 
 const NDFStudioLayout = ({ userId = "user0" }) => {
-  const [allGraphs, setAllGraphs] = useState([]); // All available graphs
-  const [openGraphs, setOpenGraphs] = useState([]); // Tabs
+  const [allGraphs, setAllGraphs] = useState([]);
+  const [openGraphs, setOpenGraphs] = useState([]);
   const [activeGraph, setActiveGraph] = useState(null);
-  const [rawMarkdowns, setRawMarkdowns] = useState({}); // { graphId: rawMarkdown }
-  const [parsedYamls, setParsedYamls] = useState({});   // { graphId: parsedYaml }
+  const [rawMarkdowns, setRawMarkdowns] = useState({});
+  const [composedGraphs, setComposedGraphs] = useState({});
   const [showMenu, setShowMenu] = useState(false);
-  const [modifiedGraphs, setModifiedGraphs] = useState({}); // Track modified state
+  const [modifiedGraphs, setModifiedGraphs] = useState({});
 
   useEffect(() => {
     async function init() {
       try {
         const graphList = await listGraphsWithTitles(userId);
         setAllGraphs(graphList);
-        // Do not open any graph by default
-        // if (graphList.length > 0) {
-        //   await openGraphInTab(graphList[0].id);
-        // }
       } catch (err) {
         console.error("Error loading graph list:", err);
       }
@@ -28,21 +23,17 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     init();
   }, [userId]);
 
-  // Update openGraphInTab to use per-graph state
   const openGraphInTab = async (graphId) => {
     if (openGraphs.find((g) => g.id === graphId)) {
       setActiveGraph(graphId);
       return;
     }
     try {
-      // Fetch raw markdown (for editor)
       const raw = await loadGraphCNL(userId, graphId);
-      // Fetch parsed.yaml for graph and HTML
-      const parsedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parsed`);
-      const parsedText = await parsedRes.text();
-      const parsed = yaml.load(parsedText);
+      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
+      const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
-      setParsedYamls((prev) => ({ ...prev, [graphId]: parsed }));
+      setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
       const graphMeta = allGraphs.find((g) => g.id === graphId) || { id: graphId, title: graphId };
       setOpenGraphs((prev) => [...prev, graphMeta]);
       setActiveGraph(graphId);
@@ -64,14 +55,15 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       if (!res.ok) throw new Error(await res.text());
 
       const raw = await loadGraphCNL(userId, newId);
-      const parsed = yaml.load(raw);
-      const fullGraph = { ...parsed, raw_markdown: raw };
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/composed`).then(r => r.json());
+      const fullGraph = { ...composed, raw_markdown: raw };
       const newMeta = { id: newId, title: name };
 
       setAllGraphs((prev) => [...prev, newMeta]);
       setOpenGraphs((prev) => [...prev, newMeta]);
       setActiveGraph(newId);
-      setGraphData(fullGraph);
+      setComposedGraphs((prev) => ({ ...prev, [newId]: fullGraph }));
+      setRawMarkdowns((prev) => ({ ...prev, [newId]: raw }));
     } catch (err) {
       console.error("Failed to create graph:", err);
       alert("Failed to create graph. See console for details.");
@@ -79,23 +71,19 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   };
 
   const handleGraphUpdate = (updated) => {
-    setGraphData(updated);
+    setComposedGraphs((prev) => ({ ...prev, [activeGraph]: updated }));
     if (activeGraph) {
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: true }));
     }
   };
 
-  // When saving or parsing, re-fetch and update only the relevant entry
   const handleSaveGraph = async () => {
     if (!activeGraph) return;
     try {
-      // Re-fetch both raw and parsed after save/parse
       const raw = await loadGraphCNL(userId, activeGraph);
-      const parsedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/parsed`);
-      const parsedText = await parsedRes.text();
-      const parsed = yaml.load(parsedText);
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/composed`).then(r => r.json());
       setRawMarkdowns((prev) => ({ ...prev, [activeGraph]: raw }));
-      setParsedYamls((prev) => ({ ...prev, [activeGraph]: parsed }));
+      setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));
     } catch (err) {
       console.error("Failed to re-fetch after save/parse:", err);
@@ -119,14 +107,12 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         setActiveGraph(remaining[0].id);
       } else {
         setActiveGraph(null);
-        setGraphData(null);
       }
     }
   };
 
-  // Accepts (graphId, parsed) to update per-document parsed YAML
-  const setParsedYaml = (graphId, parsed) => {
-    setParsedYamls((prev) => ({ ...prev, [graphId]: parsed }));
+  const setComposedGraph = (graphId, composed) => {
+    setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
   };
 
   return (
@@ -187,14 +173,13 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         ))}
       </div>
 
-      {/* Remove ResizableSplitPanel, just render NDFStudioPanel directly */}
       <NDFStudioPanel
         userId={userId}
         graphId={activeGraph}
-        graph={parsedYamls[activeGraph]}
+        graph={composedGraphs[activeGraph]}
         onGraphUpdate={handleGraphUpdate}
         onSave={handleSaveGraph}
-        setParsedYaml={setParsedYaml}
+        setParsedYaml={setComposedGraph}
         rawMarkdown={rawMarkdowns[activeGraph]}
       />
     </div>

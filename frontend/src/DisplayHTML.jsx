@@ -1,94 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import yaml from 'js-yaml';
+import React, { useEffect, useState } from "react";
 
-export default function DisplayHTML({ userId, graphId }) {
-  const [parsedYaml, setParsedYaml] = useState(null);
-  const [activeNode, setActiveNode] = useState(null);
+const DisplayHTML = ({ userId, graphId }) => {
+  const [graph, setGraph] = useState(null);
 
   useEffect(() => {
-    const onHashChange = () => {
-      setActiveNode(window.location.hash.replace(/^#/, ""));
-    };
-    window.addEventListener("hashchange", onHashChange);
-    onHashChange();
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  useEffect(() => {
-    if (!userId || !graphId) return;
-
-    const fetchData = async () => {
+    const fetchComposed = async () => {
       try {
-        const resYaml = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parsed`);
-        const parsedText = await resYaml.text();
-        const parsed = yaml.load(parsedText);
-        setParsedYaml(parsed);
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
+        const data = await res.json();
+        setGraph(data);
       } catch (err) {
-        console.error("❌ Error loading parsed YAML:", err);
+        console.error("Failed to load composed.json:", err);
+        setGraph(null);
       }
     };
 
-    fetchData();
+    fetchComposed();
   }, [userId, graphId]);
 
-  if (!parsedYaml || !parsedYaml.nodes) return <div className="p-4">Loading graph data...</div>;
+  if (!graph) {
+    return <div className="p-4 text-red-600">Failed to load graph.</div>;
+  }
 
   return (
     <div className="p-4">
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {parsedYaml.nodes.map((node) => {
-          const isActive = activeNode === node.id;
-          return (
-            <div
-              key={node.id}
-              id={node.id}
-              tabIndex={0}
-              onClick={() => {
-                window.location.hash = `#${node.id}`;
-                document.getElementById(node.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-              className={`transition-all duration-200 cursor-pointer flex flex-col min-h-52 mb-8 rounded-xl p-4 shadow-md bg-white border ${isActive ? 'border-blue-600 bg-blue-50 shadow-lg' : 'border-gray-200 hover:shadow-lg'}`}
-            >
-              <h2 className="text-xl font-bold mb-2">{node.id}</h2>
-              <pre className="whitespace-pre-wrap bg-gray-100 rounded px-2 py-1 text-sm mb-2 flex-1">{node.description}</pre>
-              {node.attributes?.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-gray-700 font-semibold text-sm mb-1">Attributes:</div>
-                  <ul className="ml-4 text-sm text-gray-800 list-disc">
-                    {node.attributes.map((attr, i) => (
-                      <li key={i} className="mb-1">
-                        <span className="font-semibold">{attr.name}</span>: {attr.value} {attr.unit}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {node.relations?.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-gray-700 font-semibold text-sm mb-1">Relations:</div>
-                  <ul className="ml-4 text-sm text-gray-800 list-disc">
-                    {node.relations.map((rel, i) => (
-                      <li key={i} className="mb-1">
-                        <span className="font-semibold">{rel.name}</span> ➝{' '}
-                        <span
-                          className="text-blue-700 font-semibold cursor-pointer hover:underline"
-                          onClick={e => {
-                            e.stopPropagation();
-                            window.location.hash = `#${rel.target}`;
-                            document.getElementById(rel.target)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }}
-                        >
-                          {rel.target}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {graph.nodes.map((node) => (
+          <div key={node.id} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
+            <h2 className="text-lg font-semibold text-blue-700 mb-1">{node.name || node.id}</h2>
+            {node.description && <p className="mb-2 text-gray-700 text-sm">{node.description}</p>}
+
+            {node.attributes?.length > 0 && (
+              <div className="mb-2">
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Attributes</h3>
+                <ul className="list-disc list-inside text-gray-800 text-sm">
+                  {node.attributes.map((attr, i) => (
+                    <li key={i}>
+                      {attr.name}: {attr.value}
+                      {attr.unit && ` (${attr.unit})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {node.relations?.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Relations</h3>
+                <ul className="list-disc list-inside text-gray-800 text-sm">
+                  {node.relations.map((rel, i) => (
+                    <li key={i}>
+                      &lt;{rel.name}&gt; → {rel.target}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
-}
+};
+
+export default DisplayHTML;

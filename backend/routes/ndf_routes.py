@@ -14,10 +14,9 @@ from core.path_utils import get_graph_path
 from core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
 from core.ndf_ops import convert_parsed_to_nodes
 from core.schema_utils import filter_used_schema
-from core.utils import load_json_file, save_json_file
+from core.utils import load_json_file, save_json_file, normalize_id
 from core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
 from core.registry import create_node_if_missing, load_node_registry, update_node_registry
-from core.cnl_parser import normalize_id
 
 
 router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
@@ -30,7 +29,7 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
     Ensure that all nodes referenced in parsed["relations"] and parsed["attributes"] exist in registry and nodes/<id>.json
     """
     registry = load_node_registry(user_id)
-    known = set(parsed["nodes"])
+    known = {node["id"] for node in parsed["nodes"] if isinstance(node, dict)}
     inferred = set()
 
     for rel in parsed.get("relations", []):
@@ -49,11 +48,15 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
 
     save_json_file(Path(f"graph_data/users/{user_id}/node_registry.json"), registry)
 
-
 def generate_composed_graph(user_id: str, graph_id: str) -> dict:
-    base_path = Path("graph_data/users") / user_id / "graphs" / graph_id
+    """
+    Generate composed.json and composed.yaml for a given graph,
+    based on parsed.json, and ensure each node has its own .json file.
+    """
+    base_path = GRAPH_BASE / user_id / "graphs" / graph_id
     parsed_path = base_path / "parsed.json"
     composed_path = base_path / "composed.json"
+    composed_yaml_path = base_path / "composed.yaml"
 
     if not parsed_path.exists():
         raise FileNotFoundError(f"parsed.json not found for graph: {graph_id}")
@@ -67,32 +70,29 @@ def generate_composed_graph(user_id: str, graph_id: str) -> dict:
     for node_id in parsed["nodes"]:
         node = {
             "id": node_id,
-            "name": node_id.capitalize(),  # Fallback name
+            "name": node_id.capitalize(),
             "attributes": [],
             "relations": []
         }
-        # Attach all matching attributes
         for attr in parsed.get("attributes", []):
             if attr.get("target") == node_id:
                 node["attributes"].append(attr)
-
-        # Attach all matching relations where this node is the source
         for rel in parsed.get("relations", []):
             if rel.get("source") == node_id:
                 node["relations"].append(rel)
-
         composed["nodes"].append(node)
 
+    # Save as composed.json
     save_json_file(composed_path, composed)
 
-    # Also write parsed.yaml from parsed.json
-    import yaml
-    parsed_yaml_path = base_path / "parsed.yaml"
-    with parsed_yaml_path.open("w") as f:
-        yaml.dump(parsed, f, sort_keys=False)
-        # Optional: Update each node's own JSON file with NBH
-    node_dir = Path("graph_data/users") / user_id / "nodes"
+    # Save as composed.yaml (replacing previously misnamed parsed.yaml)
+    with composed_yaml_path.open("w", encoding="utf-8") as f:
+        yaml.dump(composed, f, sort_keys=False, allow_unicode=True)
+
+    # Create or update individual node files in global store
+    node_dir = GRAPH_BASE / user_id / "nodes"
     node_dir.mkdir(parents=True, exist_ok=True)
+
     for node in composed["nodes"]:
         node_path = node_dir / f"{node['id']}.json"
         node_data = {
@@ -104,6 +104,20 @@ def generate_composed_graph(user_id: str, graph_id: str) -> dict:
         save_json_file(node_path, node_data)
 
     return composed
+
+@router.get("/users/{user_id}/graphs/{graph_id}/preview")
+def get_composed_yaml_for_preview(user_id: str, graph_id: str):
+    """
+    Returns composed.yaml for preview rendering in NDFPreview (readonly).
+    """
+    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    if not composed_path.exists():
+        raise HTTPException(status_code=404, detail="composed.json not found")
+
+    data = load_json_file(composed_path)
+    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+
 
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
 def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain")):
@@ -137,7 +151,11 @@ def parse_graph(user_id: str, graph_id: str):
 
     for section in sections:
         node_id = normalize_id(section["id"])
-        parsed["nodes"].append(node_id)
+        parsed["nodes"].append({
+            "id": node_id,
+            "name": section["id"],
+            "description": section.get("description", "")
+        })
 
         create_node_if_missing(user_id, node_id, name=section["id"])
         update_node_registry(registry, node_id, graph_id)
@@ -160,9 +178,24 @@ def parse_graph(user_id: str, graph_id: str):
                     "unit": fact.get("unit", ""),
                     "target": fact["target"]
                 })
+            elif fact["type"] == "attribute":
+                parsed["attributes"].append({
+                    "name": fact["name"],
+                    "value": fact["value"],
+                    "unit": fact.get("unit", ""),
+                    "target": fact["target"]
+                })
 
     save_json_file(GRAPH_BASE / user_id / "node_registry.json", registry)
     ensure_all_nodes_exist(user_id, graph_id, parsed)
+    # Normalize source and target IDs in parsed relations and attributes
+    for rel in parsed["relations"]:
+        rel["source"] = normalize_id(rel["source"])
+        rel["target"] = normalize_id(rel["target"])
+
+    for attr in parsed["attributes"]:
+        attr["target"] = normalize_id(attr["target"])
+
     save_json_file(parsed_path, parsed)
 
     print("✅ Parsed relations:", parsed["relations"])
@@ -188,24 +221,17 @@ def parse_graph(user_id: str, graph_id: str):
     return parsed
 
 
-@router.get("/users/{user_id}/graphs/{graph_id}/parsed")
-async def get_parsed_yaml(user_id: str, graph_id: str):
-    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
-    if not parsed_path.exists():
-        raise HTTPException(status_code=404, detail="parsed.yaml not found")
 
-    return FileResponse(parsed_path, media_type="text/plain")
-
-
-@router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
-async def get_composed_yaml(user_id: str, graph_id: str):
+@router.get("/users/{user_id}/graphs/{graph_id}/composed")
+def get_composed_json(user_id: str, graph_id: str):
+    """
+    Returns the composed.json for use by the frontend as structured graph data.
+    """
     composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
-    data = load_json_file(composed_path)
-    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
-    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+    return load_json_file(composed_path)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/graph")

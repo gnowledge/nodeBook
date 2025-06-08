@@ -9,16 +9,13 @@ export async function loadGraphCNL(userId, graphId) {
 }
 
 export async function loadGraph(userId, graphId) {
-  const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}`);
-  const text = await res.text();
-  try {
-    const parsed = yaml.load(text);
-    console.log("Parsed .ndf graph:", parsed);
-    return parsed;
-  } catch (e) {
-    console.error("Failed to parse YAML:", e);
-    throw new Error("Invalid NDF format");
+  const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}/composed`);
+  if (!res.ok) {
+    throw new Error(`Failed to load composed graph for ${graphId}`);
   }
+  const data = await res.json();
+  console.log("Loaded composed.json:", data);
+  return data;
 }
 
 export async function listGraphsWithTitles(userId) {
