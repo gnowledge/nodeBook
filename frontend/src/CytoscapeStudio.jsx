@@ -13,6 +13,7 @@ function ndfToCytoscapeGraph(ndfData) {
       description: node.description || ""
     }
   }));
+    console.log("🧠 Nodes in graph:", ndfData.nodes);
 
   const edges = (ndfData.nodes || []).flatMap((node) =>
     (node.relations || []).map((rel, i) => ({
@@ -36,7 +37,9 @@ const CytoscapeStudio = ({ graph }) => {
     return <div className="p-4 text-red-600">No parsed graph data available for visualization.</div>;
   }
 
-  console.log("CytoscapeStudio graph prop:", graph);
+    console.log("📊 graph data:", graph);
+    
+    console.log("CytoscapeStudio graph prop:", graph);
   const cyRef = useRef(null);
   const containerRef = useRef(null);
   // Track mount state to force re-init on remount
@@ -59,7 +62,9 @@ const CytoscapeStudio = ({ graph }) => {
           document.body.contains(containerRef.current) &&
           mountedRef.current
         ) {
-          const { nodes, edges } = ndfToCytoscapeGraph(graph);
+            const { nodes, edges } = ndfToCytoscapeGraph(graph);
+	    console.log("🧩 Extracted edges:", edges);
+
           cyRef.current = cytoscape({
             container: containerRef.current,
             elements: [...nodes, ...edges],

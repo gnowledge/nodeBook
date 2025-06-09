@@ -48,6 +48,9 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
 
     save_json_file(Path(f"graph_data/users/{user_id}/node_registry.json"), registry)
 
+
+def generate_composed_graph(user_id: str, graph_id: str, id_to_name: dict = None) -> dict:
+    base_path = Path("graph_data/users") / user_id / "graphs" / graph_id
 def generate_composed_graph(user_id: str, graph_id: str) -> dict:
     """
     Generate composed.json and composed.yaml for a given graph,
@@ -67,9 +70,28 @@ def generate_composed_graph(user_id: str, graph_id: str) -> dict:
         "nodes": []
     }
 
+    # Use id_to_name if provided, else fallback to id as-is
+    if id_to_name is None:
+        # Try to reconstruct from parsed if possible
+        id_to_name = {nid: nid for nid in parsed["nodes"]}
+
     for node_id in parsed["nodes"]:
+        # Use the user-entered name, not normalized id
+        if node_id in id_to_name and id_to_name[node_id] != node_id:
+            user_name = id_to_name[node_id]
+        else:
+            # Fallback: prettify the id for display (replace _ with space, title-case, handle parens)
+            user_name = node_id.replace("_", " ").replace("(", "( ").replace(")", " )").replace("  ", " ").strip()
+            user_name = user_name.title().replace("( ", "(").replace(" )", ")")
+            # If the original id was all lowercase and had underscores, also try to preserve acronyms (e.g. RBC)
+            if "(" in user_name and ")" in user_name:
+                import re
+                user_name = re.sub(r'\(([^)]+)\)', lambda m: f'({m.group(1).upper()})', user_name)
+            # Always strip leading/trailing whitespace
+            user_name = user_name.strip()
         node = {
             "id": node_id,
+            "name": user_name,
             "name": node_id.capitalize(),
             "attributes": [],
             "relations": []
@@ -85,6 +107,13 @@ def generate_composed_graph(user_id: str, graph_id: str) -> dict:
     # Save as composed.json
     save_json_file(composed_path, composed)
 
+    # Also write parsed.yaml from parsed.json
+    import yaml
+    parsed_yaml_path = base_path / "parsed.yaml"
+    with parsed_yaml_path.open("w") as f:
+        yaml.dump(parsed, f, sort_keys=False)
+    # Optional: Update each node's own JSON file with NBH
+    node_dir = Path("graph_data/users") / user_id / "nodes"
     # Save as composed.yaml (replacing previously misnamed parsed.yaml)
     with composed_yaml_path.open("w", encoding="utf-8") as f:
         yaml.dump(composed, f, sort_keys=False, allow_unicode=True)
@@ -97,7 +126,7 @@ def generate_composed_graph(user_id: str, graph_id: str) -> dict:
         node_path = node_dir / f"{node['id']}.json"
         node_data = {
             "id": node["id"],
-            "name": node["name"],
+            "name": node.get("name", str(node["id"])),  # Use user-entered name
             "attributes": node.get("attributes", []),
             "relations": node.get("relations", [])
         }
@@ -149,8 +178,12 @@ def parse_graph(user_id: str, graph_id: str):
         "attributes": []
     }
 
+    id_to_name = {}  # Map normalized id to user-entered name
+
     for section in sections:
         node_id = normalize_id(section["id"])
+        parsed["nodes"].append(node_id)
+        id_to_name[node_id] = section["id"]  # Store user-entered name
         parsed["nodes"].append({
             "id": node_id,
             "name": section["id"],
@@ -169,14 +202,14 @@ def parse_graph(user_id: str, graph_id: str):
                 parsed["relations"].append({
                     "name": fact["name"],
                     "source": fact["subject"],
-                    "target": fact["object"]
+                    "target": normalize_id(fact["object"])
                 })
             elif fact["type"] == "attribute":
                 parsed["attributes"].append({
                     "name": fact["name"],
                     "value": fact["value"],
                     "unit": fact.get("unit", ""),
-                    "target": fact["target"]
+                    "target": normalize_id(fact["target"])
                 })
             elif fact["type"] == "attribute":
                 parsed["attributes"].append({
@@ -210,17 +243,54 @@ def parse_graph(user_id: str, graph_id: str):
         mentioned.add(attr["target"])
 
     for node_id in mentioned:
-        create_node_if_missing(user_id, node_id, name=node_id.capitalize())
+        # Use id_to_name if available, else fallback to id
+        create_node_if_missing(user_id, node_id, name=id_to_name.get(node_id, node_id))
         update_node_registry(registry, node_id, graph_id)
 
     try:
-        composed = generate_composed_graph(user_id, graph_id)
+        composed = generate_composed_graph(user_id, graph_id, id_to_name=id_to_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Parsed but failed to generate composed.json: {e}")
 
     return parsed
 
 
+@router.get("/users/{user_id}/graphs/{graph_id}/parsed")
+async def get_parsed_yaml(user_id: str, graph_id: str):
+    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
+    if not parsed_path.exists():
+        raise HTTPException(status_code=404, detail="parsed.yaml not found")
+
+    return FileResponse(parsed_path, media_type="text/plain")
+
+
+@router.get("/users/{user_id}/graphs/{graph_id}/composed")
+def get_composed_json(user_id: str, graph_id: str):
+    """
+    Returns the composed.json for use by the frontend as structured graph data.
+    """
+    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    if not composed_path.exists():
+        raise HTTPException(status_code=404, detail="composed.json not found")
+
+    return load_json_file(composed_path)
+
+    
+@router.get("/users/{user_id}/graphs/{graph_id}/preview")
+def get_composed_yaml_for_preview(user_id: str, graph_id: str):
+    """
+    Returns composed.yaml for preview rendering in NDFPreview (readonly).
+    """
+    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    if not composed_path.exists():
+        raise HTTPException(status_code=404, detail="composed.json not found")
+
+    data = load_json_file(composed_path)
+    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+
+@router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
+async def get_composed_yaml(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed")
 def get_composed_json(user_id: str, graph_id: str):

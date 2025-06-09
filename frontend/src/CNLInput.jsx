@@ -158,7 +158,7 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
         </AttributeTypeModal>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         <MonacoEditor
           height="100%"
           language="plaintext"
@@ -173,11 +173,10 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
             window._monaco = monacoInstance;
           }}
         />
-      </div>
-
-      <div className="absolute left-0 right-0 bottom-0 flex justify-end gap-4 px-8 py-4 bg-gradient-to-t from-white via-white/90 to-transparent border-t z-10">
-        <button onClick={saveCNL} className="px-6 py-2 text-lg font-semibold rounded bg-blue-700 text-white shadow hover:bg-blue-800 transition">Save</button>
-        <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
+        <div className="fixed bottom-6 right-8 z-50 flex gap-4">
+          <button onClick={saveCNL} className="px-6 py-2 text-lg font-semibold rounded bg-blue-700 text-white shadow hover:bg-blue-800 transition">Save</button>
+          <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
+        </div>
       </div>
     </div>
   );
