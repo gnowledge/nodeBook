@@ -50,8 +50,6 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
 
 
 def generate_composed_graph(user_id: str, graph_id: str, id_to_name: dict = None) -> dict:
-    base_path = Path("graph_data/users") / user_id / "graphs" / graph_id
-def generate_composed_graph(user_id: str, graph_id: str) -> dict:
     """
     Generate composed.json and composed.yaml for a given graph,
     based on parsed.json, and ensure each node has its own .json file.
@@ -291,6 +289,14 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
 async def get_composed_yaml(user_id: str, graph_id: str):
+    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    if not composed_path.exists():
+        raise HTTPException(status_code=404, detail="composed.json not found")
+
+    data = load_json_file(composed_path)
+    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed")
 def get_composed_json(user_id: str, graph_id: str):
