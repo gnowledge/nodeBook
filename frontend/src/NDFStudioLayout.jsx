@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import NDFStudioPanel from "./NDFStudioPanel";
 import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
 import WorkspaceStatistics from "./WorkspaceStatistics";
+import PreferencesPanel from "./PreferencesPanel";
+import { marked } from "marked";
 
 const NDFStudioLayout = ({ userId = "user0" }) => {
   const [allGraphs, setAllGraphs] = useState([]);
@@ -11,7 +13,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [composedGraphs, setComposedGraphs] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
-  const [activeTab, setActiveTab] = useState("graphs"); // e.g. "graphs", "workspace-stats"
+  const [activeTab, setActiveTab] = useState("help"); // Default landing tab is now Help
 
   useEffect(() => {
     async function init() {
@@ -160,6 +162,18 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         >
           Score Card
         </button>
+        <button
+          className={`px-4 py-2 ${activeTab === "help" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveTab("help")}
+        >
+          Help
+        </button>
+        <button
+          className={`px-4 py-2 ${activeTab === "preferences" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveTab("preferences")}
+        >
+          Preferences
+        </button>
       </div>
       <div className="flex-1 overflow-auto bg-white">
         {activeTab === "graphs" && (
@@ -235,9 +249,47 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         {activeTab === "workspace-stats" && (
           <WorkspaceStatistics userId={userId} />
         )}
+        {activeTab === "help" && (
+          <HelpTab />
+        )}
+        {activeTab === "preferences" && (
+          <div className="p-4">
+            <div className="text-lg font-semibold mb-2">Preferences</div>
+            <PreferencesPanel />
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+function HelpTab() {
+  const [helpMd, setHelpMd] = useState("");
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch("/doc/Help.md")
+      .then((res) => {
+        if (!res.ok) throw new Error("Help.md not found");
+        return res.text();
+      })
+      .then(setHelpMd)
+      .catch((e) => setError(e.message));
+  }, []);
+
+  return (
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="text-lg font-semibold mb-2">Help</div>
+      {error ? (
+        <div className="text-red-600">{error}</div>
+      ) : helpMd ? (
+        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: marked(helpMd) }} />
+      ) : (
+        <div className="text-gray-500">Loading help...</div>
+      )}
+      <div className="text-gray-500 text-xs mt-4">(This help content is loaded from <code>doc/Help.md</code> and is not user-editable.)</div>
+    </div>
+  );
+}
 
 export default NDFStudioLayout;

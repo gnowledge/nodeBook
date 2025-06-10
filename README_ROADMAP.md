@@ -83,8 +83,10 @@ stable release.
 - [ ] Language switching via user preference.
 
 ### 11. Help & Preferences as Graph
-- [ ] Implement Help and Preferences **as nodes** in the graph.
-- [ ] Users can explore and edit their settings like knowledge units.
+- [x] Implement Help and Preferences Tabs
+- [ ] Users can explore and edit their settings like knowledge units. 
+- [ ] The Help document can be a readonly example graph document
+
 
 ### 12. Desktop Distribution (Electron)
 - [ ] Wrap frontend + backend in Electron for offline use.
