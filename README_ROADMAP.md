@@ -28,13 +28,13 @@ stable release.
 - [ ] Update the parser and CNL grammar accordingly.
 
 ### 2. Unique Node Identifiers
-- [ ] Implement document-unique or globally consistent `node.id`
+- [x] Implement unique or globally consistent `node.id`
 - [ ] Support document merging and deduplication using IDs.
 - [ ] Enables computation of **scorecards** across documents.
 
 ### 3. JSON as Canonical Parsed Format
-- [ ] Migrate `parsed.yaml` to backend-native `parsed.json`.
-- [ ] Frontend continues to render YAML via JSON→YAML conversion.
+- [x] Migrate `parsed.yaml` to backend-native `parsed.json`.
+- [x] Frontend renders JSON using 'composed.json` and composed.yaml used for NDFPreview.
 - [ ] Aligns with schema validation, testing, and frontend frameworks.
 
 ### 4. Smart Template Placement
