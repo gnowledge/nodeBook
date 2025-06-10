@@ -115,6 +115,7 @@ stable release.
 - [x] Graph templates and graph metadata
 - [x] DisplayHTML card grid for NDF preview
 - [x] UnoCSS styling for mobile/desktop layout
+- [x] Delete graph, before the graph directory is removed, all mentions of the Nodes, and the graph in the nodes_registry.json to be removed, prior to deleting the nodes from user/nodes/ and then the graph directory from the user directory.
 
 ---
 

@@ -117,6 +117,34 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
   };
 
+  const handleGraphDeleted = (deletedGraphId) => {
+    setOpenGraphs((prev) => prev.filter((g) => g.id !== deletedGraphId));
+    setComposedGraphs((prev) => {
+      const newState = { ...prev };
+      delete newState[deletedGraphId];
+      return newState;
+    });
+    setRawMarkdowns((prev) => {
+      const newState = { ...prev };
+      delete newState[deletedGraphId];
+      return newState;
+    });
+    setModifiedGraphs((prev) => {
+      const newState = { ...prev };
+      delete newState[deletedGraphId];
+      return newState;
+    });
+    if (activeGraph === deletedGraphId) {
+      const remaining = openGraphs.filter((g) => g.id !== deletedGraphId);
+      if (remaining.length > 0) {
+        setActiveGraph(remaining[0].id);
+      } else {
+        setActiveGraph(null);
+      }
+    }
+    setActiveTab("graphs"); // Switch to Knowledge Base tab
+  };
+
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex border-b bg-gray-100">
@@ -199,6 +227,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
               onGraphUpdate={handleGraphUpdate}
               onSave={handleSaveGraph}
               setParsedYaml={setComposedGraph}
+              onGraphDeleted={handleGraphDeleted}
               rawMarkdown={rawMarkdowns[activeGraph]}
             />
           </div>

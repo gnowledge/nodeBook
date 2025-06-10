@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Request, HTTPException, Body
-from fastapi.responses import PlainTextResponse, FileResponse
+from fastapi.responses import PlainTextResponse, FileResponse, JSONResponse
 from pydantic import BaseModel, model_validator
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
-from shutil import copyfile
+from shutil import copyfile, rmtree
 import yaml
 import json
 from os.path import getmtime
+import shutil
 
 from core.clean_cnl_payload import clean_cnl_payload
 from core.path_utils import get_graph_path
@@ -16,7 +17,7 @@ from core.ndf_ops import convert_parsed_to_nodes
 from core.schema_utils import filter_used_schema
 from core.utils import load_json_file, save_json_file, normalize_id
 from core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
-from core.registry import create_node_if_missing, load_node_registry, update_node_registry
+from core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
 
 
 router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
@@ -428,3 +429,44 @@ def get_metadata_yaml(user_id: str, graph_id: str):
     if not metadata_path.exists():
         raise HTTPException(status_code=404, detail="metadata.yaml not found")
     return FileResponse(metadata_path, media_type="text/plain")
+
+
+@router.delete("/users/{user_id}/graphs/{graph_id}")
+def delete_graph(user_id: str, graph_id: str):
+    """
+    Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
+    """
+    graph_dir = GRAPH_BASE / user_id / "graphs" / graph_id
+    registry_path = GRAPH_BASE / user_id / "node_registry.json"
+    node_dir = GRAPH_BASE / user_id / "nodes"
+
+    if not graph_dir.exists():
+        raise HTTPException(status_code=404, detail="Graph not found")
+
+    # 1. Remove the graph directory
+    try:
+        shutil.rmtree(graph_dir)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete graph directory: {e}")
+
+    # 2. Update node_registry.json to remove references to this graph
+    registry = load_node_registry(user_id)
+    changed = False
+    for node_id, entry in list(registry.items()):
+        if "graphs" in entry and graph_id in entry["graphs"]:
+            entry["graphs"].remove(graph_id)
+            changed = True
+        # 3. If node is now orphaned (no graphs), delete node file and remove from registry
+        if not entry.get("graphs"):
+            try:
+                node_path = node_dir / f"{node_id}.json"
+                if node_path.exists():
+                    node_path.unlink()
+            except Exception:
+                pass  # Ignore if already deleted
+            del registry[node_id]
+            changed = True
+    if changed:
+        save_node_registry(user_id, registry)
+
+    return JSONResponse({"status": "deleted", "graph": graph_id})

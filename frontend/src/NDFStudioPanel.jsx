@@ -6,7 +6,7 @@ import DisplayHTML from "./DisplayHTML";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
 
-const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph }) => {
+const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph, onGraphDeleted }) => {
   const [activeTab, setActiveTab] = useState("CNL");
 
   useEffect(() => {
@@ -17,8 +17,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
     try {
       const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
       const parsed = await res.json();
-	console.log("📦 composed graph loaded:", composed);
-	if (setComposedGraph) setComposedGraph(graphId, parsed);
+      if (setComposedGraph) setComposedGraph(graphId, parsed);
       if (onSave) onSave();
     } catch (err) {
       console.error("Failed to fetch composed.json after parse:", err);
@@ -31,14 +30,13 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
         <button className={`px-2 py-1 rounded ${activeTab === "CNL" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("CNL")}>Edit</button>
         <button className={`px-2 py-1 rounded ${activeTab === "Graph" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Graph")}>Graph View</button>
         <button className={`px-2 py-1 rounded ${activeTab === "Document" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Document")}>Document View</button>
-        <button className={`px-2 py-1 rounded ${activeTab === "Dev" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Dev")}>Knowledge Base</button>
       </div>
 
       <div className="flex-1 overflow-auto">
         {activeTab === "CNL" && (
           <>
             <div className="flex gap-2 overflow-x-auto py-2 px-2 bg-gray-50 border-b items-right"></div>
-            <CNLInput userId={userId} graphId={graphId} onSave={onSave} onParsed={handleParsed} />
+            <CNLInput userId={userId} graphId={graphId} onSave={onSave} onParsed={handleParsed} onGraphDeleted={onGraphDeleted} />
           </>
         )}
         {activeTab === "Graph" && (

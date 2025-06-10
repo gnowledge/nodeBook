@@ -4,7 +4,7 @@ import * as monaco from 'monaco-editor';
 import RelationTypeModal from './RelationTypeModal';
 import AttributeTypeModal from './AttributeTypeModal';
 
-export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed }) {
+export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed, onGraphDeleted }) {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const [value, setValue] = useState('');
@@ -132,51 +132,83 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
     if (onParsed) onParsed(); // Notify parent to re-fetch parsed YAML
   }
 
-  return (
-    <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
-      <div className="flex flex-wrap  gap-2 px-4 py-3 border-b bg-gray-50 items-center">
-        <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-300 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-darkgrey border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation ➛ </button>
-        <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">🏷 Attribute:</button>
-        {/* Schema modals as chip-style links, right next to insertion buttons */}
-        <RelationTypeModal userId={userId} graphId={graphId}>
-          <span
-            className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
-            title="Add a new relation type to the schema"
-          >
-            + Relation Type
-          </span>
-        </RelationTypeModal>
-        <AttributeTypeModal userId={userId} graphId={graphId}>
-          <span
-            className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
-            title="Add a new attribute type to the schema"
-          >
-            + Attribute Type
-          </span>
-        </AttributeTypeModal>
-      </div>
+  // Delete Graph handler
+  async function handleDeleteGraph() {
+    if (!userId || !graphId) return;
+    const confirmed = window.confirm(`Are you sure you want to delete the graph "${graphId}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert("Failed to delete graph: " + (err.detail || res.statusText));
+        return;
+      }
+      alert(`Graph '${graphId}' deleted.`);
+      if (onGraphDeleted) onGraphDeleted(graphId);
+    } catch (err) {
+      alert("Failed to delete graph: " + err.message);
+    }
+  }
 
-      <div className="flex-1 min-h-0 relative">
-        <MonacoEditor
-          height="100%"
-          language="plaintext"
-          value={value}
-          onChange={(val) => {
-            setValue(val);
-            if (onGraphUpdate) onGraphUpdate({ raw_markdown: val });
-          }}
-          options={{ wordWrap: 'on' }}
-          onMount={(editor, monacoInstance) => {
-            editorRef.current = editor;
-            window._monaco = monacoInstance;
-          }}
-        />
-        <div className="fixed bottom-6 right-8 z-50 flex gap-4">
-          <button onClick={saveCNL} className="px-6 py-2 text-lg font-semibold rounded bg-blue-700 text-white shadow hover:bg-blue-800 transition">Save</button>
-          <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
+  return (
+    <div className="relative h-full">
+      <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
+        <div className="flex flex-wrap  gap-2 px-4 py-3 border-b bg-gray-50 items-center">
+          <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-300 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
+          <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-darkgrey border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
+          <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation ➛ </button>
+          <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">🏷 Attribute:</button>
+          {/* Schema modals as chip-style links, right next to insertion buttons */}
+          <RelationTypeModal userId={userId} graphId={graphId}>
+            <span
+              className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
+              title="Add a new relation type to the schema"
+            >
+              + Relation Type
+            </span>
+          </RelationTypeModal>
+          <AttributeTypeModal userId={userId} graphId={graphId}>
+            <span
+              className="inline-block px-3 py-1 rounded-full bg-gray-200 text-blue-700 text-xs cursor-pointer hover:bg-blue-100 transition"
+              title="Add a new attribute type to the schema"
+            >
+              + Attribute Type
+            </span>
+          </AttributeTypeModal>
         </div>
+
+        <div className="flex-1 min-h-0 relative">
+          <MonacoEditor
+            height="100%"
+            language="plaintext"
+            value={value}
+            onChange={(val) => {
+              setValue(val);
+              if (onGraphUpdate) onGraphUpdate({ raw_markdown: val });
+            }}
+            options={{ wordWrap: 'on' }}
+            onMount={(editor, monacoInstance) => {
+              editorRef.current = editor;
+              window._monaco = monacoInstance;
+            }}
+          />
+          <div className="fixed bottom-6 right-8 z-50 flex gap-4">
+            <button onClick={saveCNL} className="px-6 py-2 text-lg font-semibold rounded bg-blue-700 text-white shadow hover:bg-blue-800 transition">Save</button>
+            <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
+          </div>
+        </div>
+      </div>
+      <div className="fixed left-8 bottom-6 z-50">
+        {userId && graphId && (
+          <button
+            onClick={handleDeleteGraph}
+            className="px-6 py-2 text-lg font-semibold rounded bg-red-700 text-white shadow hover:bg-red-800 transition border-2 border-red-900"
+            style={{ minWidth: 160 }}
+          >
+            Delete Graph
+          </button>
+        )}
       </div>
     </div>
   );
