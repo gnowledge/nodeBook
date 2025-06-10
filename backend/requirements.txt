@@ -1,7 +1,9 @@
-# === requirements.txt ===
 fastapi
 uvicorn
 networkx
+matplotlib
+spacy
+sentence-transformers
 pyyaml
 python-multipart
 pydantic
@@ -9,3 +11,4 @@ markdown
 bleach
 ruamel.yaml
 pytest
+yaml
