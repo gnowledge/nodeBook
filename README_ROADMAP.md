@@ -50,7 +50,7 @@ stable release.
 - [ ] Pre-existing Blockly block designs to be reused.
 
 ### 6. Scorecard (DevPanel → Statistics Tab)
-- [ ] Tentative scoring rubric:
+- [x] Tentative scoring rubric:
   - Node: 1 point
   - Relation: 2 points
   - Attribute: 3 points

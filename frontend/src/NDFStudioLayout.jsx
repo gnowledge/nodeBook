@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import NDFStudioPanel from "./NDFStudioPanel";
 import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
+import WorkspaceStatistics from "./WorkspaceStatistics";
 
 const NDFStudioLayout = ({ userId = "user0" }) => {
   const [allGraphs, setAllGraphs] = useState([]);
@@ -10,6 +11,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [composedGraphs, setComposedGraphs] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
+  const [activeTab, setActiveTab] = useState("graphs"); // e.g. "graphs", "workspace-stats"
 
   useEffect(() => {
     async function init() {
@@ -116,72 +118,95 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   };
 
   return (
-    <div className="p-2 h-full flex flex-col">
-      <div className="flex items-center space-x-2 border-b pb-2 relative">
-        <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-            File ▾
-          </button>
-          {showMenu && (
-            <div className="absolute mt-1 bg-white shadow border rounded z-10">
-              {allGraphs.map(({ id, title }) => (
-                <div
-                  key={id}
-                  onClick={() => {
-                    openGraphInTab(id);
-                    setShowMenu(false);
-                  }}
-                  className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
-                >
-                  {title}
+    <div className="h-full w-full flex flex-col">
+      <div className="flex border-b bg-gray-100">
+        <button
+          className={`px-4 py-2 ${activeTab === "graphs" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveTab("graphs")}
+        >
+          Knowledge Base
+        </button>
+        <button
+          className={`px-4 py-2 ${activeTab === "workspace-stats" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveTab("workspace-stats")}
+        >
+          Score Card
+        </button>
+      </div>
+      <div className="flex-1 overflow-auto bg-white">
+        {activeTab === "graphs" && (
+          <div className="p-2 flex flex-col h-full">
+            <div className="flex items-center space-x-2 border-b pb-2 relative">
+              <div className="relative">
+                <button onClick={() => setShowMenu(!showMenu)} className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+                  File ▾
+                </button>
+                {showMenu && (
+                  <div className="absolute mt-1 bg-white shadow border rounded z-10">
+                    {allGraphs.map(({ id, title }) => (
+                      <div
+                        key={id}
+                        onClick={() => {
+                          openGraphInTab(id);
+                          setShowMenu(false);
+                        }}
+                        className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                      >
+                        {title}
+                      </div>
+                    ))}
+                    <div
+                      onClick={() => {
+                        handleAddGraph();
+                        setShowMenu(false);
+                      }}
+                      className="border-t px-3 py-1 text-green-600 hover:bg-green-100 cursor-pointer"
+                    >
+                      + New Graph
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {openGraphs.map(({ id, title }) => (
+                <div key={id} className="flex items-center">
+                  <button
+                    onClick={() => openGraphInTab(id)}
+                    className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
+                      activeGraph === id
+                        ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
+                        : "bg-gray-200 text-gray-700 hover:bg-blue-50"
+                    }`}
+                    style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
+                  >
+                    {title}{modifiedGraphs[id] ? " *" : ""}
+                  </button>
+                  <button
+                    onClick={() => handleCloseTab(id)}
+                    className="ml-1 text-red-500 hover:text-red-700 font-bold"
+                    title="Close tab"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
-              <div
-                onClick={() => {
-                  handleAddGraph();
-                  setShowMenu(false);
-                }}
-                className="border-t px-3 py-1 text-green-600 hover:bg-green-100 cursor-pointer"
-              >
-                + New Graph
-              </div>
             </div>
-          )}
-        </div>
 
-        {openGraphs.map(({ id, title }) => (
-          <div key={id} className="flex items-center">
-            <button
-              onClick={() => openGraphInTab(id)}
-              className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
-                activeGraph === id
-                  ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
-                  : "bg-gray-200 text-gray-700 hover:bg-blue-50"
-              }`}
-              style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
-            >
-              {title}{modifiedGraphs[id] ? " *" : ""}
-            </button>
-            <button
-              onClick={() => handleCloseTab(id)}
-              className="ml-1 text-red-500 hover:text-red-700 font-bold"
-              title="Close tab"
-            >
-              ×
-            </button>
+            <NDFStudioPanel
+              userId={userId}
+              graphId={activeGraph}
+              graph={composedGraphs[activeGraph]}
+              onGraphUpdate={handleGraphUpdate}
+              onSave={handleSaveGraph}
+              setParsedYaml={setComposedGraph}
+              rawMarkdown={rawMarkdowns[activeGraph]}
+            />
           </div>
-        ))}
+        )}
+        {activeTab === "workspace-stats" && (
+          <WorkspaceStatistics userId={userId} />
+        )}
       </div>
-
-      <NDFStudioPanel
-        userId={userId}
-        graphId={activeGraph}
-        graph={composedGraphs[activeGraph]}
-        onGraphUpdate={handleGraphUpdate}
-        onSave={handleSaveGraph}
-        setParsedYaml={setComposedGraph}
-        rawMarkdown={rawMarkdowns[activeGraph]}
-      />
     </div>
   );
 };
