@@ -4,7 +4,7 @@ import Statistics from "./Statistics";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
 
-export default function DevPanel({ userId, graphId, graph, onGraphUpdate }) {
+export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs }) {
   const [tab, setTab] = useState("yaml");
 
   return (

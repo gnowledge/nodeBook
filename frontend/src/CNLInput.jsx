@@ -3,13 +3,17 @@ import MonacoEditor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import RelationTypeModal from './RelationTypeModal';
 import AttributeTypeModal from './AttributeTypeModal';
+import BlocklyCNLComposer from "./BlocklyCNLComposer";
+import CNLHelperModal from './CNLHelperModal';
 
-export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed, onGraphDeleted }) {
+export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed, onGraphDeleted, prefs }) {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const [value, setValue] = useState('');
   const [relationNames, setRelationNames] = useState([]);
   const [attributeNames, setAttributeNames] = useState([]);
+  const [showBlockly, setShowBlockly] = useState(false);
+  const [showNodeNameHelper, setShowNodeNameHelper] = useState(false);
 
   useEffect(() => {
     async function loadCNL() {
@@ -151,14 +155,47 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
     }
   }
 
+  // Insert CNL from Blockly
+  const handleInsertCNL = (cnl) => {
+    if (editorRef.current && cnl) {
+      // Insert at cursor or append
+      const editor = editorRef.current;
+      const pos = editor.getPosition();
+      editor.executeEdits('', [{
+        range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, 1),
+        text: cnl + '\n',
+        forceMoveMarkers: true,
+      }]);
+      editor.focus();
+    }
+    setShowBlockly(false);
+  };
+
+  // Insert Node Name
+  const handleInsertNodeName = (nodeName) => {
+    if (editorRef.current && nodeName) {
+      const editor = editorRef.current;
+      const pos = editor.getPosition();
+      editor.executeEdits('', [{
+        range: new monaco.Range(pos.lineNumber, 1, pos.lineNumber, 1),
+        text: nodeName + '\n',
+        forceMoveMarkers: true,
+      }]);
+      editor.focus();
+    }
+    setShowNodeNameHelper(false);
+  };
+
   return (
     <div className="relative h-full">
       <div ref={containerRef} className="relative h-full flex flex-col bg-white rounded shadow border overflow-hidden">
-        <div className="flex flex-wrap  gap-2 px-4 py-3 border-b bg-gray-50 items-center">
+        <div className="flex flex-wrap gap-2 px-4 py-3 border-b bg-gray-50 items-center">
           <button onClick={() => insertTextTemplate(editorRef.current, `# node_id\nDescription.\n\n:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-blue-300 text-white text-sm rounded shadow-sm"># ○ Node:::</button>
           <button onClick={() => insertTextTemplate(editorRef.current, `:::cnl\n<relation or attribute>\n:::`)} className="px-2 py-1 bg-darkgrey border border-gray-300 text-sm rounded shadow-sm">:::CNL:::</button>
           <button onClick={() => insertTextTemplate(editorRef.current, `<relation> class_name`)} className="px-2 py-1 bg-gray-200 rounded text-sm">Relation ➛ </button>
           <button onClick={() => insertTextTemplate(editorRef.current, `has attribute: value (unit)`)} className="px-2 py-1 bg-gray-200 rounded text-sm">🏷 Attribute:</button>
+          <button onClick={() => setShowBlockly(true)} className="px-2 py-1 bg-green-600 text-white text-sm rounded shadow-sm ml-2">Visual Composer</button>
+          <button onClick={() => setShowNodeNameHelper(true)} className="px-2 py-1 bg-purple-600 text-white text-sm rounded shadow-sm ml-2">CNL Helper</button>
           {/* Schema modals as chip-style links, right next to insertion buttons */}
           <RelationTypeModal userId={userId} graphId={graphId}>
             <span
@@ -198,6 +235,19 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
             <button onClick={parseCNL} className="px-6 py-2 text-lg font-semibold rounded bg-green-700 text-white shadow hover:bg-green-800 transition">Parse</button>
           </div>
         </div>
+        {showBlockly && (
+          <BlocklyCNLComposer
+            onCNLGenerated={handleInsertCNL}
+            onClose={() => setShowBlockly(false)}
+          />
+        )}
+        {showNodeNameHelper && (
+          <CNLHelperModal
+            onCNLGenerated={handleInsertNodeName}
+            onClose={() => setShowNodeNameHelper(false)}
+            difficulty={prefs?.difficulty || "easy"}
+          />
+        )}
       </div>
       <div className="fixed left-8 bottom-6 z-50">
         {userId && graphId && (

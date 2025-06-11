@@ -29,7 +29,7 @@ function ndfToCytoscapeGraph(ndfData) {
   return { nodes, edges };
 }
 
-const CytoscapeStudio = ({ graph }) => {
+const CytoscapeStudio = ({ graph, prefs }) => {
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graph && graph.nodes ? graph : null;
   if (!parsedGraph) {
@@ -62,9 +62,7 @@ const CytoscapeStudio = ({ graph }) => {
           document.body.contains(containerRef.current) &&
           mountedRef.current
         ) {
-            const { nodes, edges } = ndfToCytoscapeGraph(graph);
-	    console.log("🧩 Extracted edges:", edges);
-
+          const { nodes, edges } = ndfToCytoscapeGraph(graph);
           cyRef.current = cytoscape({
             container: containerRef.current,
             elements: [...nodes, ...edges],
@@ -102,7 +100,7 @@ const CytoscapeStudio = ({ graph }) => {
               }
             ],
             layout: {
-              name: "dagre"
+              name: prefs?.graphLayout || "dagre"
             }
           });
           cyRef.current.on("mouseover", "node", (evt) => {
@@ -122,7 +120,7 @@ const CytoscapeStudio = ({ graph }) => {
         cyRef.current = null;
       }
     };
-  }, [graph]);
+  }, [graph, prefs]);
 
   return <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />;
 };

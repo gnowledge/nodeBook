@@ -6,7 +6,7 @@ import DisplayHTML from "./DisplayHTML";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
 
-const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph, onGraphDeleted }) => {
+const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph, onGraphDeleted, prefs }) => {
   const [activeTab, setActiveTab] = useState("CNL");
 
   useEffect(() => {
@@ -36,12 +36,12 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
         {activeTab === "CNL" && (
           <>
             <div className="flex gap-2 overflow-x-auto py-2 px-2 bg-gray-50 border-b items-right"></div>
-            <CNLInput userId={userId} graphId={graphId} onSave={onSave} onParsed={handleParsed} onGraphDeleted={onGraphDeleted} />
+            <CNLInput userId={userId} graphId={graphId} onSave={onSave} onParsed={handleParsed} onGraphDeleted={onGraphDeleted} prefs={prefs} />
           </>
         )}
         {activeTab === "Graph" && (
           <div className="h-full w-full">
-            <CytoscapeStudio graph={graph} />
+            <CytoscapeStudio graph={graph} prefs={prefs} />
           </div>
         )}
         {activeTab === "Document" && (
@@ -50,7 +50,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
           </div>
         )}
         {activeTab === "Dev" && (
-          <DevPanel userId={userId} graphId={graphId} graph={graph} onGraphUpdate={onGraphUpdate} />
+          <DevPanel userId={userId} graphId={graphId} graph={graph} onGraphUpdate={onGraphUpdate} prefs={prefs} />
         )}
       </div>
     </div>

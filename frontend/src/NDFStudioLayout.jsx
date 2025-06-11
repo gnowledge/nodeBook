@@ -5,6 +5,22 @@ import WorkspaceStatistics from "./WorkspaceStatistics";
 import PreferencesPanel from "./PreferencesPanel";
 import { marked } from "marked";
 
+const DEFAULT_PREFERENCES = {
+  graphLayout: "dagre",
+  language: "en",
+  educationLevel: "undergraduate",
+  landingTab: "help",
+  difficulty: "easy",
+  subjectOrder: "SVO",
+  theme: "system",
+  fontSize: "medium",
+  showTooltips: true,
+  autosave: false,
+  showScorecardOnSave: true,
+  showAdvanced: false,
+  accessibility: false,
+};
+
 const NDFStudioLayout = ({ userId = "user0" }) => {
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
@@ -14,6 +30,8 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
   const [activeTab, setActiveTab] = useState("help"); // Default landing tab is now Help
+  const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
+  const [prefsLoading, setPrefsLoading] = useState(true);
 
   useEffect(() => {
     async function init() {
@@ -25,6 +43,24 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       }
     }
     init();
+  }, [userId]);
+
+  // Fetch preferences on mount
+  useEffect(() => {
+    async function fetchPrefs() {
+      setPrefsLoading(true);
+      try {
+        const res = await fetch(`/api/preferences?user_id=${encodeURIComponent(userId)}`);
+        if (!res.ok) throw new Error("Failed to load preferences");
+        const data = await res.json();
+        setPrefs(data);
+      } catch (e) {
+        setPrefs(DEFAULT_PREFERENCES);
+      } finally {
+        setPrefsLoading(false);
+      }
+    }
+    fetchPrefs();
   }, [userId]);
 
   const openGraphInTab = async (graphId) => {
@@ -147,6 +183,11 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     setActiveTab("graphs"); // Switch to Knowledge Base tab
   };
 
+  // Handler for PreferencesPanel to update global prefs
+  const handlePrefsChange = (newPrefs) => {
+    setPrefs(newPrefs);
+  };
+
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex border-b bg-gray-100">
@@ -243,6 +284,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
               setParsedYaml={setComposedGraph}
               onGraphDeleted={handleGraphDeleted}
               rawMarkdown={rawMarkdowns[activeGraph]}
+              prefs={prefs}
             />
           </div>
         )}
@@ -255,7 +297,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         {activeTab === "preferences" && (
           <div className="p-4">
             <div className="text-lg font-semibold mb-2">Preferences</div>
-            <PreferencesPanel />
+            <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
           </div>
         )}
       </div>
