@@ -20,16 +20,14 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
   // Relation tab state
   const [relation, setRelation] = useState("");
   const [relTarget, setRelTarget] = useState("");
-  const [relQualifier, setRelQualifier] = useState("");
-  const [relQuantifier, setRelQuantifier] = useState("");
+  const [relTargetQualifier, setRelTargetQualifier] = useState("");
+  const [relTargetQuantifier, setRelTargetQuantifier] = useState("");
   const [relAdverb, setRelAdverb] = useState("");
   const [relModality, setRelModality] = useState("");
 
   // Attribute tab state
   const [attribute, setAttribute] = useState("");
   const [attrValue, setAttrValue] = useState("");
-  const [attrQualifier, setAttrQualifier] = useState("");
-  const [attrQuantifier, setAttrQuantifier] = useState("");
   const [attrAdverb, setAttrAdverb] = useState("");
   const [attrUnit, setAttrUnit] = useState("");
   const [attrModality, setAttrModality] = useState("");
@@ -45,20 +43,19 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
   if (isQualifierEnabled && qualifier.trim()) nodePreview = `**${qualifier.trim()}** ${base.trim()}`;
   if (isQuantifierEnabled && quantifier.trim()) nodePreview = `*${quantifier.trim()}* ${nodePreview}`;
 
-  // Relation preview
+  // Relation preview (target node can have qualifier/quantifier)
+  let relTargetStr = relTarget.trim();
+  if (isQualifierEnabled && relTargetQualifier.trim()) relTargetStr = `**${relTargetQualifier.trim()}** ${relTargetStr}`;
+  if (isQuantifierEnabled && relTargetQuantifier.trim()) relTargetStr = `*${relTargetQuantifier.trim()}* ${relTargetStr}`;
   let relPreview = "";
   if (isAdverbEnabled && relAdverb.trim()) relPreview += `++${relAdverb.trim()}++ `;
   relPreview += relation ? `<${relation.trim()}> ` : "";
-  if (isQualifierEnabled && relQualifier.trim()) relPreview += `**${relQualifier.trim()}** `;
-  if (isQuantifierEnabled && relQuantifier.trim()) relPreview += `*${relQuantifier.trim()}* `;
-  relPreview += relTarget.trim();
+  relPreview += relTargetStr;
   if (isModalityEnabled && relModality.trim()) relPreview += ` [${relModality.trim()}]`;
 
-  // Attribute preview
+  // Attribute preview (no qualifier/quantifier)
   let attrPreview = `has ${attribute.trim()}: `;
   if (isAdverbEnabled && attrAdverb.trim()) attrPreview += `++${attrAdverb.trim()}++ `;
-  if (isQualifierEnabled && attrQualifier.trim()) attrPreview += `**${attrQualifier.trim()}** `;
-  if (isQuantifierEnabled && attrQuantifier.trim()) attrPreview += `*${attrQuantifier.trim()}* `;
   attrPreview += attrValue.trim();
   if (attrUnit.trim()) attrPreview += ` *${attrUnit.trim()}*`;
   if (isModalityEnabled && attrModality.trim()) attrPreview += ` [${attrModality.trim()}]`;
@@ -119,15 +116,17 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
                 <input className="border rounded px-2 py-1 text-center" value={relTarget} onChange={e => setRelTarget(e.target.value)} placeholder="e.g. natural selection" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 items-end mb-2">
+            <div className="grid grid-cols-2 gap-3 items-end mb-2">
               <div className="flex flex-col">
-                <label className="font-semibold text-xs mb-1 text-center">Qualifier</label>
-                <input className="border rounded px-2 py-1 text-center" value={relQualifier} onChange={e => setRelQualifier(e.target.value)} disabled={!isQualifierEnabled} placeholder="e.g. Darwinian" />
+                <label className="font-semibold text-xs mb-1 text-center">Target Qualifier</label>
+                <input className="border rounded px-2 py-1 text-center" value={relTargetQualifier} onChange={e => setRelTargetQualifier(e.target.value)} disabled={!isQualifierEnabled} placeholder="e.g. Darwinian" />
               </div>
               <div className="flex flex-col">
-                <label className="font-semibold text-xs mb-1 text-center">Quantifier</label>
-                <input className="border rounded px-2 py-1 text-center" value={relQuantifier} onChange={e => setRelQuantifier(e.target.value)} disabled={!isQuantifierEnabled} placeholder="e.g. all" />
+                <label className="font-semibold text-xs mb-1 text-center">Target Quantifier</label>
+                <input className="border rounded px-2 py-1 text-center" value={relTargetQuantifier} onChange={e => setRelTargetQuantifier(e.target.value)} disabled={!isQuantifierEnabled} placeholder="e.g. all" />
               </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 items-end mb-2">
               <div className="flex flex-col">
                 <label className="font-semibold text-xs mb-1 text-center">Modality</label>
                 <input className="border rounded px-2 py-1 text-center" value={relModality} onChange={e => setRelModality(e.target.value)} disabled={!isModalityEnabled} placeholder="e.g. probably" />
@@ -152,23 +151,15 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
                 <input className="border rounded px-2 py-1 text-center" value={attrValue} onChange={e => setAttrValue(e.target.value)} placeholder="e.g. 50" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 items-end mb-2">
-              <div className="flex flex-col">
-                <label className="font-semibold text-xs mb-1 text-center">Qualifier</label>
-                <input className="border rounded px-2 py-1 text-center" value={attrQualifier} onChange={e => setAttrQualifier(e.target.value)} disabled={!isQualifierEnabled} placeholder="e.g. scientific" />
-              </div>
-              <div className="flex flex-col">
-                <label className="font-semibold text-xs mb-1 text-center">Quantifier</label>
-                <input className="border rounded px-2 py-1 text-center" value={attrQuantifier} onChange={e => setAttrQuantifier(e.target.value)} disabled={!isQuantifierEnabled} placeholder="e.g. all" />
-              </div>
+            <div className="grid grid-cols-2 gap-3 items-end mb-2">
               <div className="flex flex-col">
                 <label className="font-semibold text-xs mb-1 text-center">Unit</label>
                 <input className="border rounded px-2 py-1 text-center" value={attrUnit} onChange={e => setAttrUnit(e.target.value)} placeholder="e.g. microns" />
               </div>
-            </div>
-            <div className="flex flex-col mb-2">
-              <label className="font-semibold text-xs mb-1 text-center">Modality</label>
-              <input className="border rounded px-2 py-1 text-center" value={attrModality} onChange={e => setAttrModality(e.target.value)} disabled={!isModalityEnabled} placeholder="e.g. uncertain" />
+              <div className="flex flex-col">
+                <label className="font-semibold text-xs mb-1 text-center">Modality</label>
+                <input className="border rounded px-2 py-1 text-center" value={attrModality} onChange={e => setAttrModality(e.target.value)} disabled={!isModalityEnabled} placeholder="e.g. uncertain" />
+              </div>
             </div>
             <PreviewBox label="attribute" value={attrPreview} />
           </>
@@ -189,12 +180,10 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
             <div>Easy: <span className="italic">&lt;discovered&gt; natural selection</span></div>
             <div>Medium: <span className="italic">&lt;discovered&gt; **Darwinian** theory</span></div>
             <div>Advanced: <span className="italic">&lt;discovered&gt; *all* theories</span></div>
-            <div>Expert: <span className="italic">++rapidly++ &lt;spreads&gt; infection [possibly]</span></div>
+            <div>Expert: <span className="italic">++rapidly++ &lt;spreads&gt; *some* **ancient** philosophers [possibly]</span></div>
           </>}
           {tab === "attribute" && <>
             <div>Easy: <span className="italic">has size: 50 *microns*</span></div>
-            <div>Medium: <span className="italic">has name: **scientific** method</span></div>
-            <div>Advanced: <span className="italic">has count: *all* 12</span></div>
             <div>Expert: <span className="italic">has growth_rate: ++rapidly++ 5 *cm/year* [uncertain]</span></div>
           </>}
         </div>

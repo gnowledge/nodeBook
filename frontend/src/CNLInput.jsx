@@ -124,14 +124,25 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
 
   async function parseCNL() {
     const raw = editorRef.current.getValue();
+    // Save the CNL first (as before)
     await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`, {
       method: 'PUT',
       headers: { 'Content-Type': 'text/plain' },
       body: raw,
     });
-    await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/parse`, {
-      method: 'POST'
+    // Now call the new parse_pipeline endpoint with a multipart/form-data file upload
+    const formData = new FormData();
+    const file = new Blob([raw], { type: 'text/markdown' });
+    formData.append('file', file, 'graph.md');
+    // user_id and graph_id are now path params, not form fields
+    const resp = await fetch(`/api/users/${userId}/graphs/${graphId}/parse_pipeline`, {
+      method: 'POST',
+      body: formData
     });
+    if (!resp.ok) {
+      alert('Parse failed!');
+      return;
+    }
     alert('Parsed and saved!');
     if (onParsed) onParsed(); // Notify parent to re-fetch parsed YAML
   }

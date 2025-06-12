@@ -10,6 +10,11 @@ import json
 from os.path import getmtime
 import shutil
 
+try:
+    from backend.config import get_data_root
+except ImportError:
+    from config import get_data_root
+
 from core.clean_cnl_payload import clean_cnl_payload
 from core.path_utils import get_graph_path
 from core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
@@ -17,12 +22,11 @@ from core.ndf_ops import convert_parsed_to_nodes
 from core.schema_utils import filter_used_schema
 from core.utils import load_json_file, save_json_file, normalize_id
 from core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
+from core.cnl_parser import parse_node_title
 from core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
 
 
 router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
-
-GRAPH_BASE = Path("graph_data/users")
 
 
 def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
@@ -47,15 +51,17 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
             except Exception:
                 pass
 
-    save_json_file(Path(f"graph_data/users/{user_id}/node_registry.json"), registry)
+    # Use get_data_root() for registry path
+    save_json_file(get_data_root() / "users" / user_id / "node_registry.json", registry)
 
 
 def generate_composed_graph(user_id: str, graph_id: str, id_to_name: dict = None) -> dict:
     """
     Generate composed.json and composed.yaml for a given graph,
     based on parsed.json, and ensure each node has its own .json file.
+    Uses canonical extraction helpers for all node creation.
     """
-    base_path = GRAPH_BASE / user_id / "graphs" / graph_id
+    base_path = get_data_root() / "users" / user_id / "graphs" / graph_id
     parsed_path = base_path / "parsed.json"
     composed_path = base_path / "composed.json"
     composed_yaml_path = base_path / "composed.yaml"
@@ -69,63 +75,78 @@ def generate_composed_graph(user_id: str, graph_id: str, id_to_name: dict = None
         "nodes": []
     }
 
-    # Use id_to_name if provided, else fallback to id as-is
+    # Build id_to_name if not provided
     if id_to_name is None:
-        # Try to reconstruct from parsed if possible
-        id_to_name = {nid: nid for nid in parsed["nodes"]}
+        id_to_name = {}
+        for n in parsed["nodes"]:
+            if isinstance(n, dict):
+                id_to_name[n["id"]] = n.get("name", n["id"])
+            elif isinstance(n, str):
+                id_to_name[n] = n
 
-    for node_id in parsed["nodes"]:
-        # Use the user-entered name, not normalized id
-        if node_id in id_to_name and id_to_name[node_id] != node_id:
-            user_name = id_to_name[node_id]
-        else:
-            # Fallback: prettify the id for display (replace _ with space, title-case, handle parens)
-            user_name = node_id.replace("_", " ").replace("(", "( ").replace(")", " )").replace("  ", " ").strip()
-            user_name = user_name.title().replace("( ", "(").replace(" )", ")")
-            # If the original id was all lowercase and had underscores, also try to preserve acronyms (e.g. RBC)
-            if "(" in user_name and ")" in user_name:
-                import re
-                user_name = re.sub(r'\(([^)]+)\)', lambda m: f'({m.group(1).upper()})', user_name)
-            # Always strip leading/trailing whitespace
-            user_name = user_name.strip()
-        node = {
-            "id": node_id,
-            "name": user_name,
-            "name": node_id.capitalize(),
-            "attributes": [],
-            "relations": []
+    # Collect all node ids and their best CNL string (prefer section title, else fallback)
+    node_cnl_map = {}
+    for n in parsed["nodes"]:
+        if isinstance(n, dict):
+            node_cnl_map[n["id"]] = n.get("title") or n.get("name") or n["id"]
+        elif isinstance(n, str):
+            node_cnl_map[n] = n
+
+    # Also collect target nodes from relations if not already present
+    for rel in parsed.get("relations", []):
+        target_id = rel.get("target")
+        target_cnl = rel.get("target_cnl") or id_to_name.get(target_id) or target_id.replace('_', ' ')
+        if target_id and target_id not in node_cnl_map:
+            node_cnl_map[target_id] = target_cnl
+
+    # --- Node creation logic: canonicalize and attach attributes/relations ---
+    seen_ids = set()
+    for node_id, node_cnl in node_cnl_map.items():
+        # Canonicalize node fields using parse_node_title (crucial for deduplication and user-respecting names)
+        title_info = parse_node_title(node_cnl)
+        node_obj = {
+            "id": title_info["id"],
+            "base": title_info.get("base"),
+            "quantifier": title_info.get("quantifier"),
+            "qualifier": title_info.get("qualifier"),
+            "name": title_info.get("name"),
+            "description": ""
         }
-        for attr in parsed.get("attributes", []):
-            if attr.get("target") == node_id:
-                node["attributes"].append(attr)
-        for rel in parsed.get("relations", []):
-            if rel.get("source") == node_id:
-                node["relations"].append(rel)
-        composed["nodes"].append(node)
+        # Merge in any extra fields from parsed nodes (e.g., description)
+        for n in parsed["nodes"]:
+            if isinstance(n, dict) and normalize_id(n["id"]) == node_obj["id"]:
+                node_obj["description"] = n.get("description", node_obj["description"])
+                break
+        # Attach attributes and relations (populate outgoing relations for this node)
+        node_obj["attributes"] = [attr for attr in parsed.get("attributes", []) if normalize_id(attr.get("target")) == node_obj["id"]]
+        node_obj["relations"] = [
+            # For each relation where this node is the source, attach the relation
+            {k: v for k, v in rel.items() if k != "source"}
+            for rel in parsed.get("relations", []) if normalize_id(rel.get("source")) == node_obj["id"]
+        ]
+        if node_obj["id"] not in seen_ids:
+            composed["nodes"].append(node_obj)
+            seen_ids.add(node_obj["id"])
 
     # Save as composed.json
     save_json_file(composed_path, composed)
 
-    # Also write parsed.yaml from parsed.json
+    # Also write composed.yaml for preview
     import yaml
-    parsed_yaml_path = base_path / "parsed.yaml"
-    with parsed_yaml_path.open("w") as f:
-        yaml.dump(parsed, f, sort_keys=False)
-    # Optional: Update each node's own JSON file with NBH
-    node_dir = Path("graph_data/users") / user_id / "nodes"
-    # Save as composed.yaml (replacing previously misnamed parsed.yaml)
     with composed_yaml_path.open("w", encoding="utf-8") as f:
         yaml.dump(composed, f, sort_keys=False, allow_unicode=True)
 
     # Create or update individual node files in global store
-    node_dir = GRAPH_BASE / user_id / "nodes"
+    node_dir = get_data_root() / "users" / user_id / "nodes"
     node_dir.mkdir(parents=True, exist_ok=True)
-
     for node in composed["nodes"]:
         node_path = node_dir / f"{node['id']}.json"
         node_data = {
             "id": node["id"],
-            "name": node.get("name", str(node["id"])),  # Use user-entered name
+            "name": node.get("name", str(node["id"])),
+            "base": node.get("base", ""),
+            "quantifier": node.get("quantifier"),
+            "qualifier": node.get("qualifier"),
             "attributes": node.get("attributes", []),
             "relations": node.get("relations", [])
         }
@@ -138,7 +159,7 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
     """
     Returns composed.yaml for preview rendering in NDFPreview (readonly).
     """
-    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
@@ -150,18 +171,30 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
 def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain")):
     cleaned = clean_cnl_payload(body)
-    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
+    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
     cnl_path.write_text(cleaned, encoding="utf-8")
     return {"status": "ok"}
 
 
 @router.post("/users/{user_id}/graphs/{graph_id}/parse")
 def parse_graph(user_id: str, graph_id: str):
+    """
+    Parse the user's CNL markdown file (cnl.md) for a graph into a structured parsed.json.
+    Steps:
+    1. Load the CNL markdown and extract node sections (title, description, CNL block).
+    2. For each node section:
+       - Canonicalize the node title (quantifier, qualifier, base, id, name) using parse_node_title.
+       - Add the node to parsed["nodes"].
+       - Parse the CNL block for relations and attributes.
+    3. Ensure all referenced nodes exist in the registry and as node files.
+    4. Normalize all IDs in relations/attributes.
+    5. Save parsed.json and call generate_composed_graph to build the canonical composed.json.
+    """
     from core.utils import load_text_file
     from core.cnl_parser import extract_node_sections_from_markdown, parse_logical_cnl, normalize_id
 
-    graph_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
-    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.json"
+    graph_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
+    parsed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "parsed.json"
 
     if not graph_path.exists():
         raise HTTPException(status_code=404, detail="cnl.md not found")
@@ -180,6 +213,7 @@ def parse_graph(user_id: str, graph_id: str):
     id_to_name = {}  # Map normalized id to user-entered name
 
     for section in sections:
+        # Canonicalize node id and name using parse_node_title
         node_id = normalize_id(section["id"])
         parsed["nodes"].append(node_id)
         id_to_name[node_id] = section["id"]  # Store user-entered name
@@ -189,26 +223,37 @@ def parse_graph(user_id: str, graph_id: str):
             "description": section.get("description", "")
         })
 
+        # Ensure node file and registry entry exist
         create_node_if_missing(user_id, node_id, name=section["id"])
         update_node_registry(registry, node_id, graph_id)
 
+        # Parse CNL block for facts (relations, attributes)
         facts = parse_logical_cnl(section["cnl"], subject=node_id)
 
         print(f"📦 Node: {node_id} — Found {len(facts)} facts")
 
         for fact in facts:
             if fact["type"] == "relation":
+                # Add relation to parsed["relations"]
+                target_id = fact.get("target") or fact.get("object")
                 parsed["relations"].append({
                     "name": fact["name"],
-                    "source": fact["subject"],
-                    "target": normalize_id(fact["object"])
+                    "adverb": fact.get("adverb"),
+                    "modality": fact.get("modality"),
+                    "source": fact.get("subject"),
+                    "target": target_id,
+                    "target_quantifier": fact.get("target_quantifier"),
+                    "target_qualifier": fact.get("target_qualifier"),
+                    "target_base": fact.get("target_base")
                 })
             elif fact["type"] == "attribute":
                 parsed["attributes"].append({
                     "name": fact["name"],
-                    "value": fact["value"],
+                    "adverb": fact.get("adverb"),
+                    "modality": fact.get("modality"),
+                    "value": fact.get("value"),
                     "unit": fact.get("unit", ""),
-                    "target": normalize_id(fact["target"])
+                    "target": fact["target"]
                 })
             elif fact["type"] == "attribute":
                 parsed["attributes"].append({
@@ -218,7 +263,7 @@ def parse_graph(user_id: str, graph_id: str):
                     "target": fact["target"]
                 })
 
-    save_json_file(GRAPH_BASE / user_id / "node_registry.json", registry)
+    save_json_file(get_data_root() / "users" / user_id / "node_registry.json", registry)
     ensure_all_nodes_exist(user_id, graph_id, parsed)
     # Normalize source and target IDs in parsed relations and attributes
     for rel in parsed["relations"]:
@@ -247,6 +292,7 @@ def parse_graph(user_id: str, graph_id: str):
         update_node_registry(registry, node_id, graph_id)
 
     try:
+        # Compose the canonical graph (composed.json) from parsed.json
         composed = generate_composed_graph(user_id, graph_id, id_to_name=id_to_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Parsed but failed to generate composed.json: {e}")
@@ -254,9 +300,130 @@ def parse_graph(user_id: str, graph_id: str):
     return parsed
 
 
+def generate_composed_graph(user_id: str, graph_id: str, id_to_name: dict = None) -> dict:
+    """
+    Compose the canonical composed.json and node files for a graph from parsed.json.
+    Steps:
+    1. Load parsed.json (output of parse_graph).
+    2. For every node (including targets in relations), use parse_node_title to extract canonical fields (id, name, base, quantifier, qualifier).
+    3. For each node:
+       - Merge in any extra fields (e.g., description from markdown section).
+       - Attach all attributes (where this node is the target).
+       - Attach all outgoing relations (where this node is the source).
+    4. Deduplicate nodes by id.
+    5. Save composed.json and update individual node files in the user's node directory.
+    """
+    base_path = get_data_root() / "users" / user_id / "graphs" / graph_id
+    parsed_path = base_path / "parsed.json"
+    composed_path = base_path / "composed.json"
+    composed_yaml_path = base_path / "composed.yaml"
+
+    if not parsed_path.exists():
+        raise FileNotFoundError(f"parsed.json not found for graph: {graph_id}")
+
+    parsed = load_json_file(parsed_path)
+    composed = {
+        "graph_id": parsed.get("graph_id", graph_id),
+        "nodes": []
+    }
+
+    # Build id_to_name if not provided
+    if id_to_name is None:
+        id_to_name = {}
+        for n in parsed["nodes"]:
+            if isinstance(n, dict):
+                id_to_name[n["id"]] = n.get("name", n["id"])
+            elif isinstance(n, str):
+                id_to_name[n] = n
+
+    # Collect all node ids and their best CNL string (prefer section title, else fallback)
+    node_cnl_map = {}
+    for n in parsed["nodes"]:
+        if isinstance(n, dict):
+            node_cnl_map[n["id"]] = n.get("title") or n.get("name") or n["id"]
+        elif isinstance(n, str):
+            node_cnl_map[n] = n
+
+    # Also collect target nodes from relations if not already present
+    for rel in parsed.get("relations", []):
+        target_id = rel.get("target")
+        target_cnl = rel.get("target_cnl") or id_to_name.get(target_id) or target_id.replace('_', ' ')
+        if target_id and target_id not in node_cnl_map:
+            node_cnl_map[target_id] = target_cnl
+
+    # --- Node creation logic: canonicalize and attach attributes/relations ---
+    seen_ids = set()
+    for node_id, node_cnl in node_cnl_map.items():
+        # Canonicalize node fields using parse_node_title (crucial for deduplication and user-respecting names)
+        title_info = parse_node_title(node_cnl)
+        node_obj = {
+            "id": title_info["id"],
+            "base": title_info.get("base"),
+            "quantifier": title_info.get("quantifier"),
+            "qualifier": title_info.get("qualifier"),
+            "name": title_info.get("name"),
+            "description": ""
+        }
+        # Merge in any extra fields from parsed nodes (e.g., description)
+        for n in parsed["nodes"]:
+            if isinstance(n, dict) and normalize_id(n["id"]) == node_obj["id"]:
+                node_obj["description"] = n.get("description", node_obj["description"])
+                break
+        # Attach attributes and relations (populate outgoing relations for this node)
+        node_obj["attributes"] = [attr for attr in parsed.get("attributes", []) if normalize_id(attr.get("target")) == node_obj["id"]]
+        node_obj["relations"] = [
+            # For each relation where this node is the source, attach the relation
+            {k: v for k, v in rel.items() if k != "source"}
+            for rel in parsed.get("relations", []) if normalize_id(rel.get("source")) == node_obj["id"]
+        ]
+        if node_obj["id"] not in seen_ids:
+            composed["nodes"].append(node_obj)
+            seen_ids.add(node_obj["id"])
+
+    # Save as composed.json
+    save_json_file(composed_path, composed)
+
+    # Also write composed.yaml for preview
+    import yaml
+    with composed_yaml_path.open("w", encoding="utf-8") as f:
+        yaml.dump(composed, f, sort_keys=False, allow_unicode=True)
+
+    # Create or update individual node files in global store
+    node_dir = get_data_root() / "users" / user_id / "nodes"
+    node_dir.mkdir(parents=True, exist_ok=True)
+    for node in composed["nodes"]:
+        node_path = node_dir / f"{node['id']}.json"
+        node_data = {
+            "id": node["id"],
+            "name": node.get("name", str(node["id"])),
+            "base": node.get("base", ""),
+            "quantifier": node.get("quantifier"),
+            "qualifier": node.get("qualifier"),
+            "attributes": node.get("attributes", []),
+            "relations": node.get("relations", [])
+        }
+        save_json_file(node_path, node_data)
+
+    return composed
+
+
+@router.get("/users/{user_id}/graphs/{graph_id}/preview")
+def get_composed_yaml_for_preview(user_id: str, graph_id: str):
+    """
+    Returns composed.yaml for preview rendering in NDFPreview (readonly).
+    """
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
+    if not composed_path.exists():
+        raise HTTPException(status_code=404, detail="composed.json not found")
+
+    data = load_json_file(composed_path)
+    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+
+
 @router.get("/users/{user_id}/graphs/{graph_id}/parsed")
 async def get_parsed_yaml(user_id: str, graph_id: str):
-    parsed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "parsed.yaml"
+    parsed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "parsed.yaml"
     if not parsed_path.exists():
         raise HTTPException(status_code=404, detail="parsed.yaml not found")
 
@@ -268,7 +435,7 @@ def get_composed_json(user_id: str, graph_id: str):
     """
     Returns the composed.json for use by the frontend as structured graph data.
     """
-    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
@@ -280,7 +447,7 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
     """
     Returns composed.yaml for preview rendering in NDFPreview (readonly).
     """
-    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
@@ -290,7 +457,7 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
 async def get_composed_yaml(user_id: str, graph_id: str):
-    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
@@ -304,7 +471,7 @@ def get_composed_json(user_id: str, graph_id: str):
     """
     Returns the composed.json for use by the frontend as structured graph data.
     """
-    composed_path = GRAPH_BASE / user_id / "graphs" / graph_id / "composed.json"
+    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
     if not composed_path.exists():
         raise HTTPException(status_code=404, detail="composed.json not found")
 
@@ -313,7 +480,7 @@ def get_composed_json(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/graph")
 def get_cytoscape_graph(user_id: str, graph_id: str):
-    graph_dir = GRAPH_BASE / user_id / "graphs" / graph_id
+    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
     parsed_path = graph_dir / "parsed.json"
     composed_path = graph_dir / "composed.json"
 
@@ -361,7 +528,7 @@ def get_cytoscape_graph(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs")
 def list_graphs(user_id: str):
-    base_dir = GRAPH_BASE / user_id / "graphs"
+    base_dir = get_data_root() / "users" / user_id / "graphs"
     if not base_dir.exists():
         return []
     return [f.name for f in base_dir.iterdir() if f.is_dir()]
@@ -369,7 +536,7 @@ def list_graphs(user_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/cnl")
 def get_cnl_block(user_id: str, graph_id: str):
-    cnl_path = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
+    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
     if not cnl_path.exists():
         raise HTTPException(status_code=404, detail="cnl.md not found")
     return cnl_path.read_text()
@@ -377,7 +544,7 @@ def get_cnl_block(user_id: str, graph_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/raw")
 async def get_graph_raw(user_id: str, graph_id: str):
-    graph_file = GRAPH_BASE / user_id / "graphs" / graph_id / "cnl.md"
+    graph_file = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
     if not graph_file.exists():
         raise HTTPException(status_code=404, detail="cnl.md not found")
     return graph_file.read_text()
@@ -390,7 +557,7 @@ class GraphInitRequest(BaseModel):
 
 @router.post("/users/{user_id}/graphs/{graph_id}")
 async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
-    graph_dir = GRAPH_BASE / user_id / "graphs" / graph_id
+    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
     template_dir = Path("graph_data/global/templates/defaultGraphFiles")
 
     if graph_dir.exists():
@@ -425,7 +592,7 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/metadata.yaml")
 def get_metadata_yaml(user_id: str, graph_id: str):
-    metadata_path = GRAPH_BASE / user_id / "graphs" / graph_id / "metadata.yaml"
+    metadata_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "metadata.yaml"
     if not metadata_path.exists():
         raise HTTPException(status_code=404, detail="metadata.yaml not found")
     return FileResponse(metadata_path, media_type="text/plain")
@@ -436,9 +603,9 @@ def delete_graph(user_id: str, graph_id: str):
     """
     Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
     """
-    graph_dir = GRAPH_BASE / user_id / "graphs" / graph_id
-    registry_path = GRAPH_BASE / user_id / "node_registry.json"
-    node_dir = GRAPH_BASE / user_id / "nodes"
+    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
+    registry_path = get_data_root() / "users" / user_id / "node_registry.json"
+    node_dir = get_data_root() / "users" / user_id / "nodes"
 
     if not graph_dir.exists():
         raise HTTPException(status_code=404, detail="Graph not found")

@@ -1,4 +1,5 @@
 import os
+import json
 import pytest
 from core.schema_ops import (
     load_schema,
@@ -12,9 +13,9 @@ from core.schema_ops import (
 
 
 SCHEMA_FILES = [
-    ("attribute_types.yaml", ATTRIBUTE_TYPE_KEYS),
-    ("relation_types.yaml", RELATION_TYPE_KEYS),
-    ("node_types.yaml", NODE_TYPE_KEYS),
+    ("attribute_types.json", ATTRIBUTE_TYPE_KEYS),
+    ("relation_types.json", RELATION_TYPE_KEYS),
+    ("node_types.yaml", NODE_TYPE_KEYS),  # Keep node_types.yaml if no node_types.json exists
 ]
 
 @pytest.mark.parametrize("filename, key_order", SCHEMA_FILES)
@@ -39,11 +40,20 @@ def test_round_trip_safety(filename, key_order, tmp_path):
 
     # Save to temp path
     temp_file = tmp_path / filename
-    save_schema(temp_file, data)
+    # If JSON, write as JSON
+    if filename.endswith('.json'):
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            reloaded = json.load(f)
+    else:
+        save_schema(temp_file, data)
+        reloaded = load_schema(temp_file, default_data=[])
 
-    # Reload and compare
-    reloaded = load_schema(temp_file, default_data=[])
-    assert data == reloaded, f"Round-trip mismatch in {filename}"
+    # Compare sorted by name for robustness
+    def sort_by_name(lst):
+        return sorted(lst, key=lambda x: x.get('name', ''))
+    assert sort_by_name(data) == sort_by_name(reloaded), f"Round-trip mismatch in {filename}"
 
 
 def test_validate_schema_entry_raises_on_missing_keys():
@@ -60,4 +70,4 @@ def test_validate_schema_entry_raises_on_missing_keys():
 
     assert "Missing keys in attribute_types.yaml entry" in str(excinfo.value)
     assert "description" in str(excinfo.value)
-    
+

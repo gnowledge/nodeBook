@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import os
 import yaml
 
-from routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes, preferences
+from routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes, preferences, parse_pipeline
 # backend/app.py
 
 
@@ -31,6 +31,7 @@ app.include_router(graphs.router, prefix="/api")
 app.include_router(cnl.router, prefix="/api")
 app.include_router(ndf_routes.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
+app.include_router(parse_pipeline.router, prefix="/api")
 
 
 # ✅ Health check route

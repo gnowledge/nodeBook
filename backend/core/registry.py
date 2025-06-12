@@ -3,8 +3,13 @@ from pathlib import Path
 from datetime import datetime
 from core.utils import normalize_id, save_json_file, load_json_file
 
+try:
+    from backend.config import get_data_root
+except ImportError:
+    from config import get_data_root
+
 def get_registry_path(user_id: str) -> Path:
-    return Path(f"graph_data/users/{user_id}/node_registry.json")
+    return get_data_root() / "users" / user_id / "node_registry.json"
 
 def load_node_registry(user_id: str) -> dict:
     path = get_registry_path(user_id)
@@ -33,7 +38,8 @@ def update_node_registry(registry: dict, node_id: str, graph_id: str):
 
 
 def create_node_if_missing(user_id: str, node_id: str, name: str = None):
-    node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+    from core.cnl_parser import parse_node_title
+    node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
 
     if node_path.exists():
         return
@@ -41,10 +47,14 @@ def create_node_if_missing(user_id: str, node_id: str, name: str = None):
     # Ensure parent directory exists
     node_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write minimal node
+    # Use parse_node_title to extract clean fields
+    title_info = parse_node_title(name or node_id)
     node_data = {
-        "id": node_id,
-        "name": name or node_id.capitalize(),
+        "id": title_info["id"],
+        "name": title_info["name"],
+        "base": title_info["base"],
+        "quantifier": title_info.get("quantifier"),
+        "qualifier": title_info.get("qualifier"),
         "description": "",
         "attributes": [],
         "relations": []

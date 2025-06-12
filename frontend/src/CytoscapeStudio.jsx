@@ -8,8 +8,8 @@ cytoscape.use(dagre);
 function ndfToCytoscapeGraph(ndfData) {
   const nodes = (ndfData.nodes || []).map(node => ({
     data: {
-      id: node.id,
-      label: node.name || node.id,
+      id: node.node_id,
+      label: node.name || node.node_id,
       description: node.description || ""
     }
   }));
@@ -18,8 +18,8 @@ function ndfToCytoscapeGraph(ndfData) {
   const edges = (ndfData.nodes || []).flatMap((node) =>
     (node.relations || []).map((rel, i) => ({
       data: {
-        id: `${node.id}_${rel.name}_${rel.target}_${i}`,
-        source: node.id,
+        id: `${node.node_id}_${rel.name}_${rel.target}_${i}`,
+        source: node.node_id,
         target: rel.target,
         label: rel.name
       }

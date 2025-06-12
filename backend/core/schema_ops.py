@@ -1,6 +1,10 @@
 import os
 from ruamel.yaml import YAML
 from collections import OrderedDict
+try:
+    from backend.config import get_data_root
+except ImportError:
+    from config import get_data_root
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
 yaml.default_flow_style = False
@@ -11,7 +15,7 @@ RELATION_TYPE_KEYS = ["name", "inverse_name", "description", "domain", "range"]
 NODE_TYPE_KEYS = ["name", "description", "parent_types"]
 
 
-GLOBAL_SCHEMA_PATH = os.path.join("graph_data", "global")
+GLOBAL_SCHEMA_PATH = os.path.join(get_data_root(), "graph_data", "global")
 
 def ordered_schema_dict(entry: dict, key_order: list[str]) -> OrderedDict:
     ordered = OrderedDict()
