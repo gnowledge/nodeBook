@@ -15,15 +15,15 @@ try:
 except ImportError:
     from config import get_data_root
 
-from core.clean_cnl_payload import clean_cnl_payload
-from core.path_utils import get_graph_path
-from core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
-from core.ndf_ops import convert_parsed_to_nodes
-from core.schema_utils import filter_used_schema
-from core.utils import load_json_file, save_json_file, normalize_id
-from core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
-from core.cnl_parser import parse_node_title
-from core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
+from backend.core.clean_cnl_payload import clean_cnl_payload
+from backend.core.path_utils import get_graph_path
+from backend.core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
+from backend.core.ndf_ops import convert_parsed_to_nodes
+from backend.core.schema_utils import filter_used_schema
+from backend.core.utils import load_json_file, save_json_file, normalize_id
+from backend.core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
+from backend.core.cnl_parser import parse_node_title
+from backend.core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
 
 
 router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
@@ -190,8 +190,8 @@ def parse_graph(user_id: str, graph_id: str):
     4. Normalize all IDs in relations/attributes.
     5. Save parsed.json and call generate_composed_graph to build the canonical composed.json.
     """
-    from core.utils import load_text_file
-    from core.cnl_parser import extract_node_sections_from_markdown, parse_logical_cnl, normalize_id
+    from backend.core.utils import load_text_file
+    from backend.core.cnl_parser import extract_node_sections_from_markdown, parse_logical_cnl, normalize_id
 
     graph_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
     parsed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "parsed.json"

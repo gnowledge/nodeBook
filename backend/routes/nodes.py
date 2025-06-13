@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Literal
-import os, yaml, networkx as nx
-from networkx.readwrite import json_graph
-from core.node_ops import load_node, save_node, node_path, safe_node_summary
-from core.id_utils import normalize_id, get_graph_path, get_user_id
+import os
+from backend.core.node_ops import load_node, save_node, node_path, safe_node_summary
+from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
+from backend.summary_queue_singleton import init_summary_queue
 
 router = APIRouter()
 
@@ -22,8 +22,10 @@ class Relation(BaseModel):
     modality: Optional[str] = None
 
 class Node(BaseModel):
+    id: Optional[str] = None
     name: str
-    qualifier: Optional[Literal["class", "individual", "process"]] = None
+    base_name: Optional[str] = None
+    qualifier: Optional[str] = None  # <-- allow any string, not Literal
     role: Optional[Literal["class", "individual", "process"]] = None
     description: Optional[str] = None
     attributes: List[Attribute] = []
@@ -34,168 +36,112 @@ class NodeInput(BaseModel):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes")
 def list_all_nodes(user_id: str, graph_id: str):
-    try:
-        user_id = get_user_id(user_id)
-    except TypeError:
-        user_id = get_user_id()
-    
-    """
-    List all nodes.
-
-    Returns:
-        [
-            {
-                "id": "node_id",
-                "name": "Node Name",
-                "label": "Node Label",
-                ...
-            },
-            ...
-        ]
-    """
     user_id = get_user_id(user_id)
-    graph_path = get_graph_path(user_id, graph_id)
+    nodes_dir = os.path.join("graph_data", "users", user_id, "nodes")
     nodes = []
-    for file in os.listdir(graph_path):
-        if file.endswith(".yaml"):
-            summary = safe_node_summary(user_id, graph_id, file)
-            if summary:
-                nodes.append(summary)
+    if os.path.exists(nodes_dir):
+        for file in os.listdir(nodes_dir):
+            if file.endswith(".json"):
+                node_id = file[:-5]
+                summary = safe_node_summary(user_id, graph_id, node_id)
+                if summary:
+                    nodes.append(summary)
     return nodes
 
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
 def create_node(user_id: str, graph_id: str, node: Node):
-    try:
-        user_id = get_user_id(user_id)
-    except TypeError:
-        user_id = get_user_id()
-    
-    """
-    Create or update a node.
-
-    Expected JSON payload:
-        {
-            "name": "Node Name",
-            "qualifier": "optional qualifier",
-            "role": "optional role",
-            "description": "optional description",
-            "attributes": [
-                {
-                    "name": "attr_name",
-                    "value": "attr_value",
-                    "quantifier": "optional",
-                    "modality": "optional"
-                }
-            ],
-            "relations": [
-                {
-                    "name": "relation_type",
-                    "target": "target_node_id",
-                    "subject_quantifier": "optional",
-                    "object_quantifier": "optional",
-                    "modality": "optional"
-                }
-            ]
-        }
-
-    Returns:
-        {
-            "status": "node created",
-            "id": "node_id"
-        }
-    """
     user_id = get_user_id(user_id)
-    graph_id = get_graph_path(user_id, graph_id)
     node_id = normalize_id(node.name)
-    graph_path = get_graph_path(user_id, graph_id)
-    file_path = os.path.join(graph_path, f"{node_id}.yaml")
-
-    qualifier = node.qualifier
-    role = node.role
-    description = node.description
-    attributes = node.attributes or []
-    relations = node.relations or []
-
-    # If node exists, load and update, else create new
-    if os.path.exists(file_path):
-        with open(file_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        data.setdefault("node", {})
-        data["node"]["name"] = node.name
-        data["node"]["qualifier"] = qualifier
-        data["node"]["role"] = role
-        data["node"]["description"] = description
-        data["node"]["attributes"] = attributes
-        data["node"]["id"] = node_id
-        data["relations"] = relations
-        status = "node updated"
-    else:
-        data = {
-            "node": {
-                "id": node_id,
-                "name": node.name,
-                "qualifier": qualifier,
-                "role": role,
-                "description": description,
-                "attributes": attributes
-            },
-            "relations": relations
+    node_data = {
+        "id": node_id,
+        "name": node.name,
+        "qualifier": node.qualifier,
+        "role": node.role,
+        "description": node.description,
+        "attributes": [a.dict() for a in (node.attributes or [])],
+        "relations": [r.dict() for r in (node.relations or [])]
+    }
+    save_node(user_id, graph_id, node_id, node_data)
+    # --- Update node_registry.json ---
+    registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
+    import json
+    import time
+    try:
+        if os.path.exists(registry_path):
+            with open(registry_path, 'r') as f:
+                registry = json.load(f)
+        else:
+            registry = {}
+    except Exception:
+        registry = {}
+    if node_id not in registry:
+        registry[node_id] = {
+            "name": node.name,
+            "graphs": [graph_id],
+            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S'),
+            "updated_at": time.strftime('%Y-%m-%dT%H:%M:%S')
         }
-        status = "node created"
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f)
-
-    return {"status": status, "id": node_id}
+    else:
+        if graph_id not in registry[node_id].get("graphs", []):
+            registry[node_id]["graphs"].append(graph_id)
+        registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
+    with open(registry_path, 'w') as f:
+        json.dump(registry, f, indent=2)
+    # Submit to summary queue after node is created/updated
+    sq = init_summary_queue()
+    sq.submit(user_id, graph_id, node_id, node_data)
+    return {"status": "node created", "id": node_id}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
-    try:
-        user_id = get_user_id(user_id)
-    except TypeError:
-        user_id = get_user_id()
-    
-    """
-    Update an existing node.
-
-    Args:
-        node_id (str): The node's ID (normalized).
-        node (dict): Node data (same structure as POST).
-
-    Returns:
-        {
-            "status": "node updated",
-            "id": "node_id"
-        }
-    """
     user_id = get_user_id(user_id)
-    graph_path = get_graph_path(user_id, graph_id)
-    file_path = os.path.join(graph_path, f"{node_id}.yaml")
-    if not os.path.exists(file_path):
+    # Load existing node or raise
+    try:
+        existing = load_node(user_id, graph_id, node_id)
+    except Exception:
         raise HTTPException(status_code=404, detail="Node not found")
-
     # Update fields
-    with open(file_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    data.setdefault("node", {})
-    data["node"]["name"] = node.name or data["node"].get("name")
-    data["node"]["qualifier"] = node.qualifier or data["node"].get("qualifier")
-    data["node"]["role"] = node.role or data["node"].get("role")
-    data["node"]["description"] = node.description or data["node"].get("description")
-    data["node"]["attributes"] = node.attributes or data["node"].get("attributes", [])
-    data["node"]["id"] = node_id
-    data["relations"] = node.relations or data.get("relations", [])
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f)
-
+    updated = existing.copy()
+    updated["id"] = node.id or node_id
+    updated["name"] = node.name or existing.get("name")
+    updated["qualifier"] = node.qualifier or existing.get("qualifier")
+    updated["role"] = node.role or existing.get("role")
+    updated["description"] = node.description or existing.get("description")
+    updated["attributes"] = [a.dict() for a in (node.attributes or [])] or existing.get("attributes", [])
+    updated["relations"] = [r.dict() for r in (node.relations or [])] or existing.get("relations", [])
+    save_node(user_id, graph_id, node_id, updated)
+    # --- Update node_registry.json ---
+    registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
+    import json
+    import time
+    try:
+        if os.path.exists(registry_path):
+            with open(registry_path, 'r') as f:
+                registry = json.load(f)
+        else:
+            registry = {}
+    except Exception:
+        registry = {}
+    if node_id not in registry:
+        registry[node_id] = {
+            "name": updated["name"],
+            "graphs": [graph_id],
+            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S'),
+            "updated_at": time.strftime('%Y-%m-%dT%H:%M:%S')
+        }
+    else:
+        if graph_id not in registry[node_id].get("graphs", []):
+            registry[node_id]["graphs"].append(graph_id)
+        registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
+    with open(registry_path, 'w') as f:
+        json.dump(registry, f, indent=2)
+    sq = init_summary_queue()
+    sq.submit(user_id, graph_id, node_id, updated)
     return {"status": "node updated", "id": node_id}
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def get_node(user_id: str, graph_id: str, node_id: str):
-    # Use safe_node_summary to get description_html
-    file = f"{node_id}.yaml"
-    summary = safe_node_summary(user_id, graph_id, file)
+    summary = safe_node_summary(user_id, graph_id, node_id)
     if summary:
         return summary
     else:
@@ -203,45 +149,49 @@ def get_node(user_id: str, graph_id: str, node_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/getInfo/{node_id}")
 def get_node_info(user_id: str, graph_id: str, node_id: str):
-    try:
-        user_id = get_user_id(user_id)
-    except TypeError:
-        user_id = get_user_id()
-    
-    """
-    Get a node's details by node_id.
-
-    Args:
-        node_id (str): The node's ID (normalized).
-
-    Returns:
-        {
-            "id": "node_id",
-            "name": "Node Name",
-            "qualifier": "optional qualifier",
-            "role": "optional role",
-            "description": "optional description",
-            "attributes": [...],
-            "relations": [...]
-        }
-    """
     user_id = get_user_id(user_id)
-    graph_path = get_graph_path(user_id, graph_id)
-    file_path = os.path.join(graph_path, f"{node_id}.yaml")
-    if not os.path.exists(file_path):
+    try:
+        node = load_node(user_id, graph_id, node_id)
+    except Exception:
         raise HTTPException(status_code=404, detail="Node not found")
-
-    with open(file_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    node_data = data.get("node", {})
     # Ensure attributes and relations are always present and are lists
-    node_data["attributes"] = node_data.get("attributes", [])
-    node_data["relations"] = data.get("relations", [])
-    return node_data
+    node["attributes"] = node.get("attributes", [])
+    node["relations"] = node.get("relations", [])
+    return node
 
 @router.get("/users/{user_id}/graphs/{graph_id}/get_nbh/{node_id}")
 def get_node_nbh(user_id: str, graph_id: str, node_id: str):
-    # Alias for get_node_info
     return get_node_info(user_id, graph_id, node_id)
+
+@router.post("/users/{user_id}/graphs/{graph_id}/nodes/submit_to_summary_queue")
+def submit_all_nodes_to_summary_queue(user_id: str, graph_id: str):
+    user_id = get_user_id(user_id)
+    nodes_dir = os.path.join("graph_data", "users", user_id, "nodes")
+    sq = init_summary_queue()
+    count = 0
+    if os.path.exists(nodes_dir):
+        for file in os.listdir(nodes_dir):
+            if file.endswith(".json"):
+                node_id = file[:-5]
+                try:
+                    node_data = load_node(user_id, graph_id, node_id)
+                except Exception:
+                    continue
+                sq.submit(user_id, graph_id, node_id, node_data)
+                count += 1
+    return {"status": "submitted", "count": count}
+
+@router.post("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}/submit_to_summary_queue")
+def submit_node_to_summary_queue(user_id: str, graph_id: str, node_id: str):
+    user_id = get_user_id(user_id)
+    try:
+        node = load_node(user_id, graph_id, node_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Node not found")
+    # Only submit if description is missing or empty
+    if node.get("description"):
+        return {"status": "already processed", "id": node_id}
+    sq = init_summary_queue()
+    sq.submit(user_id, graph_id, node_id, node)
+    return {"status": "submitted", "id": node_id}
 

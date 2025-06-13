@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from datetime import datetime
-from core.utils import normalize_id, save_json_file, load_json_file
+from backend.core.utils import normalize_id, save_json_file, load_json_file
 
 try:
     from backend.config import get_data_root

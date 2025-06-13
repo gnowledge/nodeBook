@@ -43,7 +43,7 @@ const DisplayHTML = ({ userId, graphId }) => {
     <div className="p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {graph.nodes.map((node) => (
-          <NodeCard key={node.id} node={node} />
+          <NodeCard key={node.node_id || node.id} node={node} userId={userId} graphId={graphId} />
         ))}
       </div>
     </div>

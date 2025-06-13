@@ -4,9 +4,9 @@ import networkx as nx
 from pathlib import Path
 from typing import List, Dict, Optional
 
-from core.utils import normalize_id, load_text_file, save_json_file, load_json_file
-from core.registry import load_node_registry, update_node_registry, create_node_if_missing
-from core.schema_ops import load_schema
+from backend.core.utils import normalize_id, load_text_file, save_json_file, load_json_file
+from backend.core.registry import load_node_registry, update_node_registry, create_node_if_missing
+from backend.core.schema_ops import load_schema
 
 
 

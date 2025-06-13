@@ -6,7 +6,7 @@ def normalize_id(label: str) -> str:
     return label.strip().lower().replace(" ", "_")
 
 def get_graph_path(user_id: str, graph_id: str) -> str:
-    base = os.path.join("graph_data", user_id, graph_id)
+    base = os.path.join("graph_data", "users", user_id, "graphs", graph_id)
     # No trailing slash needed; os.path.join handles paths correctly.
     if not os.path.exists(base):
         raise FileNotFoundError(f"Graph '{graph_id}' for user '{user_id}' not found.")

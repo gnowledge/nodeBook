@@ -12,3 +12,5 @@ bleach
 ruamel.yaml
 pytest
 yaml
+llama-cpp-python
+torch

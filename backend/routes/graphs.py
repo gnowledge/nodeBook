@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 import os
-from core.id_utils import get_user_id
+from backend.core.id_utils import get_user_id
 
 router = APIRouter()
 

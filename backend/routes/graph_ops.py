@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Union
 import os, yaml
-from core.id_utils import get_graph_path
+from backend.core.id_utils import get_graph_path
 
 router = APIRouter()
 

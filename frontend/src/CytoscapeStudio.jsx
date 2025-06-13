@@ -55,7 +55,7 @@ function ndfToCytoscapeGraph(ndfData) {
   return { nodes, edges };
 }
 
-const CytoscapeStudio = ({ graph, prefs }) => {
+const CytoscapeStudio = ({ graph, prefs, userId, graphId, onSummaryQueued }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   // If graph is actually raw_markdown, try to extract parsed YAML if present
@@ -183,7 +183,12 @@ const CytoscapeStudio = ({ graph, prefs }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
             <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl" onClick={() => setSelectedNode(null)}>&times;</button>
-            <NodeCard node={selectedNode} />
+            <NodeCard 
+              node={selectedNode} 
+              userId={userId}
+              graphId={graphId}
+              onSummaryQueued={onSummaryQueued}
+            />
           </div>
         </div>
       )}

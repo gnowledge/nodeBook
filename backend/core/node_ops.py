@@ -1,14 +1,7 @@
 import os
-import yaml
 from fastapi import HTTPException
-from core.utils import render_description_md
-from ruamel.yaml import YAML
+from backend.core.utils import render_description_md, load_json_file, save_json_file
 from collections import OrderedDict
-
-yaml = YAML()
-yaml.indent(mapping=2, sequence=4, offset=2)
-yaml.default_flow_style = False
-
 
 NODE_KEY_ORDER = [
     "id",
@@ -37,47 +30,36 @@ def sort_relations(rels: list[dict]) -> list[dict]:
     return sorted(rels, key=lambda x: (x.get("name", ""), x.get("object", "")))
 
 
-
 def node_path(user_id: str, graph_id: str, node_id: str) -> str:
-    return os.path.join("graph_data", user_id, graph_id, f"{node_id}.yaml")
+    # Always use the JSON node file in the user nodes directory
+    return os.path.join("graph_data", "users", user_id, "nodes", f"{node_id}.json")
 
 def load_node(user_id: str, graph_id: str, node_id: str) -> dict:
     path = node_path(user_id, graph_id, node_id)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
-    with open(path, encoding="utf-8") as f:
-        return yaml.load(f)
+    return load_json_file(path)
 
 def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
-    path = get_node_path(user_id, graph_id, node_id)
-
-    # Ensure we are operating on the embedded 'node' dict
-    node_data = data.get("node", data)
-
+    path = node_path(user_id, graph_id, node_id)
+    node_data = data
     if "attributes" in node_data:
         node_data["attributes"] = sort_attributes(node_data["attributes"])
     if "relations" in node_data:
         node_data["relations"] = sort_relations(node_data["relations"])
+    save_json_file(path, ordered_node_dict(node_data))
 
-    ordered = {"node": ordered_node_dict(node_data)}
-
-    with open(path, "w") as f:
-        yaml.dump(ordered, f)
-
-
-
-def safe_node_summary(user_id: str, graph_id: str, file: str) -> dict | None:
-    node_id = file[:-5]
-    data = load_node(user_id, graph_id, node_id)
-    if not data or "node" not in data or not isinstance(data["node"], dict):
+def safe_node_summary(user_id: str, graph_id: str, node_id: str) -> dict | None:
+    try:
+        node = load_node(user_id, graph_id, node_id)
+    except Exception:
         return None
-
-    node = data["node"]
-    node_id = node.get("id") or node.get("name") or file[:-5]
+    if not node or not isinstance(node, dict):
+        return None
+    node_id = node.get("id") or node.get("name") or node_id
     label = node.get("name") or node.get("label") or node_id
     qualifier = node.get("qualifier")
     description = node.get("description", "")
-
     return {
         "id": node_id,
         "label": label,
@@ -85,7 +67,6 @@ def safe_node_summary(user_id: str, graph_id: str, file: str) -> dict | None:
         "description": description,
         "description_html": render_description_md(description)
     }
-
 
 def safe_edge_summaries(node_id: str, node_data: dict) -> list:
     edges = []

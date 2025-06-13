@@ -190,6 +190,8 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
         valid_relation_names = set(["parent_of", "friend_of", "related_to"])  # Example default, replace with schema
     relations = []
     import re
+    # --- Add: also return a set of role inferences for subject/target ---
+    role_inferences = []  # (subject_id, target_id, subject_role, target_role)
     for line in cnl_block.splitlines():
         line = line.strip()
         if not line:
@@ -223,6 +225,14 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
             target_qualifier = extract_qualifier(target_node_name)
             target_quantifier = extract_quantifier(target_node_name)
             target_node_id = compose_node_id(target_quantifier, target_qualifier, target_base_name)
+            # --- Role inference logic ---
+            if rel_name_norm in {"member_of", "belongs_to", "element_of"}:
+                role_inferences.append({
+                    'subject_id': source_node,
+                    'target_id': target_node_id,
+                    'subject_role': 'individual',
+                    'target_role': 'class'
+                })
             relations.append({
                 'relation_name': schema_rel_name,  # Use schema name for output
                 'source_node': source_node,
@@ -232,7 +242,9 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
                 'target_quantifier': target_quantifier,
                 'target_node_id': target_node_id,
                 'adverb': adverb,
-                'modality': modality
+                'modality': modality,
+                # --- Add role inference info for pipeline ---
+                'role_inference': role_inferences[-1] if role_inferences else None
             })
         else:
             report.append({'type': 'error', 'stage': 'extract_relations', 'message': f'Incomplete or malformed relation line: {line}', 'source_node': source_node})
@@ -306,6 +318,7 @@ def parse_pipeline(
         }
         # --- Parse CNL block for attributes and relations ---
         cnl_block = extract_cnl_block(section['content'])
+        inferred_role = ''
         if cnl_block:
             # Attribute extraction
             attrs = extract_attributes_from_cnl_block(cnl_block, node_id, report)
@@ -314,6 +327,13 @@ def parse_pipeline(
             # Relation extraction
             rels = extract_relations_from_cnl_block(cnl_block, node_id, report, valid_relation_names=valid_relation_names, valid_relation_name_map=valid_relation_name_map)
             relation_list.extend(rels)
+            # --- Set subject node's role if any relation infers it ---
+            for rel in rels:
+                role_inf = rel.get('role_inference')
+                if role_inf and role_inf['subject_id'] == node_id:
+                    inferred_role = role_inf['subject_role']
+            if inferred_role:
+                node['role'] = inferred_role
             # Save node first (attributes only)
             update_node_list(node_list, node)
             save_section_node(user_id, node, node_registry_path, report)
@@ -358,12 +378,18 @@ def parse_pipeline(
                     if target_id and not any(n['node_id'] == target_id for n in node_list) and not os.path.exists(target_node_path):
                         # Normalize target_id for node_id and base_name
                         norm_target_id = normalize_relation_name(target_id)
+                        # --- Set role if inferred ---
+                        inferred_role = None
+                        for rel2 in rels:
+                            if rel2.get('role_inference') and rel2['target_node_id'] == norm_target_id:
+                                inferred_role = rel2['role_inference'].get('target_role')
                         target_node = {
                             'node_id': norm_target_id,
                             'name': rel['target_node_name'],
                             'base_name': rel['target_base_name'],
                             'qualifier': rel['target_qualifier'],
                             'quantifier': rel['target_quantifier'],
+                            'role': inferred_role if inferred_role else '',
                             'description': '',
                             'attributes': [],
                             'relations': []

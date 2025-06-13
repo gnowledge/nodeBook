@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import os
 import yaml
 
-from routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes, preferences, parse_pipeline
+from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes, preferences, parse_pipeline
 # backend/app.py
 
 

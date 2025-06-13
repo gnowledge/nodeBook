@@ -5,13 +5,45 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import DisplayHTML from "./DisplayHTML";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
+import { API_BASE } from "./config";
 
 const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph, onGraphDeleted, prefs }) => {
   const [activeTab, setActiveTab] = useState("CNL");
+  const [showSummaryComplete, setShowSummaryComplete] = useState(false);
+  const [lastSummaryNode, setLastSummaryNode] = useState(null);
 
   useEffect(() => {
     setActiveTab("CNL");
   }, [graphId]);
+
+  // Poll for summary completion
+  useEffect(() => {
+    let interval = null;
+    if (lastSummaryNode) {
+      interval = setInterval(async () => {
+        // Fetch node info to check if description is now present
+        const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}/getInfo/${lastSummaryNode}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.description && data.description !== "") {
+            setShowSummaryComplete(true);
+            setTimeout(() => setShowSummaryComplete(false), 3000);
+            setLastSummaryNode(null);
+            clearInterval(interval);
+            if (onGraphUpdate) onGraphUpdate(); // Optionally refresh graph
+          }
+        }
+      }, 2000); // Poll every 2s
+    }
+    return () => interval && clearInterval(interval);
+  }, [lastSummaryNode, userId, graphId, onGraphUpdate]);
+
+  // Handler to be passed to NodeCard
+  const handleSummaryQueued = (data) => {
+    if (data && data.status === "submitted" && data.id) {
+      setLastSummaryNode(data.id);
+    }
+  };
 
   const handleParsed = async () => {
     try {
@@ -26,6 +58,11 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
 
   return (
     <div className="flex flex-col h-full w-full bg-white border-r border-gray-300">
+      {showSummaryComplete && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 bg-green-600 text-white rounded shadow-lg font-semibold animate-fade-in-out">
+          Node summary completed!
+        </div>
+      )}
       <div className="flex justify-left space-x-2 p-2 mt-2 border-t border-b text-sm">
         <button className={`px-2 py-1 rounded ${activeTab === "CNL" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("CNL")}>Edit</button>
         <button className={`px-2 py-1 rounded ${activeTab === "Graph" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Graph")}>Graph View</button>
@@ -42,7 +79,13 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
         )}
         {activeTab === "Graph" && (
           <div className="h-full w-full">
-            <CytoscapeStudio graph={graph} prefs={prefs} />
+            <CytoscapeStudio 
+              graph={graph} 
+              prefs={prefs} 
+              userId={userId} 
+              graphId={graphId} 
+              onSummaryQueued={handleSummaryQueued} 
+            />
           </div>
         )}
         {activeTab === "Document" && (
