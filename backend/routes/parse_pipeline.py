@@ -356,8 +356,10 @@ def parse_pipeline(
                     target_id = rel['target_node_id']
                     target_node_path = os.path.join(user_nodes_dir, f"{target_id}.json")
                     if target_id and not any(n['node_id'] == target_id for n in node_list) and not os.path.exists(target_node_path):
+                        # Normalize target_id for node_id and base_name
+                        norm_target_id = normalize_relation_name(target_id)
                         target_node = {
-                            'node_id': target_id,
+                            'node_id': norm_target_id,
                             'name': rel['target_node_name'],
                             'base_name': rel['target_base_name'],
                             'qualifier': rel['target_qualifier'],
@@ -367,10 +369,10 @@ def parse_pipeline(
                             'relations': []
                         }
                         try:
-                            with open(target_node_path, 'w') as f:
+                            with open(os.path.join(user_nodes_dir, f"{norm_target_id}.json"), 'w') as f:
                                 json.dump(target_node, f, indent=2)
                         except Exception as e:
-                            report.append({'type': 'error', 'stage': 'save_target_node', 'node_id': target_id, 'message': str(e)})
+                            report.append({'type': 'error', 'stage': 'save_target_node', 'node_id': norm_target_id, 'message': str(e)})
                         # Also add to node_list and node_registry
                         update_node_list(node_list, target_node)
                         save_section_node(user_id, target_node, node_registry_path, report)

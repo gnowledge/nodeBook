@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import NDFPreview from "./NDFPreview";
+import NDFJsonPreview from "./NDFJsonPreview";
 import Statistics from "./Statistics";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
@@ -15,6 +16,12 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs 
           onClick={() => setTab("yaml")}
         >
           YAML
+        </button>
+        <button
+          className={`px-4 py-2 ${tab === "json" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setTab("json")}
+        >
+          JSON
         </button>
         <button
           className={`px-4 py-2 ${tab === "stats" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
@@ -43,6 +50,9 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs 
             graph={graph}
             onGraphUpdate={onGraphUpdate}
           />
+        )}
+        {tab === "json" && (
+          <NDFJsonPreview userId={userId} graphId={graphId} />
         )}
         {tab === "stats" && (
           <Statistics

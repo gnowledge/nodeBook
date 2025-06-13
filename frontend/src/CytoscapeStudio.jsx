@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import NodeCard from "./NodeCard";
+import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 
@@ -46,6 +47,7 @@ function ndfToCytoscapeGraph(ndfData) {
 }
 
 const CytoscapeStudio = ({ graph, prefs }) => {
+  const [selectedNode, setSelectedNode] = useState(null);
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graph && graph.nodes ? graph : null;
   if (!parsedGraph) {
@@ -123,6 +125,12 @@ const CytoscapeStudio = ({ graph, prefs }) => {
             const desc = evt.target.data("description") || "No description";
             console.log("Node description:", desc);
           });
+          cyRef.current.on("tap", "node", (evt) => {
+            const nodeId = evt.target.data("id");
+            // Find the full node object from graph.nodes
+            const nodeObj = (graph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
+            if (nodeObj) setSelectedNode(nodeObj);
+          });
         } else {
           setTimeout(checkAndInit, 100);
         }
@@ -138,7 +146,19 @@ const CytoscapeStudio = ({ graph, prefs }) => {
     };
   }, [graph, prefs]);
 
-  return <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />;
+  return (
+    <>
+      <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
+      {selectedNode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl" onClick={() => setSelectedNode(null)}>&times;</button>
+            <NodeCard node={selectedNode} />
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 export default CytoscapeStudio;
