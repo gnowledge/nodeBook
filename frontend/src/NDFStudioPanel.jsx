@@ -30,6 +30,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
         <button className={`px-2 py-1 rounded ${activeTab === "CNL" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("CNL")}>Edit</button>
         <button className={`px-2 py-1 rounded ${activeTab === "Graph" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Graph")}>Graph View</button>
         <button className={`px-2 py-1 rounded ${activeTab === "Document" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Document")}>Document View</button>
+        <button className={`px-2 py-1 rounded ${activeTab === "Dev" ? "bg-blue-600 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("Dev")}>KB Manager</button>
       </div>
 
       <div className="flex-1 overflow-auto">

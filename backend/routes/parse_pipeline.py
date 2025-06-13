@@ -154,29 +154,28 @@ def extract_attributes_from_cnl_block(cnl_block: str, node_id: str, report: list
                 report.append({'type': 'error', 'stage': 'extract_attributes', 'message': f'Missing attribute name or value: {line}', 'node_id': node_id})
                 continue
             import re
-            unit_match = re.search(r'\*([^*]+)\*', value_part)
+            # Extract adverb (e.g. ++rapidly++)
             adverb_match = re.search(r'\+\+([^+]+)\+\+', value_part)
-            modality_match = re.search(r'\[([^\]]+)\]', value_part)
-            # If unit (italics) is present, value is empty, unit is the text inside italics
-            if unit_match:
-                value_clean = ''
-                unit = unit_match.group(1)
-            else:
-                # Value is the first word before any markup
-                value_clean = value_part.split()[0]
-                # Remove markup if present
-                value_clean = re.sub(r'\*[^*]+\*', '', value_clean)
-                value_clean = re.sub(r'\+\+[^+]+\+\+', '', value_clean)
-                value_clean = re.sub(r'\[[^\]]+\]', '', value_clean)
-                value_clean = value_clean.strip()
-                unit = ''
+            adverb = adverb_match.group(1) if adverb_match else ''
+            value_wo_adverb = re.sub(r'\+\+[^+]+\+\+', '', value_part).strip()
+            # Extract modality (e.g. [uncertain])
+            modality_match = re.search(r'\[([^\]]+)\]', value_wo_adverb)
+            modality = modality_match.group(1) if modality_match else ''
+            value_wo_modality = re.sub(r'\[[^\]]+\]', '', value_wo_adverb).strip()
+            # Extract unit (e.g. *million km²*)
+            unit_match = re.search(r'\*([^*]+)\*', value_wo_modality)
+            unit = unit_match.group(1) if unit_match else ''
+            # Remove unit markup from value
+            value_wo_unit = re.sub(r'\*[^*]+\*', '', value_wo_modality).strip()
+            # The value is the remaining text (first word or number, or all if no markup)
+            value_clean = value_wo_unit
             attributes.append({
                 'target_node': node_id,
                 'attribute_name': att_name,
                 'value': value_clean,
                 'unit': unit,
-                'adverb': adverb_match.group(1) if adverb_match else '',
-                'modality': modality_match.group(1) if modality_match else ''
+                'adverb': adverb,
+                'modality': modality
             })
         except Exception as e:
             report.append({'type': 'error', 'stage': 'extract_attributes', 'message': f'Exception: {str(e)}', 'node_id': node_id})
@@ -195,12 +194,24 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
         line = line.strip()
         if not line:
             continue
-        # Match <relation_name> target_node_markup
+        # Extract adverb (e.g. ++quickly++) at the start
+        adverb = ''
+        adverb_match = re.match(r'^\+\+([^+]+)\+\+\s*(.*)', line)
+        if adverb_match:
+            adverb = adverb_match.group(1).strip()
+            line = adverb_match.group(2).strip()
+        # Match <relation_name> target_node_markup [modality]
         m = re.match(r'<([^>]+)>\s+(.+)', line)
         if m:
             rel_name_raw = m.group(1).strip()
             rel_name_norm = normalize_relation_name(rel_name_raw)
             target_node_name = m.group(2).strip()
+            # Extract modality (e.g. [uncertain]) at the end of target_node_name
+            modality = ''
+            modality_match = re.search(r'\[([^\]]+)\]\s*$', target_node_name)
+            if modality_match:
+                modality = modality_match.group(1).strip()
+                target_node_name = re.sub(r'\s*\[[^\]]+\]\s*$', '', target_node_name).strip()
             if not rel_name_norm or not target_node_name:
                 report.append({'type': 'error', 'stage': 'extract_relations', 'message': f'Incomplete relation line: {line}', 'source_node': source_node})
                 continue
@@ -219,7 +230,9 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
                 'target_base_name': target_base_name,
                 'target_qualifier': target_qualifier,
                 'target_quantifier': target_quantifier,
-                'target_node_id': target_node_id
+                'target_node_id': target_node_id,
+                'adverb': adverb,
+                'modality': modality
             })
         else:
             report.append({'type': 'error', 'stage': 'extract_relations', 'message': f'Incomplete or malformed relation line: {line}', 'source_node': source_node})
@@ -316,7 +329,7 @@ def parse_pipeline(
                 for rel in rels:
                     rel_tuple = (
                         rel['relation_name'], node_id, rel['target_node_id'],
-                        rel['target_qualifier'], rel['target_quantifier'], rel.get('modality', '')
+                        rel['target_qualifier'], rel['target_quantifier'], rel.get('modality', ''), rel.get('adverb', '')
                     )
                     if rel_tuple not in seen_rel:
                         new_relations.append({
@@ -324,8 +337,9 @@ def parse_pipeline(
                             'source': node_id,
                             'target': rel['target_node_id'],
                             'target_name': rel['target_node_name'],
-                            'qualifier': rel['target_qualifier'],
-                            'quantifier': rel['target_quantifier'],
+                            'target_qualifier': rel['target_qualifier'],
+                            'target_quantifier': rel['target_quantifier'],
+                            'adverb': rel.get('adverb', ''),
                             'modality': rel.get('modality', ''),
                         })
                         seen_rel.add(rel_tuple)

@@ -1,4 +1,20 @@
 import React, { useEffect, useState } from "react";
+import { marked } from "marked";
+
+// Utility to strip markdown (basic, for bold/italic/inline code/links)
+function stripMarkdown(md) {
+  return md
+    .replace(/\*\*(.*?)\*\*/g, '$1') // bold
+    .replace(/\*(.*?)\*/g, '$1') // italic
+    .replace(/`([^`]+)`/g, '$1') // inline code
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1') // links
+    .replace(/_/g, '') // underscores
+    .replace(/#+ /g, '') // headings
+    .replace(/<.*?>/g, '') // html tags
+    .replace(/!\[(.*?)\]\((.*?)\)/g, '$1') // images
+    .replace(/\s+/g, ' ') // collapse whitespace
+    .trim();
+}
 
 const DisplayHTML = ({ userId, graphId }) => {
   const [graph, setGraph] = useState(null);
@@ -27,7 +43,9 @@ const DisplayHTML = ({ userId, graphId }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {graph.nodes.map((node) => (
           <div key={node.id} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
-            <h2 className="text-lg font-semibold text-blue-700 mb-1">{node.name || node.id}</h2>
+            <h2 className="text-lg font-semibold text-blue-700 mb-1">
+              <span dangerouslySetInnerHTML={{ __html: marked.parseInline(node.name || node.node_id) }} />
+            </h2>
             {node.description && <p className="mb-2 text-gray-700 text-sm">{node.description}</p>}
 
             {node.attributes?.length > 0 && (
@@ -36,8 +54,17 @@ const DisplayHTML = ({ userId, graphId }) => {
                 <ul className="list-disc list-inside text-gray-800 text-sm">
                   {node.attributes.map((attr, i) => (
                     <li key={i}>
-                      {attr.name}: {attr.value}
-                      {attr.unit && ` (${attr.unit})`}
+                      {attr.attribute_name ? (
+                        <>
+                          <span className="font-semibold">{attr.attribute_name}:</span> {attr.value}
+                          {attr.unit && ` (${attr.unit})`}
+                        </>
+                      ) : (
+                        <>
+                          {attr.value}
+                          {attr.unit && ` (${attr.unit})`}
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -50,7 +77,12 @@ const DisplayHTML = ({ userId, graphId }) => {
                 <ul className="list-disc list-inside text-gray-800 text-sm">
                   {node.relations.map((rel, i) => (
                     <li key={i}>
-                      &lt;{rel.name}&gt; → {rel.target}
+                      {rel.adverb && (
+                        <span className="text-purple-700 font-semibold mr-1">{rel.adverb}</span>
+                      )}
+                      <span className="text-blue-700 font-semibold">{rel.name}</span>
+                      {': '}
+                      <span dangerouslySetInnerHTML={{ __html: marked.parseInline(rel.target_name || rel.target) }} />
                     </li>
                   ))}
                 </ul>

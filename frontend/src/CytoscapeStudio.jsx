@@ -4,13 +4,29 @@ import dagre from "cytoscape-dagre";
 
 cytoscape.use(dagre);
 
+// Utility to strip markdown (basic, for bold/italic/inline code/links)
+function stripMarkdown(md) {
+  return md
+    .replace(/\*\*(.*?)\*\*/g, '$1') // bold
+    .replace(/\*(.*?)\*/g, '$1') // italic
+    .replace(/`([^`]+)`/g, '$1') // inline code
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1') // links
+    .replace(/_/g, '') // underscores
+    .replace(/#+ /g, '') // headings
+    .replace(/<.*?>/g, '') // html tags
+    .replace(/!\[(.*?)\]\((.*?)\)/g, '$1') // images
+    .replace(/\s+/g, ' ') // collapse whitespace
+    .trim();
+}
+
 // ✅ Transform function to extract only relevant node and edge data
 function ndfToCytoscapeGraph(ndfData) {
   const nodes = (ndfData.nodes || []).map(node => ({
     data: {
       id: node.node_id,
-      label: node.name || node.node_id,
-      description: node.description || ""
+      label: stripMarkdown(node.name || node.node_id), // label is plain text
+      description: node.description || "",
+      originalName: node.name || node.node_id // keep original for tooltips
     }
   }));
     console.log("🧠 Nodes in graph:", ndfData.nodes);
