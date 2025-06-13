@@ -39,7 +39,7 @@ function NodeCard({ node }) {
             {node.relations.map((rel, i) => (
               <li key={i}>
                 {rel.adverb && (
-                  <span className="text-purple-700 font-semibold mr-1">[{rel.adverb}]</span>
+                  <span className="text-purple-700 font-semibold mr-1">{rel.adverb}</span>
                 )}
                 <span className="text-blue-700 font-semibold">{rel.name}</span>
                 {': '}

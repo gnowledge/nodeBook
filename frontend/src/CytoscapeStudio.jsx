@@ -2,6 +2,7 @@ import NodeCard from "./NodeCard";
 import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
+import { marked } from "marked";
 
 cytoscape.use(dagre);
 
@@ -33,14 +34,22 @@ function ndfToCytoscapeGraph(ndfData) {
     console.log("🧠 Nodes in graph:", ndfData.nodes);
 
   const edges = (ndfData.nodes || []).flatMap((node) =>
-    (node.relations || []).map((rel, i) => ({
-      data: {
-        id: `${node.node_id}_${rel.name}_${rel.target}_${i}`,
-        source: node.node_id,
-        target: rel.target,
-        label: rel.name
+    (node.relations || []).map((rel, i) => {
+      // Compose label for Cytoscape: adverb and relation name, plain text only
+      let label = rel.name || "";
+      if (rel.adverb) {
+        label = `${rel.adverb} ${label}`;
       }
-    }))
+      return {
+        data: {
+          id: `${node.node_id}_${rel.name}_${rel.target}_${i}`,
+          source: node.node_id,
+          target: rel.target,
+          label, // plain text only, no markup
+          adverb: rel.adverb || undefined // pass adverb for modal
+        }
+      };
+    })
   );
 
   return { nodes, edges };
@@ -48,6 +57,7 @@ function ndfToCytoscapeGraph(ndfData) {
 
 const CytoscapeStudio = ({ graph, prefs }) => {
   const [selectedNode, setSelectedNode] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState(null);
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graph && graph.nodes ? graph : null;
   if (!parsedGraph) {
@@ -91,14 +101,17 @@ const CytoscapeStudio = ({ graph, prefs }) => {
                   label: "data(label)",
                   "text-valign": "center",
                   "text-halign": "center",
-                  "background-color": "#4A90E2",
-                  "color": "#fff",
-                  "text-outline-width": 2,
-                  "text-outline-color": "#4A90E2",
+                  "background-color": "#f3f4f6", // light grey
+                  "color": "#2563eb", // blue-600
+                  "text-outline-width": 0,
                   "font-size": 14,
                   "width": "label",
                   "height": "label",
-                  "padding": "10px"
+                  "padding": "10px",
+                  "border-width": 0.5,
+                  "border-color": "#2563eb", // blue-600
+                  "border-style": "solid",
+                  "shape": "roundrectangle"
                 }
               },
               {
@@ -107,10 +120,10 @@ const CytoscapeStudio = ({ graph, prefs }) => {
                   label: "data(label)",
                   "curve-style": "bezier",
                   "target-arrow-shape": "triangle",
-                  "width": 2,
+                  "width": 1,
                   "line-color": "#ccc",
                   "target-arrow-color": "#ccc",
-                  "font-size": 12,
+                  "font-size": 9,
                   "text-background-color": "#fff",
                   "text-background-opacity": 1,
                   "text-background-padding": "2px"
@@ -126,10 +139,22 @@ const CytoscapeStudio = ({ graph, prefs }) => {
             console.log("Node description:", desc);
           });
           cyRef.current.on("tap", "node", (evt) => {
+            setSelectedEdge(null);
             const nodeId = evt.target.data("id");
-            // Find the full node object from graph.nodes
             const nodeObj = (graph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
             if (nodeObj) setSelectedNode(nodeObj);
+          });
+          cyRef.current.on("tap", "edge", (evt) => {
+            setSelectedNode(null);
+            const edgeData = evt.target.data();
+            // Find source/target node objects
+            const sourceNode = (graph.nodes || []).find(n => n.node_id === edgeData.source || n.id === edgeData.source);
+            const targetNode = (graph.nodes || []).find(n => n.node_id === edgeData.target || n.id === edgeData.target);
+            setSelectedEdge({
+              edge: edgeData,
+              sourceNode,
+              targetNode
+            });
           });
         } else {
           setTimeout(checkAndInit, 100);
@@ -146,6 +171,11 @@ const CytoscapeStudio = ({ graph, prefs }) => {
     };
   }, [graph, prefs]);
 
+  // Helper to render markdown inline
+  function renderMarkdownInline(md) {
+    return <span dangerouslySetInnerHTML={{ __html: marked.parseInline(md) }} />;
+  }
+
   return (
     <>
       <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
@@ -154,6 +184,23 @@ const CytoscapeStudio = ({ graph, prefs }) => {
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
             <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl" onClick={() => setSelectedNode(null)}>&times;</button>
             <NodeCard node={selectedNode} />
+          </div>
+        </div>
+      )}
+      {selectedEdge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedEdge(null)}>
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
+            <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl" onClick={() => setSelectedEdge(null)}>&times;</button>
+            <div className="text-lg font-semibold text-blue-700 mb-2">
+              {renderMarkdownInline(selectedEdge.sourceNode?.name || selectedEdge.sourceNode?.node_id || "")}
+              {" "}
+              {selectedEdge.edge.adverb && (
+                <span className="font-bold text-purple-700 mr-1">{selectedEdge.edge.adverb}</span>
+              )}
+              {renderMarkdownInline(selectedEdge.edge.label.replace(selectedEdge.edge.adverb ? selectedEdge.edge.adverb + ' ' : '', '') || "")}
+              {" "}
+              {renderMarkdownInline(selectedEdge.targetNode?.name || selectedEdge.targetNode?.node_id || "")}
+            </div>
           </div>
         </div>
       )}
