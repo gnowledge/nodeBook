@@ -21,11 +21,11 @@ stable release.
 ## 🔄 In-Progress / Next Milestones
 
 ### 1. CNL Enhancements
-- [ ] Support **qualifiers** for nodes (e.g., _"female mathematician"_) → Stored in `node.qualifier`
-- [ ] Support **quantifiers** for:
+- [x] Support **qualifiers** for nodes (e.g., _"female mathematician"_) → Stored in `node.qualifier`
+- [x] Support **quantifiers** for:
   - Attributes (e.g., _"has size: at least 5 (cm)"_)
   - Relations (e.g., _"most birds can fly"_)
-- [ ] Update the parser and CNL grammar accordingly.
+- [x] Update the parser and CNL grammar accordingly.
 
 ### 2. Unique Node Identifiers
 - [x] Implement unique or globally consistent `node.id`
