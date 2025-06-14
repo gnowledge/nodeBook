@@ -10,7 +10,8 @@ BACKEND_ROOT = Path(__file__).parent.parent.resolve()
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from routes.ndf_routes import parse_graph, generate_composed_graph
+from routes.ndf_routes import parse_graph
+from core.compose import compose_graph
 from core.cnl_parser import parse_node_title
 from core.utils import load_json_file
 import json
@@ -78,7 +79,8 @@ has field: mathematics
 '''
     graph_dir = setup_cnl_graph(user_id, graph_id, cnl_md)
     parse_graph(user_id, graph_id)  # Ensure parsed.json is created
-    composed = generate_composed_graph(user_id, graph_id)
+    # composed = generate_composed_graph(user_id, graph_id)
+    # Instead, call parse_graph or compose_graph if needed for test
     data_root = Path(os.environ["NDF_DATA_ROOT"])
     node_dir = data_root / "users" / user_id / "nodes"
     files = list(node_dir.glob("*.json"))
@@ -110,9 +112,11 @@ has field: mathematics
 '''
     graph_dir = setup_cnl_graph(user_id, graph_id, cnl_md)
     parse_graph(user_id, graph_id)
-    composed = generate_composed_graph(user_id, graph_id)
+    # Compose the graph using all node ids in the test graph
     data_root = Path(os.environ["NDF_DATA_ROOT"])
     node_dir = data_root / "users" / user_id / "nodes"
+    node_ids = [f.stem for f in node_dir.glob("*.json")]
+    composed = compose_graph(user_id, graph_id, node_ids)
     for node in composed["nodes"]:
         node_file = node_dir / f"{node['id']}.json"
         assert node_file.exists(), f"Node file {node_file} missing"
@@ -138,7 +142,11 @@ has field: mathematics
 '''
     graph_dir = setup_cnl_graph(user_id, graph_id, cnl_md)
     parse_graph(user_id, graph_id)
-    composed = generate_composed_graph(user_id, graph_id)
+    # Compose the graph using all node ids in the test graph
+    data_root = Path(os.environ["NDF_DATA_ROOT"])
+    node_dir = data_root / "users" / user_id / "nodes"
+    node_ids = [f.stem for f in node_dir.glob("*.json")]
+    composed = compose_graph(user_id, graph_id, node_ids)
     node = next(n for n in composed["nodes"] if n["id"] == "mathematician")
     rels = node["relations"]
     attrs = node["attributes"]

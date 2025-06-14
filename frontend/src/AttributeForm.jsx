@@ -1,179 +1,152 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 import AttributeTypeModal from './AttributeTypeModal';
 
-export default function AttributeForm({ nodes, attributeTypes }) {
-  const [selectedNode, setSelectedNode] = useState('');
-  const [attributeName, setAttributeName] = useState('');
-  const [value, setValue] = useState('');
-  const [unit, setUnit] = useState('');
-  const [quantifier, setQuantifier] = useState('');
-  const [modality, setModality] = useState('');
+function PreviewBox({ label, value }) {
+  return (
+    <div className="bg-gray-50 rounded p-2 mt-2 text-sm">
+      <div><span className="font-semibold">Preview:</span> <span className="text-blue-700">{value || <span className="text-gray-400">({label})</span>}</span></div>
+    </div>
+  );
+}
+
+export default function AttributeForm({ nodeId, userId = "user0", graphId = "graph1", onAddAttributeType }) {
+  // CNL-style fields
+  const [attribute, setAttribute] = useState('');
+  const [attrValue, setAttrValue] = useState('');
+  const [attrAdverb, setAttrAdverb] = useState('');
+  const [attrUnit, setAttrUnit] = useState('');
+  const [attrModality, setAttrModality] = useState('');
   const [showAttributeModal, setShowAttributeModal] = useState(false);
 
-  // For async search
-  const [nodeQuery, setNodeQuery] = useState('');
-  const [nodeOptions, setNodeOptions] = useState([]);
-  const [nodeLoading, setNodeLoading] = useState(false);
+  // Attribute name suggestions from backend
+  const [attributeTypes, setAttributeTypes] = useState([]);
+  const [attributeTypesLoading, setAttributeTypesLoading] = useState(false);
 
-  // Fetch matching nodes for autocomplete
-  const fetchNodeOptions = async (query) => {
-    setNodeLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/nodes?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      setNodeOptions(data);
-    } catch {
-      setNodeOptions([]);
+  useEffect(() => {
+    async function fetchAttributeTypes() {
+      setAttributeTypesLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute-types`);
+        const data = await res.json();
+        setAttributeTypes((data || []).map(a => typeof a === 'string' ? { name: a } : a));
+      } catch {
+        setAttributeTypes([]);
+      }
+      setAttributeTypesLoading(false);
     }
-    setNodeLoading(false);
-  };
+    fetchAttributeTypes();
+  }, [userId, graphId]);
 
-  const handleAttributeSubmit = async () => {
-    const selectedType = attributeTypes.find(at => at.name === attributeName)?.data_type;
+  // CNL-style preview logic
+  let attrPreview = `has ${attribute.trim()}: `;
+  if (attrAdverb.trim()) attrPreview += `++${attrAdverb.trim()}++ `;
+  attrPreview += attrValue.trim();
+  if (attrUnit.trim()) attrPreview += ` *${attrUnit.trim()}*`;
+  if (attrModality.trim()) attrPreview += ` [${attrModality.trim()}]`;
 
-    if (selectedType === "number" && isNaN(Number(value))) {
-      alert("Please enter a valid number.");
-      return;
-    }
-    if (selectedType === "boolean" && !["true", "false"].includes(value.toLowerCase())) {
-      alert("Please enter 'true' or 'false'.");
-      return;
-    }
-
-    let nodeId = selectedNode;
-    // If not selected from options, create node
-    if (!nodes.find(n => n.id === selectedNode) && nodeQuery) {
-      const res = await fetch(`${API_BASE}/api/nodes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: nodeQuery })
-      });
-      const data = await res.json();
-      nodeId = data.id;
-    }
-
-    await fetch(`${API_BASE}/api/attribute/create`, {
+  const handleAttributeSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      node_id: nodeId,
+      name: attribute,
+      value: attrValue,
+      unit: attrUnit || undefined,
+      adverb: attrAdverb || undefined,
+      modality: attrModality || undefined
+    };
+    await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ node_id: nodeId, name: attributeName, value, unit, quantifier, modality })
+      body: JSON.stringify(payload)
     });
     alert("Attribute assigned.");
+    setAttribute('');
+    setAttrValue('');
+    setAttrAdverb('');
+    setAttrUnit('');
+    setAttrModality('');
   };
 
   return (
-    <div className="space-y-4">
+    <form className="space-y-4" onSubmit={handleAttributeSubmit}>
       <h3 className="text-lg font-semibold text-gray-800">Assign Attribute</h3>
-
       <div>
-        <label className="block text-sm font-medium mb-1">Node:</label>
-        <input
-          type="text"
-          placeholder="Type to search or create"
-          value={nodeQuery}
-          onChange={async e => {
-            setNodeQuery(e.target.value);
-            setSelectedNode('');
-            if (e.target.value) {
-              await fetchNodeOptions(e.target.value);
-            } else {
-              setNodeOptions([]);
-            }
-          }}
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-1"
-        />
-        {nodeLoading && <div className="text-xs text-gray-400">Searching...</div>}
-        {nodeOptions.length > 0 && (
-          <ul className="border border-gray-200 rounded bg-white max-h-32 overflow-y-auto text-sm">
-            {nodeOptions.map(opt => (
-              <li
-                key={opt.id}
-                className={`px-3 py-1 cursor-pointer hover:bg-blue-100 ${selectedNode === opt.id ? 'bg-blue-50' : ''}`}
-                onClick={() => {
-                  setSelectedNode(opt.id);
-                  setNodeQuery(opt.name || opt.label || opt.id);
-                  setNodeOptions([]);
-                }}
-              >
-                {opt.name || opt.label || opt.id}
-              </li>
-            ))}
-          </ul>
-        )}
+        <label className="block text-sm font-medium mb-1">Target Node:</label>
+        <div className="px-3 py-2 border rounded bg-gray-50 text-gray-700">{nodeId}</div>
       </div>
-
       <div>
         <label className="block text-sm font-medium mb-1">
-          Attribute Type:
+          Attribute Name:
           <button
             className="ml-2 text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded"
+            type="button"
             onClick={() => setShowAttributeModal(true)}
           >
             + Add
           </button>
         </label>
-        <select
-          value={attributeName}
-          onChange={e => setAttributeName(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
+        <input
+          type="text"
+          placeholder="Type to search or create"
+          value={attribute}
+          onChange={e => setAttribute(e.target.value)}
+          list="attribute-type-list"
+          className="w-full border border-gray-300 rounded px-3 py-2 mb-1"
+          autoFocus
+        />
+        <datalist id="attribute-type-list">
+          {attributeTypes.map((a) => (
+            <option key={a.name} value={a.name} />
+          ))}
+        </datalist>
+        {attributeTypesLoading && <div className="text-xs text-gray-400">Loading attribute types...</div>}
+      </div>
+      <div className="grid grid-cols-3 gap-3 items-end mb-2">
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Adverb</label>
+          <input className="border rounded px-2 py-1 text-center" value={attrAdverb} onChange={e => setAttrAdverb(e.target.value)} placeholder="e.g. rapidly" />
+        </div>
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Value<span className="text-red-500">*</span></label>
+          <input className="border rounded px-2 py-1 text-center" value={attrValue} onChange={e => setAttrValue(e.target.value)} placeholder="e.g. 50" required />
+        </div>
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Unit</label>
+          <input className="border rounded px-2 py-1 text-center" value={attrUnit} onChange={e => setAttrUnit(e.target.value)} placeholder="e.g. microns" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 items-end mb-2">
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Modality</label>
+          <input className="border rounded px-2 py-1 text-center" value={attrModality} onChange={e => setAttrModality(e.target.value)} placeholder="e.g. uncertain" />
+        </div>
+      </div>
+      <PreviewBox label="attribute" value={attrPreview} />
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={!attribute.trim() || !attrValue.trim()}
         >
-          <option value="">-- Select --</option>
-          {attributeTypes.map(at => <option key={at.name} value={at.name}>{at.name}</option>)}
-        </select>
+          Submit
+        </button>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Value:</label>
-        <input
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
+      <div className="text-xs text-gray-500 mt-2">
+        <div><b>Examples:</b></div>
+        <div>Easy: <span className="italic">has size: 50 *microns*</span></div>
+        <div>Expert: <span className="italic">has growth_rate: ++rapidly++ 5 *cm/year* [uncertain]</span></div>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Unit:</label>
-        <input
-          value={unit}
-          onChange={e => setUnit(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Quantifier:</label>
-        <input
-          value={quantifier}
-          onChange={e => setQuantifier(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Modality:</label>
-        <input
-          value={modality}
-          onChange={e => setModality(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
-      </div>
-
-      <button
-        onClick={handleAttributeSubmit}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        Submit
-      </button>
-
       {showAttributeModal && (
         <AttributeTypeModal
           isOpen={showAttributeModal}
           onClose={() => setShowAttributeModal(false)}
           onSuccess={() => {
             setShowAttributeModal(false);
+            // Optional: trigger reload of attributeTypes list
           }}
         />
       )}
-    </div>
+    </form>
   );
 }

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { marked } from "marked";
 import { API_BASE } from "./config";
+import RelationForm from "./RelationForm";
+import AttributeForm from "./AttributeForm";
+import RelationTypeModal from "./RelationTypeModal";
+import AttributeTypeModal from "./AttributeTypeModal";
 
 function NodeCard({ node, userId, graphId, onSummaryQueued }) {
   const [loading, setLoading] = useState(false);
@@ -10,6 +14,10 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
   const [editing, setEditing] = useState(false);
   const [editDescription, setEditDescription] = useState("");
   const [editRole, setEditRole] = useState("");
+  const [showRelationForm, setShowRelationForm] = useState(false);
+  const [showAttributeForm, setShowAttributeForm] = useState(false);
+  const [editRelationIndex, setEditRelationIndex] = useState(null);
+  const [editAttributeIndex, setEditAttributeIndex] = useState(null);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -151,6 +159,11 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
     }
   };
 
+  // Fetch relationTypes from backend or context if available
+  // For demo, use relationTypes from freshNode.relations if present
+  const relationTypes = Array.from(new Set((freshNode.relations || []).map(r => ({ name: r.name }))));
+  const attributeTypes = [];
+
   return (
     <div id={"node-" + (freshNode.node_id || freshNode.id)} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
       <h2 className="text-lg font-semibold text-blue-700 mb-1">
@@ -231,50 +244,137 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
         <div className={`text-xs mt-1 ${status === "submitted" ? "text-green-600" : "text-gray-500"}`}>{status}</div>
       )}
 
-      {freshNode.attributes?.length > 0 && (
-        <div className="mb-2">
+      {/* Attributes section: show even if empty, with add button */}
+      <div className="mb-2">
+        <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Attributes</h3>
+          <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowAttributeForm(true)}>+ Add</button>
+        </div>
+        {freshNode.attributes?.length > 0 ? (
           <ul className="list-disc list-inside text-gray-800 text-sm">
             {freshNode.attributes.map((attr, i) => (
-              <li key={i}>
-                {attr.attribute_name ? (
-                  <>
-                    <span className="font-semibold">{attr.attribute_name}:</span> {attr.value}
-                    {attr.unit && ` (${attr.unit})`}
-                  </>
-                ) : (
-                  <>
-                    {attr.value}
-                    {attr.unit && ` (${attr.unit})`}
-                  </>
-                )}
+              <li key={i} className="flex items-center justify-between">
+                <span>
+                  {attr.attribute_name ? (
+                    <>
+                      <span className="font-semibold">{attr.attribute_name}:</span> {attr.value}
+                      {attr.unit && ` (${attr.unit})`}
+                    </>
+                  ) : (
+                    <>
+                      {attr.value}
+                      {attr.unit && ` (${attr.unit})`}
+                    </>
+                  )}
+                </span>
+                <button className="ml-2 text-xs text-blue-600 hover:underline" onClick={() => setEditAttributeIndex(i)}>Edit</button>
               </li>
             ))}
           </ul>
+        ) : (
+          <div className="text-gray-400 italic text-xs">No attributes yet.</div>
+        )}
+      </div>
+
+      {/* Relations section: show even if empty, with add button */}
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Relations</h3>
+          <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowRelationForm(true)}>+ Add</button>
+        </div>
+        {freshNode.relations?.length > 0 ? (
+          <ul className="list-disc list-inside text-gray-800 text-sm">
+            {freshNode.relations.map((rel, i) => (
+              <li key={i} className="flex items-center justify-between">
+                <span>
+                  {rel.adverb && (
+                    <span className="text-purple-700 font-semibold mr-1">{rel.adverb}</span>
+                  )}
+                  <span className="text-blue-700 font-semibold">{rel.type || rel.name}</span>
+                  {': '}
+                  <a
+                    href={"#node-" + (rel.target || rel.target_node_id)}
+                    className="text-blue-600 underline hover:text-blue-900"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span dangerouslySetInnerHTML={{ __html: marked.parseInline(rel.target_name || rel.target) }} />
+                  </a>
+                </span>
+                <button className="ml-2 text-xs text-blue-600 hover:underline" onClick={() => setEditRelationIndex(i)}>Edit</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-gray-400 italic text-xs">No relations yet.</div>
+        )}
+      </div>
+
+      {showAttributeForm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white p-4 rounded shadow-lg">
+            <AttributeForm
+              nodeId={freshNode.node_id || freshNode.id}
+              attributeTypes={attributeTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddAttributeType={() => {}}
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowAttributeForm(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {editAttributeIndex !== null && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white p-4 rounded shadow-lg">
+            <AttributeForm
+              nodeId={freshNode.node_id || freshNode.id}
+              attributeTypes={attributeTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddAttributeType={() => {}}
+              // Optionally pass initialData for editing
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditAttributeIndex(null)}>Close</button>
+          </div>
         </div>
       )}
 
-      {freshNode.relations?.length > 0 && (
-        <div>
-          <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Relations</h3>
-          <ul className="list-disc list-inside text-gray-800 text-sm">
-            {freshNode.relations.map((rel, i) => (
-              <li key={i}>
-                {rel.adverb && (
-                  <span className="text-purple-700 font-semibold mr-1">{rel.adverb}</span>
-                )}
-                <span className="text-blue-700 font-semibold">{rel.name}</span>
-                {': '}
-                <a
-                  href={"#node-" + (rel.target || rel.target_node_id)}
-                  className="text-blue-600 underline hover:text-blue-900"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <span dangerouslySetInnerHTML={{ __html: marked.parseInline(rel.target_name || rel.target) }} />
-                </a>
-              </li>
-            ))}
-          </ul>
+      {showRelationForm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white p-4 rounded shadow-lg">
+            <RelationForm
+              nodeId={freshNode.node_id || freshNode.id}
+              relationTypes={relationTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddRelationType={() => {}}
+              onSuccess={() => {
+                setShowRelationForm(false);
+                // Reload this node only
+                const nodeId = freshNode.node_id || freshNode.id;
+                fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
+                  .then(res => res.json())
+                  .then(data => setFreshNode(data));
+              }}
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowRelationForm(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {editRelationIndex !== null && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white p-4 rounded shadow-lg">
+            <RelationForm
+              nodeId={freshNode.node_id || freshNode.id}
+              relationTypes={relationTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddRelationType={() => {}}
+              initialData={freshNode.relations[editRelationIndex]}
+              editMode={true}
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditRelationIndex(null)}>Close</button>
+          </div>
         </div>
       )}
     </div>

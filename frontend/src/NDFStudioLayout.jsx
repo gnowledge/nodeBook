@@ -4,6 +4,11 @@ import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
 import WorkspaceStatistics from "./WorkspaceStatistics";
 import PreferencesPanel from "./PreferencesPanel";
 import { marked } from "marked";
+import DisplayHTML from "./DisplayHTML";
+import CytoscapeStudio from "./CytoscapeStudio";
+import BlocklyCNLComposer from "./BlocklyCNLComposer";
+import DevPanel from "./DevPanel";
+import CNLInput from "./CNLInput";
 
 const DEFAULT_PREFERENCES = {
   graphLayout: "dagre",
@@ -21,6 +26,88 @@ const DEFAULT_PREFERENCES = {
   accessibility: false,
 };
 
+// Map tab keys to display names and content renderers
+const TAB_DEFINITIONS = {
+  graphs: {
+    label: "Knowledge Base",
+    render: ({
+      openGraphs,
+      activeGraph,
+      composedGraphs,
+      rawMarkdowns,
+      modifiedGraphs,
+      setShowMenu,
+      showMenu,
+      allGraphs,
+      openGraphInTab,
+      handleAddGraph,
+      handleCloseTab,
+      handleGraphUpdate,
+      handleSaveGraph,
+      setComposedGraph,
+      handleGraphDeleted,
+      prefs,
+      userId,
+    }) => (
+      <div className="p-2 flex flex-col h-full">
+        <NDFStudioPanel
+          userId={userId}
+          graphId={activeGraph}
+          graph={composedGraphs[activeGraph]}
+          onGraphUpdate={handleGraphUpdate}
+          onSave={handleSaveGraph}
+          setParsedYaml={setComposedGraph}
+          onGraphDeleted={handleGraphDeleted}
+          rawMarkdown={rawMarkdowns[activeGraph]}
+          prefs={prefs}
+        />
+      </div>
+    ),
+  },
+  "workspace-stats": {
+    label: "Score Card",
+    render: ({ userId }) => <WorkspaceStatistics userId={userId} />,
+  },
+  help: {
+    label: "Help",
+    render: () => <HelpTab />,
+  },
+  preferences: {
+    label: "Preferences",
+    render: ({ userId, handlePrefsChange }) => (
+      <div className="p-4">
+        <div className="text-lg font-semibold mb-2">Preferences</div>
+        <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
+      </div>
+    ),
+  },
+  // Add more tab definitions as needed
+};
+
+const DEFAULT_MAIN_TABS = ["help", "graphs", "workspace-stats", "preferences"];
+
+const TOP_TABS = [
+  { key: "graphs", label: "Knowledge Base" },
+  { key: "workspace-stats", label: "Scorecard" },
+  { key: "help", label: "Help" },
+  { key: "preferences", label: "Preferences" },
+];
+
+const WORKAREA_TABS = [
+  { key: "display", label: "Display HTML" },
+  { key: "graph", label: "Graph" },
+  { key: "cnl", label: "CNL Edit" },
+  { key: "dev", label: "Dev Panel" },
+];
+
+const DEV_PANEL_TABS = [
+  { key: "json", label: "JSON" },
+  { key: "yaml", label: "YAML" },
+  { key: "stats", label: "Stats" },
+  { key: "relationTypes", label: "Relation Types" },
+  { key: "attributeTypes", label: "Attribute Types" },
+];
+
 const NDFStudioLayout = ({ userId = "user0" }) => {
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
@@ -29,7 +116,9 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
   const [composedGraphs, setComposedGraphs] = useState({});
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
-  const [activeTab, setActiveTab] = useState("help"); // Default landing tab is now Help
+  const [activeTopTab, setActiveTopTab] = useState("graphs");
+  const [activeWorkTab, setActiveWorkTab] = useState("display");
+  const [activeDevTab, setActiveDevTab] = useState("json");
   const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
   const [prefsLoading, setPrefsLoading] = useState(true);
 
@@ -45,7 +134,6 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     init();
   }, [userId]);
 
-  // Fetch preferences on mount
   useEffect(() => {
     async function fetchPrefs() {
       setPrefsLoading(true);
@@ -180,7 +268,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         setActiveGraph(null);
       }
     }
-    setActiveTab("graphs"); // Switch to Knowledge Base tab
+    setActiveTab(mainTabs[0] || "graphs"); // Switch to first main tab
   };
 
   // Handler for PreferencesPanel to update global prefs
@@ -188,118 +276,192 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     setPrefs(newPrefs);
   };
 
+  // Render top-level tabs
+  const renderTopTabs = () => (
+    <div className="flex border-b bg-gray-100">
+      {TOP_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          className={`px-4 py-2 ${activeTopTab === key ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveTopTab(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Render file selector and open graph tabs (only for Knowledge Base)
+  const renderGraphSelectorBar = () => (
+    <div className="flex items-center space-x-2 border-b pb-2 relative bg-gray-50">
+      <div className="relative">
+        <button onClick={() => setShowMenu(!showMenu)} className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+          File ▾
+        </button>
+        {showMenu && (
+          <div className="absolute mt-1 bg-white shadow border rounded z-10">
+            {allGraphs.map(({ id, title }) => (
+              <div
+                key={id}
+                onClick={() => {
+                  openGraphInTab(id);
+                  setShowMenu(false);
+                }}
+                className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+              >
+                {title}
+              </div>
+            ))}
+            <div
+              onClick={() => {
+                handleAddGraph();
+                setShowMenu(false);
+              }}
+              className="border-t px-3 py-1 text-green-600 hover:bg-green-100 cursor-pointer"
+            >
+              + New Graph
+            </div>
+          </div>
+        )}
+      </div>
+      {openGraphs.map(({ id, title }) => (
+        <div key={id} className="flex items-center">
+          <button
+            onClick={() => openGraphInTab(id)}
+            className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
+              activeGraph === id
+                ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-50"
+            }`}
+            style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
+          >
+            {title}{modifiedGraphs[id] ? " *" : ""}
+          </button>
+          <button
+            onClick={() => handleCloseTab(id)}
+            className="ml-1 text-red-500 hover:text-red-700 font-bold"
+            title="Close tab"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
+  // Render workarea tabs (only when a graph is open and Knowledge Base is active)
+  const renderWorkareaTabs = () => (
+    <div className="flex border-b bg-gray-50">
+      {WORKAREA_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          className={`px-4 py-2 ${activeWorkTab === key ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveWorkTab(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Render Dev Panel sub-tabs (only when Dev Panel is active)
+  const renderDevPanelTabs = () => (
+    <div className="flex border-b bg-gray-50">
+      {DEV_PANEL_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          className={`px-4 py-2 ${activeDevTab === key ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+          onClick={() => setActiveDevTab(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Render content for workarea tabs
+  const renderWorkareaContent = () => {
+    if (activeWorkTab === "display") {
+      return (
+        <DisplayHTML
+          graph={composedGraphs[activeGraph]}
+          rawMarkdown={rawMarkdowns[activeGraph]}
+          graphId={activeGraph}
+          userId={userId}
+        />
+      );
+    }
+    if (activeWorkTab === "graph") {
+      return (
+        <CytoscapeStudio
+          graph={composedGraphs[activeGraph]}
+          graphId={activeGraph}
+          userId={userId}
+        />
+      );
+    }
+    if (activeWorkTab === "cnl") {
+      return (
+        <CNLInput
+          graphId={activeGraph}
+          userId={userId}
+          graph={composedGraphs[activeGraph]}
+          rawMarkdown={rawMarkdowns[activeGraph]}
+          onGraphUpdate={handleGraphUpdate}
+        />
+      );
+    }
+    if (activeWorkTab === "dev") {
+      // Only render the DevPanel sub-tabs and DevPanel component (no extra stub row)
+      return (
+        <>
+          {renderDevPanelTabs()}
+          <DevPanel
+            activeTab={activeDevTab}
+            graph={composedGraphs[activeGraph]}
+            graphId={activeGraph}
+            userId={userId}
+            rawMarkdown={rawMarkdowns[activeGraph]}
+            prefs={prefs}
+          />
+        </>
+      );
+    }
+    return null;
+  };
+
+  // Render main content area
+  const renderMainContent = () => {
+    if (activeTopTab === "graphs") {
+      if (!activeGraph) {
+        return <div className="p-4 text-gray-500">Select or create a graph to begin.</div>;
+      }
+      return renderWorkareaContent();
+    }
+    if (activeTopTab === "workspace-stats") {
+      return <WorkspaceStatistics userId={userId} />;
+    }
+    if (activeTopTab === "help") {
+      return <HelpTab />;
+    }
+    if (activeTopTab === "preferences") {
+      return (
+        <div className="p-4">
+          <div className="text-lg font-semibold mb-2">Preferences</div>
+          <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex border-b bg-gray-100">
-        <button
-          className={`px-4 py-2 ${activeTab === "graphs" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
-          onClick={() => setActiveTab("graphs")}
-        >
-          Knowledge Base
-        </button>
-        <button
-          className={`px-4 py-2 ${activeTab === "workspace-stats" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
-          onClick={() => setActiveTab("workspace-stats")}
-        >
-          Score Card
-        </button>
-        <button
-          className={`px-4 py-2 ${activeTab === "help" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
-          onClick={() => setActiveTab("help")}
-        >
-          Help
-        </button>
-        <button
-          className={`px-4 py-2 ${activeTab === "preferences" ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
-          onClick={() => setActiveTab("preferences")}
-        >
-          Preferences
-        </button>
-      </div>
+      {renderTopTabs()}
+      {activeTopTab === "graphs" && renderGraphSelectorBar()}
+      {activeTopTab === "graphs" && activeGraph && renderWorkareaTabs()}
       <div className="flex-1 overflow-auto bg-white">
-        {activeTab === "graphs" && (
-          <div className="p-2 flex flex-col h-full">
-            <div className="flex items-center space-x-2 border-b pb-2 relative">
-              <div className="relative">
-                <button onClick={() => setShowMenu(!showMenu)} className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-                  File ▾
-                </button>
-                {showMenu && (
-                  <div className="absolute mt-1 bg-white shadow border rounded z-10">
-                    {allGraphs.map(({ id, title }) => (
-                      <div
-                        key={id}
-                        onClick={() => {
-                          openGraphInTab(id);
-                          setShowMenu(false);
-                        }}
-                        className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {title}
-                      </div>
-                    ))}
-                    <div
-                      onClick={() => {
-                        handleAddGraph();
-                        setShowMenu(false);
-                      }}
-                      className="border-t px-3 py-1 text-green-600 hover:bg-green-100 cursor-pointer"
-                    >
-                      + New Graph
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {openGraphs.map(({ id, title }) => (
-                <div key={id} className="flex items-center">
-                  <button
-                    onClick={() => openGraphInTab(id)}
-                    className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
-                      activeGraph === id
-                        ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-50"
-                    }`}
-                    style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
-                  >
-                    {title}{modifiedGraphs[id] ? " *" : ""}
-                  </button>
-                  <button
-                    onClick={() => handleCloseTab(id)}
-                    className="ml-1 text-red-500 hover:text-red-700 font-bold"
-                    title="Close tab"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <NDFStudioPanel
-              userId={userId}
-              graphId={activeGraph}
-              graph={composedGraphs[activeGraph]}
-              onGraphUpdate={handleGraphUpdate}
-              onSave={handleSaveGraph}
-              setParsedYaml={setComposedGraph}
-              onGraphDeleted={handleGraphDeleted}
-              rawMarkdown={rawMarkdowns[activeGraph]}
-              prefs={prefs}
-            />
-          </div>
-        )}
-        {activeTab === "workspace-stats" && (
-          <WorkspaceStatistics userId={userId} />
-        )}
-        {activeTab === "help" && (
-          <HelpTab />
-        )}
-        {activeTab === "preferences" && (
-          <div className="p-4">
-            <div className="text-lg font-semibold mb-2">Preferences</div>
-            <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
-          </div>
-        )}
+        {renderMainContent()}
       </div>
     </div>
   );

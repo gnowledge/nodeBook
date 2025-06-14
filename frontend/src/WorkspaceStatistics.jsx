@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { listGraphs } from "./services/api";
-import Statistics, { computeStats } from "./Statistics";
+import Statistics from "./Statistics";
+import { computeStats } from "./statisticsUtils.js";
 
 export default function WorkspaceStatistics({ userId }) {
   const [graphList, setGraphList] = useState([]);
@@ -93,6 +94,3 @@ export default function WorkspaceStatistics({ userId }) {
     </div>
   );
 }
-
-// Re-export computeStats for use in this file
-export { computeStats } from "./Statistics";

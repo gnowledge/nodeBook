@@ -61,4 +61,25 @@ def create_node_if_missing(user_id: str, node_id: str, name: str = None):
     }
     save_json_file(node_path, node_data)
 
+def relation_registry_path(user_id: str) -> Path:
+    return get_data_root() / "users" / user_id / "relation_registry.json"
+
+def attribute_registry_path(user_id: str) -> Path:
+    return get_data_root() / "users" / user_id / "attribute_registry.json"
+
+def load_registry(path: Path) -> dict:
+    if path.exists():
+        return load_json_file(path)
+    else:
+        return {}
+
+def save_registry(path: Path, registry: dict):
+    save_json_file(path, registry)
+
+def make_relation_id(source: str, type_: str, target: str) -> str:
+    return f"{source}::{type_}::{target}"
+
+def make_attribute_id(node_id: str, name: str) -> str:
+    return f"{node_id}::{name}"
+
 

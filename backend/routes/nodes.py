@@ -5,21 +5,16 @@ import os
 from backend.core.node_ops import load_node, save_node, node_path, safe_node_summary
 from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
 from backend.summary_queue_singleton import init_summary_queue
+import json
+import time
+from backend.core.models import Attribute, Relation
+from backend.core.node_utils import (
+    extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
+)
+from backend.core.compose import compose_graph
+from backend.core.registry import load_node_registry
 
 router = APIRouter()
-
-class Attribute(BaseModel):
-    name: str
-    value: Optional[str] = None
-    quantifier: Optional[str] = None
-    modality: Optional[str] = None
-
-class Relation(BaseModel):
-    name: str
-    target: str
-    subject_quantifier: Optional[str] = None
-    object_quantifier: Optional[str] = None
-    modality: Optional[str] = None
 
 class Node(BaseModel):
     id: Optional[str] = None
@@ -51,11 +46,18 @@ def list_all_nodes(user_id: str, graph_id: str):
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
 def create_node(user_id: str, graph_id: str, node: Node):
     user_id = get_user_id(user_id)
-    node_id = normalize_id(node.name)
+    # Canonical extraction of node fields
+    node_name = extract_node_name_as_is(node.name)
+    base_name = extract_base_name(node_name)
+    qualifier = extract_qualifier(node_name)
+    quantifier = extract_quantifier(node_name)
+    node_id = compose_node_id(quantifier, qualifier, base_name)
     node_data = {
         "id": node_id,
-        "name": node.name,
-        "qualifier": node.qualifier,
+        "name": node_name,
+        "base_name": base_name,
+        "qualifier": qualifier,
+        "quantifier": quantifier,
         "role": node.role,
         "description": node.description,
         "attributes": [a.dict() for a in (node.attributes or [])],
@@ -64,8 +66,6 @@ def create_node(user_id: str, graph_id: str, node: Node):
     save_node(user_id, graph_id, node_id, node_data)
     # --- Update node_registry.json ---
     registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
-    import json
-    import time
     try:
         if os.path.exists(registry_path):
             with open(registry_path, 'r') as f:
@@ -90,6 +90,10 @@ def create_node(user_id: str, graph_id: str, node: Node):
     # Submit to summary queue after node is created/updated
     sq = init_summary_queue()
     sq.submit(user_id, graph_id, node_id, node_data)
+    # Regenerate composed.json after node change (use compose_graph)
+    node_registry = load_node_registry(user_id)
+    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+    compose_graph(user_id, graph_id, node_ids)
     return {"status": "node created", "id": node_id}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
@@ -112,8 +116,6 @@ def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
     save_node(user_id, graph_id, node_id, updated)
     # --- Update node_registry.json ---
     registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
-    import json
-    import time
     try:
         if os.path.exists(registry_path):
             with open(registry_path, 'r') as f:
@@ -137,6 +139,10 @@ def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
         json.dump(registry, f, indent=2)
     sq = init_summary_queue()
     sq.submit(user_id, graph_id, node_id, updated)
+    # Regenerate composed.json after node change
+    node_registry = load_node_registry(user_id)
+    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+    compose_graph(user_id, graph_id, node_ids)
     return {"status": "node updated", "id": node_id}
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
@@ -194,4 +200,15 @@ def submit_node_to_summary_queue(user_id: str, graph_id: str, node_id: str):
     sq = init_summary_queue()
     sq.submit(user_id, graph_id, node_id, node)
     return {"status": "submitted", "id": node_id}
+
+@router.get("/users/{user_id}/node_registry")
+def get_node_registry(user_id: str):
+    """
+    Return the user's canonical node_registry.json for fast node lookup and autocomplete.
+    """
+    registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
+    if not os.path.exists(registry_path):
+        return {}
+    with open(registry_path, "r") as f:
+        return json.load(f)
 

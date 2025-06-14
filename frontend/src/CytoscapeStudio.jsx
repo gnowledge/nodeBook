@@ -25,31 +25,32 @@ function stripMarkdown(md) {
 function ndfToCytoscapeGraph(ndfData) {
   const nodes = (ndfData.nodes || []).map(node => ({
     data: {
-      id: node.node_id,
-      label: stripMarkdown(node.name || node.node_id), // label is plain text
+      id: node.node_id || node.id,
+      label: stripMarkdown(node.name || node.node_id || node.id),
       description: node.description || "",
-      originalName: node.name || node.node_id // keep original for tooltips
+      originalName: node.name || node.node_id || node.id
     }
   }));
-    console.log("🧠 Nodes in graph:", ndfData.nodes);
 
+  // Only show direct (non-inverse, non-inferred) relations in the main graph
   const edges = (ndfData.nodes || []).flatMap((node) =>
-    (node.relations || []).map((rel, i) => {
-      // Compose label for Cytoscape: adverb and relation name, plain text only
-      let label = rel.name || "";
-      if (rel.adverb) {
-        label = `${rel.adverb} ${label}`;
-      }
-      return {
-        data: {
-          id: `${node.node_id}_${rel.name}_${rel.target}_${i}`,
-          source: node.node_id,
-          target: rel.target,
-          label, // plain text only, no markup
-          adverb: rel.adverb || undefined // pass adverb for modal
+    (node.relations || [])
+      .filter(rel => !rel.is_inverse && !rel.is_inferred)
+      .map((rel, i) => {
+        let label = rel.type || rel.name || "";
+        if (rel.adverb) {
+          label = `${rel.adverb} ${label}`;
         }
-      };
-    })
+        return {
+          data: {
+            id: `${(node.node_id || node.id)}_${rel.type || rel.name}_${rel.target}_${i}`,
+            source: node.node_id || node.id,
+            target: rel.target,
+            label,
+            adverb: rel.adverb || undefined
+          }
+        };
+      })
   );
 
   return { nodes, edges };

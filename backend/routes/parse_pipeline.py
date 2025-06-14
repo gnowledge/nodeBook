@@ -5,8 +5,46 @@ import yaml
 import json
 import re
 import os
+from backend.core.models import Attribute, Relation
+from backend.routes.graph_ops import create_attribute, create_relation
+from backend.core.node_utils import (
+    extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
+)
+from backend.core.compose import compose_graph
 
 router = APIRouter()
+
+# --- Backend CRUD helpers for attributes and relations ---
+def create_attribute_helper(user_id, graph_id, attr_dict, report):
+    try:
+        attr = Attribute(
+            id=attr_dict.get('id') or f"{attr_dict['target_node']}::{attr_dict['attribute_name']}",
+            name=attr_dict['attribute_name'],
+            value=attr_dict.get('value'),
+            unit=attr_dict.get('unit'),
+            adverb=attr_dict.get('adverb'),
+            modality=attr_dict.get('modality'),
+            # node_id is not a field in Attribute, but is required for backend logic
+        )
+        # Patch: Attribute model does not have node_id, but backend expects it
+        attr.node_id = attr_dict['target_node']
+        create_attribute(user_id, graph_id, attr)
+    except Exception as e:
+        report.append({'type': 'error', 'stage': 'create_attribute_helper', 'message': str(e), 'attr': attr_dict})
+
+def create_relation_helper(user_id, graph_id, rel_dict, report):
+    try:
+        rel = Relation(
+            id=rel_dict.get('id') or f"{rel_dict['source_node']}::{rel_dict['relation_name']}::{rel_dict['target_node_id']}",
+            name=rel_dict['relation_name'],
+            source=rel_dict['source_node'],
+            target=rel_dict['target_node_id'],
+            adverb=rel_dict.get('adverb'),
+            modality=rel_dict.get('modality'),
+        )
+        create_relation(user_id, graph_id, rel)
+    except Exception as e:
+        report.append({'type': 'error', 'stage': 'create_relation_helper', 'message': str(e), 'rel': rel_dict})
 
 # --- Utility Functions (all local for now) ---
 
@@ -171,6 +209,7 @@ def extract_attributes_from_cnl_block(cnl_block: str, node_id: str, report: list
             value_clean = value_wo_unit
             attributes.append({
                 'target_node': node_id,
+                'node_id': node_id,  # Add node_id for backend compatibility
                 'attribute_name': att_name,
                 'value': value_clean,
                 'unit': unit,
@@ -194,7 +233,7 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
     role_inferences = []  # (subject_id, target_id, subject_role, target_role)
     for line in cnl_block.splitlines():
         line = line.strip()
-        if not line:
+        if not line or line.startswith('has '):
             continue
         # Extract adverb (e.g. ++quickly++) at the start
         adverb = ''
@@ -324,9 +363,15 @@ def parse_pipeline(
             attrs = extract_attributes_from_cnl_block(cnl_block, node_id, report)
             attribute_list.extend(attrs)
             node['attributes'].extend(attrs)
+            # --- Use backend CRUD for attributes ---
+            for attr in attrs:
+                create_attribute_helper(user_id, graph_id, attr, report)
             # Relation extraction
             rels = extract_relations_from_cnl_block(cnl_block, node_id, report, valid_relation_names=valid_relation_names, valid_relation_name_map=valid_relation_name_map)
             relation_list.extend(rels)
+            # --- Use backend CRUD for relations ---
+            for rel in rels:
+                create_relation_helper(user_id, graph_id, rel, report)
             # --- Set subject node's role if any relation infers it ---
             for rel in rels:
                 role_inf = rel.get('role_inference')
@@ -337,73 +382,32 @@ def parse_pipeline(
             # Save node first (attributes only)
             update_node_list(node_list, node)
             save_section_node(user_id, node, node_registry_path, report)
-            # Now append relations directly to node_id.json
+            # --- Remove manual relation file writes, as handled by backend CRUD ---
+            # Ensure target nodes exist in node db, node_list, and node_registry
             user_nodes_dir = os.path.join("graph_data", "users", user_id, "nodes")
-            node_path = os.path.join(user_nodes_dir, f"{node_id}.json")
-            try:
-                with open(node_path, 'r') as f:
-                    node_json = json.load(f)
-                # Overwrite relations with deduplicated new set
-                new_relations = []
-                seen_rel = set()
-                for rel in rels:
-                    rel_tuple = (
-                        rel['relation_name'], node_id, rel['target_node_id'],
-                        rel['target_qualifier'], rel['target_quantifier'], rel.get('modality', ''), rel.get('adverb', '')
-                    )
-                    if rel_tuple not in seen_rel:
-                        new_relations.append({
-                            'name': rel['relation_name'],
-                            'source': node_id,
-                            'target': rel['target_node_id'],
-                            'target_name': rel['target_node_name'],
-                            'target_qualifier': rel['target_qualifier'],
-                            'target_quantifier': rel['target_quantifier'],
-                            'adverb': rel.get('adverb', ''),
-                            'modality': rel.get('modality', ''),
-                        })
-                        seen_rel.add(rel_tuple)
-                node_json['relations'] = new_relations
-                with open(node_path, 'w') as f:
-                    json.dump(node_json, f, indent=2)
-                # Update in-memory node_list with new relations
-                for i, n in enumerate(node_list):
-                    if n['node_id'] == node_id:
-                        node_list[i]['relations'] = new_relations
-                        break
-                # Ensure target nodes exist in node db, node_list, and node_registry
-                for rel in rels:
-                    target_id = rel['target_node_id']
-                    target_node_path = os.path.join(user_nodes_dir, f"{target_id}.json")
-                    if target_id and not any(n['node_id'] == target_id for n in node_list) and not os.path.exists(target_node_path):
-                        # Normalize target_id for node_id and base_name
-                        norm_target_id = normalize_relation_name(target_id)
-                        # --- Set role if inferred ---
-                        inferred_role = None
-                        for rel2 in rels:
-                            if rel2.get('role_inference') and rel2['target_node_id'] == norm_target_id:
-                                inferred_role = rel2['role_inference'].get('target_role')
-                        target_node = {
-                            'node_id': norm_target_id,
-                            'name': rel['target_node_name'],
-                            'base_name': rel['target_base_name'],
-                            'qualifier': rel['target_qualifier'],
-                            'quantifier': rel['target_quantifier'],
-                            'role': inferred_role if inferred_role else '',
-                            'description': '',
-                            'attributes': [],
-                            'relations': []
-                        }
-                        try:
-                            with open(os.path.join(user_nodes_dir, f"{norm_target_id}.json"), 'w') as f:
-                                json.dump(target_node, f, indent=2)
-                        except Exception as e:
-                            report.append({'type': 'error', 'stage': 'save_target_node', 'node_id': norm_target_id, 'message': str(e)})
-                        # Also add to node_list and node_registry
-                        update_node_list(node_list, target_node)
-                        save_section_node(user_id, target_node, node_registry_path, report)
-            except Exception as e:
-                report.append({'type': 'error', 'stage': 'append_relations_to_node', 'node_id': node_id, 'message': str(e)})
+            for rel in rels:
+                target_id = rel['target_node_id']
+                target_node_path = os.path.join(user_nodes_dir, f"{target_id}.json")
+                if target_id and not any(n['node_id'] == target_id for n in node_list):
+                    # If the target node is not in node_list, add it (even if the file exists)
+                    norm_target_id = normalize_relation_name(target_id)
+                    inferred_role = None
+                    for rel2 in rels:
+                        if rel2.get('role_inference') and rel2['target_node_id'] == norm_target_id:
+                            inferred_role = rel2['role_inference'].get('target_role')
+                    target_node = {
+                        'node_id': norm_target_id,
+                        'name': rel['target_node_name'],
+                        'base_name': rel['target_base_name'],
+                        'qualifier': rel['target_qualifier'],
+                        'quantifier': rel['target_quantifier'],
+                        'role': inferred_role if inferred_role else '',
+                        'description': '',
+                        'attributes': [],
+                        'relations': []
+                    }
+                    update_node_list(node_list, target_node)
+                    save_section_node(user_id, target_node, node_registry_path, report)
         else:
             update_node_list(node_list, node)
             save_section_node(user_id, node, node_registry_path, report)
@@ -422,49 +426,9 @@ def parse_pipeline(
         save_section_node(user_id, node, node_registry_path, report, graph_id)
 
     # --- Compose graph output ---
-    composed = {}
-    if graph_description:
-        composed['graph_description'] = graph_description
-    composed['nodes'] = []
-    user_nodes_dir = os.path.join("graph_data", "users", user_id, "nodes")
-    composed_node_ids = set()
-    # First, add all nodes in node_list
-    for node in node_list:
-        node_path = os.path.join(user_nodes_dir, f"{node['node_id']}.json")
-        try:
-            with open(node_path, 'r') as f:
-                node_json = json.load(f)
-            composed['nodes'].append(node_json)
-            composed_node_ids.add(node['node_id'])
-        except Exception as e:
-            report.append({'type': 'error', 'stage': 'compose_graph', 'node_id': node['node_id'], 'message': str(e)})
-    # Now, ensure all relation targets are included
-    for node in composed['nodes']:
-        for rel in node.get('relations', []):
-            target_id = rel.get('target')
-            if target_id and target_id not in composed_node_ids:
-                target_node_path = os.path.join(user_nodes_dir, f"{target_id}.json")
-                try:
-                    with open(target_node_path, 'r') as f:
-                        target_node_json = json.load(f)
-                    composed['nodes'].append(target_node_json)
-                    composed_node_ids.add(target_id)
-                except Exception as e:
-                    report.append({'type': 'error', 'stage': 'compose_graph', 'node_id': target_id, 'message': f'Could not load target node for relation: {str(e)}'})
-
-    # Save composed.json and composed.yaml in the graph directory (where cnl.md is)
+    composed = compose_graph(user_id, graph_id, [n['node_id'] for n in node_list], graph_description, report)
     composed_json_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.json")
     composed_yaml_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.yaml")
-    try:
-        with open(composed_json_path, 'w') as f:
-            json.dump(composed, f, indent=2)
-    except Exception as e:
-        report.append({'type': 'error', 'stage': 'save_composed_json', 'message': str(e)})
-    try:
-        with open(composed_yaml_path, 'w') as f:
-            yaml.dump(composed, f, sort_keys=False, allow_unicode=True)
-    except Exception as e:
-        report.append({'type': 'error', 'stage': 'save_composed_yaml', 'message': str(e)})
     result = {
         "success": True,
         "graph_description": graph_description,

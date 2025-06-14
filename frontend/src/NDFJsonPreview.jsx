@@ -22,24 +22,26 @@ export default function NDFJsonPreview({ userId, graphId }) {
   }, [userId, graphId]);
 
   return (
-    <div className="h-full w-full p-2">
+    <div className="h-full w-full flex flex-col p-2" style={{ minHeight: 0 }}>
       {error ? (
         <div className="text-red-600 p-2">{error}</div>
       ) : (
-        <Editor
-          height="60vh"
-          defaultLanguage="json"
-          value={jsonText}
-          options={{
-            readOnly: true,
-            minimap: { enabled: false },
-            fontSize: 13,
-            wordWrap: "on",
-            scrollBeyondLastLine: false,
-            lineNumbers: "on",
-            theme: "vs"
-          }}
-        />
+        <div className="flex-1 min-h-0">
+          <Editor
+            height="100%"
+            defaultLanguage="json"
+            value={jsonText}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 13,
+              wordWrap: "on",
+              scrollBeyondLastLine: false,
+              lineNumbers: "on",
+              theme: "vs"
+            }}
+          />
+        </div>
       )}
     </div>
   );

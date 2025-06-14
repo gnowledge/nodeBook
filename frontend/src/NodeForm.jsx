@@ -1,56 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 
-export default function NodeForm({ onSuccess, nodes, initialData }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [role, setRole] = useState('');
+function PreviewBox({ label, value }) {
+  return (
+    <div className="bg-gray-50 rounded p-2 mt-2 text-sm">
+      <div><span className="font-semibold">Preview:</span> <span className="text-blue-700">{value || <span className="text-gray-400">({label})</span>}</span></div>
+    </div>
+  );
+}
+
+/**
+ * NodeForm - CNL-style node creation form (no description).
+ * Props:
+ *   onSuccess: function to call after successful save
+ *   initialData: (optional) node object for editing
+ *   difficulty: (optional) controls which fields are enabled (default: 'easy')
+ *   onClose: (optional) for modal usage
+ */
+export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, userId, graphId }) {
+  // CNL-style fields
+  const [base, setBase] = useState('');
   const [qualifier, setQualifier] = useState('');
+  const [quantifier, setQuantifier] = useState('');
+  const [role, setRole] = useState('');
   const [editing, setEditing] = useState(false);
   const [nodeId, setNodeId] = useState(null);
 
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || initialData.label || '');
-      setDescription(initialData.description || '');
-      setRole(initialData.role || '');
+      setBase(initialData.name || initialData.label || '');
       setQualifier(initialData.qualifier || '');
+      setQuantifier(initialData.quantifier || '');
+      setRole(initialData.role || '');
       setNodeId(initialData.id || null);
       setEditing(true);
     } else {
-      setName('');
-      setDescription('');
-      setRole('');
+      setBase('');
       setQualifier('');
+      setQuantifier('');
+      setRole('');
       setNodeId(null);
       setEditing(false);
     }
   }, [initialData]);
 
+  // Difficulty logic
+  const isQualifierEnabled = ["medium", "advanced", "expert"].includes(difficulty);
+  const isQuantifierEnabled = ["advanced", "expert"].includes(difficulty);
+
+  // Node preview logic (matches CNL Helper)
+  let nodePreview = base.trim();
+  if (isQualifierEnabled && qualifier.trim()) nodePreview = `**${qualifier.trim()}** ${base.trim()}`;
+  if (isQuantifierEnabled && quantifier.trim()) nodePreview = `*${quantifier.trim()}* ${nodePreview}`;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = {
-      name,
+      name: base,
       qualifier: qualifier || undefined,
+      quantifier: quantifier || undefined,
       role: role || undefined,
-      description: description || undefined,
       attributes: [],
       relations: []
     };
-    console.log("NodeForm payload:", payload);
-
     try {
       let res;
       if (editing && nodeId) {
-        // Edit mode: use PUT only
-        res = await fetch(`${API_BASE}/api/nodes/${nodeId}`, {
+        res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
-        // Add mode: use POST
-        res = await fetch(`${API_BASE}/api/nodes`, {
+        res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -58,50 +80,37 @@ export default function NodeForm({ onSuccess, nodes, initialData }) {
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert("Failed to save node: " + (err.detail || res.statusText));
+        alert('Failed to save node: ' + (err.detail || res.statusText));
         return;
       }
-      alert(editing ? 'Node updated.' : 'Node created.');
-      setName('');
-      setDescription('');
-      setRole('');
+      setBase('');
       setQualifier('');
+      setQuantifier('');
+      setRole('');
       setNodeId(null);
       onSuccess && onSuccess();
+      onClose && onClose();
     } catch (err) {
-      alert("Failed to save node: " + err.message);
+      alert('Failed to save node: ' + err.message);
     }
   };
 
   return (
     <form className="space-y-3" onSubmit={handleSubmit}>
       <h3 className="text-lg font-semibold text-gray-800">{editing ? 'Edit Node' : 'Add Node'}</h3>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Qualifier:</label>
-          <input
-            value={qualifier}
-            onChange={e => setQualifier(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
-          />
+      <div className="grid grid-cols-3 gap-3 items-end mb-2">
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Quantifier</label>
+          <input className="border rounded px-2 py-1 text-center" value={quantifier} onChange={e => setQuantifier(e.target.value)} disabled={!isQuantifierEnabled} placeholder="e.g. all" />
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Name:</label>
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2"
-            required
-          />
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Qualifier</label>
+          <input className="border rounded px-2 py-1 text-center" value={qualifier} onChange={e => setQualifier(e.target.value)} disabled={!isQualifierEnabled} placeholder="e.g. female" />
         </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Description:</label>
-        <textarea
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
+        <div className="flex flex-col">
+          <label className="font-semibold text-xs mb-1 text-center">Base Name<span className="text-red-500">*</span></label>
+          <input className="border rounded px-2 py-1 text-center" value={base} onChange={e => setBase(e.target.value)} placeholder="e.g. mathematician" autoFocus required />
+        </div>
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Role:</label>
@@ -116,12 +125,24 @@ export default function NodeForm({ onSuccess, nodes, initialData }) {
           <option value="process">Process</option>
         </select>
       </div>
-      <button
-        type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        {editing ? 'Update' : 'Add'}
-      </button>
+      <PreviewBox label="node name" value={nodePreview} />
+      <div className="flex justify-end gap-2 mt-4">
+        {onClose && <button type="button" onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>}
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={!base.trim()}
+        >
+          {editing ? 'Update' : 'Add'}
+        </button>
+      </div>
+      <div className="text-xs text-gray-500 mt-2">
+        <div><b>Examples:</b></div>
+        <div>Easy: <span className="italic">mathematician</span></div>
+        <div>Medium: <span className="italic">**female** mathematician</span></div>
+        <div>Advanced: <span className="italic">*all* mathematicians</span></div>
+        <div>Expert: <span className="italic">*some* **ancient** philosophers</span></div>
+      </div>
     </form>
   );
 }

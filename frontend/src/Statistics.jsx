@@ -1,79 +1,9 @@
 import React from "react";
-
-// Scoring rubric (can be made editable in the future)
-const RUBRIC = {
-  node: 1,
-  relation: 2,
-  attribute: 3,
-  nodeWithQualifier: 2,
-  relationWithQualifier: 3,
-  attributeWithQualifier: 3,
-  quantified: 5,
-  modality: 5,
-  logicalConnective: 10,
-};
-
-export function computeStats(graph) {
-  if (!graph || !graph.nodes) return null;
-  let nodeCount = 0;
-  let relationCount = 0;
-  let attributeCount = 0;
-  let nodeWithQualifier = 0;
-  let relationWithQualifier = 0;
-  let attributeWithQualifier = 0;
-  let quantified = 0;
-  let modality = 0;
-  let logicalConnective = 0;
-
-  for (const node of graph.nodes) {
-    nodeCount++;
-    if (node.qualifier) nodeWithQualifier++;
-    if (node.attributes) {
-      for (const attr of node.attributes) {
-        attributeCount++;
-        if (attr.quantifier) quantified++;
-        if (attr.modality) modality++;
-        if (attr.qualifier) attributeWithQualifier++;
-      }
-    }
-    if (node.relations) {
-      for (const rel of node.relations) {
-        relationCount++;
-        if (rel.quantifier) quantified++;
-        if (rel.modality) modality++;
-        if (rel.qualifier) relationWithQualifier++;
-        if (rel.logical_connective) logicalConnective++;
-      }
-    }
-  }
-
-  // Total score calculation
-  const total =
-    nodeCount * RUBRIC.node +
-    relationCount * RUBRIC.relation +
-    attributeCount * RUBRIC.attribute +
-    nodeWithQualifier * RUBRIC.nodeWithQualifier +
-    relationWithQualifier * RUBRIC.relationWithQualifier +
-    attributeWithQualifier * RUBRIC.attributeWithQualifier +
-    quantified * RUBRIC.quantified +
-    modality * RUBRIC.modality +
-    logicalConnective * RUBRIC.logicalConnective;
-
-  return {
-    nodeCount,
-    relationCount,
-    attributeCount,
-    nodeWithQualifier,
-    relationWithQualifier,
-    attributeWithQualifier,
-    quantified,
-    modality,
-    logicalConnective,
-    total,
-  };
-}
+import { computeStats, RUBRIC } from "./statisticsUtils.js";
 
 export default function Statistics({ userId, graphId, graph }) {
+  // Debug: log props to console
+  console.debug("[Statistics] Rendered with:", { userId, graphId, graph });
   const stats = computeStats(graph);
   return (
     <div className="p-4">
@@ -82,6 +12,7 @@ export default function Statistics({ userId, graphId, graph }) {
         <p>User: <b>{userId}</b></p>
         <p>Graph: <b>{graphId}</b></p>
       </div>
+      {!graph && <div className="text-red-600">No graph prop received.</div>}
       {stats ? (
         <table className="min-w-[320px] border text-sm mb-4">
           <thead>
