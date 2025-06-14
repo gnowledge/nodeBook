@@ -10,14 +10,17 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function AttributeForm({ nodeId, userId = "user0", graphId = "graph1", onAddAttributeType }) {
+export default function AttributeForm({ nodeId, userId = "user0", graphId = "graph1", onAddAttributeType, initialData = {} }) {
   // CNL-style fields
-  const [attribute, setAttribute] = useState('');
-  const [attrValue, setAttrValue] = useState('');
-  const [attrAdverb, setAttrAdverb] = useState('');
-  const [attrUnit, setAttrUnit] = useState('');
-  const [attrModality, setAttrModality] = useState('');
+  const [attribute, setAttribute] = useState(initialData.name || '');
+  const [attrValue, setAttrValue] = useState(initialData.value || '');
+  const [attrAdverb, setAttrAdverb] = useState(initialData.adverb || '');
+  const [attrUnit, setAttrUnit] = useState(initialData.unit || '');
+  const [attrModality, setAttrModality] = useState(initialData.modality || '');
   const [showAttributeModal, setShowAttributeModal] = useState(false);
+
+  // Always use composed id for registry consistency
+  const composedId = `${nodeId}::${attribute}`;
 
   // Attribute name suggestions from backend
   const [attributeTypes, setAttributeTypes] = useState([]);
@@ -48,6 +51,7 @@ export default function AttributeForm({ nodeId, userId = "user0", graphId = "gra
   const handleAttributeSubmit = async (e) => {
     e.preventDefault();
     const payload = {
+      id: composedId,
       node_id: nodeId,
       name: attribute,
       value: attrValue,

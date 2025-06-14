@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 class Attribute(BaseModel):
     id: str
+    node_id: str  # The id of the node this attribute belongs to
     name: str
     value: Union[str, float, int, bool, None] = None
     unit: Optional[str] = None

@@ -18,6 +18,9 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
   const [showAttributeForm, setShowAttributeForm] = useState(false);
   const [editRelationIndex, setEditRelationIndex] = useState(null);
   const [editAttributeIndex, setEditAttributeIndex] = useState(null);
+  const [nlpResult, setNlpResult] = useState(null);
+  const [nlpLoading, setNlpLoading] = useState(false);
+  const [nlpError, setNlpError] = useState(null);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -28,6 +31,21 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
       .then(data => setFreshNode(data))
       .catch(() => setFreshNode(node));
   }, [node.node_id, node.id, userId, graphId]);
+
+  // Persist NLP result per node in sessionStorage
+  const nodeKey = `nlpResult-${freshNode.node_id || freshNode.id}`;
+
+  useEffect(() => {
+    // Try to load NLP result from sessionStorage when node changes
+    const saved = sessionStorage.getItem(nodeKey);
+    if (saved) {
+      try {
+        setNlpResult(JSON.parse(saved));
+      } catch {}
+    } else {
+      setNlpResult(null);
+    }
+  }, [freshNode.node_id, freshNode.id]);
 
   const handleQueueSummary = async () => {
     setLoading(true);
@@ -159,10 +177,38 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
     }
   };
 
+  const handleNlpParse = async () => {
+    setNlpLoading(true);
+    setNlpError(null);
+    setNlpResult(null);
+    const nodeId = node.node_id || node.id;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (data.error) setNlpError(data.error);
+      else {
+        setNlpResult(data);
+        sessionStorage.setItem(nodeKey, JSON.stringify(data));
+      }
+    } catch (err) {
+      setNlpError("Failed to parse description.");
+    } finally {
+      setNlpLoading(false);
+    }
+  };
+
   // Fetch relationTypes from backend or context if available
   // For demo, use relationTypes from freshNode.relations if present
   const relationTypes = Array.from(new Set((freshNode.relations || []).map(r => ({ name: r.name }))));
   const attributeTypes = [];
+
+  // Helper to generate a random id (8 chars)
+  function generateRandomId() {
+    return Math.random().toString(36).substr(2, 8);
+  }
 
   return (
     <div id={"node-" + (freshNode.node_id || freshNode.id)} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
@@ -212,6 +258,47 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
       ) : (
         <>
           {freshNode.description && <p className="mb-2 text-gray-700 text-sm">{freshNode.description}</p>}
+          {/* NLP Parse Button and Result */}
+          {typeof freshNode.description === "string" && freshNode.description.trim() && !editing && (
+            <div className="mb-2">
+              <button
+                className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs mr-2"
+                onClick={handleNlpParse}
+                disabled={nlpLoading}
+              >
+                {nlpLoading ? "Parsing..." : "NLP Parse"}
+              </button>
+              {nlpError && <span className="text-red-500 text-xs ml-2">{nlpError}</span>}
+            </div>
+          )}
+          {/* Render NLP result if available */}
+          {nlpResult && (
+            <div className="mb-2 p-2 border rounded bg-gray-50">
+              <div className="text-xs font-bold mb-1">NLP Parts of Speech:</div>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(nlpResult).map(([key, arr]) => (
+                  arr.length > 0 && (
+                    <div key={key}>
+                      <span className="font-semibold capitalize mr-1">{key}:</span>
+                      {arr.map((item, i) => (
+                        <span key={i} className={
+                          key === "verbs" ? "text-green-700 font-bold" :
+                          key === "verb_phrases" ? "text-green-500 italic" :
+                          key === "adjectives" ? "text-blue-700" :
+                          key === "adverbs" ? "text-purple-700" :
+                          key === "connectives" ? "text-orange-700" :
+                          key === "proper_nouns" ? "text-pink-700 font-semibold" :
+                          key === "common_nouns" ? "text-gray-700" :
+                          key === "prepositions" ? "text-yellow-700" :
+                          ""
+                        }>{item}{i < arr.length - 1 ? ', ' : ''}</span>
+                      ))}
+                    </div>
+                  )
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mb-2 text-xs text-gray-500">
             <span className="font-semibold">Role:</span> {freshNode.role || <span className="italic text-gray-400">(none)</span>}
           </div>
@@ -255,17 +342,8 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
             {freshNode.attributes.map((attr, i) => (
               <li key={i} className="flex items-center justify-between">
                 <span>
-                  {attr.attribute_name ? (
-                    <>
-                      <span className="font-semibold">{attr.attribute_name}:</span> {attr.value}
-                      {attr.unit && ` (${attr.unit})`}
-                    </>
-                  ) : (
-                    <>
-                      {attr.value}
-                      {attr.unit && ` (${attr.unit})`}
-                    </>
-                  )}
+                  <span className="font-semibold">{attr.name || attr.attribute_name}:</span> {attr.value}
+                  {attr.unit && ` (${attr.unit})`}
                 </span>
                 <button className="ml-2 text-xs text-blue-600 hover:underline" onClick={() => setEditAttributeIndex(i)}>Edit</button>
               </li>
@@ -318,6 +396,7 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
               userId={userId}
               graphId={graphId}
               onAddAttributeType={() => {}}
+              initialData={{ id: generateRandomId() }}
             />
             <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowAttributeForm(false)}>Close</button>
           </div>

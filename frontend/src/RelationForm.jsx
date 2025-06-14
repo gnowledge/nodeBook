@@ -12,7 +12,7 @@ function PreviewBox({ label, value }) {
 
 export default function RelationForm({ nodeId, userId = "user0", graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess }) {
   // CNL-style fields
-  const [relation, setRelation] = useState(initialData?.name || '');
+  const [relation, setRelation] = useState(initialData?.name || initialData?.type || '');
   const [relTarget, setRelTarget] = useState(initialData?.target || '');
   const [relTargetQualifier, setRelTargetQualifier] = useState('');
   const [relTargetQuantifier, setRelTargetQuantifier] = useState('');

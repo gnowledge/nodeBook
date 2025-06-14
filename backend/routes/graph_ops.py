@@ -173,6 +173,7 @@ def create_relation(user_id: str, graph_id: str, rel: Relation):
     entry = {
         "id": make_relation_id(rel.source, rel.name, rel.target),
         "type": rel.name,
+        "source": rel.source,  # <-- Ensure source is included
         "target": rel.target,
         "adverb": rel.adverb,
         "modality": rel.modality

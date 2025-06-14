@@ -87,9 +87,6 @@ def create_node(user_id: str, graph_id: str, node: Node):
         registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
     with open(registry_path, 'w') as f:
         json.dump(registry, f, indent=2)
-    # Submit to summary queue after node is created/updated
-    sq = init_summary_queue()
-    sq.submit(user_id, graph_id, node_id, node_data)
     # Regenerate composed.json after node change (use compose_graph)
     node_registry = load_node_registry(user_id)
     node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
@@ -137,8 +134,6 @@ def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
         registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
     with open(registry_path, 'w') as f:
         json.dump(registry, f, indent=2)
-    sq = init_summary_queue()
-    sq.submit(user_id, graph_id, node_id, updated)
     # Regenerate composed.json after node change
     node_registry = load_node_registry(user_id)
     node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
@@ -211,4 +206,17 @@ def get_node_registry(user_id: str):
         return {}
     with open(registry_path, "r") as f:
         return json.load(f)
+
+@router.post("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}/nlp_parse_description")
+def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
+    user_id = get_user_id(user_id)
+    try:
+        node = load_node(user_id, graph_id, node_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Node not found")
+    description = node.get("description", "")
+    if not description:
+        return {"error": "No description to parse."}
+    from backend.core.nlp_utils import parse_description_components
+    return parse_description_components(description)
 
