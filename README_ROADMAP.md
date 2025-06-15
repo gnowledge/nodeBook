@@ -33,7 +33,7 @@ stable release.
 - [ ] Enables computation of **scorecards** across documents.
 
 ### 3. JSON as Canonical Parsed Format
-- [x] Migrate `parsed.yaml` to backend-native `parsed.json`.
+- [x] Migrate `parsed.yaml` to backend-native `parsed.json`.  parsed.json also removed. we use composed.json
 - [x] Frontend renders JSON using 'composed.json` and composed.yaml used for NDFPreview.
 - [ ] Aligns with schema validation, testing, and frontend frameworks.
 
@@ -142,29 +142,29 @@ stable release.
 
 ## 🔍 Node Summarization & NLP Integration
 
-- [ ] Reintroduce **automatic summary paragraph** for each node.
-- [ ] Use spaCy-based NLP to extract:
+- [x] Reintroduce **automatic summary paragraph** for each node.
+- [x] Use spaCy-based NLP to extract:
   - Common/proper nouns → Node suggestions
   - Verbs/prepositions → Relation triggers
   - Adjective/noun phrases → Attribute suggestions
-- [ ] Parsed blocks rendered in `DisplayHTML` as:
+- [x] Parsed blocks rendered in `DisplayHTML` as:
   - Suggested Relations
   - Suggested Attributes
   - Suggested Node Types
-- [ ] Update `DisplayHTML` cards to show:
+- [x] Update `DisplayHTML` cards to show:
   - Node description
   - Extracted blocks (editable later)
 
 ## 🧠 Small Language Model (SLM) Exploration
 
-- [ ] Design or fine-tune a **Small Language Model (SLM)** for:
+- [x] Design or fine-tune a **Small Language Model (SLM)** for:
   - Generating **single-paragraph summaries** per node.
   - Operating fully **offline or locally** for cost-free inference.
-- [ ] Use open models (e.g., TinyLlama, DistilBERT) and fine-tune on:
+- [x] Use open models (e.g., TinyLlama, DistilBERT) and fine-tune on:
   - Student-written node descriptions
   - Public knowledge bases (e.g., Wikipedia)
 - [ ] Output should be concise, factual, and paraphrased from CNL blocks.
-- [ ] Integrate SLM into parse/save workflow as fallback for missing descriptions.
+- [x] Integrate SLM into generate summary workflow as fallback for missing descriptions.
 
 
 ## Philosophy

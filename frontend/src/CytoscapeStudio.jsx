@@ -59,10 +59,21 @@ function ndfToCytoscapeGraph(ndfData) {
 const CytoscapeStudio = ({ graph, prefs, userId, graphId, onSummaryQueued }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
+  const [graphData, setGraphData] = useState(graph);
+
+  // Helper to reload composed graph
+  const fetchComposedGraph = async () => {
+    const res = await fetch(`/api/users/${userId}/graphs/${graphId}/composed.json`);
+    if (res.ok) {
+      const data = await res.json();
+      setGraphData(data);
+    }
+  };
+
   // If graph is actually raw_markdown, try to extract parsed YAML if present
-  const parsedGraph = graph && graph.nodes ? graph : null;
+  const parsedGraph = graphData && graphData.nodes ? graphData : null;
   if (!parsedGraph) {
-    console.warn("CytoscapeStudio: graph prop is not parsed YAML. Got:", graph);
+    console.warn("CytoscapeStudio: graph prop is not parsed YAML. Got:", graphData);
     return <div className="p-4 text-red-600">No parsed graph data available for visualization.</div>;
   }
 
@@ -189,6 +200,7 @@ const CytoscapeStudio = ({ graph, prefs, userId, graphId, onSummaryQueued }) => 
               userId={userId}
               graphId={graphId}
               onSummaryQueued={onSummaryQueued}
+              onGraphUpdate={fetchComposedGraph}
             />
           </div>
         </div>

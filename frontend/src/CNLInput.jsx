@@ -28,7 +28,8 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
       }
       const decoded = text.replace(/\\n/g, "\n");
       setValue(decoded);
-      if (onGraphUpdate) onGraphUpdate({ raw_markdown: decoded });
+      // Only call onGraphUpdate if explicitly needed (e.g., after Parse or Save), not on load
+      // if (onGraphUpdate) onGraphUpdate({ raw_markdown: decoded });
     }
     loadCNL();
   }, [userId, graphId]);
@@ -233,7 +234,8 @@ export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onPar
             value={value}
             onChange={(val) => {
               setValue(val);
-              if (onGraphUpdate) onGraphUpdate({ raw_markdown: val });
+              // Only call onGraphUpdate if explicitly needed (e.g., after Parse or Save), not on every edit
+              // if (onGraphUpdate) onGraphUpdate({ raw_markdown: val });
             }}
             options={{ wordWrap: 'on' }}
             onMount={(editor, monacoInstance) => {

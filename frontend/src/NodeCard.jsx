@@ -6,7 +6,7 @@ import AttributeForm from "./AttributeForm";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
 
-function NodeCard({ node, userId, graphId, onSummaryQueued }) {
+function NodeCard({ node, userId, graphId, onSummaryQueued, onGraphUpdate }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -21,6 +21,9 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
   const [nlpResult, setNlpResult] = useState(null);
   const [nlpLoading, setNlpLoading] = useState(false);
   const [nlpError, setNlpError] = useState(null);
+  const [showParseModal, setShowParseModal] = useState(false);
+  const [parseMode, setParseMode] = useState(null); // 'enhanced' or 'basic'
+  const [basicNlpResult, setBasicNlpResult] = useState(null);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -177,10 +180,12 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
     }
   };
 
+  // Handler to run enhanced NLP parse
   const handleNlpParse = async () => {
     setNlpLoading(true);
     setNlpError(null);
     setNlpResult(null);
+    setBasicNlpResult(null);
     const nodeId = node.node_id || node.id;
     try {
       const res = await fetch(
@@ -197,6 +202,34 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
       setNlpError("Failed to parse description.");
     } finally {
       setNlpLoading(false);
+      setShowParseModal(false);
+      // Do NOT reset parseMode here
+      // setParseMode(null);
+    }
+  };
+
+  // Handler to run basic NLP parse
+  const handleBasicNlpParse = async () => {
+    setNlpLoading(true);
+    setNlpError(null);
+    setNlpResult(null);
+    setBasicNlpResult(null);
+    const nodeId = node.node_id || node.id;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description?mode=basic`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (data.error) setNlpError(data.error);
+      else setBasicNlpResult(data);
+    } catch (err) {
+      setNlpError("Failed to parse description.");
+    } finally {
+      setNlpLoading(false);
+      setShowParseModal(false);
+      // Do NOT reset parseMode here
+      // setParseMode(null);
     }
   };
 
@@ -208,6 +241,17 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
   // Helper to generate a random id (8 chars)
   function generateRandomId() {
     return Math.random().toString(36).substr(2, 8);
+  }
+
+  // Helper to safely display any value as a string for React
+  function safeDisplay(val) {
+    if (val == null) return "";
+    if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") return String(val);
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return "(invalid value)";
+    }
   }
 
   return (
@@ -260,39 +304,184 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
           {freshNode.description && <p className="mb-2 text-gray-700 text-sm">{freshNode.description}</p>}
           {/* NLP Parse Button and Result */}
           {typeof freshNode.description === "string" && freshNode.description.trim() && !editing && (
-            <div className="mb-2">
+            <div className="mb-2 flex gap-2 items-center">
               <button
-                className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs mr-2"
-                onClick={handleNlpParse}
+                className="px-3 py-1 rounded text-xs bg-purple-600 text-white hover:bg-purple-700"
+                onClick={() => setShowParseModal(true)}
                 disabled={nlpLoading}
               >
-                {nlpLoading ? "Parsing..." : "NLP Parse"}
+                {nlpLoading ? "Parsing..." : "Parse Description"}
               </button>
               {nlpError && <span className="text-red-500 text-xs ml-2">{nlpError}</span>}
             </div>
           )}
+          {/* Parse Mode Modal */}
+          {showParseModal && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
+              <div className="bg-white p-4 rounded shadow-lg border border-gray-200 min-w-[220px]">
+                <div className="mb-2 font-semibold text-sm">Select NLP Parse Mode:</div>
+                <button
+                  className="w-full mb-2 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs"
+                  onClick={() => { setParseMode('enhanced'); handleNlpParse(); }}
+                  disabled={nlpLoading}
+                >
+                  Enhanced
+                </button>
+                <button
+                  className="w-full mb-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                  onClick={() => { setParseMode('basic'); handleBasicNlpParse(); }}
+                  disabled={nlpLoading}
+                >
+                  Basic
+                </button>
+                <button
+                  className="w-full px-3 py-1 bg-gray-300 rounded text-xs"
+                  onClick={() => setShowParseModal(false)}
+                  disabled={nlpLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           {/* Render NLP result if available */}
-          {nlpResult && (
+          {parseMode !== 'basic' && nlpResult && (
             <div className="mb-2 p-2 border rounded bg-gray-50">
-              <div className="text-xs font-bold mb-1">NLP Parts of Speech:</div>
+              <div className="text-xs font-bold mb-1">NLP Suggestions (Enhanced):</div>
+              {/* SVO Triples (Relation candidates) */}
+              {nlpResult.svos && nlpResult.svos.length > 0 && (
+                <div className="mb-1">
+                  <span className="font-semibold">Possible Relations (SVO):</span>
+                  <ul className="ml-2 list-disc text-xs">
+                    {nlpResult.svos.map((svo, i) => (
+                      <li key={i}>
+                        <span className="text-blue-700 font-semibold">{svo.verb}</span>:
+                        <span className="ml-1">{svo.subject} → {svo.object}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Attribute-value pairs */}
+              {nlpResult.attribute_value_pairs && nlpResult.attribute_value_pairs.length > 0 && (
+                <div className="mb-1">
+                  <span className="font-semibold">Possible Attributes:</span>
+                  <ul className="ml-2 list-disc text-xs">
+                    {nlpResult.attribute_value_pairs.map((pair, i) => (
+                      <li key={i}>
+                        <span className="text-blue-700 font-semibold">
+                          {pair.attribute !== undefined && pair.attribute !== null
+                            ? String(pair.attribute)
+                            : "(unknown)"}
+                        </span>
+                        :{" "}
+                        <span>
+                          {Array.isArray(pair.value)
+                            ? pair.value.map((v, idx) =>
+                                v !== undefined && v !== null
+                                  ? <span key={idx}>{String(v)}{idx < pair.value.length - 1 ? ", " : ""}</span>
+                                  : <span key={idx}>(unknown){idx < pair.value.length - 1 ? ", " : ""}</span>
+                              )
+                            : pair.value !== undefined && pair.value !== null
+                              ? String(pair.value)
+                              : "(unknown)"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Named Entities (possible nodes) */}
+              {nlpResult.entities && nlpResult.entities.length > 0 && (
+                <div className="mb-1">
+                  <span className="font-semibold">Possible Nodes (Entities):</span>
+                  <ul className="ml-2 list-disc text-xs">
+                    {nlpResult.entities.map((ent, i) => (
+                      <li key={i}>
+                        <span className="text-blue-700 font-semibold">{ent.text}</span> <span className="text-gray-500">[{ent.label}]</span>
+                        {/* TODO: Add button to create node if not exists */}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Prepositions/Connectives with frequency */}
+              {((nlpResult.prepositions && nlpResult.prepositions.length > 0) || (nlpResult.connectives && nlpResult.connectives.length > 0)) && (
+                <div className="mb-1">
+                  <span className="font-semibold">Prepositions/Connectives:</span>
+                  <ul className="ml-2 list-disc text-xs">
+                    {["prepositions", "connectives"].map(type => (
+                      nlpResult[type] && nlpResult[type].length > 0 && (
+                        <li key={type}>
+                          <span className="capitalize">{type}:</span> {Object.entries(nlpResult[type].reduce((acc, w) => { acc[w] = (acc[w] || 0) + 1; return acc; }, {})).map(([w, n], i, arr) => (
+                            <span key={w}>{w}{n > 1 ? ` (${n})` : ""}{i < arr.length - 1 ? ", " : ""}</span>
+                          ))}
+                        </li>
+                      )
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Original POS breakdown (optional, can be toggled) */}
+              <details className="mt-1">
+                <summary className="text-xs text-gray-500 cursor-pointer">Show POS breakdown</summary>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {Object.entries(nlpResult).filter(([key]) => ["verbs","verb_phrases","adjectives","adverbs","proper_nouns","common_nouns"].includes(key)).map(([key, arr]) => (
+                    arr.length > 0 && (
+                      <div key={key}>
+                        <span className="font-semibold capitalize mr-1">{key}:</span>
+                        {arr.map((item, i) => (
+                          <span key={i} className={
+                            key === "verbs" ? "text-green-700 font-bold" :
+                            key === "verb_phrases" ? "text-green-500 italic" :
+                            key === "adjectives" ? "text-blue-700" :
+                            key === "adverbs" ? "text-purple-700" :
+                            key === "proper_nouns" ? "text-pink-700 font-semibold" :
+                            key === "common_nouns" ? "text-gray-700" :
+                            ""
+                          }>{item}{i < arr.length - 1 ? ', ' : ''}</span>
+                        ))}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
+          {parseMode === 'basic' && basicNlpResult && (
+            <div className="mb-2 p-2 border rounded bg-blue-50">
+              <div className="text-xs font-bold mb-1">NLP Suggestions (Basic):</div>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(nlpResult).map(([key, arr]) => (
+                {Object.entries(basicNlpResult).map(([key, arr]) => (
                   arr.length > 0 && (
                     <div key={key}>
                       <span className="font-semibold capitalize mr-1">{key}:</span>
-                      {arr.map((item, i) => (
-                        <span key={i} className={
-                          key === "verbs" ? "text-green-700 font-bold" :
-                          key === "verb_phrases" ? "text-green-500 italic" :
-                          key === "adjectives" ? "text-blue-700" :
-                          key === "adverbs" ? "text-purple-700" :
-                          key === "connectives" ? "text-orange-700" :
-                          key === "proper_nouns" ? "text-pink-700 font-semibold" :
-                          key === "common_nouns" ? "text-gray-700" :
-                          key === "prepositions" ? "text-yellow-700" :
-                          ""
-                        }>{item}{i < arr.length - 1 ? ', ' : ''}</span>
-                      ))}
+                      {arr.map((item, i) => {
+                        let display;
+                        if (item && typeof item === 'object') {
+                          // SVO triple: {subject, verb, object}
+                          if ('subject' in item && 'verb' in item && 'object' in item) {
+                            display = `${item.subject} —[${item.verb}]→ ${item.object}`;
+                          } else {
+                            display = JSON.stringify(item);
+                          }
+                        } else {
+                          display = String(item);
+                        }
+                        return (
+                          <span key={i} className={
+                            key === "verbs" ? "text-green-700 font-bold" :
+                            key === "verb_phrases" ? "text-green-500 italic" :
+                            key === "adjectives" ? "text-blue-700" :
+                            key === "adverbs" ? "text-purple-700" :
+                            key === "connectives" ? "text-orange-700" :
+                            key === "proper_nouns" ? "text-pink-700 font-semibold" :
+                            key === "common_nouns" ? "text-gray-700" :
+                            key === "prepositions" ? "text-yellow-700" :
+                            ""
+                          }>{display}{i < arr.length - 1 ? ', ' : ''}</span>
+                        );
+                      })}
                     </div>
                   )
                 ))}
@@ -332,7 +521,7 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
       )}
 
       {/* Attributes section: show even if empty, with add button */}
-      <div className="mb-2">
+      <div className="mb-2 relative">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Attributes</h3>
           <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowAttributeForm(true)}>+ Add</button>
@@ -352,10 +541,36 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
         ) : (
           <div className="text-gray-400 italic text-xs">No attributes yet.</div>
         )}
+        {showAttributeForm && (
+          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
+            <AttributeForm
+              nodeId={freshNode.node_id || freshNode.id}
+              attributeTypes={attributeTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddAttributeType={() => {}}
+              initialData={{ id: generateRandomId() }}
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowAttributeForm(false)}>Close</button>
+          </div>
+        )}
+        {editAttributeIndex !== null && (
+          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
+            <AttributeForm
+              nodeId={freshNode.node_id || freshNode.id}
+              attributeTypes={attributeTypes}
+              userId={userId}
+              graphId={graphId}
+              onAddAttributeType={() => {}}
+              // Optionally pass initialData for editing
+            />
+            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditAttributeIndex(null)}>Close</button>
+          </div>
+        )}
       </div>
 
       {/* Relations section: show even if empty, with add button */}
-      <div>
+      <div className="relative">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Relations</h3>
           <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowRelationForm(true)}>+ Add</button>
@@ -385,42 +600,8 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
         ) : (
           <div className="text-gray-400 italic text-xs">No relations yet.</div>
         )}
-      </div>
-
-      {showAttributeForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-4 rounded shadow-lg">
-            <AttributeForm
-              nodeId={freshNode.node_id || freshNode.id}
-              attributeTypes={attributeTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddAttributeType={() => {}}
-              initialData={{ id: generateRandomId() }}
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowAttributeForm(false)}>Close</button>
-          </div>
-        </div>
-      )}
-      {editAttributeIndex !== null && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-4 rounded shadow-lg">
-            <AttributeForm
-              nodeId={freshNode.node_id || freshNode.id}
-              attributeTypes={attributeTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddAttributeType={() => {}}
-              // Optionally pass initialData for editing
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditAttributeIndex(null)}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {showRelationForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-4 rounded shadow-lg">
+        {showRelationForm && (
+          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
             <RelationForm
               nodeId={freshNode.node_id || freshNode.id}
               relationTypes={relationTypes}
@@ -434,15 +615,15 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
                 fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
                   .then(res => res.json())
                   .then(data => setFreshNode(data));
+                // Notify parent to reload graph
+                if (typeof onGraphUpdate === 'function') onGraphUpdate();
               }}
             />
             <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowRelationForm(false)}>Close</button>
           </div>
-        </div>
-      )}
-      {editRelationIndex !== null && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-4 rounded shadow-lg">
+        )}
+        {editRelationIndex !== null && (
+          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
             <RelationForm
               nodeId={freshNode.node_id || freshNode.id}
               relationTypes={relationTypes}
@@ -451,11 +632,21 @@ function NodeCard({ node, userId, graphId, onSummaryQueued }) {
               onAddRelationType={() => {}}
               initialData={freshNode.relations[editRelationIndex]}
               editMode={true}
+              onSuccess={() => {
+                setEditRelationIndex(null);
+                // Reload this node only
+                const nodeId = freshNode.node_id || freshNode.id;
+                fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
+                  .then(res => res.json())
+                  .then(data => setFreshNode(data));
+                // Notify parent to reload graph
+                if (typeof onGraphUpdate === 'function') onGraphUpdate();
+              }}
             />
             <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditRelationIndex(null)}>Close</button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -67,14 +67,21 @@ def create_attribute(user_id: str, graph_id: str, attr: Attribute):
     attr_type_map = {a["name"]: a for a in attr_types}
     if attr.name not in attr_type_map:
         raise HTTPException(status_code=400, detail="Invalid attribute name")
+    attr_type = attr_type_map[attr.name]
     data = load_node(user_id, attr.node_id)
     node_attrs = data.get("attributes", [])
     if any(a["name"] == attr.name for a in node_attrs):
         raise HTTPException(status_code=400, detail="Attribute already exists")
+    # Support multi-valued attributes
+    is_multiple = attr_type.get("multiple", False)
+    value = attr.value
+    if is_multiple:
+        if not isinstance(value, list):
+            value = [value] if value is not None else []
     entry = {
         "id": make_attribute_id(attr.node_id, attr.name),
         "name": attr.name,
-        "value": attr.value,
+        "value": value,
         "unit": attr.unit,
         "adverb": attr.adverb,
         "modality": attr.modality
@@ -87,7 +94,7 @@ def create_attribute(user_id: str, graph_id: str, attr: Attribute):
     registry[entry["id"]] = {
         "node_id": attr.node_id,
         "name": attr.name,
-        "value": attr.value,
+        "value": value,
         "unit": attr.unit,
         "adverb": attr.adverb,
         "modality": attr.modality,
@@ -99,13 +106,24 @@ def create_attribute(user_id: str, graph_id: str, attr: Attribute):
 
 @router.put("/users/{user_id}/graphs/{graph_id}/attribute/update/{node_id}/{attr_name}")
 def update_attribute(user_id: str, graph_id: str, node_id: str, attr_name: str, attr: Attribute):
+    global_path = os.path.join("graph_data", "global")
+    attr_types = load_schema(global_path, "attribute_types.json")
+    attr_type_map = {a["name"]: a for a in attr_types}
+    if attr.name not in attr_type_map:
+        raise HTTPException(status_code=400, detail="Invalid attribute name")
+    attr_type = attr_type_map[attr.name]
+    is_multiple = attr_type.get("multiple", False)
+    value = attr.value
+    if is_multiple:
+        if not isinstance(value, list):
+            value = [value] if value is not None else []
     data = load_node(user_id, node_id)
     attrs = data.get("attributes", [])
     found = False
     for a in attrs:
         if a["name"] == attr_name:
             a["name"] = attr.name
-            a["value"] = attr.value
+            a["value"] = value
             a["unit"] = attr.unit
             a["adverb"] = attr.adverb
             a["modality"] = attr.modality
@@ -121,7 +139,7 @@ def update_attribute(user_id: str, graph_id: str, node_id: str, attr_name: str, 
     if attr_id in registry:
         registry[attr_id].update({
             "name": attr.name,
-            "value": attr.value,
+            "value": value,
             "unit": attr.unit,
             "adverb": attr.adverb,
             "modality": attr.modality,
@@ -218,12 +236,16 @@ def update_relation(user_id: str, graph_id: str, source: str, name: str, target:
     data = load_node(user_id, source)
     rels = data.get("relations", [])
     found = False
+    old_id = None
     for r in rels:
         if r["type"] == name and r["target"] == target:
+            old_id = r.get("id") or make_relation_id(source, name, target)
             r["type"] = rel.name
+            r["source"] = rel.source  # always include source
             r["target"] = rel.target
             r["adverb"] = rel.adverb
             r["modality"] = rel.modality
+            r["id"] = make_relation_id(rel.source, rel.name, rel.target)
             found = True
             break
     if not found:
@@ -232,16 +254,26 @@ def update_relation(user_id: str, graph_id: str, source: str, name: str, target:
     # Update relation registry
     reg_path = relation_registry_path(user_id)
     registry = load_registry(reg_path)
-    rel_id = make_relation_id(source, rel.name, rel.target)
-    if rel_id in registry:
-        registry[rel_id].update({
-            "type": rel.name,
-            "target": rel.target,
-            "adverb": rel.adverb,
-            "modality": rel.modality,
-            "updated_at": __import__('datetime').datetime.utcnow().isoformat()
-        })
-        save_registry(reg_path, registry)
+    new_id = make_relation_id(rel.source, rel.name, rel.target)
+    # Remove old registry entry if id changed
+    if old_id and old_id != new_id and old_id in registry:
+        del registry[old_id]
+    registry[new_id] = {
+        "source": rel.source,
+        "type": rel.name,
+        "target": rel.target,
+        "adverb": rel.adverb,
+        "modality": rel.modality,
+        "created_at": registry.get(new_id, {}).get("created_at") or __import__('datetime').datetime.utcnow().isoformat(),
+        "updated_at": __import__('datetime').datetime.utcnow().isoformat()
+    }
+    save_registry(reg_path, registry)
+    # --- Compose the graph after relation update ---
+    from backend.core.compose import compose_graph
+    from backend.core.registry import load_node_registry
+    node_registry = load_node_registry(user_id)
+    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+    compose_graph(user_id, graph_id, node_ids)
     return {"status": "relation updated"}
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/relation/delete/{source}/{name}/{target}")

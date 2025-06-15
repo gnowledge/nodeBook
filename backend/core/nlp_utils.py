@@ -21,7 +21,8 @@ def parse_node_label(text):
 
 def parse_description_components(text):
     """
-    Parse description text into verbs, verb phrases, adjectives, adverbs, connectives, proper nouns, common nouns, and prepositions.
+    Parse description text into verbs, verb phrases, adjectives, adverbs, connectives, proper nouns, common nouns, prepositions,
+    SVO triples, attribute-value pairs, and named entities (NER).
     Returns a dict with lists for each category.
     """
     doc = nlp(text)
@@ -33,6 +34,9 @@ def parse_description_components(text):
     proper_nouns = []
     common_nouns = []
     prepositions = []
+    svos = []
+    attr_pairs = []
+    entities = []
 
     # Extract verbs, verb phrases, and other components
     for token in doc:
@@ -57,6 +61,22 @@ def parse_description_components(text):
             common_nouns.append(token.text)
         elif token.pos_ == "ADP":
             prepositions.append(token.text)
+        # Attribute-value pairs: adjective modifier of a noun
+        if token.dep_ == "amod" and token.head.pos_ == "NOUN":
+            attr_pairs.append({"attribute": token.head.text, "value": token.text})
+
+    # SVO extraction (subject-verb-object triples)
+    for sent in doc.sents:
+        for token in sent:
+            if token.dep_ == "ROOT" and token.pos_ == "VERB":
+                subj = [w for w in token.lefts if w.dep_ in ("nsubj", "nsubjpass")]
+                obj = [w for w in token.rights if w.dep_ in ("dobj", "attr", "prep", "pobj")]
+                if subj and obj:
+                    svos.append({"subject": subj[0].text, "verb": token.text, "object": obj[0].text})
+
+    # NER
+    for ent in doc.ents:
+        entities.append({"text": ent.text, "label": ent.label_})
 
     return {
         "verbs": verbs,
@@ -67,4 +87,7 @@ def parse_description_components(text):
         "proper_nouns": proper_nouns,
         "common_nouns": common_nouns,
         "prepositions": prepositions,
+        "svos": svos,
+        "attribute_value_pairs": attr_pairs,
+        "entities": entities,
     }

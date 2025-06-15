@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import os
 import yaml
 
-from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, cnl, ndf_routes, preferences, parse_pipeline
+from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline
 # backend/app.py
 
 
@@ -28,7 +28,6 @@ app.include_router(graph_ops.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
 app.include_router(schema_routes.router, prefix="/api")
 app.include_router(graphs.router, prefix="/api")
-app.include_router(cnl.router, prefix="/api")
 app.include_router(ndf_routes.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(parse_pipeline.router, prefix="/api")
