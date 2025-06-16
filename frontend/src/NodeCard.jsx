@@ -5,8 +5,10 @@ import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
+import { useUserId } from "./UserIdContext";
 
-function NodeCard({ node, userId, graphId, onSummaryQueued, onGraphUpdate }) {
+function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
+  const userId = useUserId();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);

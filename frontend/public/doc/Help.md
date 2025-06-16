@@ -1,17 +1,37 @@
-# NDF-Studio Help
 
-Welcome to NDF-Studio! This page provides guidance on using the app, CNL syntax, and modeling best practices.
+# NDF-Studio 
 
-## Getting Started
+Welcome to NDF-Studio! 
 
-- Use the **Knowledge Base** tab to create and edit your knowledge graphs.
-- Use the **Score Card** to see your modeling progress and rubric.
-- Refer to the **Preferences** tab to customize your experience.
-- For CNL syntax, see the block templates in the editor toolbar.
-- For more, see the project README or documentation.
+We developed this node-taking (pun on note-taking :-) application with an assumption that *knowledge is a network*. Natural language masks this network, by breaking it into words, sentences and documents. This application helps you to see what is behind that mask. 
+
+The App is created like an document editor, but the document will become a graph as you start working. We re-represent our knowledge into a graph.  By graph we mean representing our knowledge into terms and relations.  We use grammatical structure that we arleady know, and move from there to reveal the network structure of our knowledge. 
+
+# Getting Started
+
+* Create a "New Graph" from the File menu. 
+* Use the prominent **Add Node** button to start your journey. A node can be any topic, say "Democracy", or "Classical Music",  "Photosynthesis" or "Chemical Reaction". 
+* You will see a card with the term name, inviting you to relate it to other cards, that is other nodes/terms. 
+* Once you make some relations, you can see ore cards on the page.
+* Each card is the workplace, where you take notes. Write something as description of the topic.
+* If you don't want to write, you can use the prominent **Generate Summary** button.  The App will talk to an AI agent (a small language model) that will try to fill some text.  The text will not appear immediately.  It may take a mintue or so, depending on how fast the machine is. 
+* You can switch between the tabs: **Graph** or **Node Book**.
+* At the moment, before you get to know what we are upto, do not use **CNL Edit** tab.  
+* The App may look like a *concept mapping* app, or *mind map*, but soon you will see that it is not them, but certainly an extension of them.
+* In this App we don't hide anything.  In fact you can have direct peek into how the files are stored. Click on the **Under the hood**, to see how the data is stored, and what else is being done by the App.
+* All data is stored in plain text, no proprietary or binary format. Your work is safe and the files you create cannot be infected by any computer virus. This also ensures inter-operability (working betweeen people and machines) seamlessly. We will soon provde export, import options. 
+* You can try **Parse** button, which will be activated only when you have some text in the Node's description. You get two options. Select one of them and see what the App does. We use NLP (natural language processor) to parse (decode) the the natural language sentences into parts of speach and into some logical units. Since this is done by a computer program, use these results to continue your journey. 
+* Once in a while, do look at the ScoreCard.  We provide a commulative Scorecard on the top tab, and a Node Book level score in the **Stats** tab, whicHTML
+h you can find in the **Under the hood** tab. 
+* The other Tab called **CNL Edit** is to build your Node Book using CNL (Controlled Natural Language). As you keep working on the system from the **Node Book** interface, you will get to know how what is CNL and how you can graduate to use that. 
+* This App is like a game. Your job in the game is to convert natural langauge sentences into a graph. When you re-represent most text into a graph, you win. 
+* The rubric used in the scorecard will let you know how to gain more score. 
+* Unlike in **Concept Mapping**, where you are allowed to use any relation name between nodes/concepts, in this App you are deliberately constrained to use only the defined set of relations and attributes. Once you learn how to define more, you can extend the limited set with which you start. 
+* You gain more score if you use less number of relation names and attribute names to build all your knowledge. More economical you are with the predicate terms, more rigorous (least ambiguous) your langauge becomes.
+* Refer to the **Preferences** tab to customize your experience.
 
 
-## Screenshots
+# Screenshots
 
 <!-- Place screenshots here. Example: -->
 
@@ -31,7 +51,7 @@ Welcome to the CNL Help! This guide explains how to write clear, structured scie
 
 ---
 
-## **Difficulty Levels**
+# **Difficulty Levels**
 
 * 🟢 **Easy:** Only the basics—no quantifier, qualifier, adverb, or modality.
 * 🟡 **Medium:** Add qualifiers (e.g. adjectives), but still no quantifier or modality.
@@ -40,7 +60,7 @@ Welcome to the CNL Help! This guide explains how to write clear, structured scie
 
 ---
 
-## **Node Syntax (Section Titles)**
+# **Node Syntax (Section Titles)**
 
 Write your node titles with optional markup for quantifiers and qualifiers.
 

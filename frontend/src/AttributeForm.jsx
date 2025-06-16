@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 import AttributeTypeModal from './AttributeTypeModal';
+import { useUserId } from "./UserIdContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -10,7 +11,8 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function AttributeForm({ nodeId, userId = "user0", graphId = "graph1", onAddAttributeType, initialData = {} }) {
+export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {} }) {
+  const userId = useUserId();
   // CNL-style fields
   const [attribute, setAttribute] = useState(initialData.name || '');
   const [attrValue, setAttrValue] = useState(initialData.value || '');

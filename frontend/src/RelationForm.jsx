@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 import RelationTypeModal from './RelationTypeModal';
+import { useUserId } from "./UserIdContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -10,7 +11,8 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function RelationForm({ nodeId, userId = "user0", graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess }) {
+export default function RelationForm({ nodeId, graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess }) {
+  const userId = useUserId();
   // CNL-style fields
   const [relation, setRelation] = useState(initialData?.name || initialData?.type || '');
   const [relTarget, setRelTarget] = useState(initialData?.target || '');

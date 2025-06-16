@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from backend.routes.users import users_router
 import os
 import yaml
 
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 # ✅ Include all routers
+app.include_router(users_router, prefix="/auth")
 app.include_router(nodes.router, prefix="/api")
 app.include_router(graph_ops.router, prefix="/api")
 app.include_router(graph.router, prefix="/api")
@@ -31,6 +33,7 @@ app.include_router(graphs.router, prefix="/api")
 app.include_router(ndf_routes.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(parse_pipeline.router, prefix="/api")
+
 
 
 # ✅ Health check route

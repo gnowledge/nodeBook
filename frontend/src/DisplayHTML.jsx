@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { marked } from "marked";
 import NodeCard from "./NodeCard";
 import NodeForm from "./NodeForm";
+import { useUserId } from "./UserIdContext";
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -18,7 +19,8 @@ function stripMarkdown(md) {
     .trim();
 }
 
-const DisplayHTML = ({ userId, graphId }) => {
+const DisplayHTML = ({ graphId }) => {
+  const userId = useUserId();
   const [graph, setGraph] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
 

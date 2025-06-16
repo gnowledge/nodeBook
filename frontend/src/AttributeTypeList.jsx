@@ -5,9 +5,11 @@
 // - Deleting existing types (using DELETE - optional backend support needed)
 
 import React, { useEffect, useState } from 'react';
+import { useUserId } from "./UserIdContext";
 import AttributeTypeModal from './AttributeTypeModal';
 
-export default function AttributeTypeList({ userId = "user0", graphId = "graph1" }) {
+export default function AttributeTypeList({ graphId = "graph1" }) {
+  const userId = useUserId();
   const [attributeTypes, setAttributeTypes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);

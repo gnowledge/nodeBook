@@ -9,6 +9,7 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import BlocklyCNLComposer from "./BlocklyCNLComposer";
 import DevPanel from "./DevPanel";
 import CNLInput from "./CNLInput";
+import { useUserId } from "./UserIdContext";
 
 const DEFAULT_PREFERENCES = {
   graphLayout: "dagre",
@@ -47,11 +48,9 @@ const TAB_DEFINITIONS = {
       setComposedGraph,
       handleGraphDeleted,
       prefs,
-      userId,
     }) => (
       <div className="p-2 flex flex-col h-full">
         <NDFStudioPanel
-          userId={userId}
           graphId={activeGraph}
           graph={composedGraphs[activeGraph]}
           onGraphUpdate={handleGraphUpdate}
@@ -66,7 +65,7 @@ const TAB_DEFINITIONS = {
   },
   "workspace-stats": {
     label: "Score Card",
-    render: ({ userId }) => <WorkspaceStatistics userId={userId} />,
+    render: () => <WorkspaceStatistics />,
   },
   help: {
     label: "Help",
@@ -74,10 +73,10 @@ const TAB_DEFINITIONS = {
   },
   preferences: {
     label: "Preferences",
-    render: ({ userId, handlePrefsChange }) => (
+    render: ({ handlePrefsChange }) => (
       <div className="p-4">
         <div className="text-lg font-semibold mb-2">Preferences</div>
-        <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
+        <PreferencesPanel onPrefsChange={handlePrefsChange} />
       </div>
     ),
   },
@@ -108,7 +107,8 @@ const DEV_PANEL_TABS = [
   { key: "attributeTypes", label: "Attribute Types" },
 ];
 
-const NDFStudioLayout = ({ userId = "user0" }) => {
+const NDFStudioLayout = () => {
+  const userId = useUserId();
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
   const [activeGraph, setActiveGraph] = useState(null);
@@ -276,6 +276,32 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
     setPrefs(newPrefs);
   };
 
+  // --- Logout handler ---
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
+
+  // --- Render app name, user info, and logout button ---
+  const renderUserBar = () => (
+    <div className="flex items-center justify-between bg-gray-100 px-4 py-2 border-b">
+      <span className="text-xl font-bold tracking-tight text-blue-700">Node Book</span>
+      <div className="flex items-center">
+        {userId && userId !== 'user0' && userId !== undefined && userId !== null && (
+          <>
+            <span className="mr-4 text-gray-700">Logged in as <b>{userId}</b></span>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+            >
+              Logout
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   // Render top-level tabs
   const renderTopTabs = () => (
     <div className="flex border-b bg-gray-100">
@@ -387,7 +413,6 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
           graph={composedGraphs[activeGraph]}
           rawMarkdown={rawMarkdowns[activeGraph]}
           graphId={activeGraph}
-          userId={userId}
         />
       );
     }
@@ -396,7 +421,6 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
         <CytoscapeStudio
           graph={composedGraphs[activeGraph]}
           graphId={activeGraph}
-          userId={userId}
         />
       );
     }
@@ -404,7 +428,6 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       return (
         <CNLInput
           graphId={activeGraph}
-          userId={userId}
           graph={composedGraphs[activeGraph]}
           rawMarkdown={rawMarkdowns[activeGraph]}
           onGraphUpdate={handleGraphUpdate}
@@ -420,7 +443,6 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
             activeTab={activeDevTab}
             graph={composedGraphs[activeGraph]}
             graphId={activeGraph}
-            userId={userId}
             rawMarkdown={rawMarkdowns[activeGraph]}
             prefs={prefs}
           />
@@ -439,7 +461,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       return renderWorkareaContent();
     }
     if (activeTopTab === "workspace-stats") {
-      return <WorkspaceStatistics userId={userId} />;
+      return <WorkspaceStatistics />;
     }
     if (activeTopTab === "help") {
       return <HelpTab />;
@@ -448,7 +470,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
       return (
         <div className="p-4">
           <div className="text-lg font-semibold mb-2">Preferences</div>
-          <PreferencesPanel userId={userId} onPrefsChange={handlePrefsChange} />
+          <PreferencesPanel onPrefsChange={handlePrefsChange} />
         </div>
       );
     }
@@ -457,6 +479,7 @@ const NDFStudioLayout = ({ userId = "user0" }) => {
 
   return (
     <div className="h-full w-full flex flex-col">
+      {renderUserBar()}
       {renderTopTabs()}
       {activeTopTab === "graphs" && renderGraphSelectorBar()}
       {activeTopTab === "graphs" && activeGraph && renderWorkareaTabs()}

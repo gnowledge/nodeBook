@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
+import { useUserId } from "./UserIdContext";
 
-const NDFPreview = ({ userId, graphId }) => {
+const NDFPreview = ({ graphId }) => {
+  const userId = useUserId();
   const [yamlText, setYamlText] = useState("# Loading...");
 
   useEffect(() => {

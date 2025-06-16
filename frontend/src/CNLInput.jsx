@@ -5,8 +5,10 @@ import RelationTypeModal from './RelationTypeModal';
 import AttributeTypeModal from './AttributeTypeModal';
 import BlocklyCNLComposer from "./BlocklyCNLComposer";
 import CNLHelperModal from './CNLHelperModal';
+import { useUserId } from "./UserIdContext";
 
-export default function CNLInput({ userId, graphId, onGraphUpdate, onSave, onParsed, onGraphDeleted, prefs }) {
+export default function CNLInput({ graphId, onGraphUpdate, onSave, onParsed, onGraphDeleted, prefs }) {
+  const userId = useUserId();
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const [value, setValue] = useState('');

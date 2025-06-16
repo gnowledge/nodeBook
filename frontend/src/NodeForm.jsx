@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
+import { useUserId } from "./UserIdContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -17,7 +18,8 @@ function PreviewBox({ label, value }) {
  *   difficulty: (optional) controls which fields are enabled (default: 'easy')
  *   onClose: (optional) for modal usage
  */
-export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, userId, graphId }) {
+export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, graphId }) {
+  const userId = useUserId();
   // CNL-style fields
   const [base, setBase] = useState('');
   const [qualifier, setQualifier] = useState('');

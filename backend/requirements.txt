@@ -1,5 +1,10 @@
 fastapi
-uvicorn
+uvicorn[standard]
+sqlmodel
+fastapi-users[sqlalchemy2]
+fastapi-users-db-sqlmodel
+python-jose[cryptography]
+passlib[bcrypt]
 networkx
 matplotlib
 spacy
@@ -11,7 +16,6 @@ markdown
 bleach
 ruamel.yaml
 pytest
-yaml
 llama-cpp-python
 torch
 

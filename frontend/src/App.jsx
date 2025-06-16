@@ -1,19 +1,75 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import NDFStudioLayout from "./NDFStudioLayout";
+import AuthPage from "./AuthPage";
+import { UserIdContext } from "./UserIdContext";
 
-// Update tab order for main app view
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
-
-// Update tab order for DevPanel
 const DEV_TABS = ['json', 'yaml'];
 
+function RequireAuth({ children }) {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" replace />;
+}
+
+function Logout() {
+  localStorage.removeItem("token");
+  return <Navigate to="/login" replace />;
+}
+
 function App() {
+  const [userId, setUserId] = useState(null); // null by default
+
+  // Helper to update userId from /auth/whoami
+  const fetchAndSetUserId = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const res = await fetch("/auth/whoami", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.username) setUserId(data.username);
+          else setUserId(null);
+        } else {
+          setUserId(null);
+          localStorage.removeItem("token");
+        }
+      } catch {
+        setUserId(null);
+        localStorage.removeItem("token");
+      }
+    } else {
+      setUserId(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchAndSetUserId();
+  }, []);
+
   return (
-    <div className="h-screen w-screen overflow-hidden">
-      <NDFStudioLayout userId="user0" mainTabs={MAIN_TABS} devTabs={DEV_TABS} />
-    </div>
+    <UserIdContext.Provider value={userId}>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserId} />} />
+          <Route
+            path="/app"
+            element={
+              <RequireAuth>
+                <div className="h-screen w-screen overflow-hidden">
+                  <NDFStudioLayout mainTabs={MAIN_TABS} devTabs={DEV_TABS} />
+                </div>
+              </RequireAuth>
+            }
+          />
+          <Route path="/logout" element={<Logout />} />
+          <Route path="/" element={<Navigate to="/app" replace />} />
+        </Routes>
+      </Router>
+    </UserIdContext.Provider>
   );
 }
 
 export default App;
-
