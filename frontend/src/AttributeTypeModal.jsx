@@ -5,8 +5,8 @@ export default function AttributeTypeModal({
   isOpen,
   onClose,
   onSuccess,
-  userId = "user0",
-  graphId = "graph1",
+  userId,
+  graphId,
   endpoint,
   method = 'POST',
   initialData = null

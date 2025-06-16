@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import RelationTypeModal from './RelationTypeModal';
 
-export default function RelationTypeList({ userId = "user0", graphId = "graph1" }) {
+export default function RelationTypeList({ userId, graphId = "graph1" }) {
   const [relationTypes, setRelationTypes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);

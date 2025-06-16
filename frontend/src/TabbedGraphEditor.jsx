@@ -3,16 +3,7 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
 
-const [graphData, setGraphData] = useState(null);
-
-useEffect(() => {
-  if (userId && graphId) {
-    fetchGraph(userId, graphId).then(data => setGraphData(data));
-  }
-}, [userId, graphId]);
-
-
-const TabbedGraphEditor = ({ userId = "user0", initialGraphs = ["graph1"] }) => {
+const TabbedGraphEditor = ({ userId, initialGraphs = ["graph1"] }) => {
   const [tabs, setTabs] = useState(initialGraphs.map((id) => ({ id, name: id })));
   const [activeTab, setActiveTab] = useState(tabs[0].id);
   const [graphData, setGraphData] = useState(null);
@@ -67,16 +58,14 @@ const TabbedGraphEditor = ({ userId = "user0", initialGraphs = ["graph1"] }) => 
       <div className="flex flex-1 border border-gray-300 rounded-b-md">
         <div className="w-1/2 border-r overflow-auto">
           <NDFStudioPanel
-              userId={userId}
-              graphId={activeTab}
-	      graphData={currentGraphData}
-	      onGraphUpdate={(newYaml) => setCurrentGraphData(newYaml)
-              graph={graphData}
-	     onGraphUpdate={handleGraphUpdate}
+            userId={userId}
+            graphId={activeTab}
+            graph={graphData}
+            onGraphUpdate={handleGraphUpdate}
           />
         </div>
         <div className="w-1/2 overflow-auto">
-          <CytoscapeStudio graphData={currentGraphData} graph={graphData} />
+          <CytoscapeStudio graph={graphData} />
         </div>
       </div>
     </div>

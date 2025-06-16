@@ -22,7 +22,7 @@ const DISABLED_PREFS = [
   "language", "theme", "fontSize", "autosave", "showAdvanced", "accessibility"
 ];
 
-export default function PreferencesPanel({ userId = "user0", onPrefsChange }) {
+export default function PreferencesPanel({ userId, onPrefsChange }) {
   const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

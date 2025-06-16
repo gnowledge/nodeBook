@@ -5,7 +5,7 @@ export default function RelationTypeModal({
   isOpen,
   onClose,
   onSuccess,
-  userId = "user0",
+  userId,
   graphId = "graph1",
   endpoint,
   method = 'POST',

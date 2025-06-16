@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import NDFStudioLayout from "./NDFStudioLayout";
 import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
+import { API_BASE } from "./config";
 
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
 const DEV_TABS = ['json', 'yaml'];
@@ -25,18 +26,20 @@ function App() {
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        const res = await fetch("/auth/whoami", {
+        const res = await fetch(`${API_BASE}/auth/whoami`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
+          console.debug("[App.jsx] /auth/whoami response:", data); // Debug message
           if (data.username) setUserId(data.username);
           else setUserId(null);
         } else {
           setUserId(null);
           localStorage.removeItem("token");
         }
-      } catch {
+      } catch (err) {
+        console.error("[App.jsx] Error fetching /auth/whoami:", err); // Debug message
         setUserId(null);
         localStorage.removeItem("token");
       }
@@ -48,6 +51,10 @@ function App() {
   useEffect(() => {
     fetchAndSetUserId();
   }, []);
+
+  useEffect(() => {
+    console.debug("[App.jsx] userId context value:", userId); // Debug message
+  }, [userId]);
 
   return (
     <UserIdContext.Provider value={userId}>

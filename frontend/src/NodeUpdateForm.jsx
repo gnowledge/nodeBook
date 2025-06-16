@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 
-export default function NodeUpdateForm({ nodeId, userId = "user0", graphId = "graph1", onSuccess, onCancel }) {
+export default function NodeUpdateForm({ nodeId, userId, graphId = "graph1", onSuccess, onCancel }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [role, setRole] = useState('');

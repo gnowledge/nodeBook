@@ -14,7 +14,7 @@ export default function AuthPage({ onAuth }) {
     // If a token is present, check whoami
     const token = localStorage.getItem('token');
     if (token) {
-      fetch('/auth/whoami', {
+      fetch(`${API_BASE}/auth/whoami`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => res.json())
