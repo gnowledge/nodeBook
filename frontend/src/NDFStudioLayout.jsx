@@ -282,26 +282,6 @@ const NDFStudioLayout = () => {
     window.location.href = "/login";
   };
 
-  // --- Render app name, user info, and logout button ---
-  const renderUserBar = () => (
-    <div className="flex items-center justify-between bg-gray-100 px-4 py-2 border-b">
-      <span className="text-xl font-bold tracking-tight text-blue-700">Node Book</span>
-      <div className="flex items-center">
-        {userId && userId !== 'user0' && userId !== undefined && userId !== null && (
-          <>
-            <span className="mr-4 text-gray-700">Logged in as <b>{userId}</b></span>
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-            >
-              Logout
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
   // Render top-level tabs
   const renderTopTabs = () => (
     <div className="flex border-b bg-gray-100">
@@ -479,7 +459,6 @@ const NDFStudioLayout = () => {
 
   return (
     <div className="h-full w-full flex flex-col">
-      {renderUserBar()}
       {renderTopTabs()}
       {activeTopTab === "graphs" && renderGraphSelectorBar()}
       {activeTopTab === "graphs" && activeGraph && renderWorkareaTabs()}

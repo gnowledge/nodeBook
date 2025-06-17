@@ -4,6 +4,7 @@ import NDFStudioLayout from "./NDFStudioLayout";
 import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
 import { API_BASE } from "./config";
+import UserBar from "./UserBar";
 
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
 const DEV_TABS = ['json', 'yaml'];
@@ -59,6 +60,7 @@ function App() {
   return (
     <UserIdContext.Provider value={userId}>
       <Router>
+        <UserBar />
         <Routes>
           <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserId} />} />
           <Route

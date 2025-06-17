@@ -36,6 +36,13 @@ export default function AuthPage({ onAuth }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      {/* Removed old userbar here, only welcome and login/register UI remain */}
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-2">Welcome to Node Book</h1>
+        <p className="text-gray-700 max-w-md mx-auto">
+          Node Book is an open, mobile-friendly knowledge construction platform using Controlled Natural Language (CNL) to represent knowledge as node-neighborhoods. Please log in to access your workspace and save your knowledge graphs.
+        </p>
+      </div>
       <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-md">
         <div className="flex justify-center space-x-4 mb-6">
           <button
@@ -53,7 +60,6 @@ export default function AuthPage({ onAuth }) {
             </button>
           )}
         </div>
-
         {tab === 'login' && <Login onLogin={(user) => { setUser(user); if (onAuth) onAuth(); }} />}
         {tab === 'register' && adminMode && <Register onRegister={() => setTab('login')} />}
       </div>

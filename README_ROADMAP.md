@@ -70,8 +70,8 @@ stable release.
 - [ ] Backend schema updated to support role: `process`, 'state'
 
 ### 8. Lightweight Multiuser Support
-- [ ] Add support for user IDs without requiring email/mobile auth.
-- [ ] Store user workspace under `/graph_data/users/{user_id}`.
+- [x] Add support for user IDs without requiring email/mobile auth.
+- [x] Store user workspace under `/graph_data/users/{user_id}`.
 
 ### 9. Accessibility Compliance
 - [ ] Follow accessibility best practices (WCAG).
@@ -93,7 +93,7 @@ stable release.
 - [ ] Add Auto-update mechanism when online.
 
 ### 13. Testing
-- [ ] Unit tests for backend logic
+- [x] Unit tests for backend logic
 - [ ] Functionality tests for parser, graph storage, and UI
 - [ ] Test suite for CI-ready development.
 

@@ -42,6 +42,8 @@ def load_node(user_id: str, graph_id: str, node_id: str) -> dict:
 
 def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
     path = node_path(user_id, graph_id, node_id)
+    # Ensure the directory exists before saving
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     node_data = data
     if "attributes" in node_data:
         node_data["attributes"] = sort_attributes(node_data["attributes"])
