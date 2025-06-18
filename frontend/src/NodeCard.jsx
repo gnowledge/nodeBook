@@ -6,6 +6,7 @@ import AttributeForm from "./AttributeForm";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
 import { useUserId } from "./UserIdContext";
+import MonacoEditor from '@monaco-editor/react';
 
 function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
   const userId = useUserId();
@@ -14,7 +15,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [freshNode, setFreshNode] = useState(node);
   const [editing, setEditing] = useState(false);
-  const [editDescription, setEditDescription] = useState("");
+  const [editDescription, setEditDescription] = useState(node.description || "");
   const [editRole, setEditRole] = useState("");
   const [showRelationForm, setShowRelationForm] = useState(false);
   const [showAttributeForm, setShowAttributeForm] = useState(false);
@@ -26,6 +27,12 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
   const [showParseModal, setShowParseModal] = useState(false);
   const [parseMode, setParseMode] = useState(null); // 'enhanced' or 'basic'
   const [basicNlpResult, setBasicNlpResult] = useState(null);
+  const [showNbhModal, setShowNbhModal] = useState(false);
+  const [nbhTab, setNbhTab] = useState(0); // 0: Relations, 1: Attributes
+  const [editRelations, setEditRelations] = useState([]);
+  const [editAttributes, setEditAttributes] = useState([]);
+  const [nbhSaveStatus, setNbhSaveStatus] = useState(null);
+  const [nbhLoading, setNbhLoading] = useState(false);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -112,66 +119,36 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
     }
   };
 
+  // Editable description with Monaco (markdown mode)
   const handleEdit = () => {
     setEditDescription(freshNode.description || "");
-    setEditRole(freshNode.role || "");
     setEditing(true);
   };
 
   const handleCancelEdit = () => {
     setEditing(false);
-    setEditDescription("");
-    setEditRole("");
+    setEditDescription(freshNode.description || "");
   };
 
   const handleSaveEdit = async () => {
-    const nodeId = node.node_id || node.id;
-    if (!nodeId) return;
     setLoading(true);
-    setStatus(null);
     try {
-      const { name, qualifier, attributes, relations, role } = freshNode;
-      // Map attributes to backend schema
-      const mappedAttributes = (attributes || []).map(attr => ({
-        name: attr.attribute_name || attr.name || "",
-        value: attr.value,
-        quantifier: attr.quantifier,
-        modality: attr.modality
-        // unit is not in backend model, so omit
-      }));
-      // Map relations to backend schema
-      const mappedRelations = (relations || []).map(rel => ({
-        name: rel.name,
-        target: rel.target || rel.target_name || "",
-        subject_quantifier: rel.subject_quantifier || rel.target_qualifier || undefined,
-        object_quantifier: rel.object_quantifier || rel.target_quantifier || undefined,
-        modality: rel.modality
-        // adverb is not in backend model, so omit
-      }));
-      // Only include qualifier if non-empty and not just whitespace
-      const trimmedQualifier = (qualifier || "").trim();
-      const payload = {
-        id: freshNode.id || nodeId,
-        name,
-        base_name: freshNode.base_name || undefined,
-        ...(trimmedQualifier ? { qualifier: trimmedQualifier } : {}),
-        role: editRole,
-        description: editDescription,
-        attributes: mappedAttributes,
-        relations: mappedRelations,
-      };
+      // Save the updated description to backend
+      const updatedNode = { ...freshNode, description: editDescription };
       const res = await fetch(
-        `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
+        `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(updatedNode)
         }
       );
       if (res.ok) {
-        setFreshNode({ ...freshNode, description: editDescription, role: editRole });
-        setStatus("saved");
+        setFreshNode(updatedNode);
         setEditing(false);
+        if (onGraphUpdate) onGraphUpdate();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 1200);
       } else {
         setStatus("error saving");
       }
@@ -256,67 +233,259 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
     }
   }
 
+  // --- NBH (Node Neighborhood) Section ---
+  // Helper to generate markdown for Node Neighborhood
+  function generateNeighborhoodMarkdown(node) {
+    let md = '';
+    if (node.relations && node.relations.length > 0) {
+      md += '### Relations\n';
+      node.relations.forEach(rel => {
+        md += `- **${rel.type || rel.name}**: ${rel.target_name || rel.target}`;
+        if (rel.adverb) md += ` _(adverb: ${rel.adverb})_`;
+        md += '\n';
+      });
+      md += '\n';
+    }
+    if (node.attributes && node.attributes.length > 0) {
+      md += '### Attributes\n';
+      node.attributes.forEach(attr => {
+        md += `- **${attr.name || attr.attribute_name}**: ${attr.value}`;
+        if (attr.unit) md += ` (${attr.unit})`;
+        md += '\n';
+      });
+    }
+    if (!md) md = '_No neighborhood info yet._';
+    return md;
+  }
+
+  // Keep NBH state in sync with freshNode
+  useEffect(() => {
+    setEditRelations(freshNode.relations ? JSON.parse(JSON.stringify(freshNode.relations)) : []);
+    setEditAttributes(freshNode.attributes ? JSON.parse(JSON.stringify(freshNode.attributes)) : []);
+  }, [freshNode.relations, freshNode.attributes]);
+
+  // Open NBH modal and initialize edit state
+  const handleOpenNbhModal = () => {
+    setEditRelations((freshNode.relations||[]).map(r => ({...r})));
+    setEditAttributes((freshNode.attributes||[]).map(a => ({...a})));
+    setShowNbhModal(true);
+    setNbhTab(0);
+    setNbhSaveStatus(null);
+  };
+
+  // Save NBH edits (relations/attributes)
+  const handleSaveNbh = async () => {
+    setNbhLoading(true);
+    setNbhSaveStatus(null);
+    const nodeId = freshNode.node_id || freshNode.id;
+    try {
+      const updatedNode = {
+        ...freshNode,
+        relations: editRelations,
+        attributes: editAttributes
+      };
+      const res = await fetch(
+        `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedNode)
+        }
+      );
+      if (res.ok) {
+        setFreshNode(updatedNode);
+        setShowNbhModal(false);
+        if (onGraphUpdate) onGraphUpdate();
+      } else {
+        setNbhSaveStatus("Error saving neighborhood");
+      }
+    } catch (err) {
+      setNbhSaveStatus("Error saving neighborhood");
+    } finally {
+      setNbhLoading(false);
+    }
+  };
+
+  // NBH Modal content: tabs for Relations/Attributes
+  const renderNbhModal = () => (
+    <div className="mt-2 bg-white p-4 rounded shadow-lg border border-gray-200">
+      <div className="mb-2 font-semibold text-base">Edit Node Neighborhood</div>
+      <div className="mb-3">
+        <div className="flex border-b mb-2">
+          <button
+            className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===0 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+            onClick={()=>setNbhTab(0)}
+          >Relations</button>
+          <button
+            className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===1 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+            onClick={()=>setNbhTab(1)}
+          >Attributes</button>
+        </div>
+        {nbhTab===0 ? (
+          <div>
+            {editRelations.length ? (
+              <ul className="mb-2">
+                {editRelations.map((rel, i) => (
+                  <li key={i} className="flex items-center gap-2 mb-1">
+                    <input
+                      className="border px-1 py-0.5 rounded text-xs w-20"
+                      value={rel.type||rel.name||''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setEditRelations(editRelations.map((r, j) => j===i ? {...r, type: v, name: v} : r));
+                      }}
+                      placeholder="Type"
+                    />
+                    <input
+                      className="border px-1 py-0.5 rounded text-xs w-28"
+                      value={rel.target_name||rel.target||''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setEditRelations(editRelations.map((r, j) => j===i ? {...r, target_name: v, target: v} : r));
+                      }}
+                      placeholder="Target"
+                    />
+                    <button className="text-xs text-red-500" onClick={()=>setEditRelations(editRelations.filter((_,j)=>j!==i))}>Delete</button>
+                  </li>
+                ))}
+              </ul>
+            ) : <div className="text-xs text-gray-400 mb-2">No relations.</div>}
+            <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded" onClick={()=>setEditRelations([...editRelations, {type:'',target_name:''}])}>+ Add Relation</button>
+          </div>
+        ) : (
+          <div>
+            {editAttributes.length ? (
+              <ul className="mb-2">
+                {editAttributes.map((attr, i) => (
+                  <li key={i} className="flex items-center gap-2 mb-1">
+                    <input
+                      className="border px-1 py-0.5 rounded text-xs w-20"
+                      value={attr.name||attr.attribute_name||''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setEditAttributes(editAttributes.map((a, j) => j===i ? {...a, name: v, attribute_name: v} : a));
+                      }}
+                      placeholder="Name"
+                    />
+                    <input
+                      className="border px-1 py-0.5 rounded text-xs w-24"
+                      value={attr.value||''}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setEditAttributes(editAttributes.map((a, j) => j===i ? {...a, value: v} : a));
+                      }}
+                      placeholder="Value"
+                    />
+                    <button className="text-xs text-red-500" onClick={()=>setEditAttributes(editAttributes.filter((_,j)=>j!==i))}>Delete</button>
+                  </li>
+                ))}
+              </ul>
+            ) : <div className="text-xs text-gray-400 mb-2">No attributes.</div>}
+            <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded" onClick={()=>setEditAttributes([...editAttributes, {name:'',value:''}])}>+ Add Attribute</button>
+          </div>
+        )}
+      </div>
+      {nbhSaveStatus && <div className="text-xs text-red-500 mb-2">{nbhSaveStatus}</div>}
+      <div className="flex gap-2 justify-end">
+        <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs" onClick={handleSaveNbh} disabled={nbhLoading}>Save</button>
+        <button className="px-3 py-1 bg-gray-300 rounded text-xs" onClick={()=>setShowNbhModal(false)} disabled={nbhLoading}>Cancel</button>
+      </div>
+    </div>
+  );
+
+  // NBH CNL: show relations in CNL syntax: <relation name>  <target node>\n<...>
+  const nbhCNL = [
+    ...(freshNode.relations||[]).map(r => `${r.type||r.name||''}  ${r.target_name||r.target||''}`),
+    ...(freshNode.attributes||[]).map(a => `has_${a.name||a.attribute_name||''}  ${a.value||''}`)
+  ].filter(Boolean).join("\n");
+
+  // NBH markdown: generate from freshNode.relations/attributes (simple demo)
+  const nbhMarkdown =
+    (freshNode.relations && freshNode.relations.length > 0 ?
+      '### Relations\n' + freshNode.relations.map(r => `- **${r.type || r.name}**: ${r.target_name || r.target}`).join("\n") + '\n\n' :
+      '') +
+    (freshNode.attributes && freshNode.attributes.length > 0 ?
+      '### Attributes\n' + freshNode.attributes.map(a => `- **${a.name || a.attribute_name}**: ${a.value}`).join("\n") :
+      '') || '_No neighborhood info yet._';
+
   return (
     <div id={"node-" + (freshNode.node_id || freshNode.id)} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
-      <h2 className="text-lg font-semibold text-blue-700 mb-1">
-        <span dangerouslySetInnerHTML={{ __html: marked.parseInline(freshNode.name || freshNode.node_id) }} />
-      </h2>
+      <div className="flex justify-between items-start mb-1">
+        <h2 className="text-lg font-semibold text-blue-700">
+          <span dangerouslySetInnerHTML={{ __html: marked.parseInline(freshNode.name || freshNode.node_id) }} />
+        </h2>
+        {/* Role selector as compact button group */}
+        <div className="flex gap-1">
+          {["individual", "class", "process"].map(option => (
+            <button
+              key={option}
+              className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode.role === option ? "bg-blue-600 text-white border-blue-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-100"}`}
+              style={{ minWidth: 0 }}
+              onClick={async () => {
+                if (freshNode.role === option) return;
+                setLoading(true);
+                try {
+                  const updatedNode = { ...freshNode, role: option };
+                  const res = await fetch(
+                    `${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                    {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(updatedNode)
+                    }
+                  );
+                  if (res.ok) {
+                    setFreshNode(updatedNode);
+                    if (onGraphUpdate) onGraphUpdate();
+                  }
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              title={option.charAt(0).toUpperCase() + option.slice(1)}
+            >
+              {option.charAt(0).toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
       {/* In-place edit UI for description and role */}
       {editing ? (
         <div className="mb-2">
-          <textarea
-            className="w-full border rounded p-1 text-sm mb-2"
-            rows={3}
+          <MonacoEditor
+            height="120px"
+            language="markdown"
             value={editDescription}
-            onChange={e => setEditDescription(e.target.value)}
-            placeholder="Enter node description..."
-            disabled={loading}
+            onChange={setEditDescription}
+            options={{ wordWrap: 'on' }}
           />
-          <div className="mb-2">
-            <label className="text-xs font-semibold mr-2">Role:</label>
-            <select
-              className="border rounded p-1 text-sm"
-              value={editRole}
-              onChange={e => setEditRole(e.target.value)}
-              disabled={loading}
-            >
-              <option value="">(none)</option>
-              <option value="class">class</option>
-              <option value="individual">individual</option>
-              <option value="process">process</option>
-            </select>
+          <div className="flex gap-2 mt-2">
+            <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={handleSaveEdit} disabled={loading}>
+              Save
+            </button>
+            <button className="bg-gray-300 px-3 py-1 rounded" onClick={handleCancelEdit}>
+              Cancel
+            </button>
           </div>
-          <button
-            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs mr-2"
-            onClick={handleSaveEdit}
-            disabled={loading}
-          >
-            Save
-          </button>
-          <button
-            className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
-            onClick={handleCancelEdit}
-            disabled={loading}
-          >
-            Cancel
-          </button>
         </div>
       ) : (
         <>
-          {freshNode.description && <p className="mb-2 text-gray-700 text-sm">{freshNode.description}</p>}
-          {/* NLP Parse Button and Result */}
-          {typeof freshNode.description === "string" && freshNode.description.trim() && !editing && (
-            <div className="mb-2 flex gap-2 items-center">
+          <div className="mb-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Description:</span>
+              <button className="text-blue-600 underline text-xs" onClick={handleEdit}>Edit</button>
               <button
-                className="px-3 py-1 rounded text-xs bg-purple-600 text-white hover:bg-purple-700"
+                className="text-purple-600 underline text-xs"
                 onClick={() => setShowParseModal(true)}
                 disabled={nlpLoading}
               >
-                {nlpLoading ? "Parsing..." : "Parse Description"}
+                Parse
               </button>
-              {nlpError && <span className="text-red-500 text-xs ml-2">{nlpError}</span>}
             </div>
-          )}
+            {/* Render description as markdown */}
+            <div className="prose prose-sm bg-gray-50 p-2 rounded min-h-[60px]" dangerouslySetInnerHTML={{ __html: marked.parse(freshNode.description || '') }} />
+          </div>
           {/* Parse Mode Modal */}
           {showParseModal && (
             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
@@ -490,16 +659,6 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
               </div>
             </div>
           )}
-          <div className="mb-2 text-xs text-gray-500">
-            <span className="font-semibold">Role:</span> {freshNode.role || <span className="italic text-gray-400">(none)</span>}
-          </div>
-          <button
-            className="px-3 py-1 mb-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-xs"
-            onClick={handleEdit}
-            disabled={loading}
-          >
-            Edit Description & Role
-          </button>
         </>
       )}
       {/* Highlighted success message */}
@@ -521,131 +680,70 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate }) {
       {status && (
         <div className={`text-xs mt-1 ${status === "submitted" ? "text-green-600" : "text-gray-500"}`}>{status}</div>
       )}
-
-      {/* Attributes section: show even if empty, with add button */}
-      <div className="mb-2 relative">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Attributes</h3>
-          <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowAttributeForm(true)}>+ Add</button>
+      {/* --- Node Neighborhood Section --- */}
+      <div className="mb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-semibold">Node Neighborhood:</span>
+          <button className="text-blue-600 underline text-xs" onClick={handleOpenNbhModal}>Edit NBH</button>
         </div>
-        {freshNode.attributes?.length > 0 ? (
-          <ul className="list-disc list-inside text-gray-800 text-sm">
-            {freshNode.attributes.map((attr, i) => (
-              <li key={i} className="flex items-center justify-between">
-                <span>
-                  <span className="font-semibold">{attr.name || attr.attribute_name}:</span> {attr.value}
-                  {attr.unit && ` (${attr.unit})`}
-                </span>
-                <button className="ml-2 text-xs text-blue-600 hover:underline" onClick={() => setEditAttributeIndex(i)}>Edit</button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-gray-400 italic text-xs">No attributes yet.</div>
-        )}
-        {showAttributeForm && (
-          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
-            <AttributeForm
-              nodeId={freshNode.node_id || freshNode.id}
-              attributeTypes={attributeTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddAttributeType={() => {}}
-              initialData={{ id: generateRandomId() }}
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowAttributeForm(false)}>Close</button>
-          </div>
-        )}
-        {editAttributeIndex !== null && (
-          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
-            <AttributeForm
-              nodeId={freshNode.node_id || freshNode.id}
-              attributeTypes={attributeTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddAttributeType={() => {}}
-              // Optionally pass initialData for editing
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditAttributeIndex(null)}>Close</button>
-          </div>
-        )}
-      </div>
-
-      {/* Relations section: show even if empty, with add button */}
-      <div className="relative">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-500 uppercase mb-1">Relations</h3>
-          <button className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded ml-2" onClick={() => setShowRelationForm(true)}>+ Add</button>
-        </div>
-        {freshNode.relations?.length > 0 ? (
-          <ul className="list-disc list-inside text-gray-800 text-sm">
-            {freshNode.relations.map((rel, i) => (
-              <li key={i} className="flex items-center justify-between">
-                <span>
-                  {rel.adverb && (
-                    <span className="text-purple-700 font-semibold mr-1">{rel.adverb}</span>
-                  )}
-                  <span className="text-blue-700 font-semibold">{rel.type || rel.name}</span>
-                  {': '}
-                  <a
-                    href={"#node-" + (rel.target || rel.target_node_id)}
-                    className="text-blue-600 underline hover:text-blue-900"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span dangerouslySetInnerHTML={{ __html: marked.parseInline(rel.target_name || rel.target) }} />
-                  </a>
-                </span>
-                <button className="ml-2 text-xs text-blue-600 hover:underline" onClick={() => setEditRelationIndex(i)}>Edit</button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="text-gray-400 italic text-xs">No relations yet.</div>
-        )}
-        {showRelationForm && (
-          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
-            <RelationForm
-              nodeId={freshNode.node_id || freshNode.id}
-              relationTypes={relationTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddRelationType={() => {}}
-              onSuccess={() => {
-                setShowRelationForm(false);
-                // Reload this node only
-                const nodeId = freshNode.node_id || freshNode.id;
-                fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
-                  .then(res => res.json())
-                  .then(data => setFreshNode(data));
-                // Notify parent to reload graph
-                if (typeof onGraphUpdate === 'function') onGraphUpdate();
-              }}
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setShowRelationForm(false)}>Close</button>
-          </div>
-        )}
-        {editRelationIndex !== null && (
-          <div className="absolute left-0 right-0 mt-2 z-20 bg-white p-4 rounded shadow-lg border border-gray-200">
-            <RelationForm
-              nodeId={freshNode.node_id || freshNode.id}
-              relationTypes={relationTypes}
-              userId={userId}
-              graphId={graphId}
-              onAddRelationType={() => {}}
-              initialData={freshNode.relations[editRelationIndex]}
-              editMode={true}
-              onSuccess={() => {
-                setEditRelationIndex(null);
-                // Reload this node only
-                const nodeId = freshNode.node_id || freshNode.id;
-                fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
-                  .then(res => res.json())
-                  .then(data => setFreshNode(data));
-                // Notify parent to reload graph
-                if (typeof onGraphUpdate === 'function') onGraphUpdate();
-              }}
-            />
-            <button className="mt-2 px-3 py-1 bg-gray-300 rounded" onClick={() => setEditRelationIndex(null)}>Close</button>
+        <MonacoEditor
+          height="80px"
+          language="markdown"
+          value={nbhCNL}
+          options={{ readOnly: true, wordWrap: 'on', minimap: { enabled: false } }}
+        />
+        {/* Render NBH markdown preview */}
+        <div className="prose prose-sm bg-gray-50 p-2 rounded mt-1" dangerouslySetInnerHTML={{ __html: marked.parse(nbhMarkdown) }} />
+        {showNbhModal && (
+          <div className="mt-2 bg-white p-4 rounded shadow-lg border border-gray-200">
+            <div className="mb-2 font-semibold text-base">Edit Node Neighborhood</div>
+            <div className="mb-3">
+              <div className="flex border-b mb-2">
+                <button
+                  className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===0 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                  onClick={()=>setNbhTab(0)}
+                >Relations</button>
+                <button
+                  className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===1 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                  onClick={()=>setNbhTab(1)}
+                >Attributes</button>
+              </div>
+              {nbhTab===0 ? (
+                <div>
+                  <RelationForm
+                    nodeId={freshNode.node_id || freshNode.id}
+                    relationTypes={relationTypes}
+                    userId={userId}
+                    graphId={graphId}
+                    onAddRelationType={() => {}}
+                    onSuccess={() => {
+                      // Reload this node only
+                      const nodeId = freshNode.node_id || freshNode.id;
+                      fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
+                        .then(res => res.json())
+                        .then(data => setFreshNode(data));
+                      if (typeof onGraphUpdate === 'function') onGraphUpdate();
+                    }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <AttributeForm
+                    nodeId={freshNode.node_id || freshNode.id}
+                    attributeTypes={attributeTypes}
+                    userId={userId}
+                    graphId={graphId}
+                    onAddAttributeType={() => {}}
+                    initialData={{ id: generateRandomId() }}
+                  />
+                </div>
+              )}
+            </div>
+            {nbhSaveStatus && <div className="text-xs text-red-500 mb-2">{nbhSaveStatus}</div>}
+            <div className="flex gap-2 justify-end">
+              <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs" onClick={handleSaveNbh} disabled={nbhLoading}>Save</button>
+              <button className="px-3 py-1 bg-gray-300 rounded text-xs" onClick={()=>setShowNbhModal(false)} disabled={nbhLoading}>Cancel</button>
+            </div>
           </div>
         )}
       </div>
