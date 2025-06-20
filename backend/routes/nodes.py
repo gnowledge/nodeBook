@@ -7,7 +7,8 @@ from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
 from backend.summary_queue_singleton import init_summary_queue
 import json
 import time
-from backend.core.models import Attribute, Relation
+from backend.core.models import Attribute, Relation, PolyNode
+
 from backend.core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
@@ -220,3 +221,53 @@ def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
     from backend.core.nlp_utils import parse_description_components
     return parse_description_components(description)
 
+
+# ---------- PolyNode Routes ----------
+
+@router.post("/users/{user_id}/polynodes/")
+def create_polynode(user_id: str, node: PolyNode):
+    path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        raise HTTPException(status_code=400, detail="Node already exists")
+
+    with open(path, "w") as f:
+        json.dump(node.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
+    save_registry(reg_path, registry)
+
+    return {"status": "PolyNode created and registered"}
+
+@router.get("/users/{user_id}/polynodes/{id}")
+def get_polynode(user_id: str, id: str):
+    path = f"graph_data/users/{user_id}/nodes/{id}.json"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Node not found")
+    with open(path) as f:
+        return json.load(f)
+
+@router.put("/users/{user_id}/polynodes/{id}")
+def update_polynode(user_id: str, id: str, node: PolyNode):
+    path = f"graph_data/users/{user_id}/nodes/{id}.json"
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Node not found")
+    with open(path, "w") as f:
+        json.dump(node.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
+    save_registry(reg_path, registry)
+
+    return {"status": "PolyNode updated and registry synced"}
+
+@router.get("/users/{user_id}/polynodes")
+def list_polynodes(user_id: str):
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+    registry = load_registry(reg_path)
+    return [n for n in registry if n.get("role", "") == "class"]

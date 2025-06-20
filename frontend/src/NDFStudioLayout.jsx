@@ -86,17 +86,17 @@ const TAB_DEFINITIONS = {
 const DEFAULT_MAIN_TABS = ["help", "graphs", "workspace-stats", "preferences"];
 
 const TOP_TABS = [
-  { key: "graphs", label: "Knowledge Base" },
+  { key: "graphs", label: "Graph Document" },
   { key: "workspace-stats", label: "Scorecard" },
   { key: "help", label: "Help" },
   { key: "preferences", label: "Preferences" },
 ];
 
 const WORKAREA_TABS = [
-  { key: "display", label: "Display HTML" },
+  { key: "display", label: "Nodes and Edges" },
   { key: "graph", label: "Graph" },
-  { key: "cnl", label: "CNL Edit" },
-  { key: "dev", label: "Dev Panel" },
+  { key: "cnl", label: "CNL" },
+  { key: "dev", label: "Knowledge Base" },
 ];
 
 const DEV_PANEL_TABS = [

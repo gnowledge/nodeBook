@@ -27,7 +27,7 @@ import os
 import json
 from fastapi import APIRouter, HTTPException
 from backend.core.id_utils import get_graph_path
-from backend.core.models import Attribute, Relation
+from backend.core.models import Attribute, Relation, AttributeNode
 from backend.routes.nodes import create_node
 from backend.core.registry import (
     relation_registry_path, attribute_registry_path, load_registry, save_registry, make_relation_id, make_attribute_id
@@ -59,6 +59,35 @@ def load_schema(global_path, filename):
         return []
     with open(path, encoding="utf-8") as f:
         return json.load(f) or []
+
+# ---------- Helper Functions for Registry ----------
+
+def load_registry(path):
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return json.load(f)
+
+def save_registry(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+def update_registry_entry(registry, entry):
+    updated = False
+    for i, r in enumerate(registry):
+        if r["id"] == entry["id"]:
+            registry[i] = entry
+            updated = True
+            break
+    if not updated:
+        registry.append(entry)
+    return registry
+
+def remove_registry_entry(registry, entry_id):
+    return [r for r in registry if r["id"] != entry_id]
+# ---------- API Endpoints for Attributes and Relations ----------
+
 
 @router.post("/users/{user_id}/graphs/{graph_id}/attribute/create")
 def create_attribute(user_id: str, graph_id: str, attr: Attribute):
@@ -293,3 +322,63 @@ def delete_relation(user_id: str, graph_id: str, source: str, name: str, target:
         del registry[rel_id]
         save_registry(reg_path, registry)
     return {"status": "relation deleted"}
+
+# ---------- AttributeNode Routes with Registry ----------
+
+@router.get("/users/{user_id}/attributeNodes/{id}")
+def get_attribute_node(user_id: str, id: str):
+    path = f"graph_data/users/{user_id}/attributeNodes/{id}.json"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="AttributeNode not found")
+    with open(path) as f:
+        return json.load(f)
+
+@router.post("/users/{user_id}/attributeNodes/")
+def create_attribute_node(user_id: str, attr: AttributeNode):
+    attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json"
+    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+    os.makedirs(os.path.dirname(attr_path), exist_ok=True)
+    if os.path.exists(attr_path):
+        raise HTTPException(status_code=400, detail="AttributeNode already exists")
+    with open(attr_path, "w") as f:
+        json.dump(attr.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, attr.dict())
+    save_registry(reg_path, registry)
+
+    return {"status": "AttributeNode created and registered"}
+
+@router.put("/users/{user_id}/attributeNodes/{id}")
+def update_attribute_node(user_id: str, id: str, attr: AttributeNode):
+    attr_path = f"graph_data/users/{user_id}/attributeNodes/{id}.json"
+    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+    if not os.path.exists(attr_path):
+        raise HTTPException(status_code=404, detail="AttributeNode not found")
+    with open(attr_path, "w") as f:
+        json.dump(attr.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, attr.dict())
+    save_registry(reg_path, registry)
+
+    return {"status": "AttributeNode updated and registry synced"}
+
+@router.delete("/users/{user_id}/attributeNodes/{id}")
+def delete_attribute_node(user_id: str, id: str):
+    attr_path = f"graph_data/users/{user_id}/attributeNodes/{id}.json"
+    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+    if os.path.exists(attr_path):
+        os.remove(attr_path)
+
+        registry = load_registry(reg_path)
+        registry = remove_registry_entry(registry, id)
+        save_registry(reg_path, registry)
+
+        return {"status": "AttributeNode deleted and registry updated"}
+    raise HTTPException(status_code=404, detail="AttributeNode not found")
+
+@router.get("/users/{user_id}/attributeNodes")
+def list_attribute_nodes(user_id: str):
+    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+    return load_registry(reg_path)
