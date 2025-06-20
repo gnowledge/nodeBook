@@ -76,10 +76,19 @@ def load_registry(path: Path) -> dict:
 def save_registry(path: Path, registry: dict):
     save_json_file(path, registry)
 
-def make_relation_id(source: str, type_: str, target: str) -> str:
-    return f"{source}::{type_}::{target}"
+def make_relation_id(source: str, type_: str, target: str, adverb: str = "", modality: str = "") -> str:
+    parts = [source, adverb, type_, target, modality]
+    return '::'.join([p for p in parts if p])
 
-def make_attribute_id(node_id: str, name: str) -> str:
-    return f"{node_id}::{name}"
+def make_attribute_id(node_id: str, name: str, adverb: str = "", modality: str = "") -> str:
+    parts = [node_id, adverb, name, modality]
+    return '::'.join([p for p in parts if p])
+
+def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "", base_name: str = "") -> str:
+    parts = [quantifier, adverb, morph_name, base_name]
+    return '_'.join([p for p in parts if p])
+
+def make_morph_id(name: str, node_id: str) -> str:
+    return f"{name}_{node_id}"
 
 

@@ -5,7 +5,7 @@ from backend.routes.users import users_router
 import os
 import yaml
 
-from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline
+from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions
 # backend/app.py
 
 
@@ -33,6 +33,8 @@ app.include_router(graphs.router, prefix="/api")
 app.include_router(ndf_routes.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(parse_pipeline.router, prefix="/api")
+app.include_router(functions.router, prefix="/api")
+app.include_router(transitions.router, prefix="/api")
 
 
 

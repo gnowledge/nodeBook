@@ -1,6 +1,5 @@
-
 from pydantic import BaseModel
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Literal
 
 # Fundamental edge type
 class Relation(BaseModel):
@@ -44,13 +43,19 @@ class Node(BaseModel):
 
 # Morph represents a variation in neighborhood
 class Morph(BaseModel):
+    morph_id: str
+    node_id: str
     name: str
-    relations: Optional[List[Relation]] = []
+    relationNode_ids: Optional[List[str]] = []
+    attributeNode_ids: Optional[List[str]] = []
 
 # Polymorphic node model
 class PolyNode(BaseModel):
     id: str
     name: Optional[str] = None
+    base_name: Optional[str] = None
+    adjective: Optional[str] = None
+    quantifier: Optional[str] = None
     role: Optional[str] = "class"
     description: Optional[str] = None
     morphs: Optional[List[Morph]] = []
@@ -73,3 +78,12 @@ class Function(BaseModel):
     inputs: List[str]
     outputs: List[str]
     description: Optional[str] = None
+
+# Relation modeled as a node-connected entity
+class RelationNode(BaseModel):
+    id: str
+    name: str
+    source_id: str
+    target_id: str
+    adverb: Optional[str] = None
+    modality: Optional[str] = None

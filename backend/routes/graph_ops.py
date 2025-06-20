@@ -27,7 +27,7 @@ import os
 import json
 from fastapi import APIRouter, HTTPException
 from backend.core.id_utils import get_graph_path
-from backend.core.models import Attribute, Relation, AttributeNode
+from backend.core.models import Attribute, Relation, AttributeNode, RelationNode
 from backend.routes.nodes import create_node
 from backend.core.registry import (
     relation_registry_path, attribute_registry_path, load_registry, save_registry, make_relation_id, make_attribute_id
@@ -108,7 +108,7 @@ def create_attribute(user_id: str, graph_id: str, attr: Attribute):
         if not isinstance(value, list):
             value = [value] if value is not None else []
     entry = {
-        "id": make_attribute_id(attr.node_id, attr.name),
+        "id": make_attribute_id(attr.node_id, attr.name, attr.adverb or "", attr.modality or ""),
         "name": attr.name,
         "value": value,
         "unit": attr.unit,
@@ -164,7 +164,7 @@ def update_attribute(user_id: str, graph_id: str, node_id: str, attr_name: str, 
     # Update attribute registry
     reg_path = attribute_registry_path(user_id)
     registry = load_registry(reg_path)
-    attr_id = make_attribute_id(node_id, attr.name)
+    attr_id = make_attribute_id(node_id, attr.name, attr.adverb or "", attr.modality or "")
     if attr_id in registry:
         registry[attr_id].update({
             "name": attr.name,
@@ -189,7 +189,7 @@ def delete_attribute(user_id: str, graph_id: str, node_id: str, attr_name: str):
     # Remove from attribute registry
     reg_path = attribute_registry_path(user_id)
     registry = load_registry(reg_path)
-    attr_id = make_attribute_id(node_id, attr_name)
+    attr_id = make_attribute_id(node_id, attr_name, "", "")
     if attr_id in registry:
         del registry[attr_id]
         save_registry(reg_path, registry)
@@ -218,7 +218,7 @@ def create_relation(user_id: str, graph_id: str, rel: Relation):
     if any((r.get("type") or r.get("name")) == rel.name and r["target"] == rel.target for r in data.get("relations", [])):
         raise HTTPException(status_code=400, detail="Relation already exists")
     entry = {
-        "id": make_relation_id(rel.source, rel.name, rel.target),
+        "id": make_relation_id(rel.source, rel.name, rel.target, rel.adverb or "", rel.modality or ""),
         "type": rel.name,
         "source": rel.source,  # <-- Ensure source is included
         "target": rel.target,
@@ -268,13 +268,13 @@ def update_relation(user_id: str, graph_id: str, source: str, name: str, target:
     old_id = None
     for r in rels:
         if r["type"] == name and r["target"] == target:
-            old_id = r.get("id") or make_relation_id(source, name, target)
+            old_id = r.get("id") or make_relation_id(source, name, target, r.get("adverb", "") or "", r.get("modality", "") or "")
             r["type"] = rel.name
             r["source"] = rel.source  # always include source
             r["target"] = rel.target
             r["adverb"] = rel.adverb
             r["modality"] = rel.modality
-            r["id"] = make_relation_id(rel.source, rel.name, rel.target)
+            r["id"] = make_relation_id(rel.source, rel.name, rel.target, rel.adverb or "", rel.modality or "")
             found = True
             break
     if not found:
@@ -283,7 +283,7 @@ def update_relation(user_id: str, graph_id: str, source: str, name: str, target:
     # Update relation registry
     reg_path = relation_registry_path(user_id)
     registry = load_registry(reg_path)
-    new_id = make_relation_id(rel.source, rel.name, rel.target)
+    new_id = make_relation_id(rel.source, rel.name, rel.target, rel.adverb or "", rel.modality or "")
     # Remove old registry entry if id changed
     if old_id and old_id != new_id and old_id in registry:
         del registry[old_id]
@@ -317,7 +317,7 @@ def delete_relation(user_id: str, graph_id: str, source: str, name: str, target:
     # Remove from relation registry
     reg_path = relation_registry_path(user_id)
     registry = load_registry(reg_path)
-    rel_id = make_relation_id(source, name, target)
+    rel_id = make_relation_id(source, name, target, "", "")
     if rel_id in registry:
         del registry[rel_id]
         save_registry(reg_path, registry)
@@ -335,6 +335,7 @@ def get_attribute_node(user_id: str, id: str):
 
 @router.post("/users/{user_id}/attributeNodes/")
 def create_attribute_node(user_id: str, attr: AttributeNode):
+    attr.id = make_attribute_id(attr.source_id, attr.name, attr.adverb or "", attr.modality or "")
     attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json"
     reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
     os.makedirs(os.path.dirname(attr_path), exist_ok=True)
@@ -344,13 +345,14 @@ def create_attribute_node(user_id: str, attr: AttributeNode):
         json.dump(attr.dict(), f, indent=2)
 
     registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, attr.dict())
+    registry[attr.id] = attr.dict()
     save_registry(reg_path, registry)
 
     return {"status": "AttributeNode created and registered"}
 
 @router.put("/users/{user_id}/attributeNodes/{id}")
 def update_attribute_node(user_id: str, id: str, attr: AttributeNode):
+    attr.id = make_attribute_id(attr.source_id, attr.name, attr.adverb or "", attr.modality or "")
     attr_path = f"graph_data/users/{user_id}/attributeNodes/{id}.json"
     reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
     if not os.path.exists(attr_path):
@@ -359,7 +361,7 @@ def update_attribute_node(user_id: str, id: str, attr: AttributeNode):
         json.dump(attr.dict(), f, indent=2)
 
     registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, attr.dict())
+    registry[attr.id] = attr.dict()
     save_registry(reg_path, registry)
 
     return {"status": "AttributeNode updated and registry synced"}
@@ -381,4 +383,65 @@ def delete_attribute_node(user_id: str, id: str):
 @router.get("/users/{user_id}/attributeNodes")
 def list_attribute_nodes(user_id: str):
     reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+    return load_registry(reg_path)
+
+@router.get("/users/{user_id}/relationNodes/{id}")
+def get_relation_node(user_id: str, id: str):
+    path = f"graph_data/users/{user_id}/relationNodes/{id}.json"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="RelationNode not found")
+    with open(path) as f:
+        return json.load(f)
+
+@router.post("/users/{user_id}/relationNodes/")
+def create_relation_node(user_id: str, rel: RelationNode):
+    rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
+    rel_path = f"graph_data/users/{user_id}/relationNodes/{rel.id}.json"
+    reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
+    os.makedirs(os.path.dirname(rel_path), exist_ok=True)
+    if os.path.exists(rel_path):
+        raise HTTPException(status_code=400, detail="RelationNode already exists")
+    with open(rel_path, "w") as f:
+        json.dump(rel.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry[rel.id] = rel.dict()
+    save_registry(reg_path, registry)
+
+    return {"status": "RelationNode created and registered"}
+
+@router.put("/users/{user_id}/relationNodes/{id}")
+def update_relation_node(user_id: str, id: str, rel: RelationNode):
+    rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
+    rel_path = f"graph_data/users/{user_id}/relationNodes/{id}.json"
+    reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
+    if not os.path.exists(rel_path):
+        raise HTTPException(status_code=404, detail="RelationNode not found")
+    with open(rel_path, "w") as f:
+        json.dump(rel.dict(), f, indent=2)
+
+    registry = load_registry(reg_path)
+    registry[rel.id] = rel.dict()
+    save_registry(reg_path, registry)
+
+    return {"status": "RelationNode updated and registry synced"}
+
+@router.delete("/users/{user_id}/relationNodes/{id}")
+def delete_relation_node(user_id: str, id: str):
+    rel_path = f"graph_data/users/{user_id}/relationNodes/{id}.json"
+    reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
+    if os.path.exists(rel_path):
+        os.remove(rel_path)
+
+        registry = load_registry(reg_path)
+        if id in registry:
+            del registry[id]
+            save_registry(reg_path, registry)
+
+        return {"status": "RelationNode deleted and registry updated"}
+    raise HTTPException(status_code=404, detail="RelationNode not found")
+
+@router.get("/users/{user_id}/relationNodes")
+def list_relation_nodes(user_id: str):
+    reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
     return load_registry(reg_path)

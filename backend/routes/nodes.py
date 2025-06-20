@@ -7,13 +7,13 @@ from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
 from backend.summary_queue_singleton import init_summary_queue
 import json
 import time
-from backend.core.models import Attribute, Relation, PolyNode
+from backend.core.models import Attribute, Relation, PolyNode, Morph
 
 from backend.core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
 from backend.core.compose import compose_graph
-from backend.core.registry import load_node_registry
+from backend.core.registry import load_node_registry, make_polynode_id, make_morph_id
 
 router = APIRouter()
 
@@ -226,6 +226,8 @@ def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
 
 @router.post("/users/{user_id}/polynodes/")
 def create_polynode(user_id: str, node: PolyNode):
+    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
+    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
     path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
 
@@ -252,6 +254,8 @@ def get_polynode(user_id: str, id: str):
 
 @router.put("/users/{user_id}/polynodes/{id}")
 def update_polynode(user_id: str, id: str, node: PolyNode):
+    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
+    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
     path = f"graph_data/users/{user_id}/nodes/{id}.json"
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
 
@@ -271,3 +275,80 @@ def list_polynodes(user_id: str):
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
     registry = load_registry(reg_path)
     return [n for n in registry if n.get("role", "") == "class"]
+
+# ---------- Morph Routes ----------
+
+@router.post("/users/{user_id}/morphs/")
+def create_morph(user_id: str, morph: Morph):
+    morph.morph_id = make_morph_id(morph.name, morph.node_id)
+    morph_path = f"graph_data/users/{user_id}/morphs/{morph.morph_id}.json"
+    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
+    os.makedirs(os.path.dirname(morph_path), exist_ok=True)
+    if os.path.exists(morph_path):
+        raise HTTPException(status_code=400, detail="Morph already exists")
+    with open(morph_path, "w") as f:
+        json.dump(morph.dict(), f, indent=2)
+    # Update registry
+    if os.path.exists(reg_path):
+        with open(reg_path) as f:
+            registry = json.load(f)
+    else:
+        registry = {}
+    registry[morph.morph_id] = morph.dict()
+    with open(reg_path, "w") as f:
+        json.dump(registry, f, indent=2)
+    return {"status": "Morph created and registered"}
+
+@router.get("/users/{user_id}/morphs/{morph_id}")
+def get_morph(user_id: str, morph_id: str):
+    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
+    if not os.path.exists(morph_path):
+        raise HTTPException(status_code=404, detail="Morph not found")
+    with open(morph_path) as f:
+        return json.load(f)
+
+@router.put("/users/{user_id}/morphs/{morph_id}")
+def update_morph(user_id: str, morph_id: str, morph: Morph):
+    morph.morph_id = make_morph_id(morph.name, morph.node_id)
+    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
+    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
+    if not os.path.exists(morph_path):
+        raise HTTPException(status_code=404, detail="Morph not found")
+    with open(morph_path, "w") as f:
+        json.dump(morph.dict(), f, indent=2)
+    # Update registry
+    if os.path.exists(reg_path):
+        with open(reg_path) as f:
+            registry = json.load(f)
+    else:
+        registry = {}
+    registry[morph.morph_id] = morph.dict()
+    with open(reg_path, "w") as f:
+        json.dump(registry, f, indent=2)
+    return {"status": "Morph updated and registry synced"}
+
+@router.delete("/users/{user_id}/morphs/{morph_id}")
+def delete_morph(user_id: str, morph_id: str):
+    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
+    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
+    if os.path.exists(morph_path):
+        os.remove(morph_path)
+        # Update registry
+        if os.path.exists(reg_path):
+            with open(reg_path) as f:
+                registry = json.load(f)
+            if morph_id in registry:
+                del registry[morph_id]
+                with open(reg_path, "w") as f:
+                    json.dump(registry, f, indent=2)
+        return {"status": "Morph deleted and registry updated"}
+    raise HTTPException(status_code=404, detail="Morph not found")
+
+@router.get("/users/{user_id}/morphs")
+def list_morphs(user_id: str):
+    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
+    if os.path.exists(reg_path):
+        with open(reg_path) as f:
+            registry = json.load(f)
+        return list(registry.values())
+    return []
