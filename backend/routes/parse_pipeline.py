@@ -5,44 +5,44 @@ import yaml
 import json
 import re
 import os
-from backend.core.models import Attribute, Relation
-from backend.routes.graph_ops import create_attribute, create_relation
+from backend.core.models import AttributeNode, RelationNode
+from backend.routes.graph_ops import create_attribute_node, create_relation_node
 from backend.core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
 from backend.core.compose import compose_graph
+from backend.core.registry import make_attribute_id, make_relation_id
+from backend.routes.schema_routes import get_relation_types
 
 router = APIRouter()
 
 # --- Backend CRUD helpers for attributes and relations ---
 def create_attribute_helper(user_id, graph_id, attr_dict, report):
     try:
-        attr = Attribute(
-            id=attr_dict.get('id') or f"{attr_dict['target_node']}::{attr_dict['attribute_name']}",
+        attr = AttributeNode(
+            id=make_attribute_id(attr_dict['target_node'], attr_dict['attribute_name'], attr_dict.get('adverb', ''), attr_dict.get('modality', '')),
+            source_id=attr_dict['target_node'],
             name=attr_dict['attribute_name'],
             value=attr_dict.get('value'),
             unit=attr_dict.get('unit'),
             adverb=attr_dict.get('adverb'),
             modality=attr_dict.get('modality'),
-            # node_id is not a field in Attribute, but is required for backend logic
         )
-        # Patch: Attribute model does not have node_id, but backend expects it
-        attr.node_id = attr_dict['target_node']
-        create_attribute(user_id, graph_id, attr)
+        create_attribute_node(user_id, graph_id, attr)
     except Exception as e:
         report.append({'type': 'error', 'stage': 'create_attribute_helper', 'message': str(e), 'attr': attr_dict})
 
 def create_relation_helper(user_id, graph_id, rel_dict, report):
     try:
-        rel = Relation(
-            id=rel_dict.get('id') or f"{rel_dict['source_node']}::{rel_dict['relation_name']}::{rel_dict['target_node_id']}",
+        rel = RelationNode(
+            id=make_relation_id(rel_dict['source_node'], rel_dict['relation_name'], rel_dict['target_node_id'], rel_dict.get('adverb', ''), rel_dict.get('modality', '')),
+            source_id=rel_dict['source_node'],
             name=rel_dict['relation_name'],
-            source=rel_dict['source_node'],
-            target=rel_dict['target_node_id'],
+            target_id=rel_dict['target_node_id'],
             adverb=rel_dict.get('adverb'),
             modality=rel_dict.get('modality'),
         )
-        create_relation(user_id, graph_id, rel)
+        create_relation_node(user_id, graph_id, rel)
     except Exception as e:
         report.append({'type': 'error', 'stage': 'create_relation_helper', 'message': str(e), 'rel': rel_dict})
 
@@ -100,7 +100,7 @@ def extract_quantifier(node_name: str) -> str:
     matches = re.findall(r'(?<!\*)\*([^*]+)\*(?!\*)', node_name)
     return matches[0].strip() if matches else ''
 
-def compose_node_id(quantifier: str, qualifier: str, base_name: str, report: list = None) -> str:
+def compose_node_id(quantifier: str, qualifier: str, base_name: str, report: list = None) -> Optional[str]:
     """Compose a node id as quantifier_qualifier_base_name, skipping empty parts and joining with underscores. base_name is mandatory. If missing, append to report and return None."""
     if not base_name:
         if report is not None:
@@ -264,6 +264,10 @@ def extract_relations_from_cnl_block(cnl_block: str, source_node: str, report: l
             target_qualifier = extract_qualifier(target_node_name)
             target_quantifier = extract_quantifier(target_node_name)
             target_node_id = compose_node_id(target_quantifier, target_qualifier, target_base_name)
+            # Skip this relation if target_node_id is None
+            if not target_node_id:
+                report.append({'type': 'error', 'stage': 'extract_relations', 'message': f'Could not compose target node ID for: {target_node_name}', 'source_node': source_node})
+                continue
             # --- Role inference logic ---
             if rel_name_norm in {"member_of", "belongs_to", "element_of"}:
                 role_inferences.append({
@@ -318,11 +322,10 @@ def parse_pipeline(
     attribute_list = []
     relation_list = []
 
-    # Load valid relation names from global relation_types.json
-    relation_types_path = os.path.join("graph_data", "global", "relation_types.json")
+    # Load valid relation names from combined schemas (global + user)
     try:
-        with open(relation_types_path, 'r') as f:
-            relation_types = json.load(f)
+        # Import the schema functions to get combined schemas
+        relation_types = get_relation_types(user_id, graph_id)
         # Build a mapping: normalized_name -> original_name
         valid_relation_name_map = {normalize_relation_name(rt['name']): rt['name'] for rt in relation_types if 'name' in rt}
         valid_relation_names = set(valid_relation_name_map.keys())
@@ -426,7 +429,9 @@ def parse_pipeline(
         save_section_node(user_id, node, node_registry_path, report, graph_id)
 
     # --- Compose graph output ---
-    composed = compose_graph(user_id, graph_id, [n['node_id'] for n in node_list], graph_description, report)
+    # Convert report list to dict format expected by compose_graph
+    report_dict = {"errors": report} if report else {}
+    composed = compose_graph(user_id, graph_id, [n['node_id'] for n in node_list], graph_description, report_dict)
     composed_json_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.json")
     composed_yaml_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.yaml")
     result = {

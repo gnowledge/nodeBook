@@ -8,6 +8,7 @@ import secrets
 import os
 from pathlib import Path
 from passlib.context import CryptContext
+import json
 
 # ---------- CONFIG ----------
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "graph_data"
@@ -54,6 +55,49 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     async def on_after_register(self, user: User, request=None):
         # Only print username and email, not hashed_password
         print(f"[DEBUG] User registered: username={getattr(user, 'username', None)}, email={getattr(user, 'email', None)}")
+        
+        # Initialize user directory structure
+        await self.initialize_user_directories(str(user.id))
+    
+    async def initialize_user_directories(self, user_id: str):
+        """Create the necessary directory structure and default files for a new user."""
+        
+        # Base user directory
+        user_dir = Path("graph_data") / "users" / user_id
+        user_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create subdirectories
+        subdirs = [
+            "nodes",
+            "attributeNodes", 
+            "relationNodes",
+            "morphs",
+            "transitions",
+            "functions",
+            "graphs",
+            "schemas"  # For user-specific schema extensions
+        ]
+        
+        for subdir in subdirs:
+            (user_dir / subdir).mkdir(exist_ok=True)
+        
+        # Create default registry files
+        registries = [
+            "node_registry.json",
+            "attribute_registry.json", 
+            "relation_node_registry.json",
+            "morph_registry.json",
+            "transition_registry.json",
+            "function_registry.json"
+        ]
+        
+        for registry in registries:
+            registry_path = user_dir / registry
+            if not registry_path.exists():
+                with open(registry_path, 'w') as f:
+                    json.dump({}, f)
+        
+        print(f"[DEBUG] Initialized directories for user {user_id}")
 
     async def validate_password(self, password: str, user: User) -> None:
         pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")

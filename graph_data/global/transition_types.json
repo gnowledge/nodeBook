@@ -1,0 +1,20 @@
+[
+  {
+    "name": "transform",
+    "description": "Transform one entity into another",
+    "inputs": [
+      "individual"
+    ],
+    "outputs": [
+      "individual"
+    ]
+  },
+  {
+    "name": "create",
+    "description": "Create a new entity",
+    "inputs": [],
+    "outputs": [
+      "individual"
+    ]
+  }
+]

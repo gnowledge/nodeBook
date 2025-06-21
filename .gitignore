@@ -71,9 +71,9 @@ dmypy.json
 # FastAPI / Uvicorn logs
 *.log
 
-# Local data
-graph_data/
-*.db
+# Local data - exclude users directory but allow global schemas
+graph_data/users/
+graph_data/*.db
 
 # VS Code and other editor configs
 .vscode/

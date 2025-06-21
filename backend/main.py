@@ -1,11 +1,11 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from backend.routes.users import users_router
 import os
-import yaml
+from pathlib import Path
 
 from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions
+from backend.core.schema_ops import ensure_schema_file
 # backend/app.py
 
 
@@ -46,17 +46,52 @@ def health_check():
 # ✅ Create graph data directory
 os.makedirs("graph_data", exist_ok=True)
 
-# ✅ YAML-based NodeType CRUD (kept inline for now)
-router = APIRouter()
-NODE_TYPES_FILE = "global/node_types.yaml"
+# Initialize global schema files with default data
+def initialize_global_schemas():
+    """Initialize global schema files with default data if they don't exist."""
+    
+    # Check if the global directory exists and has the basic schema files
+    global_dir = Path("graph_data/global")
+    if not global_dir.exists():
+        print("[INFO] Creating global schema directory...")
+        global_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Only create default files if they don't already exist
+    # This preserves existing schema files that may have been contributed by others
+    
+    # Check for transition_types.json - create if missing
+    if not (global_dir / "transition_types.json").exists():
+        print("[INFO] Creating default transition_types.json...")
+        default_transition_types = [
+            {
+                "name": "transform",
+                "description": "Transform one entity into another",
+                "inputs": ["individual"],
+                "outputs": ["individual"]
+            },
+            {
+                "name": "create",
+                "description": "Create a new entity",
+                "inputs": [],
+                "outputs": ["individual"]
+            }
+        ]
+        ensure_schema_file("transition_types.json", default_transition_types)
+    
+    # Check for function_types.json - create if missing
+    if not (global_dir / "function_types.json").exists():
+        print("[INFO] Creating default function_types.json...")
+        default_function_types = [
+            {
+                "name": "calculate",
+                "description": "Perform a calculation",
+                "inputs": ["number", "number"],
+                "outputs": ["number"]
+            }
+        ]
+        ensure_schema_file("function_types.json", default_function_types)
+    
+    print("[INFO] Global schemas initialized. Using existing schema files from graph_data/global/")
 
-class NodeType(BaseModel):
-    name: str
-    description: str
-
-
-# Mount custom node-type YAML router
-app.include_router(router, prefix="/api")
-
-# Double-check that you do not have another route (in any router) that matches
-# /api/users/{user_id}/graphs/{graph_id}/graph, which could shadow or override this one.
+# Initialize schemas on startup
+initialize_global_schemas()

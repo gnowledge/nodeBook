@@ -1,13 +1,7 @@
 import os
-from ruamel.yaml import YAML
+import json
+import re
 from collections import OrderedDict
-try:
-    from backend.config import get_data_root
-except ImportError:
-    from config import get_data_root
-yaml = YAML()
-yaml.indent(mapping=2, sequence=4, offset=2)
-yaml.default_flow_style = False
 from pathlib import Path
 
 ATTRIBUTE_TYPE_KEYS = ["name", "data_type", "description", "allowed_values", "unit"]
@@ -15,7 +9,7 @@ RELATION_TYPE_KEYS = ["name", "inverse_name", "description", "domain", "range"]
 NODE_TYPE_KEYS = ["name", "description", "parent_types"]
 
 
-GLOBAL_SCHEMA_PATH = os.path.join(get_data_root(), "graph_data", "global")
+GLOBAL_SCHEMA_PATH = "graph_data/global"
 
 def ordered_schema_dict(entry: dict, key_order: list[str]) -> OrderedDict:
     ordered = OrderedDict()
@@ -33,13 +27,13 @@ def ensure_schema_file(file_name, default_data):
     if not os.path.exists(file_path):
         os.makedirs(GLOBAL_SCHEMA_PATH, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
-            yaml.dump(default_data, f)
+            json.dump(default_data, f, indent=2)
     return file_path
 
 def load_schema(file_name, default_data):
     file_path = ensure_schema_file(file_name, default_data)
     with open(file_path, encoding="utf-8") as f:
-        data = yaml.load(f)
+        data = json.load(f)
     return data or default_data
 
 def validate_schema_entry(entry: dict, required_keys: list[str], file_name: str) -> None:
@@ -68,21 +62,21 @@ def save_schema(file_name, data: list[dict]):
         formatted.append(ordered_schema_dict(entry, key_order))
 
     with open(file_path, "w", encoding="utf-8") as f:
-        yaml.dump(formatted, f)
+        json.dump(formatted, f, indent=2)
 
-def load_schema_yaml(file_name: str, default_data: list):
+def load_schema_json(file_name: str, default_data: list):
     file_path = ensure_schema_file(file_name, default_data)
     with open(file_path, encoding="utf-8") as f:
-        data = yaml.load(f)
+        data = json.load(f)
     if data is None:
         with open(file_path, "w", encoding="utf-8") as f:
-            yaml.dump(default_data, f)
+            json.dump(default_data, f, indent=2)
         return default_data
     return data
 
 
 def create_attribute_type_from_dict(data: dict):
-    attr_types = load_schema("attribute_types.yaml", default_data=[])
+    attr_types = load_schema("attribute_types.json", default_data=[])
     existing_names = {a["name"] for a in attr_types}
     if data["name"] in existing_names:
         return  # or raise or skip silently
@@ -93,11 +87,11 @@ def create_attribute_type_from_dict(data: dict):
         ("unit", data["unit"]),
         ("applicable_classes", data["applicable_classes"]),
     ]))
-    save_schema("attribute_types.yaml", attr_types)
+    save_schema("attribute_types.json", attr_types)
 
 
 def create_relation_type_from_dict(data: dict):
-    rel_types = load_schema("relation_types.yaml", default_data=[])
+    rel_types = load_schema("relation_types.json", default_data=[])
     existing_names = {r["name"] for r in rel_types}
     if data["name"] in existing_names:
         return
@@ -108,7 +102,7 @@ def create_relation_type_from_dict(data: dict):
         ("domain", data["domain"]),
         ("range", data["range"]),
     ]))
-    save_schema("relation_types.yaml", rel_types)
+    save_schema("relation_types.json", rel_types)
 
 
 def parse_cnl_block(block: str) -> list[dict]:
@@ -148,13 +142,14 @@ def parse_cnl_block(block: str) -> list[dict]:
         # [existing parsing continues...]
     return statements
     
-def filter_used_schema(parsed_yaml_path, relation_schema_path, attribute_schema_path, output_path):
+def filter_used_schema(parsed_json_path, relation_schema_path, attribute_schema_path, output_path):
     """
     Filters only the used relation and attribute types from the global schema
-    and writes them into used_schema.yaml.
+    and writes them into used_schema.json.
     """
     # Load parsed graph
-    parsed_data = yaml.safe_load(Path(parsed_yaml_path).read_text())
+    with open(parsed_json_path, 'r') as f:
+        parsed_data = json.load(f)
 
     # Collect used relation and attribute names
     used_relation_names = set()
@@ -167,8 +162,10 @@ def filter_used_schema(parsed_yaml_path, relation_schema_path, attribute_schema_
             used_attribute_names.add(attr["name"])
 
     # Load global schemas
-    global_relations = yaml.safe_load(Path(relation_schema_path).read_text())
-    global_attributes = yaml.safe_load(Path(attribute_schema_path).read_text())
+    with open(relation_schema_path, 'r') as f:
+        global_relations = json.load(f)
+    with open(attribute_schema_path, 'r') as f:
+        global_attributes = json.load(f)
 
     # Filter schemas
     used_relations = [r for r in global_relations if r["name"] in used_relation_names]
@@ -182,6 +179,6 @@ def filter_used_schema(parsed_yaml_path, relation_schema_path, attribute_schema_
 
     # Write to file
     with open(output_path, "w") as f:
-        yaml.dump(used_schema, f, sort_keys=False)
+        json.dump(used_schema, f, indent=2, sort_keys=False)
 
     return used_schema

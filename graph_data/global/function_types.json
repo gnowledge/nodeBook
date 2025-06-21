@@ -1,0 +1,13 @@
+[
+  {
+    "name": "calculate",
+    "description": "Perform a calculation",
+    "inputs": [
+      "number",
+      "number"
+    ],
+    "outputs": [
+      "number"
+    ]
+  }
+]

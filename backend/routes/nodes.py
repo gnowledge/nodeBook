@@ -44,119 +44,79 @@ def list_all_nodes(user_id: str, graph_id: str):
                     nodes.append(summary)
     return nodes
 
-@router.post("/users/{user_id}/graphs/{graph_id}/nodes")
-def create_node(user_id: str, graph_id: str, node: Node):
-    user_id = get_user_id(user_id)
-    # Canonical extraction of node fields
-    node_name = extract_node_name_as_is(node.name)
-    base_name = extract_base_name(node_name)
-    qualifier = extract_qualifier(node_name)
-    quantifier = extract_quantifier(node_name)
-    node_id = compose_node_id(quantifier, qualifier, base_name)
-    node_data = {
-        "id": node_id,
-        "name": node_name,
-        "base_name": base_name,
-        "qualifier": qualifier,
-        "quantifier": quantifier,
-        "role": node.role,
-        "description": node.description,
-        "attributes": [a.dict() for a in (node.attributes or [])],
-        "relations": [r.dict() for r in (node.relations or [])]
-    }
-    save_node(user_id, graph_id, node_id, node_data)
-    # --- Update node_registry.json ---
-    registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
-    try:
-        if os.path.exists(registry_path):
-            with open(registry_path, 'r') as f:
-                registry = json.load(f)
-        else:
-            registry = {}
-    except Exception:
-        registry = {}
-    if node_id not in registry:
-        registry[node_id] = {
-            "name": node.name,
-            "graphs": [graph_id],
-            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S'),
-            "updated_at": time.strftime('%Y-%m-%dT%H:%M:%S')
-        }
-    else:
-        if graph_id not in registry[node_id].get("graphs", []):
-            registry[node_id]["graphs"].append(graph_id)
-        registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2)
-    # Regenerate composed.json after node change (use compose_graph)
-    node_registry = load_node_registry(user_id)
-    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
-    compose_graph(user_id, graph_id, node_ids)
-    return {"status": "node created", "id": node_id}
+# --- Legacy Node CRUD functions (commented out, kept for reference) ---
+# @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
+# def create_node(user_id: str, graph_id: str, node: Node):
+#     ... (legacy logic)
+#
+# @router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
+# def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
+#     ... (legacy logic)
+#
+# @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
+# def get_node(user_id: str, graph_id: str, node_id: str):
+#     ... (legacy logic)
+#
+# @router.get("/users/{user_id}/graphs/{graph_id}/getInfo/{node_id}")
+# def get_node_info(user_id: str, graph_id: str, node_id: str):
+#     ... (legacy logic)
 
-@router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
-def update_node(user_id: str, graph_id: str, node_id: str, node: Node):
-    user_id = get_user_id(user_id)
-    # Load existing node or raise
-    try:
-        existing = load_node(user_id, graph_id, node_id)
-    except Exception:
-        raise HTTPException(status_code=404, detail="Node not found")
-    # Update fields
-    updated = existing.copy()
-    updated["id"] = node.id or node_id
-    updated["name"] = node.name or existing.get("name")
-    updated["qualifier"] = node.qualifier or existing.get("qualifier")
-    updated["role"] = node.role or existing.get("role")
-    updated["description"] = node.description or existing.get("description")
-    updated["attributes"] = [a.dict() for a in (node.attributes or [])] or existing.get("attributes", [])
-    updated["relations"] = [r.dict() for r in (node.relations or [])] or existing.get("relations", [])
-    save_node(user_id, graph_id, node_id, updated)
-    # --- Update node_registry.json ---
-    registry_path = os.path.join("graph_data", "users", user_id, "node_registry.json")
-    try:
-        if os.path.exists(registry_path):
-            with open(registry_path, 'r') as f:
-                registry = json.load(f)
-        else:
-            registry = {}
-    except Exception:
-        registry = {}
-    if node_id not in registry:
-        registry[node_id] = {
-            "name": updated["name"],
-            "graphs": [graph_id],
-            "created_at": time.strftime('%Y-%m-%dT%H:%M:%S'),
-            "updated_at": time.strftime('%Y-%m-%dT%H:%M:%S')
-        }
-    else:
-        if graph_id not in registry[node_id].get("graphs", []):
-            registry[node_id]["graphs"].append(graph_id)
-        registry[node_id]["updated_at"] = time.strftime('%Y-%m-%dT%H:%M:%S')
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2)
+# --- PolyNode CRUD with legacy route decorators ---
+@router.post("/users/{user_id}/graphs/{graph_id}/nodes")
+def create_polynode(user_id: str, graph_id: str, node: PolyNode):
+    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
+    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
+    path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        raise HTTPException(status_code=400, detail="Node already exists")
+    with open(path, "w") as f:
+        json.dump(node.dict(), f, indent=2)
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
+    save_registry(reg_path, registry)
     # Regenerate composed.json after node change
     node_registry = load_node_registry(user_id)
     node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
     compose_graph(user_id, graph_id, node_ids)
-    return {"status": "node updated", "id": node_id}
+    return {"status": "PolyNode created and registered", "id": node.id}
+
+@router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
+def update_polynode(user_id: str, graph_id: str, node_id: str, node: PolyNode):
+    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
+    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
+    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Node not found")
+    with open(path, "w") as f:
+        json.dump(node.dict(), f, indent=2)
+    registry = load_registry(reg_path)
+    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
+    save_registry(reg_path, registry)
+    # Regenerate composed.json after node change
+    node_registry = load_node_registry(user_id)
+    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+    compose_graph(user_id, graph_id, node_ids)
+    return {"status": "PolyNode updated and registry synced", "id": node.id}
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
-def get_node(user_id: str, graph_id: str, node_id: str):
-    summary = safe_node_summary(user_id, graph_id, node_id)
-    if summary:
-        return summary
-    else:
+def get_polynode(user_id: str, graph_id: str, node_id: str):
+    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
+    if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
+    with open(path) as f:
+        return json.load(f)
 
 @router.get("/users/{user_id}/graphs/{graph_id}/getInfo/{node_id}")
-def get_node_info(user_id: str, graph_id: str, node_id: str):
-    user_id = get_user_id(user_id)
-    try:
-        node = load_node(user_id, graph_id, node_id)
-    except Exception:
+def get_polynode_info(user_id: str, graph_id: str, node_id: str):
+    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
+    if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
-    # Ensure attributes and relations are always present and are lists
+    with open(path) as f:
+        node = json.load(f)
+    # Ensure attributes and relations are always present and are lists (for legacy UI compatibility)
     node["attributes"] = node.get("attributes", [])
     node["relations"] = node.get("relations", [])
     return node
@@ -224,26 +184,6 @@ def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
 
 # ---------- PolyNode Routes ----------
 
-@router.post("/users/{user_id}/polynodes/")
-def create_polynode(user_id: str, node: PolyNode):
-    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
-    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
-    path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
-    reg_path = f"graph_data/users/{user_id}/node_registry.json"
-
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if os.path.exists(path):
-        raise HTTPException(status_code=400, detail="Node already exists")
-
-    with open(path, "w") as f:
-        json.dump(node.dict(), f, indent=2)
-
-    registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
-    save_registry(reg_path, registry)
-
-    return {"status": "PolyNode created and registered"}
-
 @router.get("/users/{user_id}/polynodes/{id}")
 def get_polynode(user_id: str, id: str):
     path = f"graph_data/users/{user_id}/nodes/{id}.json"
@@ -251,24 +191,6 @@ def get_polynode(user_id: str, id: str):
         raise HTTPException(status_code=404, detail="Node not found")
     with open(path) as f:
         return json.load(f)
-
-@router.put("/users/{user_id}/polynodes/{id}")
-def update_polynode(user_id: str, id: str, node: PolyNode):
-    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
-    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
-    path = f"graph_data/users/{user_id}/nodes/{id}.json"
-    reg_path = f"graph_data/users/{user_id}/node_registry.json"
-
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Node not found")
-    with open(path, "w") as f:
-        json.dump(node.dict(), f, indent=2)
-
-    registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
-    save_registry(reg_path, registry)
-
-    return {"status": "PolyNode updated and registry synced"}
 
 @router.get("/users/{user_id}/polynodes")
 def list_polynodes(user_id: str):

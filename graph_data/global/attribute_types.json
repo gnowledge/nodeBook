@@ -1,0 +1,450 @@
+[
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Measures electric charge. Example: An electron has a charge of -1.602×10⁻¹⁹ C.",
+    "domain": [
+      "Electron",
+      "Ion"
+    ],
+    "name": "charge",
+    "unit": "coulomb (C)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Quantifies the capacity to do work. Example: A battery stores electrical energy.",
+    "domain": [
+      "Particle",
+      "Field",
+      "Reaction"
+    ],
+    "name": "energy",
+    "unit": "joule (J)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Measures the amount of matter in an object. Example: Earth's mass is ~5.97 × 10^24 kg.",
+    "domain": [
+      "Particle",
+      "Planet",
+      "Organism"
+    ],
+    "name": "mass",
+    "unit": "kilogram (kg)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "number",
+    "description": "Number of inhabitants",
+    "domain": [
+      "City",
+      "Region",
+      "Country"
+    ],
+    "name": "population",
+    "unit": null
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Indicates thermal energy level. Example: Water boils at 373.15 K.",
+    "domain": [
+      "Gas",
+      "Liquid",
+      "Solid"
+    ],
+    "name": "temperature",
+    "unit": "kelvin (K)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Describes the rate of change of position. Example: A car moving at 60 km/h.",
+    "domain": [
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "velocity",
+    "unit": "meters per second (m/s)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Any place will have an attribute 'area'",
+    "domain": [
+      "Place"
+    ],
+    "name": "area",
+    "unit": null
+  },
+  {
+    "name": "Alternate name",
+    "data_type": "string",
+    "description": "Any thing that is called by another name",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "name",
+    "data_type": "string",
+    "description": "The primary name or title of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "description",
+    "data_type": "string",
+    "description": "A detailed description or explanation of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "identifier",
+    "data_type": "string",
+    "description": "A unique identifier or code for an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "url",
+    "data_type": "string",
+    "description": "A web address or link associated with an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "email",
+    "data_type": "string",
+    "description": "An email address associated with a person or organization",
+    "unit": null,
+    "domain": ["Person", "Organization"],
+    "allowed_values": null
+  },
+  {
+    "name": "phone",
+    "data_type": "string",
+    "description": "A phone number associated with a person or organization",
+    "unit": null,
+    "domain": ["Person", "Organization"],
+    "allowed_values": null
+  },
+  {
+    "name": "birth_date",
+    "data_type": "date",
+    "description": "The date when a person was born",
+    "unit": null,
+    "domain": ["Person"],
+    "allowed_values": null
+  },
+  {
+    "name": "death_date",
+    "data_type": "date",
+    "description": "The date when a person died",
+    "unit": null,
+    "domain": ["Person"],
+    "allowed_values": null
+  },
+  {
+    "name": "founded_date",
+    "data_type": "date",
+    "description": "The date when an organization was established",
+    "unit": null,
+    "domain": ["Organization"],
+    "allowed_values": null
+  },
+  {
+    "name": "start_date",
+    "data_type": "date",
+    "description": "The beginning date of an event or period",
+    "unit": null,
+    "domain": ["Event"],
+    "allowed_values": null
+  },
+  {
+    "name": "end_date",
+    "data_type": "date",
+    "description": "The ending date of an event or period",
+    "unit": null,
+    "domain": ["Event"],
+    "allowed_values": null
+  },
+  {
+    "name": "created_date",
+    "data_type": "date",
+    "description": "The date when an entity was created",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "modified_date",
+    "data_type": "date",
+    "description": "The date when an entity was last modified",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "latitude",
+    "data_type": "float",
+    "description": "Geographic latitude coordinate",
+    "unit": "degrees",
+    "domain": ["Place", "Location"],
+    "allowed_values": null
+  },
+  {
+    "name": "longitude",
+    "data_type": "float",
+    "description": "Geographic longitude coordinate",
+    "unit": "degrees",
+    "domain": ["Place", "Location"],
+    "allowed_values": null
+  },
+  {
+    "name": "elevation",
+    "data_type": "float",
+    "description": "Height above sea level",
+    "unit": "meters",
+    "domain": ["Place", "Location"],
+    "allowed_values": null
+  },
+  {
+    "name": "width",
+    "data_type": "float",
+    "description": "The width dimension of an object",
+    "unit": "meters",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "height",
+    "data_type": "float",
+    "description": "The height dimension of an object",
+    "unit": "meters",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "depth",
+    "data_type": "float",
+    "description": "The depth dimension of an object",
+    "unit": "meters",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "weight",
+    "data_type": "float",
+    "description": "The weight of an object",
+    "unit": "kilograms",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "color",
+    "data_type": "string",
+    "description": "The color of an object",
+    "unit": null,
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "material",
+    "data_type": "string",
+    "description": "The material an object is made of",
+    "unit": null,
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "status",
+    "data_type": "string",
+    "description": "The current status or state of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": ["active", "inactive", "pending", "completed", "cancelled"]
+  },
+  {
+    "name": "type",
+    "data_type": "string",
+    "description": "The type or category of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "category",
+    "data_type": "string",
+    "description": "A category or classification of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "tag",
+    "data_type": "string",
+    "description": "A tag or label associated with an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "language",
+    "data_type": "string",
+    "description": "The language of a document or communication",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "format",
+    "data_type": "string",
+    "description": "The format of a document or file",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "size",
+    "data_type": "number",
+    "description": "The size of a file or document in bytes",
+    "unit": "bytes",
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "version",
+    "data_type": "string",
+    "description": "The version number of an entity",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "author",
+    "data_type": "string",
+    "description": "The author or creator of a document or work",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "publisher",
+    "data_type": "string",
+    "description": "The publisher of a document or work",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "isbn",
+    "data_type": "string",
+    "description": "International Standard Book Number",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "issn",
+    "data_type": "string",
+    "description": "International Standard Serial Number",
+    "unit": null,
+    "domain": ["Document"],
+    "allowed_values": null
+  },
+  {
+    "name": "price",
+    "data_type": "float",
+    "description": "The price or cost of an item",
+    "unit": "currency",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "currency",
+    "data_type": "string",
+    "description": "The currency used for a price or monetary value",
+    "unit": null,
+    "domain": [],
+    "allowed_values": ["USD", "EUR", "GBP", "JPY", "CNY", "INR"]
+  },
+  {
+    "name": "rating",
+    "data_type": "float",
+    "description": "A numerical rating or score",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "score",
+    "data_type": "float",
+    "description": "A numerical score or grade",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "count",
+    "data_type": "number",
+    "description": "A count or quantity of items",
+    "unit": null,
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "percentage",
+    "data_type": "float",
+    "description": "A percentage value",
+    "unit": "percent",
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "frequency",
+    "data_type": "float",
+    "description": "The frequency of occurrence or repetition",
+    "unit": "hertz (Hz)",
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "duration",
+    "data_type": "float",
+    "description": "The duration or length of time",
+    "unit": "seconds",
+    "domain": ["Event"],
+    "allowed_values": null
+  },
+  {
+    "name": "distance",
+    "data_type": "float",
+    "description": "The distance between two points",
+    "unit": "meters",
+    "domain": [],
+    "allowed_values": null
+  },
+  {
+    "name": "volume",
+    "data_type": "float",
+    "description": "The volume of an object or container",
+    "unit": "cubic meters",
+    "domain": ["Object"],
+    "allowed_values": null
+  },
+  {
+    "name": "density",
+    "data_type": "float",
+    "description": "The density of a material",
+    "unit": "kg/m³",
+    "domain": ["Object"],
+    "allowed_values": null
+  }
+]
