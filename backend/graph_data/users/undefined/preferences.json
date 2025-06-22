@@ -1,0 +1,15 @@
+{
+  "graphLayout": "dagre",
+  "language": "en",
+  "educationLevel": "undergraduate",
+  "landingTab": "workspace-stats",
+  "difficulty": "expert",
+  "subjectOrder": "SVO",
+  "theme": "system",
+  "fontSize": "medium",
+  "showTooltips": true,
+  "autosave": false,
+  "showScorecardOnSave": true,
+  "showAdvanced": false,
+  "accessibility": false
+}

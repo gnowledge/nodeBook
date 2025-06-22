@@ -35,7 +35,7 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
     async function fetchRelationTypes() {
       setRelationTypesLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/relation-types`);
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`);
         const data = await res.json();
         setRelationTypes((data || []).map(r => typeof r === 'string' ? r : r.name));
       } catch {
@@ -49,7 +49,7 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
   useEffect(() => {
     async function fetchRegistry() {
       try {
-        const res = await fetch(`${API_BASE}/api/users/${userId}/node_registry`);
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/node_registry`);
         const data = await res.json();
         setNodeRegistry(data);
       } catch {
@@ -89,14 +89,21 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
   const handleRelationSubmit = async (e) => {
     e.preventDefault();
     let tgtId = relTarget;
+    
+    // If relTarget is empty but targetQuery has content, use targetQuery
+    if (!tgtId && targetQuery.trim()) {
+      tgtId = targetQuery.trim();
+    }
+    
     // Always check if target exists in registry; if not, create it
-    if (!nodeRegistry[relTarget] && targetQuery) {
+    if (!nodeRegistry[tgtId] && targetQuery.trim()) {
       const nodePayload = {
+        base_name: targetQuery.trim(),
         name: targetQuery.trim(),
-        attributes: [],
-        relations: []
+        role: "individual",
+        morphs: []
       };
-      const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes`, {
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nodePayload)
@@ -104,19 +111,17 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
       const data = await res.json();
       tgtId = data.id;
     }
+    
     // Now tgtId is always a valid node ID
     const payload = {
       id: nodeId + '::' + relation + '::' + tgtId,
-      type: relation, // Use 'type' for schema name
-      name: relation, // Also send 'name' for Pydantic compatibility
-      source: nodeId,
-      target: tgtId,
+      name: relation,
+      source_id: nodeId,
+      target_id: tgtId,
       adverb: relAdverb || undefined,
-      modality: relModality || undefined,
-      target_qualifier: relTargetQualifier || undefined,
-      target_quantifier: relTargetQuantifier || undefined
+      modality: relModality || undefined
     };
-    await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/relation/create`, {
+    await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

@@ -2,12 +2,13 @@ from pathlib import Path
 import yaml
 import os
 import json
+from typing import Optional
 
 from backend.core.utils import load_json_file, save_json_file
 from backend.core.node_ops import load_node
 from backend.core.registry import load_registry, relation_registry_path, attribute_registry_path
 
-def compose_graph(user_id: str, graph_id: str, node_list: list, graph_description: str = None, report: dict = None) -> dict:
+def compose_graph(user_id: str, graph_id: str, node_list: list, graph_description: Optional[str] = None, report: Optional[dict] = None) -> dict:
     """
     Compose the graph from node files and registries, and write composed.json (Cytoscape format),
     composed.yaml, and polymorphic_composed.json (rich PolyNode format).
@@ -33,11 +34,11 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
         except Exception as e:
             print(f"⚠️ Warning: node '{node_id}' not found or failed to load: {e}. Skipping.")
 
-    # Load registries
+    # Load registries for fallback
     relations = list(load_registry(relation_registry_path(user_id)).values())
     attributes = list(load_registry(attribute_registry_path(user_id)).values())
 
-    # Embed relations into each node
+    # Embed relations into each node (legacy fallback)
     node_id_to_node = {n["node_id"]: n for n in nodes if "node_id" in n}
     for rel in relations:
         source_id = rel.get("source")
@@ -48,18 +49,22 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     cy_nodes = []
     cy_edges = []
     value_node_ids = set()
+    
     for node in nodes:
         node_id = node.get("id") or node.get("node_id")
         label = node.get("name", node_id)
         cy_nodes.append({"data": {"id": node_id, "label": label}})
-        # If PolyNode, use active morph for edges
+        
+        # Handle PolyNode with morphs and nbh
         morphs = node.get("morphs")
         nbh = node.get("nbh")
+        
         if morphs and nbh:
-            morph = next((m for m in morphs if m.get("morph_id") == nbh), None)
-            if morph:
-                # RelationNode edges
-                for rel_id in morph.get("relationNode_ids", []):
+            # Find the active morph (neighborhood)
+            active_morph = next((m for m in morphs if m.get("morph_id") == nbh), None)
+            if active_morph:
+                # Process RelationNode edges from active morph
+                for rel_id in active_morph.get("relationNode_ids", []):
                     rel_path = f"graph_data/users/{user_id}/relationNodes/{rel_id}.json"
                     if os.path.exists(rel_path):
                         with open(rel_path) as f:
@@ -73,8 +78,9 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
                                 "type": "relation"
                             }
                         })
-                # AttributeNode edges
-                for attr_id in morph.get("attributeNode_ids", []):
+                
+                # Process AttributeNode edges from active morph
+                for attr_id in active_morph.get("attributeNode_ids", []):
                     attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json"
                     if os.path.exists(attr_path):
                         with open(attr_path) as f:
@@ -82,10 +88,17 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
                         value_node_id = f"attrval_{attr['id']}"
                         # Add value node if not already present
                         if value_node_id not in value_node_ids:
+                            # Create a more descriptive label for the value node
+                            value_label = str(attr["value"])
+                            if attr.get("unit"):
+                                value_label += f" {attr['unit']}"
+                            if attr.get("adverb"):
+                                value_label = f"{attr['adverb']} {value_label}"
+                            
                             cy_nodes.append({
                                 "data": {
                                     "id": value_node_id,
-                                    "label": str(attr["value"]),
+                                    "label": value_label,
                                     "type": "attribute_value"
                                 }
                             })
@@ -95,11 +108,12 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
                                 "id": attr["id"],
                                 "source": attr["source_id"],
                                 "target": value_node_id,
-                                "label": attr["name"],
+                                "label": f"has {attr['name']}",
                                 "type": "attribute"
                             }
                         })
-        # Legacy: fallback to direct relations
+        
+        # Legacy fallback: direct relations in node
         elif node.get("relations"):
             for rel in node["relations"]:
                 cy_edges.append({
@@ -121,24 +135,29 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     # Collect all relationNodes and attributeNodes referenced by any morph
     relation_nodes = {}
     attribute_nodes = {}
+    
     for node in nodes:
         morphs = node.get("morphs")
         if morphs:
             for morph in morphs:
+                # Load RelationNodes from morph
                 for rel_id in morph.get("relationNode_ids", []):
                     rel_path = f"graph_data/users/{user_id}/relationNodes/{rel_id}.json"
                     if os.path.exists(rel_path):
                         with open(rel_path) as f:
                             rel = json.load(f)
                         relation_nodes[rel_id] = rel
+                
+                # Load AttributeNodes from morph
                 for attr_id in morph.get("attributeNode_ids", []):
                     attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json"
                     if os.path.exists(attr_path):
                         with open(attr_path) as f:
                             attr = json.load(f)
                         attribute_nodes[attr_id] = attr
+    
     polymorphic = {
-        "polynodes": nodes,
+        "nodes": nodes,  # Changed from "polynodes" to "nodes" for consistency
         "relations": list(relation_nodes.values()),
         "attributes": list(attribute_nodes.values()),
         "graph_id": graph_id,

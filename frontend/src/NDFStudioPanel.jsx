@@ -22,7 +22,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
     if (lastSummaryNode) {
       interval = setInterval(async () => {
         // Fetch node info to check if description is now present
-        const res = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}/getInfo/${lastSummaryNode}`);
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${lastSummaryNode}`);
         if (res.ok) {
           const data = await res.json();
           if (data.description && data.description !== "") {

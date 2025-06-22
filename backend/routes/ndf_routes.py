@@ -24,9 +24,11 @@ from backend.core.utils import load_json_file, save_json_file, normalize_id
 from backend.core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
 from backend.core.cnl_parser import parse_node_title
 from backend.core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
+from backend.core.compose import compose_graph
+from backend.core.node_ops import load_node
 
 
-router = APIRouter(prefix="/ndf")  # All routes prefixed with /api/ndf
+router = APIRouter()  # All routes prefixed with /api/ndf
 
 
 def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
@@ -110,6 +112,18 @@ def get_composed_json(user_id: str, graph_id: str):
         raise HTTPException(status_code=404, detail="composed.json not found")
 
     return load_json_file(composed_path)
+
+
+@router.get("/users/{user_id}/graphs/{graph_id}/polymorphic_composed")
+def get_polymorphic_composed_json(user_id: str, graph_id: str):
+    """
+    Returns the polymorphic_composed.json for use by the frontend with rich node data.
+    """
+    poly_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "polymorphic_composed.json"
+    if not poly_path.exists():
+        raise HTTPException(status_code=404, detail="polymorphic_composed.json not found")
+
+    return load_json_file(poly_path)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
@@ -234,3 +248,119 @@ def delete_graph(user_id: str, graph_id: str):
         save_node_registry(user_id, registry)
 
     return JSONResponse({"status": "deleted", "graph": graph_id})
+
+
+class AddNodeToGraphRequest(BaseModel):
+    node_ids: list[str]
+
+@router.post("/users/{user_id}/graphs/{graph_id}/add_nodes")
+def add_nodes_to_graph(user_id: str, graph_id: str, req: AddNodeToGraphRequest):
+    """
+    Add existing nodes to a graph. This updates the node registry and recomposes the graph.
+    """
+    # Check if graph exists
+    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
+    if not graph_dir.exists():
+        raise HTTPException(status_code=404, detail="Graph not found")
+    
+    # Load current node registry
+    registry = load_node_registry(user_id)
+    
+    # Validate that all nodes exist
+    missing_nodes = []
+    for node_id in req.node_ids:
+        node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
+        if not node_path.exists():
+            missing_nodes.append(node_id)
+    
+    if missing_nodes:
+        raise HTTPException(status_code=404, detail=f"Nodes not found: {missing_nodes}")
+    
+    # Update registry to add nodes to this graph
+    for node_id in req.node_ids:
+        update_node_registry(registry, node_id, graph_id)
+    
+    # Save updated registry
+    save_node_registry(user_id, registry)
+    
+    # Get all nodes that belong to this graph
+    graph_nodes = []
+    for node_id, entry in registry.items():
+        if "graphs" in entry and graph_id in entry["graphs"]:
+            graph_nodes.append(node_id)
+    
+    # Recompose the graph
+    try:
+        # Load graph description
+        metadata_path = graph_dir / "metadata.yaml"
+        graph_description = ""
+        if metadata_path.exists():
+            metadata = yaml.safe_load(metadata_path.read_text()) or {}
+            graph_description = metadata.get("description", "")
+        
+        # Compose the graph with all nodes
+        compose_graph(user_id, graph_id, graph_nodes, graph_description)
+        
+        return {
+            "status": "success",
+            "message": f"Added {len(req.node_ids)} nodes to graph",
+            "graph_nodes": graph_nodes
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to recompose graph: {e}")
+
+@router.get("/users/{user_id}/nodes")
+def list_user_nodes(user_id: str):
+    """
+    List all nodes available to a user (from their global node space).
+    """
+    registry = load_node_registry(user_id)
+    nodes = []
+    
+    for node_id, entry in registry.items():
+        node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
+        if node_path.exists():
+            try:
+                node_data = load_json_file(node_path)
+                nodes.append({
+                    "id": node_id,
+                    "name": entry.get("name", node_id),
+                    "role": entry.get("role", "individual"),
+                    "graphs": entry.get("graphs", []),
+                    "description": node_data.get("description", ""),
+                    "created_at": entry.get("created_at"),
+                    "updated_at": entry.get("updated_at")
+                })
+            except Exception:
+                # Skip nodes that can't be loaded
+                continue
+    
+    return nodes
+
+@router.get("/users/{user_id}/graphs/{graph_id}/nodes")
+def list_graph_nodes(user_id: str, graph_id: str):
+    """
+    List all nodes that belong to a specific graph.
+    """
+    registry = load_node_registry(user_id)
+    graph_nodes = []
+    
+    for node_id, entry in registry.items():
+        if "graphs" in entry and graph_id in entry["graphs"]:
+            node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
+            if node_path.exists():
+                try:
+                    node_data = load_json_file(node_path)
+                    graph_nodes.append({
+                        "id": node_id,
+                        "name": entry.get("name", node_id),
+                        "role": entry.get("role", "individual"),
+                        "description": node_data.get("description", ""),
+                        "created_at": entry.get("created_at"),
+                        "updated_at": entry.get("updated_at")
+                    })
+                except Exception:
+                    # Skip nodes that can't be loaded
+                    continue
+    
+    return graph_nodes

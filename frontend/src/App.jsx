@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import NDFStudioLayout from "./NDFStudioLayout";
 import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
-import { API_BASE } from "./config";
+import { AUTH_BASE } from "./config";
 import UserBar from "./UserBar";
 
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
@@ -27,7 +27,7 @@ function App() {
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        const res = await fetch(`${API_BASE}/auth/whoami`, {
+        const res = await fetch(`${AUTH_BASE}/whoami`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

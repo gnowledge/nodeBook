@@ -10,13 +10,13 @@ export default function NDFJsonPreview({ graphId }) {
   useEffect(() => {
     async function fetchJson() {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
-        if (!res.ok) throw new Error("Failed to fetch composed.json");
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+        if (!res.ok) throw new Error("Failed to fetch polymorphic_composed.json");
         const data = await res.json();
         setJsonText(JSON.stringify(data, null, 2));
         setError(null);
       } catch (err) {
-        setError("Could not load composed.json");
+        setError("Could not load polymorphic_composed.json");
         setJsonText("");
       }
     }

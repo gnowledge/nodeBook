@@ -24,17 +24,17 @@ app.add_middleware(
 )
 
 # ✅ Include all routers
-app.include_router(users_router, prefix="/auth")
-app.include_router(nodes.router, prefix="/api")
-app.include_router(graph_ops.router, prefix="/api")
-app.include_router(graph.router, prefix="/api")
-app.include_router(schema_routes.router, prefix="/api")
-app.include_router(graphs.router, prefix="/api")
-app.include_router(ndf_routes.router, prefix="/api")
-app.include_router(preferences.router, prefix="/api")
-app.include_router(parse_pipeline.router, prefix="/api")
-app.include_router(functions.router, prefix="/api")
-app.include_router(transitions.router, prefix="/api")
+app.include_router(users_router, prefix="/api/auth")
+app.include_router(nodes.router, prefix="/api/ndf")
+app.include_router(graph_ops.router, prefix="/api/ndf")
+app.include_router(graph.router, prefix="/api/ndf")
+app.include_router(schema_routes.router, prefix="/api/ndf")
+app.include_router(graphs.router, prefix="/api/ndf")
+app.include_router(ndf_routes.router, prefix="/api/ndf")
+app.include_router(preferences.router, prefix="/api/ndf")
+app.include_router(parse_pipeline.router, prefix="/api/ndf")
+app.include_router(functions.router, prefix="/api/ndf")
+app.include_router(transitions.router, prefix="/api/ndf")
 
 
 
@@ -77,7 +77,7 @@ def initialize_global_schemas():
             }
         ]
         ensure_schema_file("transition_types.json", default_transition_types)
-    
+
     # Check for function_types.json - create if missing
     if not (global_dir / "function_types.json").exists():
         print("[INFO] Creating default function_types.json...")

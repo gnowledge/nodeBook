@@ -19,7 +19,7 @@ function stripMarkdown(md) {
     .trim();
 }
 
-const DisplayHTML = ({ graphId }) => {
+const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   const userId = useUserId();
   const [graph, setGraph] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
@@ -27,11 +27,11 @@ const DisplayHTML = ({ graphId }) => {
   useEffect(() => {
     const fetchComposed = async () => {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
         const data = await res.json();
         setGraph(data);
       } catch (err) {
-        console.error("Failed to load composed.json:", err);
+        console.error("Failed to load polymorphic_composed.json:", err);
         setGraph(null);
       }
     };
@@ -42,11 +42,16 @@ const DisplayHTML = ({ graphId }) => {
   // Handler to reload graph after node creation
   const handleNodeCreated = () => {
     setShowNodeForm(false);
-    // Refetch graph
-    fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`)
+    // Refetch graph locally
+    fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`)
       .then(res => res.json())
       .then(setGraph)
       .catch(() => setGraph(null));
+    
+    // Also refresh the global graph state if callback provided
+    if (onGraphRefresh) {
+      onGraphRefresh();
+    }
   };
 
   if (!graph) {
@@ -82,7 +87,7 @@ const DisplayHTML = ({ graphId }) => {
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Nodes</h2>
         <button
@@ -107,7 +112,16 @@ const DisplayHTML = ({ graphId }) => {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {graph.nodes.map((node) => (
-          <NodeCard key={node.node_id || node.id} node={node} userId={userId} graphId={graphId} />
+          <div key={node.node_id || node.id} className="relative">
+            <NodeCard 
+              node={node} 
+              userId={userId} 
+              graphId={graphId} 
+              onGraphUpdate={handleNodeCreated}
+              graphRelations={graph.relations}
+              graphAttributes={graph.attributes}
+            />
+          </div>
         ))}
       </div>
     </div>

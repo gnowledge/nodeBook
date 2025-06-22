@@ -11,7 +11,7 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {} }) {
+export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {}, onSuccess }) {
   const userId = useUserId();
   // CNL-style fields
   const [attribute, setAttribute] = useState(initialData.name || '');
@@ -32,7 +32,7 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
     async function fetchAttributeTypes() {
       setAttributeTypesLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute-types`);
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`);
         const data = await res.json();
         setAttributeTypes((data || []).map(a => typeof a === 'string' ? { name: a } : a));
       } catch {
@@ -54,14 +54,14 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
     e.preventDefault();
     const payload = {
       id: composedId,
-      node_id: nodeId,
+      source_id: nodeId,
       name: attribute,
       value: attrValue,
       unit: attrUnit || undefined,
       adverb: attrAdverb || undefined,
       modality: attrModality || undefined
     };
-    await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/attribute/create`, {
+    await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -72,6 +72,11 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
     setAttrAdverb('');
     setAttrUnit('');
     setAttrModality('');
+    
+    // Call onSuccess callback if provided
+    if (typeof onSuccess === 'function') {
+      onSuccess();
+    }
   };
 
   return (

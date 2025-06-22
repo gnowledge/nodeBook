@@ -51,12 +51,12 @@ class Morph(BaseModel):
 
 # Polymorphic node model
 class PolyNode(BaseModel):
-    id: str
-    name: Optional[str] = None
-    base_name: Optional[str] = None
+    id: Optional[str] = None  # Optional since we compute it during creation
+    name: Optional[str] = None  # Optional since we can compute it from base_name + adjective
+    base_name: str  # Required for ID generation
     adjective: Optional[str] = None
     quantifier: Optional[str] = None
-    role: Optional[str] = "class"
+    role: Optional[str] = "individual"  # Default to individual like Node model
     description: Optional[str] = None
     morphs: Optional[List[Morph]] = []
     nbh: Optional[str] = None  # currently active morph

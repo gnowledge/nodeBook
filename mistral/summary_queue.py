@@ -11,7 +11,7 @@ from backend.core.node_ops import load_node, save_node
 from backend.core.id_utils import get_user_id
 
 # === CONFIG ===
-MISTRAL_API = "http://localhost:8001/summarize"
+HF_API = "https://gnowgi-controllednl.hf.space/gradio_api/call/predict"
 
 class NodeSummaryJob:
     def __init__(self, user_id, graph_id, node_id, node_data):
@@ -55,12 +55,22 @@ class SummaryQueue:
             self.job_queue.task_done()
 
     def get_summary(self, node_data):
-        # Only send the node name to Mistral
+        # Use HuggingFace Space API for phi-2 summarization
         node_name = node_data.get("name", "")
-        prompt = f"Write a short summary about {node_name}."
+        paragraph = node_data.get("description", "")
+        payload = {
+            "data": [
+                "summarize",
+                node_name,
+                paragraph
+            ]
+        }
         try:
-            res = requests.post(MISTRAL_API, json={"text": prompt}, timeout=180)
-            return res.json().get("summary", "")
+            res = requests.post(HF_API, json=payload, timeout=180)
+            res.raise_for_status()
+            # The response is a JSON with a 'data' field containing a list, first element is the summary
+            summary = res.json().get("data", [""])[0]
+            return summary
         except Exception as e:
             return f"[Summary error: {e}]"
 

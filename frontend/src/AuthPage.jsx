@@ -1,6 +1,7 @@
 // AuthPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AUTH_BASE } from './config';
 import Login from './Login';
 import Register from './Register';
 
@@ -14,7 +15,7 @@ export default function AuthPage({ onAuth }) {
     // If a token is present, check whoami
     const token = localStorage.getItem('token');
     if (token) {
-      fetch(`${API_BASE}/auth/whoami`, {
+      fetch(`${AUTH_BASE}/whoami`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => res.json())

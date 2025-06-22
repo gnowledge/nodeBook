@@ -1,6 +1,6 @@
 // Register.jsx
 import React, { useState } from 'react';
-import { API_BASE } from "./config";
+import { AUTH_BASE } from "./config";
 
 export default function Register({ onRegister }) {
   const [username, setUsername] = useState('');
@@ -12,7 +12,7 @@ export default function Register({ onRegister }) {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await fetch(`${AUTH_BASE}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password })
@@ -32,6 +32,7 @@ export default function Register({ onRegister }) {
     <div className="max-w-sm mx-auto mt-10 p-4 bg-white border shadow rounded">
       <h2 className="text-xl font-bold mb-4 text-center">Create Account</h2>
       <form onSubmit={handleRegister} className="space-y-4">
+        <div>
         <input
           type="text"
           placeholder="Username"
@@ -40,6 +41,11 @@ export default function Register({ onRegister }) {
           onChange={(e) => setUsername(e.target.value)}
           required
         />
+          <p className="text-xs text-gray-500 mt-1">
+            Choose a unique username for your account
+          </p>
+        </div>
+        <div>
         <input
           type="email"
           placeholder="Email"
@@ -48,6 +54,10 @@ export default function Register({ onRegister }) {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+          <p className="text-xs text-gray-500 mt-1">
+            You'll be able to login with either username or email
+          </p>
+        </div>
         <input
           type="password"
           placeholder="Password"

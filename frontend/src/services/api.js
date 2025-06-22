@@ -1,6 +1,7 @@
 import yaml from "js-yaml";
 
 export const API_BASE = "/api/ndf";
+export const AUTH_BASE = "/api/auth";
 
 export async function loadGraphCNL(userId, graphId) {
   const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`);
@@ -22,9 +23,15 @@ export async function listGraphsWithTitles(userId) {
   const res = await fetch(`${API_BASE}/users/${userId}/graphs`);
   const ids = await res.json();
 
+  // Ensure ids is an array
+  if (!Array.isArray(ids)) {
+    console.warn("Expected array of graph IDs, got:", ids);
+    return [];
+  }
+
   const graphList = await Promise.all(ids.map(async (id) => {
     try {
-      const metaRes = await fetch(`${API_BASE}/users/${userId}/graphs/${graphId}/metadata.yaml`);
+      const metaRes = await fetch(`${API_BASE}/users/${userId}/graphs/${id}/metadata.yaml`);
       const meta = await metaRes.text();
       const parsed = yaml.load(meta);
       return { id, title: parsed?.title || id };

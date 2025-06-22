@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Literal
 import os
+from pathlib import Path
 from backend.core.node_ops import load_node, save_node, node_path, safe_node_summary
 from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
 from backend.summary_queue_singleton import init_summary_queue
@@ -13,7 +14,7 @@ from backend.core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
 from backend.core.compose import compose_graph
-from backend.core.registry import load_node_registry, make_polynode_id, make_morph_id
+from backend.core.registry import load_node_registry, make_polynode_id, make_morph_id, load_registry, save_registry
 
 router = APIRouter()
 
@@ -64,8 +65,36 @@ def list_all_nodes(user_id: str, graph_id: str):
 # --- PolyNode CRUD with legacy route decorators ---
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
 def create_polynode(user_id: str, graph_id: str, node: PolyNode):
+    # Compute ID from base_name and other fields
     morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
-    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
+    node.id = make_polynode_id(node.quantifier or "", node.adjective or "", morph_name, node.base_name)
+    
+    # Compute name from base_name and adjective if not provided
+    if not node.name:
+        if node.adjective:
+            node.name = f"{node.adjective} {node.base_name}"
+        else:
+            node.name = node.base_name
+    
+    # Ensure node has morphs array
+    if not node.morphs:
+        node.morphs = []
+    
+    # Create static morph if it doesn't exist
+    static_morph_exists = any(morph.name == "static" for morph in node.morphs)
+    if not static_morph_exists:
+        from backend.core.models import Morph
+        static_morph = Morph(
+            morph_id=f"static_{node.id}",
+            node_id=node.id,
+            name="static",
+            relationNode_ids=[],
+            attributeNode_ids=[]
+        )
+        node.morphs.append(static_morph)
+        # Set nbh to static morph
+        node.nbh = static_morph.morph_id
+    
     path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -73,9 +102,23 @@ def create_polynode(user_id: str, graph_id: str, node: PolyNode):
         raise HTTPException(status_code=400, detail="Node already exists")
     with open(path, "w") as f:
         json.dump(node.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
-    save_registry(reg_path, registry)
+    registry = load_registry(Path(reg_path))
+    # Update registry with node information
+    if node.id not in registry:
+        registry[node.id] = {
+            "name": node.name,
+            "role": node.role,
+            "graphs": [graph_id],
+            "created_at": time.time(),
+            "updated_at": time.time()
+        }
+    else:
+        registry[node.id]["name"] = node.name
+        registry[node.id]["role"] = node.role
+        if graph_id not in registry[node.id]["graphs"]:
+            registry[node.id]["graphs"].append(graph_id)
+        registry[node.id]["updated_at"] = time.time()
+    save_registry(Path(reg_path), registry)
     # Regenerate composed.json after node change
     node_registry = load_node_registry(user_id)
     node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
@@ -92,14 +135,115 @@ def update_polynode(user_id: str, graph_id: str, node_id: str, node: PolyNode):
         raise HTTPException(status_code=404, detail="Node not found")
     with open(path, "w") as f:
         json.dump(node.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry = update_registry_entry(registry, {"id": node.id, "name": node.name or node.id, "role": node.role})
-    save_registry(reg_path, registry)
+    registry = load_registry(Path(reg_path))
+    # Update registry with node information
+    if node.id not in registry:
+        registry[node.id] = {
+            "name": node.name,
+            "role": node.role,
+            "graphs": [graph_id],
+            "created_at": time.time(),
+            "updated_at": time.time()
+        }
+    else:
+        registry[node.id]["name"] = node.name
+        registry[node.id]["role"] = node.role
+        if graph_id not in registry[node.id]["graphs"]:
+            registry[node.id]["graphs"].append(graph_id)
+        registry[node.id]["updated_at"] = time.time()
+    save_registry(Path(reg_path), registry)
     # Regenerate composed.json after node change
     node_registry = load_node_registry(user_id)
     node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
     compose_graph(user_id, graph_id, node_ids)
     return {"status": "PolyNode updated and registry synced", "id": node.id}
+
+@router.delete("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
+def delete_polynode(user_id: str, graph_id: str, node_id: str):
+    """Delete a PolyNode and clean up all related data."""
+    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
+    reg_path = f"graph_data/users/{user_id}/node_registry.json"
+    
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    # Load node data to get morphs and relation/attribute IDs
+    with open(path, "r") as f:
+        node_data = json.load(f)
+    
+    # Delete all related relationNodes
+    morphs = node_data.get("morphs", [])
+    for morph in morphs:
+        # Delete relationNodes
+        for rel_id in morph.get("relationNode_ids", []):
+            rel_path = f"graph_data/users/{user_id}/relationNodes/{rel_id}.json"
+            if os.path.exists(rel_path):
+                os.remove(rel_path)
+        
+        # Delete attributeNodes
+        for attr_id in morph.get("attributeNode_ids", []):
+            attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json"
+            if os.path.exists(attr_path):
+                os.remove(attr_path)
+    
+    # Delete the node file
+    os.remove(path)
+    
+    # Update node registry
+    registry = load_registry(Path(reg_path))
+    if node_id in registry:
+        # Remove this graph from the node's graphs list
+        if graph_id in registry[node_id].get("graphs", []):
+            registry[node_id]["graphs"].remove(graph_id)
+        
+        # If node is no longer in any graphs, remove it entirely
+        if not registry[node_id].get("graphs"):
+            del registry[node_id]
+        
+        save_registry(Path(reg_path), registry)
+    
+    # Clean up relation_node_registry
+    rel_reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
+    if os.path.exists(rel_reg_path):
+        with open(rel_reg_path, "r") as f:
+            rel_registry = json.load(f)
+        
+        # Remove relations where this node is source or target
+        to_remove = []
+        for rel_id, rel_data in rel_registry.items():
+            if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
+                to_remove.append(rel_id)
+        
+        for rel_id in to_remove:
+            del rel_registry[rel_id]
+        
+        with open(rel_reg_path, "w") as f:
+            json.dump(rel_registry, f, indent=2)
+    
+    # Clean up attribute_node_registry
+    attr_reg_path = f"graph_data/users/{user_id}/attribute_node_registry.json"
+    if os.path.exists(attr_reg_path):
+        with open(attr_reg_path, "r") as f:
+            attr_registry = json.load(f)
+        
+        # Remove attributes where this node is source
+        to_remove = []
+        for attr_id, attr_data in attr_registry.items():
+            if attr_data.get("source_id") == node_id:
+                to_remove.append(attr_id)
+        
+        for attr_id in to_remove:
+            del attr_registry[attr_id]
+        
+        with open(attr_reg_path, "w") as f:
+            json.dump(attr_registry, f, indent=2)
+    
+    # Regenerate composed.json after node deletion
+    node_registry = load_node_registry(user_id)
+    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+    compose_graph(user_id, graph_id, node_ids)
+    
+    return {"status": "PolyNode deleted and all related data cleaned up", "deleted_node_id": node_id}
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def get_polynode(user_id: str, graph_id: str, node_id: str):
@@ -123,7 +267,7 @@ def get_polynode_info(user_id: str, graph_id: str, node_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/get_nbh/{node_id}")
 def get_node_nbh(user_id: str, graph_id: str, node_id: str):
-    return get_node_info(user_id, graph_id, node_id)
+    return get_polynode_info(user_id, graph_id, node_id)
 
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes/submit_to_summary_queue")
 def submit_all_nodes_to_summary_queue(user_id: str, graph_id: str):
@@ -185,7 +329,7 @@ def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
 # ---------- PolyNode Routes ----------
 
 @router.get("/users/{user_id}/polynodes/{id}")
-def get_polynode(user_id: str, id: str):
+def get_polynode_by_id(user_id: str, id: str):
     path = f"graph_data/users/{user_id}/nodes/{id}.json"
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
@@ -195,7 +339,7 @@ def get_polynode(user_id: str, id: str):
 @router.get("/users/{user_id}/polynodes")
 def list_polynodes(user_id: str):
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
-    registry = load_registry(reg_path)
+    registry = load_registry(Path(reg_path))
     return [n for n in registry if n.get("role", "") == "class"]
 
 # ---------- Morph Routes ----------

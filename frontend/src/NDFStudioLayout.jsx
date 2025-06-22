@@ -124,6 +124,7 @@ const NDFStudioLayout = () => {
 
   useEffect(() => {
     async function init() {
+      if (!userId) return; // Don't make API calls if no user is logged in
       try {
         const graphList = await listGraphsWithTitles(userId);
         setAllGraphs(graphList);
@@ -136,9 +137,14 @@ const NDFStudioLayout = () => {
 
   useEffect(() => {
     async function fetchPrefs() {
+      if (!userId) {
+        setPrefs(DEFAULT_PREFERENCES);
+        setPrefsLoading(false);
+        return; // Don't make API calls if no user is logged in
+      }
       setPrefsLoading(true);
       try {
-        const res = await fetch(`/api/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         if (!res.ok) throw new Error("Failed to load preferences");
         const data = await res.json();
         setPrefs(data);
@@ -158,7 +164,7 @@ const NDFStudioLayout = () => {
     }
     try {
       const raw = await loadGraphCNL(userId, graphId);
-      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
+      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
@@ -183,7 +189,7 @@ const NDFStudioLayout = () => {
       if (!res.ok) throw new Error(await res.text());
 
       const raw = await loadGraphCNL(userId, newId);
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/composed`).then(r => r.json());
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`).then(r => r.json());
       const fullGraph = { ...composed, raw_markdown: raw };
       const newMeta = { id: newId, title: name };
 
@@ -205,11 +211,26 @@ const NDFStudioLayout = () => {
     }
   };
 
+  const refreshActiveGraph = async () => {
+    if (!activeGraph || !userId) return;
+    try {
+      console.log("🔄 Refreshing graph data for:", activeGraph);
+      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`);
+      if (!composedRes.ok) throw new Error("Failed to fetch updated graph data");
+      const composed = await composedRes.json();
+      setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
+      console.log("✅ Graph data refreshed successfully");
+    } catch (err) {
+      console.error("Failed to refresh graph data:", err);
+      alert("Failed to refresh graph data. See console for details.");
+    }
+  };
+
   const handleSaveGraph = async () => {
     if (!activeGraph) return;
     try {
       const raw = await loadGraphCNL(userId, activeGraph);
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/composed`).then(r => r.json());
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`).then(r => r.json());
       setRawMarkdowns((prev) => ({ ...prev, [activeGraph]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));
@@ -352,6 +373,15 @@ const NDFStudioLayout = () => {
           </button>
         </div>
       ))}
+      {activeGraph && (
+        <button
+          onClick={refreshActiveGraph}
+          className="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          title="Refresh graph data"
+        >
+          🔄 Refresh
+        </button>
+      )}
     </div>
   );
 
@@ -393,6 +423,7 @@ const NDFStudioLayout = () => {
           graph={composedGraphs[activeGraph]}
           rawMarkdown={rawMarkdowns[activeGraph]}
           graphId={activeGraph}
+          onGraphRefresh={refreshActiveGraph}
         />
       );
     }
@@ -401,6 +432,8 @@ const NDFStudioLayout = () => {
         <CytoscapeStudio
           graph={composedGraphs[activeGraph]}
           graphId={activeGraph}
+          graphRelations={composedGraphs[activeGraph]?.relations || []}
+          graphAttributes={composedGraphs[activeGraph]?.attributes || []}
         />
       );
     }

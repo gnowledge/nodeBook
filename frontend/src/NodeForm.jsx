@@ -58,23 +58,22 @@ export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = {
-      name: base,
-      qualifier: qualifier || undefined,
-      quantifier: quantifier || undefined,
-      role: role || undefined,
-      attributes: [],
-      relations: []
+      base_name: base,  // Required for ID generation
+      adjective: qualifier || null,  // Optional qualifier
+      quantifier: quantifier || null,  // Optional quantifier
+      role: role || "individual",  // Default role
+      morphs: []  // Empty morphs array
     };
     try {
       let res;
       if (editing && nodeId) {
-        res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
+        res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch(`${API_BASE}/api/users/${userId}/graphs/${graphId}/nodes`, {
+        res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

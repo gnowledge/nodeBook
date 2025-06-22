@@ -32,6 +32,7 @@ from backend.routes.nodes import create_polynode
 from backend.core.registry import (
     relation_registry_path, attribute_registry_path, load_registry, save_registry, make_relation_id, make_attribute_id
 )
+from backend.core.compose import compose_graph
 
 router = APIRouter()
 
@@ -64,7 +65,7 @@ def load_schema(global_path, filename):
 
 def load_registry(path):
     if not os.path.exists(path):
-        return []
+        return {}
     with open(path) as f:
         return json.load(f)
 
@@ -86,8 +87,6 @@ def update_registry_entry(registry, entry):
 
 def remove_registry_entry(registry, entry_id):
     return [r for r in registry if r["id"] != entry_id]
-
-
 
 # ---------- AttributeNode Routes with Registry ----------
 # ... existing code ...
@@ -131,8 +130,69 @@ def create_attribute_node(user_id: str, graph_id: str, attr: AttributeNode):
     registry = load_registry(reg_path)
     registry[attr.id] = attr.dict()
     save_registry(reg_path, registry)
-    # Optionally, update node's morph/attributes here if needed
-    return {"status": "AttributeNode created and registered"}
+
+    # Update source node's static morph with this attribute
+    source_node_path = f"graph_data/users/{user_id}/nodes/{attr.source_id}.json"
+    if os.path.exists(source_node_path):
+        with open(source_node_path, "r") as f:
+            source_node = json.load(f)
+        
+        # Ensure morphs array exists
+        if "morphs" not in source_node:
+            source_node["morphs"] = []
+        
+        # Find or create static morph
+        static_morph = None
+        for morph in source_node["morphs"]:
+            if morph.get("name") == "static":
+                static_morph = morph
+                break
+        
+        if not static_morph:
+            # Create static morph
+            static_morph = {
+                "morph_id": f"static_{attr.source_id}",
+                "node_id": attr.source_id,
+                "name": "static",
+                "relationNode_ids": [],
+                "attributeNode_ids": []
+            }
+            source_node["morphs"].append(static_morph)
+        
+        # Add attribute to static morph
+        if "attributeNode_ids" not in static_morph:
+            static_morph["attributeNode_ids"] = []
+        if attr.id not in static_morph["attributeNode_ids"]:
+            static_morph["attributeNode_ids"].append(attr.id)
+        
+        # Set nbh to static morph if not already set
+        if not source_node.get("nbh"):
+            source_node["nbh"] = static_morph["morph_id"]
+        
+        # Save updated source node
+        with open(source_node_path, "w") as f:
+            json.dump(source_node, f, indent=2)
+    
+    # Regenerate polymorphic_composed.json to include the new attribute
+    try:
+        # Get all nodes that belong to this graph
+        node_ids = get_graph_node_ids(user_id, graph_id)
+        
+        # Load graph description
+        metadata_path = f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml"
+        graph_description = ""
+        if os.path.exists(metadata_path):
+            import yaml
+            with open(metadata_path, "r") as f:
+                metadata = yaml.safe_load(f) or {}
+                graph_description = metadata.get("description", "")
+        
+        # Recompose the graph
+        compose_graph(user_id, graph_id, node_ids, graph_description)
+    except Exception as e:
+        print(f"Warning: Failed to regenerate polymorphic_composed.json: {e}")
+    
+    return {"status": "AttributeNode created and registered", "attribute_id": attr.id}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/attribute/update/{node_id}/{attr_name}")
 def update_attribute_node(user_id: str, graph_id: str, node_id: str, attr_name: str, attr: AttributeNode):
@@ -166,9 +226,22 @@ def delete_attribute_node(user_id: str, graph_id: str, node_id: str, attr_name: 
     if attr_id in registry:
         del registry[attr_id]
         save_registry(reg_path, registry)
-    return {"status": "AttributeNode deleted and registry updated"}
+        return {"status": "AttributeNode deleted and registry updated"}
 
 # --- RelationNode CRUD with legacy route decorators ---
+
+def get_graph_node_ids(user_id: str, graph_id: str) -> list[str]:
+    """Get list of node IDs that belong to a specific graph"""
+    from backend.core.registry import load_node_registry
+    registry = load_node_registry(user_id)
+    graph_nodes = []
+    
+    for node_id, entry in registry.items():
+        if "graphs" in entry and graph_id in entry["graphs"]:
+            graph_nodes.append(node_id)
+    
+    return graph_nodes
+
 @router.post("/users/{user_id}/graphs/{graph_id}/relation/create")
 def create_relation_node(user_id: str, graph_id: str, rel: RelationNode):
     rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
@@ -182,7 +255,69 @@ def create_relation_node(user_id: str, graph_id: str, rel: RelationNode):
     registry = load_registry(reg_path)
     registry[rel.id] = rel.dict()
     save_registry(reg_path, registry)
-    return {"status": "RelationNode created and registered"}
+    
+    # Update source node's static morph with this relation
+    source_node_path = f"graph_data/users/{user_id}/nodes/{rel.source_id}.json"
+    if os.path.exists(source_node_path):
+        with open(source_node_path, "r") as f:
+            source_node = json.load(f)
+        
+        # Ensure morphs array exists
+        if "morphs" not in source_node:
+            source_node["morphs"] = []
+        
+        # Find or create static morph
+        static_morph = None
+        for morph in source_node["morphs"]:
+            if morph.get("name") == "static":
+                static_morph = morph
+                break
+        
+        if not static_morph:
+            # Create static morph
+            static_morph = {
+                "morph_id": f"static_{rel.source_id}",
+                "node_id": rel.source_id,
+                "name": "static",
+                "relationNode_ids": [],
+                "attributeNode_ids": []
+            }
+            source_node["morphs"].append(static_morph)
+        
+        # Add relation to static morph
+        if "relationNode_ids" not in static_morph:
+            static_morph["relationNode_ids"] = []
+        if rel.id not in static_morph["relationNode_ids"]:
+            static_morph["relationNode_ids"].append(rel.id)
+        
+        # Set nbh to static morph if not already set
+        if not source_node.get("nbh"):
+            source_node["nbh"] = static_morph["morph_id"]
+        
+        # Save updated source node
+        with open(source_node_path, "w") as f:
+            json.dump(source_node, f, indent=2)
+    
+    # Regenerate polymorphic_composed.json to include the new relation
+    try:
+        # Get all nodes that belong to this graph
+        node_ids = get_graph_node_ids(user_id, graph_id)
+        
+        # Load graph description
+        metadata_path = f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml"
+        graph_description = ""
+        if os.path.exists(metadata_path):
+            import yaml
+            with open(metadata_path, "r") as f:
+                metadata = yaml.safe_load(f) or {}
+                graph_description = metadata.get("description", "")
+        
+        # Recompose the graph
+        compose_graph(user_id, graph_id, node_ids, graph_description)
+    except Exception as e:
+        print(f"Warning: Failed to regenerate polymorphic_composed.json: {e}")
+    
+    return {"status": "RelationNode created and registered", "relation_id": rel.id}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/relation/update/{source}/{name}/{target}")
 def update_relation_node(user_id: str, graph_id: str, source: str, name: str, target: str, rel: RelationNode):

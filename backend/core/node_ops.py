@@ -2,6 +2,8 @@ import os
 from fastapi import HTTPException
 from backend.core.utils import render_description_md, load_json_file, save_json_file
 from collections import OrderedDict
+import json
+from pathlib import Path
 
 NODE_KEY_ORDER = [
     "id",
@@ -34,22 +36,52 @@ def node_path(user_id: str, graph_id: str, node_id: str) -> str:
     # Always use the JSON node file in the user nodes directory
     return os.path.join("graph_data", "users", user_id, "nodes", f"{node_id}.json")
 
+def ensure_static_morph(node_data: dict, node_id: str) -> dict:
+    """
+    Ensure a node has a static morph. If not, create one and set it as the active neighborhood.
+    """
+    if "morphs" not in node_data:
+        node_data["morphs"] = []
+    
+    # Check if static morph exists
+    static_morph_exists = any(morph.get("name") == "static" for morph in node_data["morphs"])
+    
+    if not static_morph_exists:
+        # Create static morph
+        static_morph = {
+            "morph_id": f"static_{node_id}",
+            "node_id": node_id,
+            "name": "static",
+            "relationNode_ids": [],
+            "attributeNode_ids": []
+        }
+        node_data["morphs"].append(static_morph)
+        # Set nbh to static morph if not already set
+        if not node_data.get("nbh"):
+            node_data["nbh"] = static_morph["morph_id"]
+    
+    return node_data
+
 def load_node(user_id: str, graph_id: str, node_id: str) -> dict:
-    path = node_path(user_id, graph_id, node_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Node not found")
-    return load_json_file(path)
+    """
+    Load a node and ensure it has a static morph for the new architecture.
+    """
+    node_path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
+    if not os.path.exists(node_path):
+        raise FileNotFoundError(f"Node {node_id} not found")
+    
+    with open(node_path, "r") as f:
+        node_data = json.load(f)
+    
+    # Ensure the node has a static morph for the new architecture
+    node_data = ensure_static_morph(node_data, node_id)
+    
+    return node_data
 
 def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
-    path = node_path(user_id, graph_id, node_id)
-    # Ensure the directory exists before saving
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    node_data = data
-    if "attributes" in node_data:
-        node_data["attributes"] = sort_attributes(node_data["attributes"])
-    if "relations" in node_data:
-        node_data["relations"] = sort_relations(node_data["relations"])
-    save_json_file(path, ordered_node_dict(node_data))
+    path = Path(node_path(user_id, graph_id, node_id))
+    os.makedirs(path.parent, exist_ok=True)
+    save_json_file(path, data)
 
 def safe_node_summary(user_id: str, graph_id: str, node_id: str) -> dict | None:
     try:

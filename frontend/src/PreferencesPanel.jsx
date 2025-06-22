@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { API_BASE } from "./config";
 
 // Initial preferences (used as fallback)
@@ -26,15 +26,22 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
   const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("idle"); // "idle", "saving", "saved", "error"
+  const [saveTimeout, setSaveTimeout] = useState(null);
 
   // Fetch preferences from backend on mount
   useEffect(() => {
     async function fetchPrefs() {
+      if (!userId) {
+        setPrefs(DEFAULT_PREFERENCES);
+        setLoading(false);
+        return; // Don't make API calls if no user is logged in
+      }
       setLoading(true);
       setError(null);
       try {
         // Fetch preferences from backend API, sending user_id as query param
-        const res = await fetch(`api/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         if (!res.ok) throw new Error("Failed to load preferences");
         const data = await res.json();
         setPrefs(data);
@@ -50,18 +57,43 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
     fetchPrefs();
   }, [userId]);
 
-  // Save preferences to backend
-  async function savePrefs(newPrefs) {
+  // Debounced save function
+  const debouncedSave = useCallback((newPrefs) => {
+    // Clear existing timeout
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    // Set saving status immediately
+    setSaveStatus("saving");
+
+    // Create new timeout for debounced save
+    const timeout = setTimeout(async () => {
     try {
-      await fetch(`/api/preferences`, {
+        await fetch(`/api/ndf/preferences`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
         body: JSON.stringify(newPrefs),
       });
+        setSaveStatus("saved");
+        
+        // Clear saved status after 2 seconds
+        setTimeout(() => {
+          setSaveStatus("idle");
+        }, 2000);
     } catch (e) {
-      // Optionally show error
+        setSaveStatus("error");
+        console.error("Failed to save preferences:", e);
+        
+        // Clear error status after 3 seconds
+        setTimeout(() => {
+          setSaveStatus("idle");
+        }, 3000);
     }
-  }
+    }, 500); // 500ms debounce delay
+
+    setSaveTimeout(timeout);
+  }, [userId, saveTimeout]);
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -70,14 +102,54 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
       [name]: type === "checkbox" ? checked : value,
     };
     setPrefs(updated);
-    savePrefs(updated);
+    debouncedSave(updated);
     if (onPrefsChange) onPrefsChange(updated);
   }
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [saveTimeout]);
+
+  // Save status indicator component
+  const SaveStatusIndicator = () => {
+    switch (saveStatus) {
+      case "saving":
+        return (
+          <div className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span>Saving...</span>
+          </div>
+        );
+      case "saved":
+        return (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg flex items-center space-x-2">
+            <span>✓</span>
+            <span>Saved!</span>
+          </div>
+        );
+      case "error":
+        return (
+          <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg flex items-center space-x-2">
+            <span>✗</span>
+            <span>Save failed</span>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   if (loading) return <div className="p-4 text-gray-500">Loading preferences...</div>;
   if (error) return <div className="p-4 text-red-500">{error}</div>;
 
   return (
+    <div className="relative">
+      <SaveStatusIndicator />
     <form className="max-w-xl mx-auto space-y-5">
       <div>
         <label className="block font-medium mb-1">Difficulty Level</label>
@@ -173,5 +245,6 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
         <span className="text-xs text-gray-400 ml-2">(coming soon)</span>
       </div>
     </form>
+    </div>
   );
 }

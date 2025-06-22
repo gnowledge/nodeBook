@@ -2,13 +2,14 @@ from fastapi import FastAPI, APIRouter, Depends, HTTPException
 from fastapi_users import FastAPIUsers, BaseUserManager, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users_db_sqlmodel import SQLModelUserDatabase
-from sqlmodel import SQLModel, Field, create_engine, Session
+from sqlmodel import SQLModel, Field, create_engine, Session, select
 from uuid import UUID, uuid4
 import secrets
 import os
 from pathlib import Path
 from passlib.context import CryptContext
 import json
+from pydantic import BaseModel, EmailStr
 
 # ---------- CONFIG ----------
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "graph_data"
@@ -38,6 +39,11 @@ class UserRead(schemas.BaseUser[UUID]):
 class UserUpdate(schemas.BaseUserUpdate):
     username: str
 
+# Custom login schema for username/email login
+class UserLogin(BaseModel):
+    username_or_email: str
+    password: str
+
 # ---------- DATABASE ----------
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SQLModel.metadata.create_all(engine)
@@ -55,7 +61,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     async def on_after_register(self, user: User, request=None):
         # Only print username and email, not hashed_password
         print(f"[DEBUG] User registered: username={getattr(user, 'username', None)}, email={getattr(user, 'email', None)}")
-        
+
         # Initialize user directory structure
         await self.initialize_user_directories(str(user.id))
     
@@ -99,11 +105,45 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         
         print(f"[DEBUG] Initialized directories for user {user_id}")
 
-    async def validate_password(self, password: str, user: User) -> None:
+    async def authenticate(self, credentials: UserLogin) -> User | None:
+        """Custom authenticate method that supports login with username or email"""
         pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
-        is_valid = pwd_context.verify(password, user.hashed_password)
-        print(f"[DEBUG] Password check: {is_valid} for user: {user.username}, password: {password}, hash: {user.hashed_password}")
-        return await super().validate_password(password, user)
+        
+        # Try to find user by username or email
+        with Session(engine) as session:
+            # Try username first
+            stmt = select(User).where(User.username == credentials.username_or_email)
+            user = session.exec(stmt).first()
+            
+            if not user:
+                # Try email
+                stmt = select(User).where(User.email == credentials.username_or_email)
+                user = session.exec(stmt).first()
+            
+            if not user:
+                return None
+            
+            # Verify password
+            if not pwd_context.verify(credentials.password, user.hashed_password):
+                return None
+            
+            return user
+
+    async def _create(self, user_create: UserCreate) -> User:
+        """Override _create to handle username field"""
+        pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
+        
+        user_data = {
+            "email": user_create.email,
+            "username": user_create.username,
+            "hashed_password": pwd_context.hash(user_create.password),
+            "is_active": user_create.is_active,
+            "is_superuser": user_create.is_superuser,
+            "is_verified": user_create.is_verified
+        }
+        
+        user = User(**user_data)
+        return user
 
 async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
@@ -143,6 +183,34 @@ users_router.include_router(
     prefix="",
     tags=["auth"]
 )
+
+@users_router.post("/login")
+async def login(credentials: UserLogin):
+    """Custom login endpoint that accepts username or email"""
+    user_manager = UserManager(get_user_db().__next__())
+    user = await user_manager.authenticate(credentials)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    
+    # Generate JWT token
+    jwt_strategy = get_jwt_strategy()
+    token = await jwt_strategy.write_token(user)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser
+        }
+    }
 
 @users_router.get("/whoami")
 async def whoami(user: User = Depends(current_active_user)):

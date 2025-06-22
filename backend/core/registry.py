@@ -85,6 +85,9 @@ def make_attribute_id(node_id: str, name: str, adverb: str = "", modality: str =
     return '::'.join([p for p in parts if p])
 
 def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "", base_name: str = "") -> str:
+    # If morph_name is "static", don't include it in the ID calculation
+    if morph_name == "static":
+        morph_name = ""
     parts = [quantifier, adverb, morph_name, base_name]
     return '_'.join([p for p in parts if p])
 
