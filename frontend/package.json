@@ -22,6 +22,7 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
     "react-monaco-editor": "^0.58.0",
+    "react-router-dom": "^7.6.2",
     "react-simplemde-editor": "^5.2.0",
     "remark-gfm": "^4.0.1"
   },

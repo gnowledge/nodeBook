@@ -91,7 +91,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         registries = [
             "node_registry.json",
             "attribute_registry.json", 
-            "relation_node_registry.json",
+            "relation_registry.json",
             "morph_registry.json",
             "transition_registry.json",
             "function_registry.json"

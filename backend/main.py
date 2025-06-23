@@ -1,11 +1,11 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes.users import users_router
+from routes.users import users_router
 import os
 from pathlib import Path
 
-from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions
-from backend.core.schema_ops import ensure_schema_file
+from routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions
+from core.schema_ops import ensure_schema_file
 # backend/app.py
 
 

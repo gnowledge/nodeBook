@@ -31,18 +31,19 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
   const [targetOptions, setTargetOptions] = useState([]);
   const [targetLoading, setTargetLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchRelationTypes() {
-      setRelationTypesLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`);
-        const data = await res.json();
-        setRelationTypes((data || []).map(r => typeof r === 'string' ? r : r.name));
-      } catch {
-        setRelationTypes([]);
-      }
-      setRelationTypesLoading(false);
+  const fetchRelationTypes = async () => {
+    setRelationTypesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`);
+      const data = await res.json();
+      setRelationTypes((data || []).map(r => typeof r === 'string' ? r : r.name));
+    } catch {
+      setRelationTypes([]);
     }
+    setRelationTypesLoading(false);
+  };
+
+  useEffect(() => {
     fetchRelationTypes();
   }, [userId, graphId]);
 
@@ -121,14 +122,29 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
       adverb: relAdverb || undefined,
       modality: relModality || undefined
     };
-    await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
+    const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (typeof onSuccess === 'function') {
-      onSuccess();
+    
+    if (response.ok) {
+      const responseData = await response.json();
+      if (typeof onSuccess === 'function') {
+        // If backend returns full relation object, use it; otherwise use our payload
+        const relationData = responseData.id || responseData.relation_id ? 
+          { ...payload, id: responseData.id || responseData.relation_id } : payload;
+        onSuccess(relationData);
+      }
+    } else {
+      alert("Error creating relation. Please try again.");
     }
+  };
+
+  const handleRelationTypeCreated = () => {
+    setShowRelationModal(false);
+    // Reload relation types to include the newly created one
+    fetchRelationTypes();
   };
 
   return (
@@ -246,10 +262,11 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
         <RelationTypeModal
           isOpen={showRelationModal}
           onClose={() => setShowRelationModal(false)}
-          onSuccess={() => {
-            setShowRelationModal(false);
-            // Optional: trigger reload of relationTypes list
-          }}
+          onSuccess={handleRelationTypeCreated}
+          userId={userId}
+          graphId={graphId}
+          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`}
+          method="POST"
         />
       )}
     </form>

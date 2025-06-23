@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { marked } from "marked";
 import NodeCard from "./NodeCard";
 import NodeForm from "./NodeForm";
+import RelationTypeList from "./RelationTypeList";
+import AttributeTypeList from "./AttributeTypeList";
+import NodeTypeList from "./NodeTypeList";
 import { useUserId } from "./UserIdContext";
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
@@ -23,6 +26,9 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   const userId = useUserId();
   const [graph, setGraph] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
+  const [showRelationTypes, setShowRelationTypes] = useState(false);
+  const [showAttributeTypes, setShowAttributeTypes] = useState(false);
+  const [showNodeTypes, setShowNodeTypes] = useState(false);
 
   useEffect(() => {
     const fetchComposed = async () => {
@@ -90,13 +96,108 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
     <div className="p-4 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Nodes</h2>
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => setShowNodeForm(true)}
-        >
-          + Add Node
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 text-sm"
+            onClick={() => setShowNodeTypes(true)}
+            title="Schema management (use sparingly)"
+          >
+            Schema
+          </button>
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            onClick={() => setShowNodeForm(true)}
+          >
+            + Add Node
+          </button>
+        </div>
       </div>
+
+      {/* Schema Management Modal */}
+      {showNodeTypes && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded shadow-lg p-6 w-[90vw] h-[90vh] max-w-6xl overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Schema Management</h2>
+              <button
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+                onClick={() => setShowNodeTypes(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* Schema Tabs */}
+            <div className="flex border-b mb-4">
+              <button
+                className={`px-4 py-2 font-semibold border-b-2 ${!showRelationTypes && !showAttributeTypes ? 'border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                onClick={() => {
+                  setShowRelationTypes(false);
+                  setShowAttributeTypes(false);
+                }}
+              >
+                Node Types
+              </button>
+              <button
+                className={`px-4 py-2 font-semibold border-b-2 ${showRelationTypes ? 'border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                onClick={() => {
+                  setShowRelationTypes(true);
+                  setShowAttributeTypes(false);
+                }}
+              >
+                Relation Types
+              </button>
+              <button
+                className={`px-4 py-2 font-semibold border-b-2 ${showAttributeTypes ? 'border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                onClick={() => {
+                  setShowRelationTypes(false);
+                  setShowAttributeTypes(true);
+                }}
+              >
+                Attribute Types
+              </button>
+            </div>
+            
+            {/* Schema Content */}
+            {!showRelationTypes && !showAttributeTypes && (
+              <div>
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Parsimony Principle:</strong> Only create new schema types when absolutely necessary. 
+                    Reuse existing types whenever possible to maintain rigorous modeling.
+                  </p>
+                </div>
+                <NodeTypeList graphId={graphId} />
+              </div>
+            )}
+            
+            {showRelationTypes && (
+              <div>
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Parsimony Principle:</strong> Only create new relation types when absolutely necessary. 
+                    Reuse existing types whenever possible to maintain rigorous modeling.
+                  </p>
+                </div>
+                <RelationTypeList userId={userId} graphId={graphId} />
+              </div>
+            )}
+            
+            {showAttributeTypes && (
+              <div>
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Parsimony Principle:</strong> Only create new attribute types when absolutely necessary. 
+                    Reuse existing types whenever possible to maintain rigorous modeling.
+                  </p>
+                </div>
+                <AttributeTypeList graphId={graphId} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {showNodeForm && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded shadow-lg p-6 w-[600px] max-w-full">

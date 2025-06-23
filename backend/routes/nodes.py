@@ -202,8 +202,8 @@ def delete_polynode(user_id: str, graph_id: str, node_id: str):
         
         save_registry(Path(reg_path), registry)
     
-    # Clean up relation_node_registry
-    rel_reg_path = f"graph_data/users/{user_id}/relation_node_registry.json"
+    # Clean up relation_registry
+    rel_reg_path = f"graph_data/users/{user_id}/relation_registry.json"
     if os.path.exists(rel_reg_path):
         with open(rel_reg_path, "r") as f:
             rel_registry = json.load(f)

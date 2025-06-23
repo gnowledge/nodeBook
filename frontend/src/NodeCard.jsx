@@ -3,6 +3,8 @@ import { marked } from "marked";
 import { API_BASE } from "./config";
 import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
+import TransitionForm from "./TransitionForm";
+import MorphForm from "./MorphForm";
 import RelationTypeModal from "./RelationTypeModal";
 import { useUserId } from "./UserIdContext";
 import MonacoEditor from '@monaco-editor/react';
@@ -18,6 +20,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   const [editRole, setEditRole] = useState("");
   const [showRelationForm, setShowRelationForm] = useState(false);
   const [showAttributeForm, setShowAttributeForm] = useState(false);
+  const [showTransitionForm, setShowTransitionForm] = useState(false);
   const [editRelationIndex, setEditRelationIndex] = useState(null);
   const [editAttributeIndex, setEditAttributeIndex] = useState(null);
   const [nlpResult, setNlpResult] = useState(null);
@@ -33,6 +36,11 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   const [nbhSaveStatus, setNbhSaveStatus] = useState(null);
   const [nbhLoading, setNbhLoading] = useState(false);
   const [nbhViewMode, setNbhViewMode] = useState('rendered'); // 'rendered' or 'editor'
+  const [isPolymorphic, setIsPolymorphic] = useState(false);
+  const [showMorphForm, setShowMorphForm] = useState(false);
+  const [editingMorph, setEditingMorph] = useState(null);
+  const [morphs, setMorphs] = useState([]);
+  const [activeMorphId, setActiveMorphId] = useState(null);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -40,9 +48,33 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     if (!nodeId) return;
     fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
       .then(res => res.json())
-      .then(data => setFreshNode(data))
+      .then(data => {
+        setFreshNode(data);
+        // Check if node is polymorphic (has morphs)
+        if (data.morphs && data.morphs.length > 0) {
+          setIsPolymorphic(true);
+          setMorphs(data.morphs);
+          // Set active morph to the current nbh or first morph
+          setActiveMorphId(data.nbh || data.morphs[0]?.morph_id);
+        } else {
+          setIsPolymorphic(false);
+          setMorphs([]);
+          setActiveMorphId(null);
+        }
+      })
       .catch(() => setFreshNode(node));
   }, [node?.node_id, node?.id, userId, graphId]);
+
+  // Update polymorphic state and morphs when freshNode changes
+  useEffect(() => {
+    if (freshNode?.morphs && freshNode.morphs.length > 0) {
+      setIsPolymorphic(true);
+      setMorphs(freshNode.morphs);
+    } else {
+      setIsPolymorphic(false);
+      setMorphs([]);
+    }
+  }, [freshNode]);
 
   // Persist NLP result per node in sessionStorage
   const nodeKey = `nlpResult-${freshNode?.node_id || freshNode?.id}`;
@@ -258,6 +290,167 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     return md;
   }
 
+  // Helper to render NBH with interactive elements
+  function renderInteractiveNBH() {
+    // Get relations and attributes for the active morph
+    let relations = [];
+    let attributes = [];
+    
+    if (freshNode?.morphs && freshNode?.nbh) {
+      const activeMorph = freshNode.morphs.find(m => m.morph_id === freshNode.nbh);
+      if (activeMorph) {
+        // Get relations from graph-level relations array
+        for (const rel_id of activeMorph.relationNode_ids || []) {
+          const rel = graphRelations.find(r => r.id === rel_id);
+          if (rel) relations.push(rel);
+        }
+        
+        // Get attributes from graph-level attributes array
+        for (const attr_id of activeMorph.attributeNode_ids || []) {
+          const attr = graphAttributes.find(a => a.id === attr_id);
+          if (attr) attributes.push(attr);
+        }
+      }
+    } else {
+      // Fallback to legacy relations/attributes
+      relations = freshNode?.relations || [];
+      attributes = freshNode?.attributes || [];
+    }
+
+    const handleDeleteRelation = async (rel) => {
+      if (!confirm(`Delete relation "${rel.name || rel.type}"?`)) return;
+      
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relations/${rel.id}`,
+          { method: "DELETE" }
+        );
+        if (res.ok) {
+          if (onGraphUpdate) onGraphUpdate();
+          // Reload this node to update the display
+          const nodeId = freshNode?.node_id || freshNode?.id;
+          fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
+            .then(res => res.json())
+            .then(data => setFreshNode(data));
+        } else {
+          alert('Failed to delete relation');
+        }
+      } catch (err) {
+        alert(`Error deleting relation: ${err.message}`);
+      }
+    };
+
+    const handleDeleteAttribute = async (attr) => {
+      if (!confirm(`Delete attribute "${attr.name || attr.attribute_name}"?`)) return;
+      
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attributes/${attr.id}`,
+          { method: "DELETE" }
+        );
+        if (res.ok) {
+          if (onGraphUpdate) onGraphUpdate();
+          // Reload this node to update the display
+          const nodeId = freshNode?.node_id || freshNode?.id;
+          fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
+            .then(res => res.json())
+            .then(data => setFreshNode(data));
+        } else {
+          alert('Failed to delete attribute');
+        }
+      } catch (err) {
+        alert(`Error deleting attribute: ${err.message}`);
+      }
+    };
+
+    return (
+      <div className="space-y-3">
+        {/* Relations Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <h4 className="font-semibold text-sm">Relations</h4>
+            <button 
+              className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+              onClick={() => {
+                setNbhTab(0);
+                setShowNbhModal(true);
+              }}
+              title="Add relation"
+            >
+              [+ Add]
+            </button>
+          </div>
+          {relations.length > 0 ? (
+            <ul className="space-y-1">
+              {relations.map((rel, index) => (
+                <li key={rel.id || index} className="flex items-center gap-2 text-sm">
+                  <span className="flex-1">
+                    <strong>{rel.name || rel.type}</strong>: {rel.target_id || rel.target_name || rel.target}
+                    {rel.adverb && <em className="text-gray-600"> (adverb: {rel.adverb})</em>}
+                    {rel.modality && <span className="text-gray-500"> [{rel.modality}]</span>}
+                  </span>
+                  <div className="flex gap-1">
+                    <button 
+                      className="text-red-600 hover:text-red-700 text-xs px-1 py-0.5 rounded border border-red-300 hover:border-red-400"
+                      onClick={() => handleDeleteRelation(rel)}
+                      title="Delete relation"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 italic text-sm">No relations yet.</p>
+          )}
+        </div>
+
+        {/* Attributes Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <h4 className="font-semibold text-sm">Attributes</h4>
+            <button 
+              className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+              onClick={() => {
+                setNbhTab(1);
+                setShowNbhModal(true);
+              }}
+              title="Add attribute"
+            >
+              [+ Add]
+            </button>
+          </div>
+          {attributes.length > 0 ? (
+            <ul className="space-y-1">
+              {attributes.map((attr, index) => (
+                <li key={attr.id || index} className="flex items-center gap-2 text-sm">
+                  <span className="flex-1">
+                    <strong>{attr.name || attr.attribute_name}</strong>: {attr.value}
+                    {attr.adverb && <em className="text-gray-600"> (adverb: {attr.adverb})</em>}
+                    {attr.unit && <span className="text-gray-500"> ({attr.unit})</span>}
+                    {attr.modality && <span className="text-gray-500"> [{attr.modality}]</span>}
+                  </span>
+                  <div className="flex gap-1">
+                    <button 
+                      className="text-red-600 hover:text-red-700 text-xs px-1 py-0.5 rounded border border-red-300 hover:border-red-400"
+                      onClick={() => handleDeleteAttribute(attr)}
+                      title="Delete attribute"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 italic text-sm">No attributes yet.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Keep NBH state in sync with freshNode
   useEffect(() => {
     setEditRelations(freshNode?.relations ? JSON.parse(JSON.stringify(freshNode.relations)) : []);
@@ -277,15 +470,10 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   const handleSaveNbh = async () => {
     setNbhLoading(true);
     setNbhSaveStatus(null);
-    const nodeId = freshNode?.node_id || freshNode?.id;
     try {
-      const updatedNode = {
-        ...freshNode,
-        relations: editRelations,
-        attributes: editAttributes
-      };
+      const updatedNode = { ...freshNode, relations: editRelations, attributes: editAttributes };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
+        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -297,7 +485,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         setShowNbhModal(false);
         if (onGraphUpdate) onGraphUpdate();
       } else {
-        setNbhSaveStatus("Error saving neighborhood");
+        setNbhSaveStatus("Failed to save neighborhood");
       }
     } catch (err) {
       setNbhSaveStatus("Error saving neighborhood");
@@ -464,15 +652,158 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
 
   const hasDescription = freshNode?.description && freshNode.description.trim() !== "";
 
+  const handleSaveMorphs = async (updatedMorphs) => {
+    setLoading(true);
+    try {
+      const updatedNode = { ...freshNode, morphs: updatedMorphs };
+      const res = await fetch(
+        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedNode)
+        }
+      );
+      if (res.ok) {
+        setFreshNode(updatedNode);
+        setMorphs(updatedMorphs);
+        if (onGraphUpdate) onGraphUpdate();
+      }
+    } catch (err) {
+      console.error("Failed to save morphs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMorphSwitch = async (morphId) => {
+    if (morphId === activeMorphId) return;
+    
+    setLoading(true);
+    try {
+      const updatedNode = { ...freshNode, nbh: morphId };
+      const res = await fetch(
+        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedNode)
+        }
+      );
+      if (res.ok) {
+        setFreshNode(updatedNode);
+        setActiveMorphId(morphId);
+        if (onGraphUpdate) onGraphUpdate();
+      }
+    } catch (err) {
+      console.error("Failed to switch morph:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteMorph = async (morphId) => {
+    if (!confirm("Are you sure you want to delete this morph? This will also delete all its relations and attributes.")) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const updatedMorphs = morphs.filter(m => m.morph_id !== morphId);
+      
+      // If we're deleting the active morph, switch to the first available morph
+      let newNbh = freshNode.nbh;
+      if (morphId === activeMorphId && updatedMorphs.length > 0) {
+        newNbh = updatedMorphs[0].morph_id;
+        setActiveMorphId(newNbh);
+      } else if (updatedMorphs.length === 0) {
+        // No morphs left, remove polymorphic state
+        newNbh = null;
+        setIsPolymorphic(false);
+        setActiveMorphId(null);
+      }
+      
+      const updatedNode = { ...freshNode, morphs: updatedMorphs, nbh: newNbh };
+      const res = await fetch(
+        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedNode)
+        }
+      );
+      if (res.ok) {
+        setFreshNode(updatedNode);
+        setMorphs(updatedMorphs);
+        if (onGraphUpdate) onGraphUpdate();
+      }
+    } catch (err) {
+      console.error("Failed to delete morph:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div id={"node-" + (freshNode?.node_id || freshNode?.id)} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white relative">
       <div className="flex justify-between items-start mb-2">
-        <h2 className="text-lg font-semibold text-blue-700">
-          <span dangerouslySetInnerHTML={{ __html: marked.parseInline(freshNode?.name || freshNode?.node_id || '') }} />
-        </h2>
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-blue-700">
+            <span dangerouslySetInnerHTML={{ __html: marked.parseInline(freshNode?.name || freshNode?.node_id || '') }} />
+          </h2>
+          
+          {/* Morph Selection Radio Buttons */}
+          {isPolymorphic && morphs.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="text-xs text-gray-600 font-medium">Morphs:</span>
+              {morphs.map((morph, index) => (
+                <label key={morph.morph_id} className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`morph-${freshNode?.node_id || freshNode?.id}`}
+                    value={morph.morph_id}
+                    checked={activeMorphId === morph.morph_id}
+                    onChange={() => handleMorphSwitch(morph.morph_id)}
+                    disabled={loading}
+                    className="text-blue-600"
+                  />
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    activeMorphId === morph.morph_id 
+                      ? 'bg-blue-100 text-blue-800 font-medium' 
+                      : 'text-gray-700 hover:text-blue-600'
+                  }`}>
+                    {index === 0 ? 'basic morph' : (morph.name || morph.morph_id)}
+                    {activeMorphId === morph.morph_id && ' (active)'}
+                  </span>
+                </label>
+              ))}
+              <button 
+                className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+                onClick={() => setShowMorphForm(true)}
+                title="Add new morph"
+              >
+                +
+              </button>
+            </div>
+          )}
+          
+          {/* Add Morph button when polymorphic but no morphs yet */}
+          {isPolymorphic && morphs.length === 0 && (
+            <div className="mt-2">
+              <button 
+                className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+                onClick={() => setShowMorphForm(true)}
+                title="Add first morph"
+              >
+                + Add Morph
+              </button>
+            </div>
+          )}
+        </div>
+        
         {/* Role selector as compact button group */}
         <div className="flex gap-1">
-          {["individual", "class", "process"].map(option => (
+          {["individual", "class"].map(option => (
             <button
               key={option}
               className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode?.role === option ? "bg-blue-600 text-white border-blue-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-100"}`}
@@ -504,6 +835,14 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               {option.charAt(0).toUpperCase()}
             </button>
           ))}
+          {/* Polymorphic toggle */}
+          <button
+            className={`px-2 py-0.5 rounded text-xs font-semibold border ${isPolymorphic ? "bg-purple-600 text-white border-purple-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-purple-100"}`}
+            onClick={() => setIsPolymorphic(!isPolymorphic)}
+            title="Polymorphic Node"
+          >
+            P
+          </button>
         </div>
       </div>
 
@@ -617,54 +956,9 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                 {nlpResult.attribute_value_pairs.map((pair, i) => (
                   <li key={i}>
                     <span className="text-blue-700 font-semibold">
-                      {pair.attribute !== undefined && pair.attribute !== null
-                        ? String(pair.attribute)
-                        : "(unknown)"}
-                    </span>
-                    :{" "}
-                    <span>
-                      {Array.isArray(pair.value)
-                        ? pair.value.map((v, idx) =>
-                            v !== undefined && v !== null
-                              ? <span key={idx}>{String(v)}{idx < pair.value.length - 1 ? ", " : ""}</span>
-                              : <span key={idx}>(unknown){idx < pair.value.length - 1 ? ", " : ""}</span>
-                          )
-                        : pair.value !== undefined && pair.value !== null
-                        ? String(pair.value)
-                        : "(unknown)"}
-                    </span>
+                      {pair.attribute}
+                    </span>: {pair.value}
                   </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {/* Named Entities (possible nodes) */}
-          {nlpResult.entities && nlpResult.entities.length > 0 && (
-            <div className="mb-1">
-              <span className="font-semibold">Possible Nodes (Entities):</span>
-              <ul className="ml-2 list-disc text-xs">
-                {nlpResult.entities.map((ent, i) => (
-                  <li key={i}>
-                    <span className="text-blue-700 font-semibold">{ent.text}</span> <span className="text-gray-500">[{ent.label}]</span>
-                    {/* TODO: Add button to create node if not exists */}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {/* Prepositions/Connectives with frequency */}
-          {((nlpResult.prepositions && nlpResult.prepositions.length > 0) || (nlpResult.connectives && nlpResult.connectives.length > 0)) && (
-            <div className="mb-1">
-              <span className="font-semibold">Prepositions/Connectives:</span>
-              <ul className="ml-2 list-disc text-xs">
-                {["prepositions", "connectives"].map(type => (
-                  nlpResult[type] && nlpResult[type].length > 0 && (
-                    <li key={type}>
-                      <span className="capitalize">{type}:</span> {Object.entries(nlpResult[type].reduce((acc, w) => { acc[w] = (acc[w] || 0) + 1; return acc; }, {})).map(([w, n], i, arr) => (
-                        <span key={w}>{w}{n > 1 ? ` (${n})` : ""}{i < arr.length - 1 ? ", " : ""}</span>
-                      ))}
-                    </li>
-                  )
                 ))}
               </ul>
             </div>
@@ -750,8 +1044,26 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       {/* --- Node Neighborhood Section --- */}
       <div className="mb-2">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-semibold">Node Neighborhood:</span>
-          <button className="text-blue-600 underline text-xs" onClick={handleOpenNbhModal}>Edit NBH</button>
+          <span className="font-semibold">
+            {isPolymorphic && activeMorphId 
+              ? `${morphs.findIndex(m => m.morph_id === activeMorphId) === 0 ? 'Basic Morph' : (morphs.find(m => m.morph_id === activeMorphId)?.name || 'Morph')} Neighborhood:`
+              : 'Node Neighborhood:'
+            }
+          </span>
+          {/* Morph management buttons */}
+          {isPolymorphic && morphs.length > 1 && morphs[0]?.morph_id !== activeMorphId && (
+            <button 
+              className="text-red-600 underline text-xs"
+              onClick={() => handleDeleteMorph(activeMorphId)}
+              disabled={loading}
+            >
+              Delete Current Morph
+            </button>
+          )}
+          {/* Only show transition creation if we have polymorphic nodes with multiple morphs */}
+          {isPolymorphic && morphs.length >= 2 && (
+            <button className="text-green-600 underline text-xs" onClick={() => setShowTransitionForm(true)}>Create Transition</button>
+          )}
           {hasNBHContent && (
             <button 
               className="text-gray-600 underline text-xs" 
@@ -772,7 +1084,9 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               options={{ readOnly: true, wordWrap: 'on', minimap: { enabled: false } }}
             />
           ) : (
-            <div className="prose prose-sm bg-gray-50 p-2 rounded" dangerouslySetInnerHTML={{ __html: marked.parse(nbhMarkdown || '') }} />
+            <div className="prose prose-sm bg-gray-50 p-2 rounded">
+              {renderInteractiveNBH()}
+            </div>
           )
         ) : (
           <div className="prose prose-sm bg-gray-50 p-2 rounded text-gray-500 italic">
@@ -842,9 +1156,68 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         )}
       </div>
 
+      {/* Transition Form Modal */}
+      {showTransitionForm && (
+        <div className="mt-2 bg-white p-4 rounded shadow-lg border border-gray-200">
+          <div className="mb-2 font-semibold text-base">Create Transition</div>
+          <TransitionForm
+            graphId={graphId}
+            userId={userId}
+            sourceNodeId={freshNode?.node_id || freshNode?.id}
+            sourceNodeName={freshNode?.name}
+            onSuccess={() => {
+              setShowTransitionForm(false);
+              if (typeof onGraphUpdate === 'function') onGraphUpdate();
+            }}
+            onCancel={() => setShowTransitionForm(false)}
+          />
+        </div>
+      )}
+
+      {/* Morph Form Modal */}
+      {showMorphForm && (
+        <div className="mt-2">
+          <MorphForm
+            morph={editingMorph}
+            onSave={(morphData) => {
+              if (editingMorph) {
+                // Update existing morph - preserve existing morph_id and node_id
+                const updatedMorph = {
+                  ...morphData,
+                  morph_id: editingMorph.morph_id || editingMorph.id,
+                  node_id: editingMorph.node_id || (freshNode?.node_id || freshNode?.id)
+                };
+                const updatedMorphs = morphs.map(m => (m.morph_id || m.id) === (editingMorph.morph_id || editingMorph.id) ? updatedMorph : m);
+                handleSaveMorphs(updatedMorphs);
+              } else {
+                // Add new morph - ensure it has the correct structure
+                const newMorph = {
+                  ...morphData,
+                  morph_id: morphData.morph_id || morphData.id,
+                  node_id: morphData.node_id || (freshNode?.node_id || freshNode?.id)
+                };
+                const updatedMorphs = [...morphs, newMorph];
+                handleSaveMorphs(updatedMorphs);
+              }
+              setShowMorphForm(false);
+              setEditingMorph(null);
+            }}
+            onCancel={() => {
+              setShowMorphForm(false);
+              setEditingMorph(null);
+            }}
+            nodeId={freshNode?.node_id || freshNode?.id}
+            graphId={graphId}
+            userId={userId}
+            existingMorphs={morphs}
+            onGraphUpdate={onGraphUpdate}
+          />
+        </div>
+      )}
+
       {/* Delete button moved to bottom right */}
       <button
-        className="absolute bottom-2 right-2 px-2 py-1 rounded text-xs font-semibold border bg-red-100 text-red-600 border-red-300 hover:bg-red-200"
+        className="absolute bottom-2 right-2 px-3 py-1 rounded text-xs font-semibold border bg-red-100 text-red-600 border-red-300 hover:bg-red-200"
         onClick={async () => {
           if (!confirm(`Are you sure you want to delete "${freshNode?.name || freshNode?.node_id}"? This will also delete all its relations and attributes.`)) {
             return;
@@ -873,7 +1246,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         disabled={loading}
         title="Delete Node"
       >
-        ×
+        [Delete Node]
       </button>
     </div>
   );

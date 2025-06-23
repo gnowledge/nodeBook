@@ -20,7 +20,14 @@ router = APIRouter()
 def create_attribute_helper(user_id, graph_id, attr_dict, report):
     try:
         attr = AttributeNode(
-            id=make_attribute_id(attr_dict['target_node'], attr_dict['attribute_name'], attr_dict.get('adverb', ''), attr_dict.get('modality', '')),
+            id=make_attribute_id(
+                attr_dict['target_node'],
+                attr_dict['attribute_name'],
+                attr_dict.get('value', ''),
+                attr_dict.get('unit', ''),
+                attr_dict.get('adverb', ''),
+                attr_dict.get('modality', '')
+            ),
             source_id=attr_dict['target_node'],
             name=attr_dict['attribute_name'],
             value=attr_dict.get('value'),

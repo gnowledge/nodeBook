@@ -256,3 +256,57 @@ This project is licensed under the **AGPL v3** to ensure knowledge and improveme
 ## 🌍 Project Origin
 
 An initiative of https://www.gnowledge.org 
+
+## Quick Start Scripts
+
+For easy development, we provide several startup scripts:
+
+### Individual Services
+
+**Start Backend Only:**
+```bash
+./start_backend.sh
+```
+- Checks virtual environment and directory
+- Sets correct PYTHONPATH
+- Starts backend on http://localhost:8000
+
+**Start Frontend Only:**
+```bash
+./start_frontend.sh
+```
+- Checks directory and dependencies
+- Starts frontend on http://localhost:5173 (or next available port)
+
+### Combined Services
+
+**Start Both Backend and Frontend:**
+```bash
+./start_services.sh
+```
+- Checks virtual environment and directory
+- Starts both services in parallel
+- Press Ctrl+C to stop both
+
+### Manual Start (Alternative)
+
+If you prefer to start services manually:
+
+**Backend:**
+```bash
+source venv/bin/activate
+PYTHONPATH=/home/nagarjun/dev/ndf-studio/backend python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install  # if needed
+npm run dev
+```
+
+## Prerequisites
+
+- Python 3.8+ with virtual environment activated
+- Node.js 16+ with npm
+- All dependencies installed (see Installation section above)

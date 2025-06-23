@@ -8,6 +8,14 @@ from backend.core.utils import load_json_file, save_json_file
 from backend.core.node_ops import load_node
 from backend.core.registry import load_registry, relation_registry_path, attribute_registry_path
 
+def load_transitions(user_id: str) -> list:
+    """Load all transitions for a user."""
+    transitions_path = Path(f"graph_data/users/{user_id}/transition_registry.json")
+    if transitions_path.exists():
+        with open(transitions_path) as f:
+            return json.load(f)
+    return []
+
 def compose_graph(user_id: str, graph_id: str, node_list: list, graph_description: Optional[str] = None, report: Optional[dict] = None) -> dict:
     """
     Compose the graph from node files and registries, and write composed.json (Cytoscape format),
@@ -37,6 +45,9 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     # Load registries for fallback
     relations = list(load_registry(relation_registry_path(user_id)).values())
     attributes = list(load_registry(attribute_registry_path(user_id)).values())
+    
+    # Load transitions
+    transitions = load_transitions(user_id)
 
     # Embed relations into each node (legacy fallback)
     node_id_to_node = {n["node_id"]: n for n in nodes if "node_id" in n}
@@ -49,6 +60,7 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     cy_nodes = []
     cy_edges = []
     value_node_ids = set()
+    transition_node_ids = set()
     
     for node in nodes:
         node_id = node.get("id") or node.get("node_id")
@@ -126,6 +138,54 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
                     }
                 })
 
+    # Add transition nodes and edges
+    for transition in transitions:
+        transition_node_id = f"transition_{transition['id']}"
+        if transition_node_id not in transition_node_ids:
+            # Create transition node
+            transition_label = transition.get('name', transition['id'])
+            if transition.get('adjective'):
+                transition_label = f"{transition['adjective']} {transition_label}"
+            
+            cy_nodes.append({
+                "data": {
+                    "id": transition_node_id,
+                    "label": transition_label,
+                    "type": "transition",
+                    "tense": transition.get('tense', 'present'),
+                    "description": transition.get('description', '')
+                }
+            })
+            transition_node_ids.add(transition_node_id)
+        
+        # Add edges from inputs to transition
+        for input_node in transition.get('inputs', []):
+            input_id = input_node.get('id')
+            if input_id:
+                cy_edges.append({
+                    "data": {
+                        "id": f"input_{transition['id']}_{input_id}",
+                        "source": input_id,
+                        "target": transition_node_id,
+                        "label": "input",
+                        "type": "transition_input"
+                    }
+                })
+        
+        # Add edges from transition to outputs
+        for output_node in transition.get('outputs', []):
+            output_id = output_node.get('id')
+            if output_id:
+                cy_edges.append({
+                    "data": {
+                        "id": f"output_{transition['id']}_{output_id}",
+                        "source": transition_node_id,
+                        "target": output_id,
+                        "label": "output",
+                        "type": "transition_output"
+                    }
+                })
+
     cytoscape_graph = {"nodes": cy_nodes, "edges": cy_edges}
     save_json_file(composed_path, cytoscape_graph)
     with open(composed_yaml_path, "w") as f:
@@ -160,6 +220,7 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
         "nodes": nodes,  # Changed from "polynodes" to "nodes" for consistency
         "relations": list(relation_nodes.values()),
         "attributes": list(attribute_nodes.values()),
+        "transitions": transitions,  # Add transitions to polymorphic output
         "graph_id": graph_id,
         "description": graph_description or ""
     }

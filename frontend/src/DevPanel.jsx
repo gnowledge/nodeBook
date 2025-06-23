@@ -4,6 +4,7 @@ import NDFJsonPreview from "./NDFJsonPreview";
 import Statistics from "./Statistics";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
+import NodeTypeList from "./NodeTypeList";
 
 export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs, activeTab }) {
   return (
@@ -26,6 +27,9 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs,
             graphId={graphId}
             graph={graph}
           />
+        )}
+        {activeTab === "nodeTypes" && (
+          <NodeTypeList graphId={graphId} />
         )}
         {activeTab === "relationTypes" && (
           <RelationTypeList userId={userId} graphId={graphId} />

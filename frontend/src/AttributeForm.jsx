@@ -28,18 +28,19 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
   const [attributeTypes, setAttributeTypes] = useState([]);
   const [attributeTypesLoading, setAttributeTypesLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchAttributeTypes() {
-      setAttributeTypesLoading(true);
-      try {
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`);
-        const data = await res.json();
-        setAttributeTypes((data || []).map(a => typeof a === 'string' ? { name: a } : a));
-      } catch {
-        setAttributeTypes([]);
-      }
-      setAttributeTypesLoading(false);
+  const fetchAttributeTypes = async () => {
+    setAttributeTypesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`);
+      const data = await res.json();
+      setAttributeTypes((data || []).map(a => typeof a === 'string' ? { name: a } : a));
+    } catch {
+      setAttributeTypes([]);
     }
+    setAttributeTypesLoading(false);
+  };
+
+  useEffect(() => {
     fetchAttributeTypes();
   }, [userId, graphId]);
 
@@ -61,22 +62,37 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
       adverb: attrAdverb || undefined,
       modality: attrModality || undefined
     };
-    await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
+    const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    alert("Attribute assigned.");
-    setAttribute('');
-    setAttrValue('');
-    setAttrAdverb('');
-    setAttrUnit('');
-    setAttrModality('');
     
-    // Call onSuccess callback if provided
-    if (typeof onSuccess === 'function') {
-      onSuccess();
+    if (response.ok) {
+      const responseData = await response.json();
+      alert("Attribute assigned.");
+      setAttribute('');
+      setAttrValue('');
+      setAttrAdverb('');
+      setAttrUnit('');
+      setAttrModality('');
+      
+      // Call onSuccess callback with the created attribute data
+      if (typeof onSuccess === 'function') {
+        // If backend returns full attribute object, use it; otherwise use our payload
+        const attributeData = responseData.id || responseData.attribute_id ? 
+          { ...payload, id: responseData.id || responseData.attribute_id } : payload;
+        onSuccess(attributeData);
+      }
+    } else {
+      alert("Error creating attribute. Please try again.");
     }
+  };
+
+  const handleAttributeTypeCreated = () => {
+    setShowAttributeModal(false);
+    // Reload attribute types to include the newly created one
+    fetchAttributeTypes();
   };
 
   return (
@@ -152,10 +168,11 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
         <AttributeTypeModal
           isOpen={showAttributeModal}
           onClose={() => setShowAttributeModal(false)}
-          onSuccess={() => {
-            setShowAttributeModal(false);
-            // Optional: trigger reload of attributeTypes list
-          }}
+          onSuccess={handleAttributeTypeCreated}
+          userId={userId}
+          graphId={graphId}
+          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`}
+          method="POST"
         />
       )}
     </form>

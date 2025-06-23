@@ -307,6 +307,25 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node[type = 'transition']",
+                  style: {
+                    label: "data(label)",
+                    "text-valign": "center",
+                    "text-halign": "center",
+                    "background-color": "#dbeafe", // light blue
+                    "color": "#1e40af", // blue-800
+                    "text-outline-width": 0,
+                    "font-size": 12,
+                    "width": "label",
+                    "height": "label",
+                    "padding": "8px",
+                    "border-width": 2,
+                    "border-color": "#1e40af", // blue-800
+                    "border-style": "solid",
+                    "shape": "diamond" // diamond shape for transitions
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -335,6 +354,38 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "text-background-opacity": 1,
                     "text-background-padding": "2px",
                     "color": "#92400e" // amber-800
+                  }
+                },
+                {
+                  selector: "edge[type = 'transition_input']",
+                  style: {
+                    label: "data(label)",
+                    "curve-style": "bezier",
+                    "target-arrow-shape": "triangle",
+                    "width": 2,
+                    "line-color": "#1e40af", // blue-800
+                    "target-arrow-color": "#1e40af", // blue-800
+                    "font-size": 10,
+                    "text-background-color": "#dbeafe",
+                    "text-background-opacity": 1,
+                    "text-background-padding": "2px",
+                    "color": "#1e40af" // blue-800
+                  }
+                },
+                {
+                  selector: "edge[type = 'transition_output']",
+                  style: {
+                    label: "data(label)",
+                    "curve-style": "bezier",
+                    "target-arrow-shape": "triangle",
+                    "width": 2,
+                    "line-color": "#059669", // emerald-600
+                    "target-arrow-color": "#059669", // emerald-600
+                    "font-size": 10,
+                    "text-background-color": "#d1fae5",
+                    "text-background-opacity": 1,
+                    "text-background-padding": "2px",
+                    "color": "#059669" // emerald-600
                   }
                 }
               ],
@@ -388,6 +439,25 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node[type = 'transition']",
+                  style: {
+                    label: "data(label)",
+                    "text-valign": "center",
+                    "text-halign": "center",
+                    "background-color": "#dbeafe", // light blue
+                    "color": "#1e40af", // blue-800
+                    "text-outline-width": 0,
+                    "font-size": 12,
+                    "width": "label",
+                    "height": "label",
+                    "padding": "8px",
+                    "border-width": 2,
+                    "border-color": "#1e40af", // blue-800
+                    "border-style": "solid",
+                    "shape": "diamond" // diamond shape for transitions
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -416,6 +486,38 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "text-background-opacity": 1,
                     "text-background-padding": "2px",
                     "color": "#92400e" // amber-800
+                  }
+                },
+                {
+                  selector: "edge[type = 'transition_input']",
+                  style: {
+                    label: "data(label)",
+                    "curve-style": "bezier",
+                    "target-arrow-shape": "triangle",
+                    "width": 2,
+                    "line-color": "#1e40af", // blue-800
+                    "target-arrow-color": "#1e40af", // blue-800
+                    "font-size": 10,
+                    "text-background-color": "#dbeafe",
+                    "text-background-opacity": 1,
+                    "text-background-padding": "2px",
+                    "color": "#1e40af" // blue-800
+                  }
+                },
+                {
+                  selector: "edge[type = 'transition_output']",
+                  style: {
+                    label: "data(label)",
+                    "curve-style": "bezier",
+                    "target-arrow-shape": "triangle",
+                    "width": 2,
+                    "line-color": "#059669", // emerald-600
+                    "target-arrow-color": "#059669", // emerald-600
+                    "font-size": 10,
+                    "text-background-color": "#d1fae5",
+                    "text-background-opacity": 1,
+                    "text-background-padding": "2px",
+                    "color": "#059669" // emerald-600
                   }
                 }
               ],

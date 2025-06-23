@@ -1,5 +1,7 @@
 // Updated RelationTypeModal.jsx to support both POST (create) and PUT (edit) modes
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from './config';
+import { useUserId } from "./UserIdContext";
 
 export default function RelationTypeModal({
   isOpen,
@@ -11,6 +13,7 @@ export default function RelationTypeModal({
   method = 'POST',
   initialData = null
 }) {
+  const currentUserId = useUserId();
   const [name, setName] = useState('');
   const [inverseName, setInverseName] = useState('');
   const [symmetric, setSymmetric] = useState(false);
@@ -19,6 +22,28 @@ export default function RelationTypeModal({
   const [range, setRange] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState(null);
+  
+  // Node type suggestions
+  const [nodeTypes, setNodeTypes] = useState([]);
+  const [nodeTypesLoading, setNodeTypesLoading] = useState(false);
+
+  const fetchNodeTypes = async () => {
+    setNodeTypesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/ndf/users/${currentUserId}/graphs/${graphId}/node-types`);
+      const data = await res.json();
+      setNodeTypes((data || []).map(nt => typeof nt === 'string' ? { name: nt } : nt));
+    } catch {
+      setNodeTypes([]);
+    }
+    setNodeTypesLoading(false);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNodeTypes();
+    }
+  }, [isOpen, currentUserId, graphId]);
 
   useEffect(() => {
     if (initialData) {
@@ -98,13 +123,43 @@ export default function RelationTypeModal({
         </div>
 
         <div style={styles.field}>
-          <label>Domain (comma-separated):</label>
-          <input value={domain} onChange={e => setDomain(e.target.value)} style={styles.input} />
+          <label>Domain (comma-separated node types):</label>
+          <input 
+            value={domain} 
+            onChange={e => setDomain(e.target.value)} 
+            style={styles.input}
+            list="domain-node-types"
+            placeholder="e.g., Person, Organization, Event"
+          />
+          <datalist id="domain-node-types">
+            {nodeTypes.map((nt) => (
+              <option key={nt.name} value={nt.name} />
+            ))}
+          </datalist>
+          {nodeTypesLoading && <div style={styles.helpText}>Loading node types...</div>}
+          <div style={styles.helpText}>
+            Available node types: {nodeTypes.map(nt => nt.name).join(', ') || 'None'}
+          </div>
         </div>
 
         <div style={styles.field}>
-          <label>Range (comma-separated):</label>
-          <input value={range} onChange={e => setRange(e.target.value)} style={styles.input} />
+          <label>Range (comma-separated node types):</label>
+          <input 
+            value={range} 
+            onChange={e => setRange(e.target.value)} 
+            style={styles.input}
+            list="range-node-types"
+            placeholder="e.g., Person, Organization, Event"
+          />
+          <datalist id="range-node-types">
+            {nodeTypes.map((nt) => (
+              <option key={nt.name} value={nt.name} />
+            ))}
+          </datalist>
+          {nodeTypesLoading && <div style={styles.helpText}>Loading node types...</div>}
+          <div style={styles.helpText}>
+            Available node types: {nodeTypes.map(nt => nt.name).join(', ') || 'None'}
+          </div>
         </div>
 
         <div style={styles.field}>
@@ -149,7 +204,9 @@ const styles = {
     backgroundColor: 'white',
     padding: '1.5rem',
     borderRadius: '8px',
-    width: '400px',
+    width: '500px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
     boxShadow: '0 0 10px rgba(0,0,0,0.25)'
   },
   field: {
@@ -163,6 +220,11 @@ const styles = {
     width: '100%',
     height: '4rem',
     padding: '0.5rem'
+  },
+  helpText: {
+    fontSize: '0.75rem',
+    color: '#666',
+    marginTop: '0.25rem'
   },
   actions: {
     display: 'flex',

@@ -103,6 +103,7 @@ const DEV_PANEL_TABS = [
   { key: "json", label: "JSON" },
   { key: "yaml", label: "YAML" },
   { key: "stats", label: "Stats" },
+  { key: "nodeTypes", label: "Node Types" },
   { key: "relationTypes", label: "Relation Types" },
   { key: "attributeTypes", label: "Attribute Types" },
 ];

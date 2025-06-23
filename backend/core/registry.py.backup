@@ -79,6 +79,8 @@ def save_registry(path: Path, registry: dict):
 
 def make_relation_id(source: str, type_: str, target: str, adverb: str = "", modality: str = "") -> str:
     parts = [source, adverb, type_, target, modality]
+    return '::'.join([p for p in parts if p])
+
 def make_attribute_id(node_id: str, name: str, value: str = "", unit: str = "", adverb: str = "", modality: str = "") -> str:
     # Create a unique identifier by combining all relevant fields
     # This allows multiple attributes with the same name but different values
