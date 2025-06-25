@@ -1,15 +1,20 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from routes.users import users_router
+from backend.routes.users import users_router
 import os
 from pathlib import Path
 
-from routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions
-from core.schema_ops import ensure_schema_file
+from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions, atomic_routes, logging_routes
+from backend.core.schema_ops import ensure_schema_file
+from backend.core.logging_system import get_logger
 # backend/app.py
 
 
 app = FastAPI(title="NDF: Node-neighborhood Description Framework")
+
+# Initialize logging system
+logger = get_logger("system")
+logger.system("NDF Studio backend starting up", event_type="startup")
 
 # from core.graph_state import populate_graph
 
@@ -35,6 +40,8 @@ app.include_router(preferences.router, prefix="/api/ndf")
 app.include_router(parse_pipeline.router, prefix="/api/ndf")
 app.include_router(functions.router, prefix="/api/ndf")
 app.include_router(transitions.router, prefix="/api/ndf")
+app.include_router(atomic_routes.router, prefix="/api/ndf")
+app.include_router(logging_routes.router)
 
 
 

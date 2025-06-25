@@ -11,7 +11,7 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function RelationForm({ nodeId, graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess }) {
+export default function RelationForm({ nodeId, graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess, morphId }) {
   const userId = useUserId();
   // CNL-style fields
   const [relation, setRelation] = useState(initialData?.name || initialData?.type || '');
@@ -21,6 +21,7 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
   const [relAdverb, setRelAdverb] = useState('');
   const [relModality, setRelModality] = useState('');
   const [showRelationModal, setShowRelationModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Relation type suggestions
   const [relationTypes, setRelationTypes] = useState([]);
@@ -89,55 +90,88 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
 
   const handleRelationSubmit = async (e) => {
     e.preventDefault();
-    let tgtId = relTarget;
     
-    // If relTarget is empty but targetQuery has content, use targetQuery
-    if (!tgtId && targetQuery.trim()) {
-      tgtId = targetQuery.trim();
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Preventing duplicate submission');
+      return;
     }
     
-    // Always check if target exists in registry; if not, create it
-    if (!nodeRegistry[tgtId] && targetQuery.trim()) {
-      const nodePayload = {
-        base_name: targetQuery.trim(),
-        name: targetQuery.trim(),
-        role: "individual",
-        morphs: []
+    setIsSubmitting(true);
+    
+    try {
+      let tgtId = relTarget;
+      
+      // If relTarget is empty but targetQuery has content, use targetQuery
+      if (!tgtId && targetQuery.trim()) {
+        tgtId = targetQuery.trim();
+      }
+      
+      // Always check if target exists in registry; if not, create it
+      if (!nodeRegistry[tgtId] && targetQuery.trim()) {
+        const nodePayload = {
+          base_name: targetQuery.trim(),
+          name: targetQuery.trim(),
+          role: "individual",
+          morphs: []
+        };
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nodePayload)
+        });
+        const data = await res.json();
+        tgtId = data.id;
+      }
+      
+      // Now tgtId is always a valid node ID
+      const payload = {
+        id: nodeId + '::' + relation + '::' + tgtId,
+        name: relation,
+        source_id: nodeId,
+        target_id: tgtId,
+        adverb: relAdverb || undefined,
+        modality: relModality || undefined,
+        ...(morphId ? { morph_id: morphId } : {})
       };
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
+      
+      console.log('Creating relation with payload:', payload);
+      
+      const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nodePayload)
+        body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      tgtId = data.id;
-    }
-    
-    // Now tgtId is always a valid node ID
-    const payload = {
-      id: nodeId + '::' + relation + '::' + tgtId,
-      name: relation,
-      source_id: nodeId,
-      target_id: tgtId,
-      adverb: relAdverb || undefined,
-      modality: relModality || undefined
-    };
-    const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (response.ok) {
-      const responseData = await response.json();
-      if (typeof onSuccess === 'function') {
-        // If backend returns full relation object, use it; otherwise use our payload
-        const relationData = responseData.id || responseData.relation_id ? 
-          { ...payload, id: responseData.id || responseData.relation_id } : payload;
-        onSuccess(relationData);
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('Relation created successfully:', responseData);
+        
+        if (typeof onSuccess === 'function') {
+          // If backend returns full relation object, use it; otherwise use our payload
+          const relationData = responseData.id || responseData.relation_id ? 
+            { ...payload, id: responseData.id || responseData.relation_id } : payload;
+          onSuccess(relationData);
+        }
+        
+        // Reset form
+        setRelation('');
+        setRelTarget('');
+        setRelTargetQualifier('');
+        setRelTargetQuantifier('');
+        setRelAdverb('');
+        setRelModality('');
+        setTargetQuery('');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to create relation:', errorData);
+        alert(`Error creating relation: ${errorData.detail || 'Unknown error'}`);
       }
-    } else {
-      alert("Error creating relation. Please try again.");
+    } catch (error) {
+      console.error('Error in handleRelationSubmit:', error);
+      alert(`Error creating relation: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -245,10 +279,10 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
       <div className="flex justify-end gap-2 mt-4">
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          disabled={!isRelationNameValid || !relTarget.trim()}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={!isRelationNameValid || !relTarget.trim() || isSubmitting}
         >
-          {editMode ? 'Update' : 'Submit'}
+          {isSubmitting ? 'Creating...' : (editMode ? 'Update' : 'Submit')}
         </button>
       </div>
       <div className="text-xs text-gray-500 mt-2">
@@ -265,7 +299,7 @@ export default function RelationForm({ nodeId, graphId = "graph1", onAddRelation
           onSuccess={handleRelationTypeCreated}
           userId={userId}
           graphId={graphId}
-          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`}
+          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/create`}
           method="POST"
         />
       )}

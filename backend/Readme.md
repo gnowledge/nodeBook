@@ -1,4 +1,3 @@
-
 # NDF Backend
 
 The **Node-neighborhood Description Framework (NDF)** is a lightweight, file-based graph knowledge system designed for learners, educators, and researchers who want to build and explore meaningful networks of knowledge through neighborhoods rather than rigid triples.
@@ -129,3 +128,46 @@ This project is licensed under the **AGPL v3** to ensure knowledge and improveme
 ## 🌍 Project Origin
 
 Developed as part of the **Living Academy** and the **Lifelong Kindergarten** vision for open-ended, exploratory education.
+
+## Running Backend Tests
+
+To run the backend test suite for morph management and other features:
+
+1. **Activate your virtual environment** (if not already):
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. **Run tests from the project root** (not from inside the backend directory):
+   ```bash
+   python -m pytest backend/tests/ -v -s
+   ```
+   or simply:
+   ```bash
+   pytest backend/tests/ -v -s
+   ```
+
+   - The `-v` flag gives verbose output.
+   - The `-s` flag allows print/debug output to show in the terminal.
+
+3. **Troubleshooting Import Errors**
+   - Always run tests from the project root so that `backend.*` imports work.
+   - If you see `ModuleNotFoundError: No module named 'backend'`, make sure you are not inside the `backend/` directory when running pytest.
+   - You can also set the `PYTHONPATH` manually:
+     ```bash
+     PYTHONPATH=. pytest backend/tests/ -v -s
+     ```
+
+4. **Cleaning Test Data**
+   - If you want a clean slate, delete the test user's data:
+     ```bash
+     rm -rf graph_data/users/testuser
+     ```
+
+5. **Test Output**
+   - Test logs and debug output will appear in the terminal.
+   - All backend file operations and registry updates are visible in the logs.
+
+---
+
+For more details, see the test files in `backend/tests/` and the backend implementation in `backend/routes/` and `backend/core/`.

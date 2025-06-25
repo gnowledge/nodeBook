@@ -9,6 +9,7 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import BlocklyCNLComposer from "./BlocklyCNLComposer";
 import DevPanel from "./DevPanel";
 import CNLInput from "./CNLInput";
+import LogViewer from "./LogViewer";
 import { useUserId } from "./UserIdContext";
 
 const DEFAULT_PREFERENCES = {
@@ -88,6 +89,7 @@ const DEFAULT_MAIN_TABS = ["help", "graphs", "workspace-stats", "preferences"];
 const TOP_TABS = [
   { key: "graphs", label: "Graph Document" },
   { key: "workspace-stats", label: "Scorecard" },
+  { key: "system-logs", label: "System Logs" },
   { key: "help", label: "Help" },
   { key: "preferences", label: "Preferences" },
 ];
@@ -106,6 +108,7 @@ const DEV_PANEL_TABS = [
   { key: "nodeTypes", label: "Node Types" },
   { key: "relationTypes", label: "Relation Types" },
   { key: "attributeTypes", label: "Attribute Types" },
+  { key: "logs", label: "User Logs" },
 ];
 
 const NDFStudioLayout = () => {
@@ -476,6 +479,18 @@ const NDFStudioLayout = () => {
     }
     if (activeTopTab === "workspace-stats") {
       return <WorkspaceStatistics />;
+    }
+    if (activeTopTab === "system-logs") {
+      return (
+        <div className="p-4">
+          <LogViewer
+            title="System Activity Logs"
+            showUserSpecific={false}
+            maxHeight="700px"
+            refreshInterval={5000}
+          />
+        </div>
+      );
     }
     if (activeTopTab === "help") {
       return <HelpTab />;

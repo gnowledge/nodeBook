@@ -1,6 +1,6 @@
 import os
 from fastapi import HTTPException
-from backend.core.utils import render_description_md, load_json_file, save_json_file
+from .utils import render_description_md, load_json_file, save_json_file
 from collections import OrderedDict
 import json
 from pathlib import Path
@@ -36,47 +36,54 @@ def node_path(user_id: str, graph_id: str, node_id: str) -> str:
     # Always use the JSON node file in the user nodes directory
     return os.path.join("graph_data", "users", user_id, "nodes", f"{node_id}.json")
 
-def ensure_static_morph(node_data: dict, node_id: str) -> dict:
+def ensure_basic_morph(node_data: dict, node_id: str) -> dict:
     """
-    Ensure a node has a static morph. If not, create one and set it as the active neighborhood.
+    Ensure a node has a basic morph. If not, create one and set it as the active neighborhood.
     """
     if "morphs" not in node_data:
         node_data["morphs"] = []
     
-    # Check if static morph exists
-    static_morph_exists = any(morph.get("name") == "static" for morph in node_data["morphs"])
+    # Check if basic morph exists
+    basic_morph_exists = any(morph.get("name") == "basic" for morph in node_data["morphs"])
     
-    if not static_morph_exists:
-        # Create static morph
-        static_morph = {
-            "morph_id": f"static_{node_id}",
+    if not basic_morph_exists:
+        # Create basic morph
+        basic_morph = {
+            "morph_id": f"basic_{node_id}",
             "node_id": node_id,
-            "name": "static",
+            "name": "basic",
             "relationNode_ids": [],
             "attributeNode_ids": []
         }
-        node_data["morphs"].append(static_morph)
-        # Set nbh to static morph if not already set
+        node_data["morphs"].append(basic_morph)
+        # Set nbh to basic morph if not already set
         if not node_data.get("nbh"):
-            node_data["nbh"] = static_morph["morph_id"]
+            node_data["nbh"] = basic_morph["morph_id"]
+    
+    return node_data
+
+def load_node_with_basic_morph(user_id: str, node_id: str) -> dict:
+    """
+    Load a node and ensure it has a basic morph for the new architecture.
+    """
+    node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+    if not node_path.exists():
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    with open(node_path, 'r') as f:
+        node_data = json.load(f)
+    
+    # Ensure the node has a basic morph for the new architecture
+    node_data = ensure_basic_morph(node_data, node_id)
     
     return node_data
 
 def load_node(user_id: str, graph_id: str, node_id: str) -> dict:
     """
-    Load a node and ensure it has a static morph for the new architecture.
+    Load a node and ensure it has a basic morph for the new architecture.
+    Backward compatibility function.
     """
-    node_path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
-    if not os.path.exists(node_path):
-        raise FileNotFoundError(f"Node {node_id} not found")
-    
-    with open(node_path, "r") as f:
-        node_data = json.load(f)
-    
-    # Ensure the node has a static morph for the new architecture
-    node_data = ensure_static_morph(node_data, node_id)
-    
-    return node_data
+    return load_node_with_basic_morph(user_id, node_id)
 
 def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
     path = Path(node_path(user_id, graph_id, node_id))
@@ -85,7 +92,7 @@ def save_node(user_id: str, graph_id: str, node_id: str, data: dict):
 
 def safe_node_summary(user_id: str, graph_id: str, node_id: str) -> dict | None:
     try:
-        node = load_node(user_id, graph_id, node_id)
+        node = load_node_with_basic_morph(user_id, node_id)
     except Exception:
         return None
     if not node or not isinstance(node, dict):

@@ -14,7 +14,16 @@ from backend.core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
 from backend.core.compose import compose_graph
-from backend.core.registry import load_node_registry, make_polynode_id, make_morph_id, load_registry, save_registry
+from backend.core.registry import load_node_registry, make_polynode_id, load_registry, save_registry
+from backend.core.atomic_ops import (
+    save_json_file_atomic,
+    load_json_file,
+    graph_transaction,
+    AtomicityError,
+    atomic_registry_save,
+    atomic_node_save,
+    atomic_composed_save
+)
 
 router = APIRouter()
 
@@ -65,185 +74,235 @@ def list_all_nodes(user_id: str, graph_id: str):
 # --- PolyNode CRUD with legacy route decorators ---
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
 def create_polynode(user_id: str, graph_id: str, node: PolyNode):
-    # Compute ID from base_name and other fields
-    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
-    node.id = make_polynode_id(node.quantifier or "", node.adjective or "", morph_name, node.base_name)
-    
-    # Compute name from base_name and adjective if not provided
-    if not node.name:
-        if node.adjective:
-            node.name = f"{node.adjective} {node.base_name}"
-        else:
-            node.name = node.base_name
-    
-    # Ensure node has morphs array
-    if not node.morphs:
-        node.morphs = []
-    
-    # Create static morph if it doesn't exist
-    static_morph_exists = any(morph.name == "static" for morph in node.morphs)
-    if not static_morph_exists:
-        from backend.core.models import Morph
-        static_morph = Morph(
-            morph_id=f"static_{node.id}",
-            node_id=node.id,
-            name="static",
-            relationNode_ids=[],
-            attributeNode_ids=[]
-        )
-        node.morphs.append(static_morph)
-        # Set nbh to static morph
-        node.nbh = static_morph.morph_id
-    
-    path = f"graph_data/users/{user_id}/nodes/{node.id}.json"
-    reg_path = f"graph_data/users/{user_id}/node_registry.json"
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if os.path.exists(path):
-        raise HTTPException(status_code=400, detail="Node already exists")
-    with open(path, "w") as f:
-        json.dump(node.dict(), f, indent=2)
-    registry = load_registry(Path(reg_path))
-    # Update registry with node information
-    if node.id not in registry:
-        registry[node.id] = {
-            "name": node.name,
-            "role": node.role,
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    else:
-        registry[node.id]["name"] = node.name
-        registry[node.id]["role"] = node.role
-        if graph_id not in registry[node.id]["graphs"]:
-            registry[node.id]["graphs"].append(graph_id)
-        registry[node.id]["updated_at"] = time.time()
-    save_registry(Path(reg_path), registry)
-    # Regenerate composed.json after node change
-    node_registry = load_node_registry(user_id)
-    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
-    compose_graph(user_id, graph_id, node_ids)
-    return {"status": "PolyNode created and registered", "id": node.id}
+    try:
+        with graph_transaction(user_id, graph_id, "create_polynode") as backup_dir:
+            # Compute ID from base_name and other fields (but not morph_name)
+            node.id = make_polynode_id(node.quantifier or "", node.adjective or "", "", node.base_name)
+            
+            # Compute name from base_name and adjective if not provided
+            if not node.name:
+                if node.adjective:
+                    node.name = f"{node.adjective} {node.base_name}"
+                else:
+                    node.name = node.base_name
+            
+            # Ensure node has morphs array
+            if not node.morphs:
+                node.morphs = []
+            
+            # Create basic morph if it doesn't exist
+            basic_morph_exists = any(morph.name == "basic" for morph in node.morphs)
+            if not basic_morph_exists:
+                from backend.core.models import Morph
+                basic_morph = Morph(
+                    morph_id=f"basic_{node.id}",
+                    node_id=node.id,
+                    name="basic",
+                    relationNode_ids=[],
+                    attributeNode_ids=[]
+                )
+                node.morphs.append(basic_morph)
+                # Set nbh to basic morph
+                node.nbh = basic_morph.morph_id
+            
+            # Check if node already exists
+            node_path = Path(f"graph_data/users/{user_id}/nodes/{node.id}.json")
+            if node_path.exists():
+                return {"status": "PolyNode already exists", "id": node.id}
+            
+            # Atomically save node file
+            atomic_node_save(user_id, node.id, node.dict())
+            
+            # Load and update registry atomically
+            reg_path = f"graph_data/users/{user_id}/node_registry.json"
+            registry = load_registry(Path(reg_path))
+            
+            # Update registry with node information
+            if node.id not in registry:
+                registry[node.id] = {
+                    "name": node.name,
+                    "role": node.role,
+                    "graphs": [graph_id],
+                    "created_at": time.time(),
+                    "updated_at": time.time()
+                }
+            else:
+                registry[node.id]["name"] = node.name
+                registry[node.id]["role"] = node.role
+                if graph_id not in registry[node.id]["graphs"]:
+                    registry[node.id]["graphs"].append(graph_id)
+                registry[node.id]["updated_at"] = time.time()
+            
+            # Atomically save registry
+            atomic_registry_save(user_id, "node", registry)
+            
+            # Regenerate composed files atomically
+            node_registry = load_node_registry(user_id)
+            node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+            
+            # Compose graph and save atomically
+            composed_data = compose_graph(user_id, graph_id, node_ids)
+            if composed_data:
+                atomic_composed_save(user_id, graph_id, composed_data, "json")
+                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            
+            return {"status": "PolyNode created and registered", "id": node.id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create PolyNode: {str(e)}")
 
 @router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def update_polynode(user_id: str, graph_id: str, node_id: str, node: PolyNode):
-    morph_name = node.morphs[0].name if node.morphs and len(node.morphs) > 0 and hasattr(node.morphs[0], 'name') else ""
-    node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", morph_name, node.base_name or "")
-    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
-    reg_path = f"graph_data/users/{user_id}/node_registry.json"
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Node not found")
-    with open(path, "w") as f:
-        json.dump(node.dict(), f, indent=2)
-    registry = load_registry(Path(reg_path))
-    # Update registry with node information
-    if node.id not in registry:
-        registry[node.id] = {
-            "name": node.name,
-            "role": node.role,
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    else:
-        registry[node.id]["name"] = node.name
-        registry[node.id]["role"] = node.role
-        if graph_id not in registry[node.id]["graphs"]:
-            registry[node.id]["graphs"].append(graph_id)
-        registry[node.id]["updated_at"] = time.time()
-    save_registry(Path(reg_path), registry)
-    # Regenerate composed.json after node change
-    node_registry = load_node_registry(user_id)
-    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
-    compose_graph(user_id, graph_id, node_ids)
-    return {"status": "PolyNode updated and registry synced", "id": node.id}
+    try:
+        with graph_transaction(user_id, graph_id, "update_polynode") as backup_dir:
+            node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", "", node.base_name or "")
+            
+            # Check if node exists
+            node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not node_path.exists():
+                raise HTTPException(status_code=404, detail="Node not found")
+            
+            # Atomically save node file
+            atomic_node_save(user_id, node_id, node.dict())
+            
+            # Load and update registry atomically
+            reg_path = f"graph_data/users/{user_id}/node_registry.json"
+            registry = load_registry(Path(reg_path))
+            
+            # Update registry with node information
+            if node.id not in registry:
+                registry[node.id] = {
+                    "name": node.name,
+                    "role": node.role,
+                    "graphs": [graph_id],
+                    "created_at": time.time(),
+                    "updated_at": time.time()
+                }
+            else:
+                registry[node.id]["name"] = node.name
+                registry[node.id]["role"] = node.role
+                if graph_id not in registry[node.id]["graphs"]:
+                    registry[node.id]["graphs"].append(graph_id)
+                registry[node.id]["updated_at"] = time.time()
+            
+            # Atomically save registry
+            atomic_registry_save(user_id, "node", registry)
+            
+            # Regenerate composed files atomically
+            node_registry = load_node_registry(user_id)
+            node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+            
+            # Compose graph and save atomically
+            composed_data = compose_graph(user_id, graph_id, node_ids)
+            if composed_data:
+                atomic_composed_save(user_id, graph_id, composed_data, "json")
+                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            
+            return {"status": "PolyNode updated and registry synced", "id": node.id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update PolyNode: {str(e)}")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def delete_polynode(user_id: str, graph_id: str, node_id: str):
-    """Delete a PolyNode and clean up all related data."""
-    path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
-    reg_path = f"graph_data/users/{user_id}/node_registry.json"
-    
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Node not found")
-    
-    # Load node data to get morphs and relation/attribute IDs
-    with open(path, "r") as f:
-        node_data = json.load(f)
-    
-    # Delete all related relationNodes
-    morphs = node_data.get("morphs", [])
-    for morph in morphs:
-        # Delete relationNodes
-        for rel_id in morph.get("relationNode_ids", []):
-            rel_path = f"graph_data/users/{user_id}/relationNodes/{rel_id}.json"
-            if os.path.exists(rel_path):
-                os.remove(rel_path)
-        
-        # Delete attributeNodes
-        for attr_id in morph.get("attributeNode_ids", []):
-            attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json"
-            if os.path.exists(attr_path):
-                os.remove(attr_path)
-    
-    # Delete the node file
-    os.remove(path)
-    
-    # Update node registry
-    registry = load_registry(Path(reg_path))
-    if node_id in registry:
-        # Remove this graph from the node's graphs list
-        if graph_id in registry[node_id].get("graphs", []):
-            registry[node_id]["graphs"].remove(graph_id)
-        
-        # If node is no longer in any graphs, remove it entirely
-        if not registry[node_id].get("graphs"):
-            del registry[node_id]
-        
-        save_registry(Path(reg_path), registry)
-    
-    # Clean up relation_registry
-    rel_reg_path = f"graph_data/users/{user_id}/relation_registry.json"
-    if os.path.exists(rel_reg_path):
-        with open(rel_reg_path, "r") as f:
-            rel_registry = json.load(f)
-        
-        # Remove relations where this node is source or target
-        to_remove = []
-        for rel_id, rel_data in rel_registry.items():
-            if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
-                to_remove.append(rel_id)
-        
-        for rel_id in to_remove:
-            del rel_registry[rel_id]
-        
-        with open(rel_reg_path, "w") as f:
-            json.dump(rel_registry, f, indent=2)
-    
-    # Clean up attribute_node_registry
-    attr_reg_path = f"graph_data/users/{user_id}/attribute_node_registry.json"
-    if os.path.exists(attr_reg_path):
-        with open(attr_reg_path, "r") as f:
-            attr_registry = json.load(f)
-        
-        # Remove attributes where this node is source
-        to_remove = []
-        for attr_id, attr_data in attr_registry.items():
-            if attr_data.get("source_id") == node_id:
-                to_remove.append(attr_id)
-        
-        for attr_id in to_remove:
-            del attr_registry[attr_id]
-        
-        with open(attr_reg_path, "w") as f:
-            json.dump(attr_registry, f, indent=2)
-    
-    # Regenerate composed.json after node deletion
-    node_registry = load_node_registry(user_id)
-    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
-    compose_graph(user_id, graph_id, node_ids)
-    
-    return {"status": "PolyNode deleted and all related data cleaned up", "deleted_node_id": node_id}
+    """Delete a PolyNode and clean up all related data atomically."""
+    try:
+        with graph_transaction(user_id, graph_id, "delete_polynode") as backup_dir:
+            # Check if node exists
+            node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not node_path.exists():
+                raise HTTPException(status_code=404, detail="Node not found")
+            
+            # Load existing node data
+            node_data = load_json_file(node_path)
+            
+            # Delete all related relationNodes and attributeNodes atomically
+            morphs = node_data.get("morphs", [])
+            for morph in morphs:
+                # Delete relationNodes
+                for rel_id in morph.get("relationNode_ids", []):
+                    rel_path = Path(f"graph_data/users/{user_id}/relationNodes/{rel_id}.json")
+                    if rel_path.exists():
+                        rel_path.unlink()
+                
+                # Delete attributeNodes
+                for attr_id in morph.get("attributeNode_ids", []):
+                    attr_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json")
+                    if attr_path.exists():
+                        attr_path.unlink()
+            
+            # Delete the node file
+            node_path.unlink()
+            
+            # Update node registry atomically
+            reg_path = f"graph_data/users/{user_id}/node_registry.json"
+            registry = load_registry(Path(reg_path))
+            if node_id in registry:
+                # Remove this graph from the node's graphs list
+                if graph_id in registry[node_id].get("graphs", []):
+                    registry[node_id]["graphs"].remove(graph_id)
+                
+                # If node is no longer in any graphs, remove it entirely
+                if not registry[node_id].get("graphs"):
+                    del registry[node_id]
+                
+                atomic_registry_save(user_id, "node", registry)
+            
+            # Clean up relation_registry atomically
+            rel_reg_path = f"graph_data/users/{user_id}/relation_registry.json"
+            if Path(rel_reg_path).exists():
+                rel_registry = load_json_file(Path(rel_reg_path))
+                
+                # Remove relations where this node is source or target
+                to_remove = []
+                for rel_id, rel_data in rel_registry.items():
+                    if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
+                        to_remove.append(rel_id)
+                
+                for rel_id in to_remove:
+                    del rel_registry[rel_id]
+                
+                atomic_registry_save(user_id, "relation", rel_registry)
+            
+            # Clean up attribute_registry atomically
+            attr_reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
+            if Path(attr_reg_path).exists():
+                attr_registry = load_json_file(Path(attr_reg_path))
+                
+                # Remove attributes where this node is source
+                to_remove = []
+                for attr_id, attr_data in attr_registry.items():
+                    if attr_data.get("source_id") == node_id:
+                        to_remove.append(attr_id)
+                
+                for attr_id in to_remove:
+                    del attr_registry[attr_id]
+                
+                atomic_registry_save(user_id, "attribute", attr_registry)
+            
+            # Regenerate composed files atomically
+            node_registry = load_node_registry(user_id)
+            node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+            
+            # Compose graph and save atomically
+            composed_data = compose_graph(user_id, graph_id, node_ids)
+            if composed_data:
+                atomic_composed_save(user_id, graph_id, composed_data, "json")
+                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            
+            return {"status": "PolyNode deleted and all related data cleaned up", "deleted_node_id": node_id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete PolyNode: {str(e)}")
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
 def get_polynode(user_id: str, graph_id: str, node_id: str):
@@ -268,6 +327,49 @@ def get_polynode_info(user_id: str, graph_id: str, node_id: str):
 @router.get("/users/{user_id}/graphs/{graph_id}/get_nbh/{node_id}")
 def get_node_nbh(user_id: str, graph_id: str, node_id: str):
     return get_polynode_info(user_id, graph_id, node_id)
+
+@router.put("/users/{user_id}/graphs/{graph_id}/set_nbh/{node_id}")
+def set_node_nbh(user_id: str, graph_id: str, node_id: str, nbh: str):
+    """
+    Set the active morph (neighborhood) for a polynode.
+    This determines which morph state the node is currently in.
+    """
+    try:
+        with graph_transaction(user_id, graph_id, "set_node_nbh") as backup_dir:
+            # Load the node
+            node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not node_path.exists():
+                raise HTTPException(status_code=404, detail="Node not found")
+            
+            node_data = load_json_file(node_path)
+            
+            # Verify the morph exists
+            morph_exists = False
+            for morph in node_data.get("morphs", []):
+                if morph.get("morph_id") == nbh:
+                    morph_exists = True
+                    break
+            
+            if not morph_exists:
+                raise HTTPException(status_code=404, detail=f"Morph {nbh} not found in node {node_id}")
+            
+            # Set the active morph
+            node_data["nbh"] = nbh
+            
+            # Save the updated node
+            atomic_node_save(user_id, node_id, node_data)
+            
+            return {
+                "status": "Active morph set successfully",
+                "node_id": node_id,
+                "active_morph": nbh,
+                "available_morphs": [m.get("morph_id") for m in node_data.get("morphs", [])]
+            }
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to set active morph: {str(e)}")
 
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes/submit_to_summary_queue")
 def submit_all_nodes_to_summary_queue(user_id: str, graph_id: str):
@@ -341,80 +443,3 @@ def list_polynodes(user_id: str):
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
     registry = load_registry(Path(reg_path))
     return [n for n in registry if n.get("role", "") == "class"]
-
-# ---------- Morph Routes ----------
-
-@router.post("/users/{user_id}/morphs/")
-def create_morph(user_id: str, morph: Morph):
-    morph.morph_id = make_morph_id(morph.name, morph.node_id)
-    morph_path = f"graph_data/users/{user_id}/morphs/{morph.morph_id}.json"
-    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
-    os.makedirs(os.path.dirname(morph_path), exist_ok=True)
-    if os.path.exists(morph_path):
-        raise HTTPException(status_code=400, detail="Morph already exists")
-    with open(morph_path, "w") as f:
-        json.dump(morph.dict(), f, indent=2)
-    # Update registry
-    if os.path.exists(reg_path):
-        with open(reg_path) as f:
-            registry = json.load(f)
-    else:
-        registry = {}
-    registry[morph.morph_id] = morph.dict()
-    with open(reg_path, "w") as f:
-        json.dump(registry, f, indent=2)
-    return {"status": "Morph created and registered"}
-
-@router.get("/users/{user_id}/morphs/{morph_id}")
-def get_morph(user_id: str, morph_id: str):
-    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
-    if not os.path.exists(morph_path):
-        raise HTTPException(status_code=404, detail="Morph not found")
-    with open(morph_path) as f:
-        return json.load(f)
-
-@router.put("/users/{user_id}/morphs/{morph_id}")
-def update_morph(user_id: str, morph_id: str, morph: Morph):
-    morph.morph_id = make_morph_id(morph.name, morph.node_id)
-    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
-    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
-    if not os.path.exists(morph_path):
-        raise HTTPException(status_code=404, detail="Morph not found")
-    with open(morph_path, "w") as f:
-        json.dump(morph.dict(), f, indent=2)
-    # Update registry
-    if os.path.exists(reg_path):
-        with open(reg_path) as f:
-            registry = json.load(f)
-    else:
-        registry = {}
-    registry[morph.morph_id] = morph.dict()
-    with open(reg_path, "w") as f:
-        json.dump(registry, f, indent=2)
-    return {"status": "Morph updated and registry synced"}
-
-@router.delete("/users/{user_id}/morphs/{morph_id}")
-def delete_morph(user_id: str, morph_id: str):
-    morph_path = f"graph_data/users/{user_id}/morphs/{morph_id}.json"
-    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
-    if os.path.exists(morph_path):
-        os.remove(morph_path)
-        # Update registry
-        if os.path.exists(reg_path):
-            with open(reg_path) as f:
-                registry = json.load(f)
-            if morph_id in registry:
-                del registry[morph_id]
-                with open(reg_path, "w") as f:
-                    json.dump(registry, f, indent=2)
-        return {"status": "Morph deleted and registry updated"}
-    raise HTTPException(status_code=404, detail="Morph not found")
-
-@router.get("/users/{user_id}/morphs")
-def list_morphs(user_id: str):
-    reg_path = f"graph_data/users/{user_id}/morph_registry.json"
-    if os.path.exists(reg_path):
-        with open(reg_path) as f:
-            registry = json.load(f)
-        return list(registry.values())
-    return []

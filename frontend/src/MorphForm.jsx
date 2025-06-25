@@ -3,6 +3,346 @@ import { API_BASE } from "./config";
 import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
 
+// New component for managing morph items with multi-select and actions
+function MorphItemManager({ 
+  nodeId, 
+  graphId, 
+  userId, 
+  morphId, 
+  itemType, // 'attributes' or 'relations'
+  onGraphUpdate 
+}) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [targetMorphId, setTargetMorphId] = useState("");
+  const [availableMorphs, setAvailableMorphs] = useState([]);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showTargetSelector, setShowTargetSelector] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  // Function to refresh graph data
+  const refreshGraphData = async () => {
+    try {
+      // Refresh the morph items list
+      await fetchMorphItems();
+      // Call onGraphUpdate to trigger parent refresh
+      if (onGraphUpdate) onGraphUpdate();
+    } catch (error) {
+      console.error("Failed to refresh graph data:", error);
+    }
+  };
+
+  // Fetch items for the current morph
+  useEffect(() => {
+    fetchMorphItems();
+  }, [nodeId, morphId, itemType]);
+
+  // Fetch available morphs for copy/move operations
+  useEffect(() => {
+    fetchAvailableMorphs();
+  }, [nodeId]);
+
+  const fetchMorphItems = async () => {
+    try {
+      setLoading(true);
+      const endpoint = itemType === 'attributes' 
+        ? `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`
+        : `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
+      
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error(`Failed to fetch ${itemType}`);
+      
+      const data = await response.json();
+      const morphData = data.morphs[morphId];
+      if (morphData && morphData[itemType]) {
+        setItems(morphData[itemType]);
+      } else {
+        setItems([]);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${itemType}:`, error);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailableMorphs = async () => {
+    try {
+      const response = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      if (!response.ok) throw new Error('Failed to fetch graph data');
+      
+      const data = await response.json();
+      const morphs = data.nodes?.find(n => n.node_id === nodeId)?.morphs || [];
+      setAvailableMorphs(morphs.filter(m => m.morph_id !== morphId));
+    } catch (error) {
+      console.error('Error fetching available morphs:', error);
+      setAvailableMorphs([]);
+    }
+  };
+
+  const handleItemSelect = (itemId) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === items.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(items.map(item => item[`${itemType.slice(0, -1)}_id`])));
+    }
+  };
+
+  const handleActionClick = (action) => {
+    if (action === 'copy' || action === 'move') {
+      setPendingAction(action);
+      setShowTargetSelector(true);
+    } else {
+      performAction(action);
+    }
+  };
+
+  const handleTargetMorphSelect = (targetMorphId) => {
+    setTargetMorphId(targetMorphId);
+    setShowTargetSelector(false);
+    setPendingAction(null);
+    performAction(pendingAction, targetMorphId);
+  };
+
+  const performAction = async (action, targetMorphId = null) => {
+    if (selectedItems.size === 0) return;
+    
+    setActionLoading(true);
+    try {
+      const promises = Array.from(selectedItems).map(async (itemId) => {
+        const item = items.find(i => i[`${itemType.slice(0, -1)}_id`] === itemId);
+        if (!item) return;
+
+        const itemName = item.name;
+        let endpoint, body;
+
+        switch (action) {
+          case 'unlist':
+            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/unlist_from_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            body = JSON.stringify({ morph_id: morphId });
+            break;
+          case 'copy':
+            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/copy_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            body = JSON.stringify({ morph_id: targetMorphId });
+            break;
+          case 'move':
+            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/move_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            body = JSON.stringify({ from_morph_id: morphId, to_morph_id: targetMorphId });
+            break;
+          case 'delete':
+            // Use the proper delete endpoint
+            if (itemType === 'attributes') {
+              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/delete/${nodeId}/${encodeURIComponent(itemName)}`;
+            } else {
+              // For relations, we need target_id
+              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/delete/${nodeId}/${encodeURIComponent(itemName)}/${encodeURIComponent(item.target_id || '')}`;
+            }
+            break;
+          default:
+            return;
+        }
+
+        const response = await fetch(endpoint, {
+          method: action === 'delete' ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: action === 'delete' ? undefined : body
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to ${action} ${itemName}`);
+        }
+
+        return response.json();
+      });
+
+      await Promise.all(promises);
+      
+      // Refresh the graph data after successful operation
+      await refreshGraphData();
+      setSelectedItems(new Set());
+      setShowActionMenu(false);
+      setTargetMorphId("");
+      
+    } catch (error) {
+      console.error(`Failed to ${action} items:`, error);
+      alert(`Failed to ${action} selected items: ${error.message}`);
+    }
+    setActionLoading(false);
+  };
+
+  if (loading) {
+    return <div className="text-sm text-gray-500">Loading {itemType}...</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Header with selection controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={selectedItems.size === items.length && items.length > 0}
+            indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
+            onChange={handleSelectAll}
+            className="rounded"
+          />
+          <span className="text-sm font-medium">
+            {selectedItems.size > 0 ? `${selectedItems.size} selected` : `${items.length} ${itemType}`}
+          </span>
+        </div>
+        
+        {selectedItems.size > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowActionMenu(!showActionMenu)}
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Processing...' : 'Actions'}
+            </button>
+            
+            {showActionMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 min-w-48">
+                <div className="p-2">
+                  <button
+                    onClick={() => handleActionClick('unlist')}
+                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                    disabled={actionLoading}
+                  >
+                    🗑️ Unlist from this morph
+                  </button>
+                  
+                  <button
+                    onClick={() => handleActionClick('delete')}
+                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-red-600"
+                    disabled={actionLoading}
+                  >
+                    ❌ Delete from all morphs
+                  </button>
+                  
+                  {availableMorphs.length > 0 && (
+                    <>
+                      <div className="border-t my-1"></div>
+                      <button
+                        onClick={() => handleActionClick('copy')}
+                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                        disabled={actionLoading}
+                      >
+                        📋 Copy to another morph
+                      </button>
+                      
+                      <button
+                        onClick={() => handleActionClick('move')}
+                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                        disabled={actionLoading}
+                      >
+                        ➡️ Move to another morph
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Target morph selector */}
+      {showTargetSelector && (
+        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+          <div className="text-sm font-medium mb-2">
+            Select target morph for {pendingAction}:
+          </div>
+          <div className="space-y-1">
+            {availableMorphs.map(morph => (
+              <button
+                key={morph.morph_id}
+                onClick={() => handleTargetMorphSelect(morph.morph_id)}
+                className="w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+                disabled={actionLoading}
+              >
+                {morph.name || morph.morph_id}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              setShowTargetSelector(false);
+              setPendingAction(null);
+            }}
+            className="mt-2 px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Items list */}
+      {items.length > 0 ? (
+        <div className="space-y-1">
+          {items.map((item) => {
+            const itemId = item[`${itemType.slice(0, -1)}_id`];
+            const isSelected = selectedItems.has(itemId);
+            
+            return (
+              <div 
+                key={itemId} 
+                className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
+                  isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'
+                }`}
+                onClick={() => handleItemSelect(itemId)}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => handleItemSelect(itemId)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded"
+                />
+                <span className="flex-1">
+                  <strong>{item.name}</strong>
+                  {itemType === 'attributes' && (
+                    <span className="text-gray-600">
+                      {item.value !== undefined && item.value !== null && item.value !== '' ? (
+                        <>
+                          : {item.value}
+                          {item.unit && <span className="text-gray-500"> {item.unit}</span>}
+                        </>
+                      ) : (
+                        <span className="text-gray-400 italic"> (no value)</span>
+                      )}
+                    </span>
+                  )}
+                  {itemType === 'relations' && item.target_id && (
+                    <span className="text-gray-600"> → {item.target_id}</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-sm text-gray-500 italic">
+          No {itemType} in this morph.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MorphForm({ 
   morph = null, 
   onSave, 
@@ -189,6 +529,7 @@ function MorphForm({
               onAddRelationType={() => {}}
               initialData={editingRelation}
               editMode={!!editingRelation}
+              morphId={formData.id}
               onSuccess={(newRelation) => {
                 if (editingRelation) {
                   // Replace the old relation with the new one
@@ -210,35 +551,19 @@ function MorphForm({
               }}
               onCancel={() => setEditingRelation(null)}
             />
-            {formData.relationNode_ids.length > 0 && (
+            
+            {/* Use the new MorphItemManager for relations */}
+            {morph && formData.id && (
               <div className="mt-3">
-                <div className="text-sm font-medium mb-2">Current Relations:</div>
-                <div className="space-y-1">
-                  {formData.relationNode_ids.map((relId, index) => (
-                    <div key={relId || index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
-                      <span>{relId}</span>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEditRelation(relId)}
-                          className="text-blue-600 underline text-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              relationNode_ids: prev.relationNode_ids.filter((_, i) => i !== index)
-                            }));
-                          }}
-                          className="text-red-600 underline text-xs"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div className="text-sm font-medium mb-2">Manage Relations:</div>
+                <MorphItemManager
+                  nodeId={nodeId}
+                  graphId={graphId}
+                  userId={userId}
+                  morphId={formData.id}
+                  itemType="relations"
+                  onGraphUpdate={onGraphUpdate}
+                />
               </div>
             )}
           </div>
@@ -254,6 +579,7 @@ function MorphForm({
               onAddAttributeType={() => {}}
               initialData={editingAttribute || { id: Date.now().toString() }}
               editMode={!!editingAttribute}
+              morphId={formData.id}
               onSuccess={(newAttribute) => {
                 if (editingAttribute) {
                   // Replace the old attribute with the new one
@@ -275,35 +601,19 @@ function MorphForm({
               }}
               onCancel={() => setEditingAttribute(null)}
             />
-            {formData.attributeNode_ids.length > 0 && (
+            
+            {/* Use the new MorphItemManager for attributes */}
+            {morph && formData.id && (
               <div className="mt-3">
-                <div className="text-sm font-medium mb-2">Current Attributes:</div>
-                <div className="space-y-1">
-                  {formData.attributeNode_ids.map((attrId, index) => (
-                    <div key={attrId || index} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
-                      <span>{attrId}</span>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEditAttribute(attrId)}
-                          className="text-blue-600 underline text-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              attributeNode_ids: prev.attributeNode_ids.filter((_, i) => i !== index)
-                            }));
-                          }}
-                          className="text-red-600 underline text-xs"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div className="text-sm font-medium mb-2">Manage Attributes:</div>
+                <MorphItemManager
+                  nodeId={nodeId}
+                  graphId={graphId}
+                  userId={userId}
+                  morphId={formData.id}
+                  itemType="attributes"
+                  onGraphUpdate={onGraphUpdate}
+                />
               </div>
             )}
           </div>

@@ -1,7 +1,8 @@
 import os
 import networkx as nx
-from routes.nodes import load_node
-from core.id_utils import normalize_id, get_graph_path
+import json
+from backend.routes.nodes import load_node
+from backend.core.id_utils import normalize_id, get_graph_path
 graph = nx.DiGraph()
 
 def populate_graph():

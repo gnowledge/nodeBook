@@ -93,7 +93,7 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   }
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
+    <div className="p-4 bg-gray-100 min-h-screen relative">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Nodes</h2>
         <div className="flex gap-2">
@@ -225,6 +225,28 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
           </div>
         ))}
       </div>
+      {/* Delete Graph button at bottom left */}
+      <button
+        className="fixed left-4 bottom-4 px-4 py-2 rounded text-xs font-semibold border bg-red-100 text-red-600 border-red-300 hover:bg-red-200 z-50"
+        onClick={async () => {
+          if (!window.confirm(`Are you sure you want to delete this graph? This action cannot be undone.`)) return;
+          try {
+            const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/delete`, { method: 'DELETE' });
+            if (res.ok) {
+              // Optionally, redirect or refresh the graph list
+              window.location.reload();
+            } else {
+              const error = await res.json().catch(() => ({}));
+              alert(`Failed to delete graph: ${error.detail || res.statusText}`);
+            }
+          } catch (err) {
+            alert(`Failed to delete graph: ${err.message}`);
+          }
+        }}
+        title="Delete Graph"
+      >
+        [Delete Graph]
+      </button>
     </div>
   );
 };

@@ -11,7 +11,7 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {}, onSuccess }) {
+export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {}, onSuccess, morphId }) {
   const userId = useUserId();
   // CNL-style fields
   const [attribute, setAttribute] = useState(initialData.name || '');
@@ -60,7 +60,8 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
       value: attrValue,
       unit: attrUnit || undefined,
       adverb: attrAdverb || undefined,
-      modality: attrModality || undefined
+      modality: attrModality || undefined,
+      ...(morphId ? { morph_id: morphId } : {})
     };
     const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
@@ -171,7 +172,7 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
           onSuccess={handleAttributeTypeCreated}
           userId={userId}
           graphId={graphId}
-          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`}
+          endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/create`}
           method="POST"
         />
       )}

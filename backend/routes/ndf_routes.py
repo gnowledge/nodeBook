@@ -21,11 +21,17 @@ from backend.core.schema_ops import create_attribute_type_from_dict, create_rela
 from backend.core.ndf_ops import convert_parsed_to_nodes
 from backend.core.schema_utils import filter_used_schema
 from backend.core.utils import load_json_file, save_json_file, normalize_id
-from backend.core.cnl_parser import parse_cnl_to_parsed_json as original_parse_cnl_to_parsed_json
 from backend.core.cnl_parser import parse_node_title
 from backend.core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
 from backend.core.compose import compose_graph
 from backend.core.node_ops import load_node
+from backend.core.atomic_ops import (
+    graph_transaction, 
+    AtomicityError, 
+    save_json_file_atomic, 
+    atomic_registry_save,
+    atomic_composed_save
+)
 
 
 router = APIRouter()  # All routes prefixed with /api/ndf
@@ -73,24 +79,20 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
 
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
 def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain")):
-    cleaned = clean_cnl_payload(body)
-    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
-    cnl_path.write_text(cleaned, encoding="utf-8")
-    return {"status": "ok"}
-
-
-@router.get("/users/{user_id}/graphs/{graph_id}/preview")
-def get_composed_yaml_for_preview(user_id: str, graph_id: str):
-    """
-    Returns composed.yaml for preview rendering in NDFPreview (readonly).
-    """
-    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
-    if not composed_path.exists():
-        raise HTTPException(status_code=404, detail="composed.json not found")
-
-    data = load_json_file(composed_path)
-    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
-    return PlainTextResponse(content=yaml_text, media_type="text/plain")
+    try:
+        with graph_transaction(user_id, graph_id, "save_cnl") as backup_dir:
+            cleaned = clean_cnl_payload(body)
+            cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
+            
+            # Atomically save CNL file
+            cnl_path.write_text(cleaned, encoding="utf-8")
+            
+            return {"status": "ok"}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save CNL: {str(e)}")
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/parsed")
@@ -168,35 +170,43 @@ class GraphInitRequest(BaseModel):
 
 @router.post("/users/{user_id}/graphs/{graph_id}")
 async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
-    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-    template_dir = Path("graph_data/global/templates/defaultGraphFiles")
-
-    if graph_dir.exists():
-        raise HTTPException(status_code=400, detail="Graph already exists")
-
     try:
-        graph_dir.mkdir(parents=True)
+        with graph_transaction(user_id, graph_id, "create_graph") as backup_dir:
+            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
+            template_dir = Path("graph_data/global/templates/defaultGraphFiles")
 
-        for fname in ["cnl.md", "composed.json", "composed.yaml", "metadata.yaml"]:
-            src = template_dir / fname
-            dest = graph_dir / fname
-            if not src.exists():
-                raise HTTPException(status_code=500, detail=f"Template file missing: {fname}")
-            copyfile(src, dest)
+            if graph_dir.exists():
+                raise HTTPException(status_code=400, detail="Graph already exists")
 
-        metadata_path = graph_dir / "metadata.yaml"
-        if metadata_path.exists():
-            metadata = yaml.safe_load(metadata_path.read_text()) or {}
-            metadata["title"] = req.title
-            metadata["description"] = req.description
-            timestamp = datetime.utcnow().isoformat()
-            metadata["created"] = metadata.get("created", timestamp)
-            metadata["modified"] = timestamp
-            with metadata_path.open("w") as f:
-                yaml.dump(metadata, f, sort_keys=False)
+            # Create graph directory
+            graph_dir.mkdir(parents=True)
 
-        return {"status": "created", "graph": graph_id}
+            # Copy template files atomically
+            for fname in ["cnl.md", "composed.json", "composed.yaml", "metadata.yaml"]:
+                src = template_dir / fname
+                dest = graph_dir / fname
+                if not src.exists():
+                    raise HTTPException(status_code=500, detail=f"Template file missing: {fname}")
+                copyfile(src, dest)
 
+            # Update metadata atomically
+            metadata_path = graph_dir / "metadata.yaml"
+            if metadata_path.exists():
+                metadata = yaml.safe_load(metadata_path.read_text()) or {}
+                metadata["title"] = req.title
+                metadata["description"] = req.description
+                timestamp = datetime.utcnow().isoformat()
+                metadata["created"] = metadata.get("created", timestamp)
+                metadata["modified"] = timestamp
+                
+                # Atomically save metadata
+                with metadata_path.open("w") as f:
+                    yaml.dump(metadata, f, sort_keys=False)
+
+            return {"status": "created", "graph": graph_id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating graph: {e}")
 
@@ -209,45 +219,140 @@ def get_metadata_yaml(user_id: str, graph_id: str):
     return FileResponse(metadata_path, media_type="text/plain")
 
 
+def migrate_registries_to_include_graphs(user_id: str, graph_id: str):
+    """
+    Migrate existing relation and attribute registries to include graphs field.
+    This ensures backward compatibility with existing data.
+    """
+    # Migrate relation registry atomically
+    relation_registry_path = get_data_root() / "users" / user_id / "relation_registry.json"
+    if relation_registry_path.exists():
+        relation_registry = load_json_file(relation_registry_path)
+        relation_changed = False
+        for rel_id, entry in relation_registry.items():
+            if "graphs" not in entry:
+                entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
+                relation_changed = True
+        if relation_changed:
+            atomic_registry_save(user_id, "relation", relation_registry)
+    
+    # Migrate attribute registry atomically
+    attribute_registry_path = get_data_root() / "users" / user_id / "attribute_registry.json"
+    if attribute_registry_path.exists():
+        attribute_registry = load_json_file(attribute_registry_path)
+        attribute_changed = False
+        for attr_id, entry in attribute_registry.items():
+            if "graphs" not in entry:
+                entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
+                attribute_changed = True
+        if attribute_changed:
+            atomic_registry_save(user_id, "attribute", attribute_registry)
+
+
 @router.delete("/users/{user_id}/graphs/{graph_id}")
 def delete_graph(user_id: str, graph_id: str):
     """
     Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
+    Also cleans up relationNodes and attributeNodes that belong only to this graph.
     """
-    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-    registry_path = get_data_root() / "users" / user_id / "node_registry.json"
-    node_dir = get_data_root() / "users" / user_id / "nodes"
-
-    if not graph_dir.exists():
-        raise HTTPException(status_code=404, detail="Graph not found")
-
-    # 1. Remove the graph directory
     try:
-        shutil.rmtree(graph_dir)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete graph directory: {e}")
+        with graph_transaction(user_id, graph_id, "delete_graph") as backup_dir:
+            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
+            registry_path = get_data_root() / "users" / user_id / "node_registry.json"
+            node_dir = get_data_root() / "users" / user_id / "nodes"
+            relation_dir = get_data_root() / "users" / user_id / "relationNodes"
+            attribute_dir = get_data_root() / "users" / user_id / "attributeNodes"
 
-    # 2. Update node_registry.json to remove references to this graph
-    registry = load_node_registry(user_id)
-    changed = False
-    for node_id, entry in list(registry.items()):
-        if "graphs" in entry and graph_id in entry["graphs"]:
-            entry["graphs"].remove(graph_id)
-            changed = True
-        # 3. If node is now orphaned (no graphs), delete node file and remove from registry
-        if not entry.get("graphs"):
+            if not graph_dir.exists():
+                raise HTTPException(status_code=404, detail="Graph not found")
+
+            # Migrate existing registries to include graphs field for backward compatibility
+            migrate_registries_to_include_graphs(user_id, graph_id)
+
+            # 1. Remove the graph directory
             try:
-                node_path = node_dir / f"{node_id}.json"
-                if node_path.exists():
-                    node_path.unlink()
-            except Exception:
-                pass  # Ignore if already deleted
-            del registry[node_id]
-            changed = True
-    if changed:
-        save_node_registry(user_id, registry)
+                shutil.rmtree(graph_dir)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to delete graph directory: {e}")
 
-    return JSONResponse({"status": "deleted", "graph": graph_id})
+            # 2. Update node_registry.json to remove references to this graph atomically
+            registry = load_node_registry(user_id)
+            changed = False
+            for node_id, entry in list(registry.items()):
+                if "graphs" in entry and graph_id in entry["graphs"]:
+                    entry["graphs"].remove(graph_id)
+                    changed = True
+                # 3. If node is now orphaned (no graphs), delete node file and remove from registry
+                if not entry.get("graphs"):
+                    try:
+                        node_path = node_dir / f"{node_id}.json"
+                        if node_path.exists():
+                            node_path.unlink()
+                    except Exception:
+                        pass  # Ignore if already deleted
+                    del registry[node_id]
+                    changed = True
+            if changed:
+                atomic_registry_save(user_id, "node", registry)
+
+            # 4. Clean up relationNodes that belong only to this graph atomically
+            relation_registry_path = get_data_root() / "users" / user_id / "relation_registry.json"
+            if relation_registry_path.exists():
+                relation_registry = load_json_file(relation_registry_path)
+                relation_changed = False
+                for rel_id, entry in list(relation_registry.items()):
+                    if "graphs" in entry and graph_id in entry["graphs"]:
+                        entry["graphs"].remove(graph_id)
+                        # If relation is now orphaned (no graphs), delete it
+                        if not entry["graphs"]:
+                            try:
+                                rel_path = relation_dir / f"{rel_id}.json"
+                                if rel_path.exists():
+                                    rel_path.unlink()
+                            except Exception:
+                                pass  # Ignore if already deleted
+                            del relation_registry[rel_id]
+                        relation_changed = True
+                if relation_changed:
+                    atomic_registry_save(user_id, "relation", relation_registry)
+
+            # 5. Clean up attributeNodes that belong only to this graph atomically
+            attribute_registry_path = get_data_root() / "users" / user_id / "attribute_registry.json"
+            if attribute_registry_path.exists():
+                attribute_registry = load_json_file(attribute_registry_path)
+                attribute_changed = False
+                for attr_id, entry in list(attribute_registry.items()):
+                    if "graphs" in entry and graph_id in entry["graphs"]:
+                        entry["graphs"].remove(graph_id)
+                        # If attribute is now orphaned (no graphs), delete it
+                        if not entry["graphs"]:
+                            try:
+                                attr_path = attribute_dir / f"{attr_id}.json"
+                                if attr_path.exists():
+                                    attr_path.unlink()
+                            except Exception:
+                                pass  # Ignore if already deleted
+                            del attribute_registry[attr_id]
+                        attribute_changed = True
+                if attribute_changed:
+                    atomic_registry_save(user_id, "attribute", attribute_registry)
+
+            return JSONResponse({"status": "deleted", "graph": graph_id})
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete graph: {str(e)}")
+
+
+@router.delete("/users/{user_id}/graphs/{graph_id}/delete")
+def delete_graph_with_delete_path(user_id: str, graph_id: str):
+    """
+    Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
+    This endpoint matches the frontend's expected URL pattern.
+    """
+    # Delegate to the main delete_graph function
+    return delete_graph(user_id, graph_id)
 
 
 class AddNodeToGraphRequest(BaseModel):
@@ -258,56 +363,67 @@ def add_nodes_to_graph(user_id: str, graph_id: str, req: AddNodeToGraphRequest):
     """
     Add existing nodes to a graph. This updates the node registry and recomposes the graph.
     """
-    # Check if graph exists
-    graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-    if not graph_dir.exists():
-        raise HTTPException(status_code=404, detail="Graph not found")
-    
-    # Load current node registry
-    registry = load_node_registry(user_id)
-    
-    # Validate that all nodes exist
-    missing_nodes = []
-    for node_id in req.node_ids:
-        node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
-        if not node_path.exists():
-            missing_nodes.append(node_id)
-    
-    if missing_nodes:
-        raise HTTPException(status_code=404, detail=f"Nodes not found: {missing_nodes}")
-    
-    # Update registry to add nodes to this graph
-    for node_id in req.node_ids:
-        update_node_registry(registry, node_id, graph_id)
-    
-    # Save updated registry
-    save_node_registry(user_id, registry)
-    
-    # Get all nodes that belong to this graph
-    graph_nodes = []
-    for node_id, entry in registry.items():
-        if "graphs" in entry and graph_id in entry["graphs"]:
-            graph_nodes.append(node_id)
-    
-    # Recompose the graph
     try:
-        # Load graph description
-        metadata_path = graph_dir / "metadata.yaml"
-        graph_description = ""
-        if metadata_path.exists():
-            metadata = yaml.safe_load(metadata_path.read_text()) or {}
-            graph_description = metadata.get("description", "")
-        
-        # Compose the graph with all nodes
-        compose_graph(user_id, graph_id, graph_nodes, graph_description)
-        
-        return {
-            "status": "success",
-            "message": f"Added {len(req.node_ids)} nodes to graph",
-            "graph_nodes": graph_nodes
-        }
+        with graph_transaction(user_id, graph_id, "add_nodes_to_graph") as backup_dir:
+            # Check if graph exists
+            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
+            if not graph_dir.exists():
+                raise HTTPException(status_code=404, detail="Graph not found")
+            
+            # Load current node registry
+            registry = load_node_registry(user_id)
+            
+            # Validate that all nodes exist
+            missing_nodes = []
+            for node_id in req.node_ids:
+                node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
+                if not node_path.exists():
+                    missing_nodes.append(node_id)
+            
+            if missing_nodes:
+                raise HTTPException(status_code=404, detail=f"Nodes not found: {missing_nodes}")
+            
+            # Update registry to add nodes to this graph atomically
+            for node_id in req.node_ids:
+                update_node_registry(registry, node_id, graph_id)
+            
+            # Atomically save updated registry
+            atomic_registry_save(user_id, "node", registry)
+            
+            # Get all nodes that belong to this graph
+            graph_nodes = []
+            for node_id, entry in registry.items():
+                if "graphs" in entry and graph_id in entry["graphs"]:
+                    graph_nodes.append(node_id)
+            
+            # Recompose the graph atomically
+            try:
+                # Load graph description
+                metadata_path = graph_dir / "metadata.yaml"
+                graph_description = ""
+                if metadata_path.exists():
+                    metadata = yaml.safe_load(metadata_path.read_text()) or {}
+                    graph_description = metadata.get("description", "")
+                
+                # Compose the graph with all nodes atomically
+                composed_data = compose_graph(user_id, graph_id, graph_nodes, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                
+                return {
+                    "status": "success",
+                    "message": f"Added {len(req.node_ids)} nodes to graph",
+                    "graph_nodes": graph_nodes
+                }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to recompose graph: {e}")
+                
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to recompose graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to add nodes to graph: {str(e)}")
 
 @router.get("/users/{user_id}/nodes")
 def list_user_nodes(user_id: str):

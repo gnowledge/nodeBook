@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 from backend.core.utils import normalize_id, save_json_file, load_json_file
+from backend.core.cnl_parser import parse_node_title
 
 try:
     from backend.config import get_data_root
@@ -39,7 +40,6 @@ def update_node_registry(registry: dict, node_id: str, graph_id: str):
 
 
 def create_node_if_missing(user_id: str, node_id: str, name: str = None):
-    from core.cnl_parser import parse_node_title
     node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
 
     if node_path.exists():
@@ -79,6 +79,8 @@ def save_registry(path: Path, registry: dict):
 
 def make_relation_id(source: str, type_: str, target: str, adverb: str = "", modality: str = "") -> str:
     parts = [source, adverb, type_, target, modality]
+    return '::'.join([p for p in parts if p])
+
 def make_attribute_id(node_id: str, name: str, value: str = "", unit: str = "", adverb: str = "", modality: str = "") -> str:
     # Create a unique identifier by combining all relevant fields
     # This allows multiple attributes with the same name but different values
@@ -90,8 +92,8 @@ def make_attribute_id(node_id: str, name: str, value: str = "", unit: str = "", 
     return f"{node_id}::{name}::{hash_value}"
 
 def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "", base_name: str = "") -> str:
-    # If morph_name is "static", don't include it in the ID calculation
-    if morph_name == "static":
+    # If morph_name is "basic", don't include it in the ID calculation
+    if morph_name == "basic":
         morph_name = ""
     parts = [quantifier, adverb, morph_name, base_name]
     return '_'.join([p for p in parts if p])

@@ -12,13 +12,14 @@ class Relation(BaseModel):
 
 # Scalar value modeled as a node-connected attribute
 class AttributeNode(BaseModel):
-    id: str
+    id: Optional[str] = None
     name: str
     source_id: str
     value: Union[str, float, int, bool]
     unit: Optional[str] = None
     adverb: Optional[str] = None
     modality: Optional[str] = None
+    morph_id: Optional[List[str]] = None
 
 # Legacy attribute model for backward compatibility
 class Attribute(BaseModel):
@@ -81,9 +82,10 @@ class Function(BaseModel):
 
 # Relation modeled as a node-connected entity
 class RelationNode(BaseModel):
-    id: str
+    id: Optional[str] = None
     name: str
     source_id: str
     target_id: str
     adverb: Optional[str] = None
     modality: Optional[str] = None
+    morph_id: Optional[List[str]] = None

@@ -1,5 +1,5 @@
 import pytest
-from core.cnl_parser import extract_qualifier, extract_quantifier, extract_base, extract_adverb, parse_node_title
+from backend.core.cnl_parser import extract_qualifier, extract_quantifier, extract_base, extract_adverb, parse_node_title
 
 @pytest.mark.parametrize("text,expected", [
     ("**female** mathematician", ("female", "mathematician")),

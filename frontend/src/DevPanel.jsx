@@ -5,6 +5,7 @@ import Statistics from "./Statistics";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
 import NodeTypeList from "./NodeTypeList";
+import LogViewer from "./LogViewer";
 
 export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs, activeTab }) {
   return (
@@ -36,6 +37,17 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs,
         )}
         {activeTab === "attributeTypes" && (
           <AttributeTypeList />
+        )}
+        {activeTab === "logs" && (
+          <div className="p-4">
+            <LogViewer
+              title="User Activity Logs"
+              showUserSpecific={true}
+              userId={userId}
+              maxHeight="600px"
+              refreshInterval={3000}
+            />
+          </div>
         )}
       </div>
     </div>

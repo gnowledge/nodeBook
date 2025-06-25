@@ -10,10 +10,10 @@ BACKEND_ROOT = Path(__file__).parent.parent.resolve()
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from routes.ndf_routes import parse_graph
-from core.compose import compose_graph
-from core.cnl_parser import parse_node_title
-from core.utils import load_json_file
+from backend.routes.ndf_routes import parse_graph
+from backend.core.compose import compose_graph
+from backend.core.cnl_parser import parse_node_title
+from backend.core.utils import load_json_file
 import json
 
 def setup_cnl_graph(user_id, graph_id, cnl_md):

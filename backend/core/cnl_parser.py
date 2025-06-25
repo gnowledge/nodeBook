@@ -5,9 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from backend.core.utils import normalize_id, load_text_file, save_json_file, load_json_file
-from backend.core.registry import load_node_registry, update_node_registry, create_node_if_missing
 from backend.core.schema_ops import load_schema
-
 
 
 # --- Extraction helpers for CNL markup ---
@@ -459,100 +457,48 @@ def ensure_nodes_exist(parsed_statements):
     return parsed_statements + new_nodes
 
 
-def parse_cnl_to_parsed_json(user_id: str, graph_id: str) -> dict:
-    from core.utils import load_text_file, save_json_file
-    from core.registry import load_node_registry, update_node_registry, create_node_if_missing
-    from pathlib import Path
-    from core.cnl_parser import extract_node_sections_from_markdown, parse_logical_cnl, parse_node_title, normalize_id
-
-    # 🔧 Correct path to cnl.md inside graph folder
-    graph_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/cnl.md")
-    parsed_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/parsed.json")
-
-    if not graph_path.exists():
-        raise FileNotFoundError(f"Graph file not found: {graph_path}")
-
-    raw_md = load_text_file(graph_path)
-    sections = extract_node_sections_from_markdown(raw_md)
-    registry = load_node_registry(user_id)
-
-    parsed = {
-        "graph_id": graph_id,
-        "nodes": [],
-        "relations": [],
-        "attributes": []
-    }
-
-    for section in sections:
-        # Always re-parse the node title to ensure clean id/name/base
-        title_info = parse_node_title(section.get("title") or section.get("name") or section.get("id"))
-        node_id = title_info["id"]
-        node_obj = {
-            "id": node_id,
-            "base": title_info.get("base"),
-            "quantifier": title_info.get("quantifier"),
-            "qualifier": title_info.get("qualifier"),
-            "name": title_info.get("name"),
-            "description": section.get("description", "")
+def save_section_node(user_id: str, graph_id: str, section_text: str, section_name: str = None):
+    """
+    Parse and save a node from a markdown section.
+    
+    Args:
+        user_id: User ID
+        graph_id: Graph ID
+        section_text: The markdown section text
+        section_name: Optional section name
+    
+    Returns:
+        Dictionary with parsing results
+    """
+    try:
+        # Parse the section
+        parsed_data = parse_logical_cnl(section_text)
+        
+        if not parsed_data:
+            return {"success": False, "error": "Failed to parse section"}
+        
+        # Extract node information
+        title_info = parsed_data.get("title", {})
+        node_id = title_info.get("id")
+        name = title_info.get("name")
+        
+        if not node_id:
+            return {"success": False, "error": "No node ID found in section"}
+        
+        # Import registry functions locally to avoid circular imports
+        from backend.core.registry import load_node_registry, update_node_registry, create_node_if_missing
+        
+        # Load registry and create/update node
+        registry = load_node_registry(user_id)
+        create_node_if_missing(user_id, node_id, name=name)
+        update_node_registry(registry, node_id, graph_id)
+        
+        return {
+            "success": True,
+            "node_id": node_id,
+            "name": name,
+            "parsed_data": parsed_data
         }
-        # Only add if not already present (avoid duplicates)
-        if not any(n["id"] == node_id for n in parsed["nodes"]):
-            parsed["nodes"].append(node_obj)
-
-        # Ensure node is registered and optionally created
-        if node_id not in registry:
-            create_node_if_missing(user_id, node_id, name=title_info.get("name"))
-            update_node_registry(registry, node_id, graph_id)
-        else:
-            if graph_id not in registry[node_id].get("graphs", []):
-                registry[node_id]["graphs"].append(graph_id)
-
-        facts = parse_logical_cnl(section["cnl"], subject=node_id)
-
-        for fact in facts:
-            if fact["type"] == "relation":
-                # Ensure target node is present in nodes if not already
-                target_id = fact["target"]
-                # --- Use the original target string for canonical parse ---
-                # We need to get the original CNL string for the target node, not just the id
-                # To do this, parse_logical_cnl must return the original target string as 'target_cnl'
-                # So update parse_logical_cnl to include 'target_cnl' in the relation fact
-                target_cnl = fact.get("target_cnl", target_id.replace('_', ' '))
-                if not any(n["id"] == target_id for n in parsed["nodes"]):
-                    # Use the original CNL string for the target node if available
-                    target_cnl = fact.get("target_cnl", target_id.replace('_', ' '))
-                    # Use the original string as both the name and base (preserving user input)
-                    target_title_info = parse_node_title(target_cnl)
-                    parsed["nodes"].append({
-                        "id": target_id,  # Use the canonical id already computed
-                        "base": target_cnl.strip(),  # Use the original CNL string as base
-                        "quantifier": target_title_info.get("quantifier"),
-                        "qualifier": target_title_info.get("qualifier"),
-                        "name": target_cnl.strip(),  # Use the original CNL string as name
-                        "description": "",
-                        "attributes": [],
-                        "relations": []
-                    })
-                parsed["relations"].append({
-                    "name": fact["name"],
-                    "adverb": fact.get("adverb"),
-                    "modality": fact.get("modality"),
-                    "source": fact.get("subject"),
-                    "target": fact.get("target"),
-                    "target_quantifier": fact.get("target_quantifier"),
-                    "target_qualifier": fact.get("target_qualifier")
-                })
-            elif fact["type"] == "attribute":
-                parsed["attributes"].append({
-                    "name": fact["name"],
-                    "adverb": fact.get("adverb"),
-                    "modality": fact.get("modality"),
-                    "value": fact.get("value"),
-                    "unit": fact.get("unit", ""),
-                    "target": fact["target"]
-                })
-
-    save_json_file(Path(f"data/users/{user_id}/node_registry.json"), registry)
-    save_json_file(parsed_path, parsed)
-
-    return parsed
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}

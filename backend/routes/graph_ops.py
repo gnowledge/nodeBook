@@ -25,7 +25,8 @@ All logic is designed to be robust, extensible, and consistent with the rest of 
 
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from backend.core.id_utils import get_graph_path
 from backend.core.models import Attribute, Relation, AttributeNode, RelationNode
 from backend.routes.nodes import create_polynode
@@ -33,7 +34,29 @@ from backend.core.registry import (
     relation_registry_path, attribute_registry_path, load_registry, save_registry, make_relation_id, make_attribute_id
 )
 from backend.core.compose import compose_graph
+from backend.core.atomic_ops import (
+    atomic_write, save_json_file_atomic, load_json_file, atomic_registry_save,
+    graph_transaction, AtomicityError, atomic_node_save, atomic_relation_save, atomic_composed_save, atomic_attribute_save
+)
 from datetime import datetime
+from pathlib import Path
+from pydantic import BaseModel
+from typing import Optional, List, Dict, Any, Literal
+
+# Request models for morph operations
+class MorphOperationRequest(BaseModel):
+    morph_id: str
+
+class MoveMorphRequest(BaseModel):
+    from_morph_id: str
+    to_morph_id: str
+
+class CreateMorphRequest(BaseModel):
+    node_id: str
+    name: str
+    copy_from_morph: Optional[str] = None  # Optional: copy all properties from this morph (can be any existing morph, not just basic)
+    # If copy_from_morph is None, creates an empty morph that user can populate later
+    # morph_id is auto-generated as {name}_{node_id}
 
 router = APIRouter()
 
@@ -63,17 +86,6 @@ def load_schema(global_path, filename):
         return json.load(f) or []
 
 # ---------- Helper Functions for Registry ----------
-
-def load_registry(path):
-    if not os.path.exists(path):
-        return {}
-    with open(path) as f:
-        return json.load(f)
-
-def save_registry(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
 
 def update_registry_entry(registry, entry):
     updated = False
@@ -129,138 +141,932 @@ def get_attribute_node(user_id: str, graph_id: str, attribute_id: str):
 
 @router.post("/users/{user_id}/graphs/{graph_id}/attribute/create")
 def create_attribute_node(user_id: str, graph_id: str, attr: AttributeNode):
-    attr.id = make_attribute_id(
-        attr.source_id,
-        attr.name,
-        attr.value or "",
-        attr.unit or "",
-        attr.adverb or "",
-        attr.modality or ""
-    )
-    attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json"
-    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
-    os.makedirs(os.path.dirname(attr_path), exist_ok=True)
-    if os.path.exists(attr_path):
-        raise HTTPException(status_code=400, detail="AttributeNode already exists")
-    with open(attr_path, "w") as f:
-        json.dump(attr.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry[attr.id] = {
-        "id": attr.id,
-        "name": attr.name,
-        "source_id": attr.source_id,
-        "created_at": datetime.utcnow().isoformat()
-    }
-    save_registry(reg_path, registry)
-
-    # Update source node's static morph with this attribute
-    source_node_path = f"graph_data/users/{user_id}/nodes/{attr.source_id}.json"
-    if os.path.exists(source_node_path):
-        with open(source_node_path, "r") as f:
-            source_node = json.load(f)
-        
-        # Ensure morphs array exists
-        if "morphs" not in source_node:
-            source_node["morphs"] = []
-        
-        # Find or create static morph
-        static_morph = None
-        for morph in source_node["morphs"]:
-            if morph.get("name") == "static":
-                static_morph = morph
-                break
-        
-        if not static_morph:
-            # Create static morph
-            static_morph = {
-                "morph_id": f"static_{attr.source_id}",
-                "node_id": attr.source_id,
-                "name": "static",
-                "relationNode_ids": [],
-                "attributeNode_ids": []
-            }
-            source_node["morphs"].append(static_morph)
-        
-        # Add attribute to static morph
-        if "attributeNode_ids" not in static_morph:
-            static_morph["attributeNode_ids"] = []
-        if attr.id not in static_morph["attributeNode_ids"]:
-            static_morph["attributeNode_ids"].append(attr.id)
-        
-        # Set nbh to static morph if not already set
-        if not source_node.get("nbh"):
-            source_node["nbh"] = static_morph["morph_id"]
-        
-        # Save updated source node
-        with open(source_node_path, "w") as f:
-            json.dump(source_node, f, indent=2)
-    
-    # Regenerate polymorphic_composed.json to include the new attribute
     try:
-        # Get all nodes that belong to this graph
-        node_ids = get_graph_node_ids(user_id, graph_id)
-        
-        # Load graph description
-        metadata_path = f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml"
-        graph_description = ""
-        if os.path.exists(metadata_path):
-            import yaml
-            with open(metadata_path, "r") as f:
-                metadata = yaml.safe_load(f) or {}
-                graph_description = metadata.get("description", "")
-        
-        # Recompose the graph
-        compose_graph(user_id, graph_id, node_ids, graph_description)
+        with graph_transaction(user_id, graph_id, "create_attribute_node") as backup_dir:
+            # Validate required fields
+            if not attr.source_id or attr.source_id is None:
+                raise HTTPException(status_code=400, detail="source_id is required and cannot be null")
+            if not attr.name or attr.name is None:
+                raise HTTPException(status_code=400, detail="name is required and cannot be null")
+            
+            attr.id = make_attribute_id(
+                attr.source_id,
+                attr.name,
+                str(attr.value) if attr.value is not None else "",
+                attr.unit or "",
+                attr.adverb or "",
+                attr.modality or ""
+            )
+            
+            # Validate that the generated ID is not None or empty
+            if not attr.id:
+                raise HTTPException(status_code=500, detail="Failed to generate valid attribute ID")
+            
+            # Check if attribute already exists
+            attr_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json")
+            if attr_path.exists():
+                # Load existing attribute and update morph_id if needed
+                existing_attr = load_json_file(attr_path)
+                morph_id = getattr(attr, 'morph_id', None)
+                if not morph_id:
+                    morph_id = f"basic_{attr.source_id}"
+                existing_attr["morph_id"] = [morph_id] if isinstance(morph_id, str) else morph_id
+                atomic_attribute_save(user_id, attr.id, existing_attr)
+                
+                # Update registry with morph_id
+                reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+                registry = load_registry(reg_path)
+                if attr.id in registry:
+                    registry[attr.id]["morph_id"] = [morph_id] if isinstance(morph_id, str) else morph_id
+                else:
+                    registry[attr.id] = {
+                        "id": attr.id,
+                        "name": attr.name,
+                        "source_id": attr.source_id,
+                        "morph_id": [morph_id],
+                        "graphs": [graph_id],
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+                atomic_registry_save(user_id, "attribute", registry)
+                
+                # Ensure the attribute is properly associated with the morph in the source node
+                source_node_path = Path(f"graph_data/users/{user_id}/nodes/{attr.source_id}.json")
+                if source_node_path.exists():
+                    source_node = load_json_file(source_node_path)
+                    if "morphs" not in source_node:
+                        source_node["morphs"] = []
+                    target_morph = None
+                    for morph in source_node["morphs"]:
+                        if morph.get("morph_id") == morph_id:
+                            target_morph = morph
+                            break
+                    if not target_morph:
+                        target_morph = {
+                            "morph_id": morph_id,
+                            "node_id": attr.source_id,
+                            "name": morph_id.replace(f"{attr.source_id}_", ""),
+                            "relationNode_ids": [],
+                            "attributeNode_ids": []
+                        }
+                        source_node["morphs"].append(target_morph)
+                    if "attributeNode_ids" not in target_morph:
+                        target_morph["attributeNode_ids"] = []
+                    if attr.id not in target_morph["attributeNode_ids"]:
+                        target_morph["attributeNode_ids"].append(attr.id)
+                    if not source_node.get("nbh"):
+                        source_node["nbh"] = morph_id
+                    atomic_node_save(user_id, attr.source_id, source_node)
+                return {"status": "AttributeNode already exists", "attribute_id": attr.id}
+            
+            # Determine morph_id - use provided or default to basic
+            morph_id = getattr(attr, 'morph_id', None)
+            if not morph_id:
+                morph_id = f"basic_{attr.source_id}"
+            
+            # Set the morph_id in the attribute (ensure it's a list)
+            attr.morph_id = [morph_id] if isinstance(morph_id, str) else morph_id
+            
+            # Atomically save attribute file
+            atomic_attribute_save(user_id, attr.id, attr.dict())
+            
+            # Load and update registry atomically
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            entry = registry.get(attr.id, {
+                "id": attr.id,
+                "name": attr.name,
+                "source_id": attr.source_id,
+                "morph_id": [morph_id],  # Add morph_id to registry
+                "graphs": [],
+                "created_at": datetime.utcnow().isoformat()
+            })
+            if graph_id not in entry["graphs"]:
+                entry["graphs"].append(graph_id)
+            registry[attr.id] = entry
+            atomic_registry_save(user_id, "attribute", registry)
+
+            # Update source node's morph with this attribute atomically
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{attr.source_id}.json")
+            if source_node_path.exists():
+                source_node = load_json_file(source_node_path)
+                
+                # Ensure morphs array exists
+                if "morphs" not in source_node:
+                    source_node["morphs"] = []
+                
+                # Find the correct morph
+                target_morph = None
+                if morph_id:
+                    # First try to find the specific morph requested
+                    for morph in source_node["morphs"]:
+                        if morph.get("morph_id") == morph_id:
+                            target_morph = morph
+                            break
+                    
+                    # If the requested morph doesn't exist, create it
+                    if not target_morph:
+                        target_morph = {
+                            "morph_id": morph_id,
+                            "node_id": attr.source_id,
+                            "name": morph_id.replace(f"{attr.source_id}_", ""),  # Extract name from morph_id
+                            "relationNode_ids": [],
+                            "attributeNode_ids": []
+                        }
+                        source_node["morphs"].append(target_morph)
+                else:
+                    # No morph_id provided, fallback to basic morph
+                    for morph in source_node["morphs"]:
+                        if morph.get("name") == "basic":
+                            target_morph = morph
+                            break
+                    if not target_morph:
+                        # Create basic morph
+                        target_morph = {
+                            "morph_id": f"basic_{attr.source_id}",
+                            "node_id": attr.source_id,
+                            "name": "basic",
+                            "relationNode_ids": [],
+                            "attributeNode_ids": []
+                        }
+                        source_node["morphs"].append(target_morph)
+                
+                # Add attribute to the morph
+                if "attributeNode_ids" not in target_morph:
+                    target_morph["attributeNode_ids"] = []
+                if attr.id not in target_morph["attributeNode_ids"]:
+                    target_morph["attributeNode_ids"].append(attr.id)
+                
+                # Set nbh to this morph if not already set
+                if not source_node.get("nbh"):
+                    source_node["nbh"] = target_morph["morph_id"]
+                
+                # Atomically save updated source node
+                atomic_node_save(user_id, attr.source_id, source_node)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "AttributeNode created and registered", "attribute_id": attr.id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
     except Exception as e:
-        print(f"Warning: Failed to regenerate polymorphic_composed.json: {e}")
-    
-    return {"status": "AttributeNode created and registered", "attribute_id": attr.id}
+        raise HTTPException(status_code=500, detail=f"Failed to create AttributeNode: {str(e)}")
 
 @router.put("/users/{user_id}/graphs/{graph_id}/attribute/update/{node_id}/{attr_name}")
 def update_attribute_node(user_id: str, graph_id: str, node_id: str, attr_name: str, attr: AttributeNode):
-    attr.id = make_attribute_id(
-        attr.source_id,
-        attr.name,
-        attr.value or "",
-        attr.unit or "",
-        attr.adverb or "",
-        attr.modality or ""
-    )
-    attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json"
-    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
-    if not os.path.exists(attr_path):
-        raise HTTPException(status_code=404, detail="AttributeNode not found")
-    with open(attr_path, "w") as f:
-        json.dump(attr.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry[attr.id] = {
-        "id": attr.id,
-        "name": attr.name,
-        "source_id": attr.source_id,
-        "created_at": datetime.utcnow().isoformat()
-    }
-    save_registry(reg_path, registry)
-    return {"status": "AttributeNode updated and registry synced"}
+    try:
+        with graph_transaction(user_id, graph_id, "update_attribute_node") as backup_dir:
+            attr.id = make_attribute_id(
+                attr.source_id,
+                attr.name,
+                str(attr.value) if attr.value is not None else "",
+                attr.unit or "",
+                attr.adverb or "",
+                attr.modality or ""
+            )
+            
+            # Check if attribute exists
+            attr_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attr.id}.json")
+            if not attr_path.exists():
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Atomically save attribute file
+            atomic_attribute_save(user_id, attr.id, attr.dict())
+            
+            # Load and update registry atomically
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            entry = registry.get(attr.id, {
+                "id": attr.id,
+                "name": attr.name,
+                "source_id": attr.source_id,
+                "morph_id": getattr(attr, 'morph_id', None),  # Add morph_id to registry
+                "graphs": [],
+                "created_at": datetime.utcnow().isoformat()
+            })
+            if graph_id not in entry["graphs"]:
+                entry["graphs"].append(graph_id)
+            registry[attr.id] = entry
+            atomic_registry_save(user_id, "attribute", registry)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "AttributeNode updated and registry synced"}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update AttributeNode: {str(e)}")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/attribute/delete/{node_id}/{attr_name}")
 def delete_attribute_node(user_id: str, graph_id: str, node_id: str, attr_name: str):
-    # Find the attributeNode id by node_id and attr_name
-    reg_path = f"graph_data/users/{user_id}/attribute_registry.json"
-    registry = load_registry(reg_path)
-    attr_id = None
-    for k, v in registry.items():
-        if v.get("source_id") == node_id and v.get("name") == attr_name:
-            attr_id = k
-            break
-    if not attr_id:
-        raise HTTPException(status_code=404, detail="AttributeNode not found")
-    attr_path = f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json"
-    if os.path.exists(attr_path):
-        os.remove(attr_path)
-    if attr_id in registry:
-        del registry[attr_id]
-        save_registry(reg_path, registry)
-        return {"status": "AttributeNode deleted and registry updated"}
+    try:
+        with graph_transaction(user_id, graph_id, "delete_attribute_node") as backup_dir:
+            # Find the attributeNode id by node_id and attr_name
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            attr_id = None
+            for k, v in registry.items():
+                if v.get("source_id") == node_id and v.get("name") == attr_name:
+                    attr_id = k
+                    break
+            if not attr_id:
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Remove the attribute file atomically
+            attr_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json")
+            if attr_path.exists():
+                attr_path.unlink()
+            
+            # Update registry atomically
+            if attr_id in registry:
+                del registry[attr_id]
+                atomic_registry_save(user_id, "attribute", registry)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "AttributeNode deleted and registry updated"}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete AttributeNode: {str(e)}")
+
+@router.delete("/users/{user_id}/graphs/{graph_id}/attributes/{attribute_id}")
+def delete_attribute_node_by_id(user_id: str, graph_id: str, attribute_id: str):
+    """Delete a specific attribute node by its ID"""
+    try:
+        with graph_transaction(user_id, graph_id, "delete_attribute_node_by_id") as backup_dir:
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            
+            if attribute_id not in registry:
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Get the source_id before removing from registry
+            source_id = registry[attribute_id].get("source_id")
+            
+            # Remove the attribute file atomically
+            attr_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attribute_id}.json")
+            if attr_path.exists():
+                attr_path.unlink()
+            
+            # Remove from registry atomically
+            del registry[attribute_id]
+            atomic_registry_save(user_id, "attribute", registry)
+            
+            # Update source node's morphs to remove this attribute atomically
+            if source_id:
+                source_node_path = Path(f"graph_data/users/{user_id}/nodes/{source_id}.json")
+                if source_node_path.exists():
+                    source_node = load_json_file(source_node_path)
+                    
+                    # Remove from all morphs
+                    if "morphs" in source_node:
+                        for morph in source_node["morphs"]:
+                            if "attributeNode_ids" in morph and attribute_id in morph["attributeNode_ids"]:
+                                morph["attributeNode_ids"].remove(attribute_id)
+                    
+                    # Atomically save updated source node
+                    atomic_node_save(user_id, source_id, source_node)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "AttributeNode deleted and registry updated"}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete AttributeNode: {str(e)}")
+
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute/unlist_from_morph/{node_id}/{attr_name}")
+def unlist_attribute_from_morph(user_id: str, graph_id: str, node_id: str, attr_name: str, request: MorphOperationRequest):
+    """
+    Remove an attribute from a specific morph without deleting the attribute itself.
+    The attribute continues to exist in other morphs.
+    """
+    try:
+        with graph_transaction(user_id, graph_id, "unlist_attribute_from_morph") as backup_dir:
+            morph_id = request.morph_id
+            # Find the attributeNode id by node_id and attr_name
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            attr_id = None
+            for k, v in registry.items():
+                if v.get("source_id") == node_id and v.get("name") == attr_name:
+                    attr_id = k
+                    break
+            if not attr_id:
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Update source node to remove attribute from specific morph
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not source_node_path.exists():
+                raise HTTPException(status_code=404, detail="Source node not found")
+            
+            source_node = load_json_file(source_node_path)
+            
+            # Find the specific morph and remove the attribute
+            morph_found = False
+            for morph in source_node.get("morphs", []):
+                if morph.get("morph_id") == morph_id:
+                    morph_found = True
+                    if "attributeNode_ids" in morph and attr_id in morph["attributeNode_ids"]:
+                        morph["attributeNode_ids"].remove(attr_id)
+                        break
+            
+            if not morph_found:
+                raise HTTPException(status_code=404, detail=f"Morph {morph_id} not found")
+            
+            # Atomically save updated source node
+            atomic_node_save(user_id, node_id, source_node)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "Attribute unlisted from morph", "attribute_id": attr_id, "morph_id": morph_id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unlist attribute from morph: {str(e)}")
+
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute/add_to_morph/{node_id}/{attr_name}")
+def add_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name: str, request: MorphOperationRequest):
+    """
+    Add an existing attribute to a specific morph.
+    """
+    try:
+        with graph_transaction(user_id, graph_id, "add_attribute_to_morph") as backup_dir:
+            morph_id = request.morph_id
+            # Find the attributeNode id by node_id and attr_name
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            attr_id = None
+            for k, v in registry.items():
+                if v.get("source_id") == node_id and v.get("name") == attr_name:
+                    attr_id = k
+                    break
+            if not attr_id:
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Update source node to add attribute to specific morph
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not source_node_path.exists():
+                raise HTTPException(status_code=404, detail="Source node not found")
+            
+            source_node = load_json_file(source_node_path)
+            
+            # Find the specific morph and add the attribute
+            morph_found = False
+            for morph in source_node.get("morphs", []):
+                if morph.get("morph_id") == morph_id:
+                    morph_found = True
+                    if "attributeNode_ids" not in morph:
+                        morph["attributeNode_ids"] = []
+                    if attr_id not in morph["attributeNode_ids"]:
+                        morph["attributeNode_ids"].append(attr_id)
+                    break
+            
+            if not morph_found:
+                raise HTTPException(status_code=404, detail=f"Morph {morph_id} not found")
+            
+            # Atomically save updated source node
+            atomic_node_save(user_id, node_id, source_node)
+            
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {"status": "Attribute added to morph", "attribute_id": attr_id, "morph_id": morph_id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add attribute to morph: {str(e)}")
+
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute/move_to_morph/{node_id}/{attr_name}")
+def move_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name: str, request: MoveMorphRequest):
+    """
+    Move an attribute from one morph to another.
+    """
+    try:
+        print(f"[DEBUG] move_attribute_to_morph called: user_id={user_id}, graph_id={graph_id}, node_id={node_id}, attr_name={attr_name}, from_morph_id={request.from_morph_id}, to_morph_id={request.to_morph_id}")
+        with graph_transaction(user_id, graph_id, "move_attribute_to_morph") as backup_dir:
+            from_morph_id = request.from_morph_id
+            to_morph_id = request.to_morph_id
+            # Find the attributeNode id by node_id and attr_name
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            attr_id = None
+            for k, v in registry.items():
+                if v.get("source_id") == node_id and v.get("name") == attr_name:
+                    attr_id = k
+                    break
+            print(f"[DEBUG] Found attr_id: {attr_id}")
+            if not attr_id:
+                raise HTTPException(status_code=404, detail="AttributeNode not found")
+            
+            # Update source node to move attribute between morphs
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not source_node_path.exists():
+                raise HTTPException(status_code=404, detail="Source node not found")
+            
+            source_node = load_json_file(source_node_path)
+            
+            # Find both morphs
+            from_morph = None
+            to_morph = None
+            for morph in source_node.get("morphs", []):
+                if morph.get("morph_id") == from_morph_id:
+                    from_morph = morph
+                if morph.get("morph_id") == to_morph_id:
+                    to_morph = morph
+            print(f"[DEBUG] from_morph: {from_morph}")
+            print(f"[DEBUG] to_morph: {to_morph}")
+            if not from_morph:
+                raise HTTPException(status_code=404, detail=f"Source morph {from_morph_id} not found")
+            if not to_morph:
+                raise HTTPException(status_code=404, detail=f"Target morph {to_morph_id} not found")
+            print(f"[DEBUG] from_morph attributeNode_ids before: {from_morph.get('attributeNode_ids', [])}")
+            print(f"[DEBUG] to_morph attributeNode_ids before: {to_morph.get('attributeNode_ids', [])}")
+            # Remove from source morph
+            if "attributeNode_ids" in from_morph and attr_id in from_morph["attributeNode_ids"]:
+                from_morph["attributeNode_ids"].remove(attr_id)
+            # Add to target morph
+            if "attributeNode_ids" not in to_morph:
+                to_morph["attributeNode_ids"] = []
+            if attr_id not in to_morph["attributeNode_ids"]:
+                to_morph["attributeNode_ids"].append(attr_id)
+            print(f"[DEBUG] from_morph attributeNode_ids after: {from_morph.get('attributeNode_ids', [])}")
+            print(f"[DEBUG] to_morph attributeNode_ids after: {to_morph.get('attributeNode_ids', [])}")
+            # Atomically save updated source node
+            atomic_node_save(user_id, node_id, source_node)
+            # Regenerate composed files atomically
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            return {"status": "Attribute moved between morphs", "attribute_id": attr_id, "from_morph_id": from_morph_id, "to_morph_id": to_morph_id}
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to move attribute between morphs: {str(e)}")
+
+@router.post("/users/{user_id}/graphs/{graph_id}/attribute/copy_to_morph/{node_id}/{attr_name}")
+def copy_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name: str, request: MorphOperationRequest):
+    """
+    Copy an existing attribute to a specific morph (keeps it in all other morphs as well).
+    """
+    try:
+        with graph_transaction(user_id, graph_id, "copy_attribute_to_morph") as backup_dir:
+            morph_id = request.morph_id
+            # Find the attributeNode id by node_id and attr_name
+            reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+            registry = load_registry(reg_path)
+            attr_id = None
+            for k, v in registry.items():
+                if v.get("source_id") == node_id and v.get("name") == attr_name:
+                    attr_id = k
+                    break
+            
+            if not attr_id:
+                raise HTTPException(status_code=404, detail="Attribute not found")
+            
+            # Load the source node
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not source_node_path.exists():
+                raise HTTPException(status_code=404, detail="Source node not found")
+            
+            source_node = load_json_file(source_node_path)
+            
+            # Ensure morphs array exists
+            if "morphs" not in source_node:
+                source_node["morphs"] = []
+            
+            # Find the target morph
+            target_morph = None
+            for morph in source_node["morphs"]:
+                if morph.get("morph_id") == morph_id:
+                    target_morph = morph
+                    break
+            
+            if not target_morph:
+                raise HTTPException(status_code=404, detail="Target morph not found")
+            
+            # Ensure attributeNode_ids array exists
+            if "attributeNode_ids" not in target_morph:
+                target_morph["attributeNode_ids"] = []
+            
+            # Add attribute to the morph if not already present
+            if attr_id not in target_morph["attributeNode_ids"]:
+                target_morph["attributeNode_ids"].append(attr_id)
+                
+                # Atomically save the updated node
+                atomic_node_save(user_id, node_id, source_node)
+                
+                # Regenerate composed files
+                try:
+                    node_ids = get_graph_node_ids(user_id, graph_id)
+                    metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                    graph_description = ""
+                    if metadata_path.exists():
+                        import yaml
+                        with open(metadata_path, "r") as f:
+                            metadata = yaml.safe_load(f) or {}
+                            graph_description = metadata.get("description", "")
+                    
+                    composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                    if composed_data:
+                        atomic_composed_save(user_id, graph_id, composed_data, "json")
+                        atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                        atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                except Exception as e:
+                    print(f"Warning: Failed to regenerate composed files: {e}")
+                
+                return {"status": "Attribute copied to morph", "attribute_id": attr_id, "morph_id": morph_id}
+            else:
+                return {"status": "Attribute already exists in target morph", "attribute_id": attr_id, "morph_id": morph_id}
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to copy attribute to morph: {str(e)}")
+
+@router.get("/users/{user_id}/graphs/{graph_id}/attribute/list_by_morph/{node_id}")
+def list_attributes_by_morph(user_id: str, graph_id: str, node_id: str):
+    """
+    List all attributes organized by morph for a given node.
+    """
+    try:
+        # Load source node
+        source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+        if not source_node_path.exists():
+            raise HTTPException(status_code=404, detail="Source node not found")
+        
+        source_node = load_json_file(source_node_path)
+        
+        # Load attribute registry
+        reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+        registry = load_registry(reg_path)
+        
+        # Organize attributes by morph
+        morph_attributes = {}
+        for morph in source_node.get("morphs", []):
+            morph_id = morph.get("morph_id")
+            morph_name = morph.get("name", "Unknown")
+            morph_attributes[morph_id] = {
+                "morph_id": morph_id,
+                "morph_name": morph_name,
+                "attributes": []
+            }
+            
+            for attr_id in morph.get("attributeNode_ids", []):
+                if attr_id in registry:
+                    attr_info = registry[attr_id]
+                    
+                    # Load full attribute data from the attribute file
+                    attr_file_path = Path(f"graph_data/users/{user_id}/attributeNodes/{attr_id}.json")
+                    full_attr_data = {}
+                    if attr_file_path.exists():
+                        try:
+                            full_attr_data = load_json_file(attr_file_path)
+                        except Exception as e:
+                            print(f"Warning: Failed to load attribute file {attr_id}: {e}")
+                    
+                    # Combine registry info with full attribute data
+                    attribute_data = {
+                        "attribute_id": attr_id,
+                        "name": attr_info.get("name"),
+                        "source_id": attr_info.get("source_id"),
+                        "value": full_attr_data.get("value"),
+                        "unit": full_attr_data.get("unit"),
+                        "adverb": full_attr_data.get("adverb"),
+                        "modality": full_attr_data.get("modality")
+                    }
+                    
+                    morph_attributes[morph_id]["attributes"].append(attribute_data)
+        
+        return {"node_id": node_id, "morphs": morph_attributes}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list attributes by morph: {str(e)}")
+
+@router.post("/users/{user_id}/graphs/{graph_id}/morph/create")
+def create_morph(user_id: str, graph_id: str, request: CreateMorphRequest):
+    """
+    Create a new morph for a node.
+    
+    Scenarios:
+    1. Empty morph: copy_from_morph is None - creates morph with empty properties
+    2. Copy from existing morph: copy_from_morph specifies any existing morph to copy from
+    3. Node context is always required - morphs must belong to a node
+    """
+    try:
+        print(f"DEBUG: Morph creation called with:")
+        print(f"  user_id: {user_id}")
+        print(f"  graph_id: {graph_id}")
+        print(f"  node_id: {request.node_id}")
+        print(f"  name: {request.name}")
+        print(f"  copy_from_morph: {request.copy_from_morph}")
+        print(f"  auto-generated morph_id: {request.name}_{request.node_id}")
+        
+        with graph_transaction(user_id, graph_id, "create_morph") as backup_dir:
+            # Auto-generate morph_id from name and node_id
+            morph_id = f"{request.name}_{request.node_id}"
+            node_id = request.node_id
+            morph_name = request.name
+            copy_from_morph = request.copy_from_morph
+            
+            # Load the source node (required context)
+            source_node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+            if not source_node_path.exists():
+                raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+            
+            with open(source_node_path, 'r') as f:
+                source_node = json.load(f)
+            
+            # Check if morph already exists
+            existing_morph = None
+            for morph in source_node.get("morphs", []):
+                if morph.get("morph_id") == morph_id:
+                    existing_morph = morph
+                    break
+            
+            if existing_morph:
+                # Morph already exists, but we need to ensure registries are updated
+                print(f"DEBUG: Morph {morph_id} already exists, checking registry updates")
+                
+                # If copying from another morph, ensure registries are updated
+                if copy_from_morph:
+                    print(f"DEBUG: Updating registries for existing morph {morph_id}")
+                    
+                    # Update registries to include the morph_id for all relations and attributes
+                    # Update relation registry
+                    rel_reg_path = Path(f"graph_data/users/{user_id}/relation_registry.json")
+                    if rel_reg_path.exists():
+                        rel_registry = load_json_file(rel_reg_path)
+                        for rel_id in existing_morph.get("relationNode_ids", []):
+                            if rel_id in rel_registry:
+                                current_morph_ids = rel_registry[rel_id].get("morph_id", [])
+                                if isinstance(current_morph_ids, str):
+                                    current_morph_ids = [current_morph_ids]
+                                if morph_id not in current_morph_ids:
+                                    current_morph_ids.append(morph_id)
+                                    rel_registry[rel_id]["morph_id"] = current_morph_ids
+                        atomic_registry_save(user_id, "relation", rel_registry)
+                    
+                    # Update attribute registry
+                    attr_reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+                    if attr_reg_path.exists():
+                        attr_registry = load_json_file(attr_reg_path)
+                        for attr_id in existing_morph.get("attributeNode_ids", []):
+                            if attr_id in attr_registry:
+                                current_morph_ids = attr_registry[attr_id].get("morph_id", [])
+                                if isinstance(current_morph_ids, str):
+                                    current_morph_ids = [current_morph_ids]
+                                if morph_id not in current_morph_ids:
+                                    current_morph_ids.append(morph_id)
+                                    attr_registry[attr_id]["morph_id"] = current_morph_ids
+                        atomic_registry_save(user_id, "attribute", attr_registry)
+                
+                # Return success if morph already exists (idempotent behavior)
+                return {
+                    "status": "Morph already exists",
+                    "morph_id": morph_id,
+                    "node_id": node_id,
+                    "name": morph_name,
+                    "copied_from": copy_from_morph,
+                    "relation_count": len(existing_morph.get("relationNode_ids", [])),
+                    "attribute_count": len(existing_morph.get("attributeNode_ids", []))
+                }
+            
+            # Create new morph
+            new_morph = {
+                "morph_id": morph_id,
+                "node_id": node_id,
+                "name": morph_name,
+                "relationNode_ids": [],
+                "attributeNode_ids": []
+            }
+            
+            # If copying from another morph, copy all properties
+            print(f"DEBUG: About to check copy_from_morph condition: {copy_from_morph}")
+            print(f"DEBUG: copy_from_morph type: {type(copy_from_morph)}")
+            print(f"DEBUG: copy_from_morph truthiness: {bool(copy_from_morph)}")
+            if copy_from_morph:
+                print(f"DEBUG: Copying from morph: {copy_from_morph}")
+                # Reload the node file to ensure latest state
+                with open(source_node_path, 'r') as f:
+                    source_node = json.load(f)
+                print(f"DEBUG: Loaded source node with {len(source_node.get('morphs', []))} morphs")
+                source_morph = None
+                for morph in source_node.get("morphs", []):
+                    print(f"DEBUG: Checking morph: {morph.get('morph_id')}")
+                    if morph.get("morph_id") == copy_from_morph:
+                        source_morph = morph
+                        print(f"DEBUG: Found source morph: {copy_from_morph}")
+                        break
+                
+                if not source_morph:
+                    print(f"DEBUG: Source morph {copy_from_morph} not found!")
+                    raise HTTPException(status_code=404, detail=f"Source morph {copy_from_morph} not found in node {node_id}")
+                
+                print(f"DEBUG: Copying from source morph {copy_from_morph}")
+                print(f"DEBUG: Source morph relationNode_ids: {source_morph.get('relationNode_ids', [])}")
+                print(f"DEBUG: Source morph attributeNode_ids: {source_morph.get('attributeNode_ids', [])}")
+                
+                # Copy relations and attributes
+                new_morph["relationNode_ids"] = source_morph.get("relationNode_ids", []).copy()
+                new_morph["attributeNode_ids"] = source_morph.get("attributeNode_ids", []).copy()
+                
+                print(f"DEBUG: New morph relationNode_ids: {new_morph['relationNode_ids']}")
+                print(f"DEBUG: New morph attributeNode_ids: {new_morph['attributeNode_ids']}")
+                
+                # Update registries to include the new morph_id for all copied relations and attributes
+                # Update relation registry
+                rel_reg_path = Path(f"graph_data/users/{user_id}/relation_registry.json")
+                print(f"DEBUG: Checking relation registry at {rel_reg_path}")
+                print(f"DEBUG: Relation registry exists: {rel_reg_path.exists()}")
+                if rel_reg_path.exists():
+                    rel_registry = load_json_file(rel_reg_path)
+                    print(f"DEBUG: Current relation registry keys: {list(rel_registry.keys())}")
+                    for rel_id in new_morph["relationNode_ids"]:
+                        print(f"DEBUG: Processing relation {rel_id}")
+                        if rel_id in rel_registry:
+                            current_morph_ids = rel_registry[rel_id].get("morph_id", [])
+                            print(f"DEBUG: Current morph_ids for {rel_id}: {current_morph_ids}")
+                            if isinstance(current_morph_ids, str):
+                                current_morph_ids = [current_morph_ids]
+                            if morph_id not in current_morph_ids:
+                                current_morph_ids.append(morph_id)
+                            print(f"DEBUG: Updated morph_ids for {rel_id}: {current_morph_ids}")
+                            rel_registry[rel_id]["morph_id"] = current_morph_ids
+                        else:
+                            print(f"DEBUG: Relation {rel_id} not found in registry")
+                    print(f"DEBUG: Saving updated relation registry")
+                    atomic_registry_save(user_id, "relation", rel_registry)
+                
+                # Update attribute registry
+                attr_reg_path = Path(f"graph_data/users/{user_id}/attribute_registry.json")
+                print(f"DEBUG: Checking attribute registry at {attr_reg_path}")
+                print(f"DEBUG: Attribute registry exists: {attr_reg_path.exists()}")
+                if attr_reg_path.exists():
+                    attr_registry = load_json_file(attr_reg_path)
+                    print(f"DEBUG: Current attribute registry keys: {list(attr_registry.keys())}")
+                    for attr_id in new_morph["attributeNode_ids"]:
+                        print(f"DEBUG: Processing attribute {attr_id}")
+                        if attr_id in attr_registry:
+                            current_morph_ids = attr_registry[attr_id].get("morph_id", [])
+                            print(f"DEBUG: Current morph_ids for {attr_id}: {current_morph_ids}")
+                            if isinstance(current_morph_ids, str):
+                                current_morph_ids = [current_morph_ids]
+                            if morph_id not in current_morph_ids:
+                                current_morph_ids.append(morph_id)
+                            print(f"DEBUG: Updated morph_ids for {attr_id}: {current_morph_ids}")
+                            attr_registry[attr_id]["morph_id"] = current_morph_ids
+                        else:
+                            print(f"DEBUG: Attribute {attr_id} not found in registry")
+                    print(f"DEBUG: Saving updated attribute registry")
+                    atomic_registry_save(user_id, "attribute", attr_registry)
+                else:
+                    print(f"DEBUG: Attribute registry does not exist")
+            
+            # Add new morph to node
+            if "morphs" not in source_node:
+                source_node["morphs"] = []
+            source_node["morphs"].append(new_morph)
+            
+            # Save updated node
+            with open(source_node_path, 'w') as f:
+                json.dump(source_node, f, indent=2)
+            
+            return {
+                "status": "Morph created successfully",
+                "morph_id": morph_id,
+                "node_id": node_id,
+                "name": morph_name,
+                "copied_from": copy_from_morph,
+                "relation_count": len(new_morph["relationNode_ids"]),
+                "attribute_count": len(new_morph["attributeNode_ids"]),
+                "is_empty": copy_from_morph is None
+            }
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create morph: {str(e)}")
 
 # --- RelationNode CRUD with legacy route decorators ---
 
@@ -287,127 +1093,233 @@ def get_relation_node(user_id: str, graph_id: str, relation_id: str):
 
 @router.post("/users/{user_id}/graphs/{graph_id}/relation/create")
 def create_relation_node(user_id: str, graph_id: str, rel: RelationNode):
-    rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
-    rel_path = f"graph_data/users/{user_id}/relationNodes/{rel.id}.json"
-    reg_path = f"graph_data/users/{user_id}/relation_registry.json"
-    os.makedirs(os.path.dirname(rel_path), exist_ok=True)
-    if os.path.exists(rel_path):
-        raise HTTPException(status_code=400, detail="RelationNode already exists")
-    with open(rel_path, "w") as f:
-        json.dump(rel.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry[rel.id] = {
-        "id": rel.id,
-        "name": rel.name,
-        "source_id": rel.source_id,
-        "target_id": rel.target_id,
-        "created_at": datetime.utcnow().isoformat()
-    }
-    save_registry(reg_path, registry)
-    
-    # Update source node's static morph with this relation
-    source_node_path = f"graph_data/users/{user_id}/nodes/{rel.source_id}.json"
-    if os.path.exists(source_node_path):
-        with open(source_node_path, "r") as f:
-            source_node = json.load(f)
-        
-        # Ensure morphs array exists
-        if "morphs" not in source_node:
-            source_node["morphs"] = []
-        
-        # Find or create static morph
-        static_morph = None
-        for morph in source_node["morphs"]:
-            if morph.get("name") == "static":
-                static_morph = morph
-                break
-        
-        if not static_morph:
-            # Create static morph
-            static_morph = {
-                "morph_id": f"static_{rel.source_id}",
-                "node_id": rel.source_id,
-                "name": "static",
-                "relationNode_ids": [],
-                "attributeNode_ids": []
-            }
-            source_node["morphs"].append(static_morph)
-        
-        # Add relation to static morph
-        if "relationNode_ids" not in static_morph:
-            static_morph["relationNode_ids"] = []
-        if rel.id not in static_morph["relationNode_ids"]:
-            static_morph["relationNode_ids"].append(rel.id)
-        
-        # Set nbh to static morph if not already set
-        if not source_node.get("nbh"):
-            source_node["nbh"] = static_morph["morph_id"]
-        
-        # Save updated source node
-        with open(source_node_path, "w") as f:
-            json.dump(source_node, f, indent=2)
-    
-    # Regenerate polymorphic_composed.json to include the new relation
     try:
-        # Get all nodes that belong to this graph
-        node_ids = get_graph_node_ids(user_id, graph_id)
-        
-        # Load graph description
-        metadata_path = f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml"
-        graph_description = ""
-        if os.path.exists(metadata_path):
-            import yaml
-            with open(metadata_path, "r") as f:
-                metadata = yaml.safe_load(f) or {}
-                graph_description = metadata.get("description", "")
-        
-        # Recompose the graph
-        compose_graph(user_id, graph_id, node_ids, graph_description)
+        with graph_transaction(user_id, graph_id, "create_relation_node") as backup_dir:
+            # Validate required fields
+            if not rel.source_id or rel.source_id is None:
+                raise HTTPException(status_code=400, detail="source_id is required and cannot be null")
+            if not rel.name or rel.name is None:
+                raise HTTPException(status_code=400, detail="name is required and cannot be null")
+            if not rel.target_id or rel.target_id is None:
+                raise HTTPException(status_code=400, detail="target_id is required and cannot be null")
+            
+            rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
+            
+            # Validate that the generated ID is not None or empty
+            if not rel.id:
+                raise HTTPException(status_code=500, detail="Failed to generate valid relation ID")
+            
+            # Check if relation already exists
+            rel_path = Path(f"graph_data/users/{user_id}/relationNodes/{rel.id}.json")
+            if rel_path.exists():
+                # Load existing relation and update morph_id if needed
+                existing_rel = load_json_file(rel_path)
+                morph_id = getattr(rel, 'morph_id', None)
+                if not morph_id:
+                    # No morph_id provided, fallback to basic morph
+                    morph_id = f"basic_{rel.source_id}"
+                
+                # Update the relation with the correct morph_id
+                existing_rel["morph_id"] = morph_id
+                atomic_relation_save(user_id, rel.id, existing_rel)
+                
+                # Update registry with morph_id
+                reg_path = Path(f"graph_data/users/{user_id}/relation_registry.json")
+                registry = load_registry(reg_path)
+                if rel.id in registry:
+                    current_morph_id = registry[rel.id].get("morph_id")
+                    if isinstance(current_morph_id, list):
+                        if morph_id not in current_morph_id:
+                            current_morph_id.append(morph_id)
+                        registry[rel.id]["morph_id"] = current_morph_id
+                    elif isinstance(current_morph_id, str):
+                        if current_morph_id == morph_id:
+                            registry[rel.id]["morph_id"] = [morph_id]
+                        else:
+                            registry[rel.id]["morph_id"] = [current_morph_id, morph_id]
+                    else:
+                        registry[rel.id]["morph_id"] = [morph_id]
+                else:
+                    registry[rel.id] = {
+                        "id": rel.id,
+                        "name": rel.name,
+                        "source_id": rel.source_id,
+                        "target_id": rel.target_id,
+                        "morph_id": [morph_id],
+                        "graphs": [graph_id],
+                        "created_at": datetime.utcnow().isoformat()
+                    }
+                atomic_registry_save(user_id, "relation", registry)
+                
+                # Ensure the relation is properly associated with the morph in the source node
+                source_node_path = Path(f"graph_data/users/{user_id}/nodes/{rel.source_id}.json")
+                if source_node_path.exists():
+                    source_node = load_json_file(source_node_path)
+                    
+                    # Ensure morphs array exists
+                    if "morphs" not in source_node:
+                        source_node["morphs"] = []
+                    
+                    # Find the correct morph
+                    target_morph = None
+                    for morph in source_node["morphs"]:
+                        if morph.get("morph_id") == morph_id:
+                            target_morph = morph
+                            break
+                    
+                    # If the morph doesn't exist, create it
+                    if not target_morph:
+                        target_morph = {
+                            "morph_id": morph_id,
+                            "node_id": rel.source_id,
+                            "name": morph_id.replace(f"{rel.source_id}_", ""),
+                            "relationNode_ids": [],
+                            "attributeNode_ids": []
+                        }
+                        source_node["morphs"].append(target_morph)
+                    
+                    # Add relation to the morph
+                    if "relationNode_ids" not in target_morph:
+                        target_morph["relationNode_ids"] = []
+                    if rel.id not in target_morph["relationNode_ids"]:
+                        target_morph["relationNode_ids"].append(rel.id)
+                    
+                    # Set nbh to this morph if not already set
+                    if not source_node.get("nbh"):
+                        source_node["nbh"] = morph_id
+                    
+                    # Atomically save updated source node
+                    atomic_node_save(user_id, rel.source_id, source_node)
+                
+                return {
+                    "status": "RelationNode created successfully",
+                    "relation_id": rel.id,
+                    "morph_id": morph_id
+                }
+            
+            # If relation doesn't exist, create it
+            # Determine morph_id - use provided or default to basic
+            morph_id = getattr(rel, 'morph_id', None)
+            if not morph_id:
+                morph_id = f"basic_{rel.source_id}"
+            
+            # Set the morph_id in the relation (ensure it's a list)
+            rel.morph_id = [morph_id] if isinstance(morph_id, str) else morph_id
+            
+            # Atomically save relation file
+            atomic_relation_save(user_id, rel.id, rel.dict())
+            
+            # Load and update registry atomically
+            reg_path = Path(f"graph_data/users/{user_id}/relation_registry.json")
+            registry = load_registry(reg_path)
+            entry = registry.get(rel.id)
+            if entry:
+                # Ensure morph_id is a list
+                current_morph_id = entry.get("morph_id")
+                if isinstance(current_morph_id, list):
+                    if morph_id not in current_morph_id:
+                        current_morph_id.append(morph_id)
+                    entry["morph_id"] = current_morph_id
+                elif isinstance(current_morph_id, str):
+                    if current_morph_id == morph_id:
+                        entry["morph_id"] = [morph_id]
+                    else:
+                        entry["morph_id"] = [current_morph_id, morph_id]
+                else:
+                    entry["morph_id"] = [morph_id]
+            else:
+                entry = {
+                    "id": rel.id,
+                    "name": rel.name,
+                    "source_id": rel.source_id,
+                    "target_id": rel.target_id,
+                    "morph_id": [morph_id],
+                    "graphs": [graph_id],
+                    "created_at": datetime.utcnow().isoformat()
+                }
+            if graph_id not in entry["graphs"]:
+                entry["graphs"].append(graph_id)
+            registry[rel.id] = entry
+            atomic_registry_save(user_id, "relation", registry)
+            
+            # Regenerate composed files
+            try:
+                node_ids = get_graph_node_ids(user_id, graph_id)
+                metadata_path = Path(f"graph_data/users/{user_id}/graphs/{graph_id}/metadata.yaml")
+                graph_description = ""
+                if metadata_path.exists():
+                    import yaml
+                    with open(metadata_path, "r") as f:
+                        metadata = yaml.safe_load(f) or {}
+                        graph_description = metadata.get("description", "")
+                
+                composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
+                if composed_data:
+                    atomic_composed_save(user_id, graph_id, composed_data, "json")
+                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            except Exception as e:
+                print(f"Warning: Failed to regenerate composed files: {e}")
+            
+            return {
+                "status": "RelationNode created successfully",
+                "relation_id": rel.id,
+                "morph_id": morph_id
+            }
+            
+    except AtomicityError as e:
+        raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
     except Exception as e:
-        print(f"Warning: Failed to regenerate polymorphic_composed.json: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create relation: {str(e)}")
+
+# ---------- Data Consistency and Validation Endpoints ----------
+
+@router.get("/users/{user_id}/graphs/{graph_id}/validate")
+def validate_graph_consistency(user_id: str, graph_id: str):
+    """
+    Validate the consistency of a graph's data.
     
-    return {"status": "RelationNode created and registered", "relation_id": rel.id}
+    This endpoint performs comprehensive validation of:
+    - Node registry consistency
+    - Relation registry consistency  
+    - Attribute registry consistency
+    - File existence checks
+    - Reference integrity
+    
+    Returns validation results with issues and warnings.
+    """
+    from backend.core.atomic_ops import validate_data_consistency as validate_consistency
+    
+    try:
+        validation_result = validate_consistency(user_id)
+        return validation_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
 
-@router.put("/users/{user_id}/graphs/{graph_id}/relation/update/{source}/{name}/{target}")
-def update_relation_node(user_id: str, graph_id: str, source: str, name: str, target: str, rel: RelationNode):
-    rel.id = make_relation_id(rel.source_id, rel.name, rel.target_id, rel.adverb or "", rel.modality or "")
-    rel_path = f"graph_data/users/{user_id}/relationNodes/{rel.id}.json"
-    reg_path = f"graph_data/users/{user_id}/relation_registry.json"
-    if not os.path.exists(rel_path):
-        raise HTTPException(status_code=404, detail="RelationNode not found")
-    with open(rel_path, "w") as f:
-        json.dump(rel.dict(), f, indent=2)
-    registry = load_registry(reg_path)
-    registry[rel.id] = {
-        "id": rel.id,
-        "name": rel.name,
-        "source_id": rel.source_id,
-        "target_id": rel.target_id,
-        "created_at": datetime.utcnow().isoformat()
-    }
-    save_registry(reg_path, registry)
-    return {"status": "RelationNode updated and registry synced"}
-
-@router.delete("/users/{user_id}/graphs/{graph_id}/relation/delete/{source}/{name}/{target}")
-def delete_relation_node(user_id: str, graph_id: str, source: str, name: str, target: str):
-    # Find the relationNode id by source, name, and target
-    reg_path = f"graph_data/users/{user_id}/relation_registry.json"
-    registry = load_registry(reg_path)
-    rel_id = None
-    for k, v in registry.items():
-        if v.get("source_id") == source and v.get("name") == name and v.get("target_id") == target:
-            rel_id = k
-            break
-    if not rel_id:
-        raise HTTPException(status_code=404, detail="RelationNode not found")
-    rel_path = f"graph_data/users/{user_id}/relationNodes/{rel_id}.json"
-    if os.path.exists(rel_path):
-        os.remove(rel_path)
-    if rel_id in registry:
-        del registry[rel_id]
-        save_registry(reg_path, registry)
-    return {"status": "RelationNode deleted and registry updated"}
-# ... existing code ...
+@router.post("/users/{user_id}/graphs/{graph_id}/cleanup-backups")
+def cleanup_old_backups(user_id: str, graph_id: str, max_age_hours: int = 24):
+    """
+    Clean up old backup directories for a user.
+    
+    Args:
+        user_id: User ID
+        graph_id: Graph ID (not used but kept for consistency)
+        max_age_hours: Maximum age of backups to keep (default: 24 hours)
+    
+    Returns:
+        Number of backups cleaned up
+    """
+    from backend.core.atomic_ops import cleanup_old_backups as cleanup_backups
+    
+    try:
+        cleaned_count = cleanup_backups(user_id, max_age_hours)
+        return {
+            "status": "Backup cleanup completed",
+            "cleaned_count": cleaned_count,
+            "max_age_hours": max_age_hours
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backup cleanup failed: {str(e)}")
 
 
 
