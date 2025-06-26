@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 import os
 import json
 import time
 from pathlib import Path
+from fastapi_users import FastAPIUsers
+from backend.routes.users import User
+from backend.core.auth_validation import current_active_user
 
 router = APIRouter()
 
@@ -35,31 +38,31 @@ class AttributeType(BaseModel):
     domain: list[str] = []
     allowed_values: Optional[list[str]] = None
 
-# ==== File IO Utilities ====
+# ==== Helper Functions ====
 
 def load_global_json(filename, fallback):
-    """Load schema from global directory (read-only)"""
-    file_path = GLOBAL_SCHEMA_DIR / filename
-    if not file_path.exists():
-        return fallback
-    with open(file_path, encoding="utf-8") as f:
-        return json.load(f)
+    """Load JSON from global schema directory"""
+    filepath = GLOBAL_SCHEMA_DIR / filename
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return fallback
 
 def load_user_json(user_id: str, filename, fallback):
-    """Load schema from user directory"""
-    user_schema_dir = USER_SCHEMA_DIR / user_id / "schemas"
-    file_path = user_schema_dir / filename
-    if not file_path.exists():
-        return fallback
-    with open(file_path, encoding="utf-8") as f:
-        return json.load(f)
+    """Load JSON from user schema directory"""
+    user_dir = USER_SCHEMA_DIR / user_id
+    filepath = user_dir / filename
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return fallback
 
 def save_user_json(user_id: str, filename, data):
-    """Save schema to user directory"""
-    user_schema_dir = USER_SCHEMA_DIR / user_id / "schemas"
-    user_schema_dir.mkdir(parents=True, exist_ok=True)
-    file_path = user_schema_dir / filename
-    with open(file_path, "w", encoding="utf-8") as f:
+    """Save JSON to user schema directory"""
+    user_dir = USER_SCHEMA_DIR / user_id
+    user_dir.mkdir(parents=True, exist_ok=True)
+    filepath = user_dir / filename
+    with open(filepath, 'w') as f:
         json.dump(data, f, indent=2)
 
 def combine_schemas(global_data: List[dict], user_data: List[dict], key_field: str = "name") -> List[dict]:
@@ -72,19 +75,9 @@ def combine_schemas(global_data: List[dict], user_data: List[dict], key_field: s
     
     # Add user items
     combined.extend(user_data)
-    
     return combined
 
-def with_file_lock(lockfile: Path, timeout=5.0):
-    start = time.time()
-    while lockfile.exists():
-        if time.time() - start > timeout:
-            raise HTTPException(status_code=423, detail="Resource is locked")
-        time.sleep(0.1)
-    lockfile.touch()
-    return lambda: lockfile.unlink()
-
-# ==== Routes ====
+# ==== Schema Routes ====
 
 @router.get("/users/{user_id}/graphs/{graph_id}/relation-names")
 def get_relation_names(user_id: str, graph_id: str):
@@ -110,8 +103,20 @@ def get_relation_types(user_id: str, graph_id: str):
     return combine_schemas(global_relations, user_relations)
 
 @router.post("/users/{user_id}/graphs/{graph_id}/relation-types/create")
-def create_relation_type(user_id: str, graph_id: str, rt: RelationType):
+def create_relation_type(
+    user_id: str, 
+    graph_id: str, 
+    rt: RelationType,
+    user: User = Depends(current_active_user)
+):
     """Create a new relation type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create relation type: Access denied. You can only access your own data."
+        )
+    
     # Check if it already exists in global schemas
     global_relations = load_global_json("relation_types.json", [])
     if any(r["name"] == rt.name for r in global_relations):
@@ -128,8 +133,21 @@ def create_relation_type(user_id: str, graph_id: str, rt: RelationType):
     return {"status": "relation type added to user schemas"}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/relation-types/{name}")
-def update_relation_type(user_id: str, graph_id: str, name: str, rt: RelationType):
+def update_relation_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str, 
+    rt: RelationType,
+    user: User = Depends(current_active_user)
+):
     """Update a relation type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot update relation type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (read-only)
     global_relations = load_global_json("relation_types.json", [])
     if any(r["name"] == name for r in global_relations):
@@ -146,8 +164,20 @@ def update_relation_type(user_id: str, graph_id: str, name: str, rt: RelationTyp
     raise HTTPException(status_code=404, detail="Relation type not found in user schemas")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/relation-types/{name}")
-def delete_relation_type(user_id: str, graph_id: str, name: str):
+def delete_relation_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str,
+    user: User = Depends(current_active_user)
+):
     """Delete a relation type from user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete relation type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (cannot delete)
     global_relations = load_global_json("relation_types.json", [])
     if any(r["name"] == name for r in global_relations):
@@ -167,8 +197,20 @@ def get_attribute_types(user_id: str, graph_id: str):
     return combine_schemas(global_attributes, user_attributes)
 
 @router.post("/users/{user_id}/graphs/{graph_id}/attribute-types")
-def create_attribute_type(user_id: str, graph_id: str, item: AttributeType):
+def create_attribute_type(
+    user_id: str, 
+    graph_id: str, 
+    item: AttributeType,
+    user: User = Depends(current_active_user)
+):
     """Create a new attribute type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create attribute type: Access denied. You can only access your own data."
+        )
+    
     # Check if it already exists in global schemas
     global_attributes = load_global_json("attribute_types.json", [])
     if any(a["name"] == item.name for a in global_attributes):
@@ -185,8 +227,21 @@ def create_attribute_type(user_id: str, graph_id: str, item: AttributeType):
     return {"status": "attribute type added to user schemas"}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/attribute-types/{name}")
-def update_attribute_type(user_id: str, graph_id: str, name: str, item: AttributeType):
+def update_attribute_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str, 
+    item: AttributeType,
+    user: User = Depends(current_active_user)
+):
     """Update an attribute type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot update attribute type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (read-only)
     global_attributes = load_global_json("attribute_types.json", [])
     if any(a["name"] == name for a in global_attributes):
@@ -203,8 +258,20 @@ def update_attribute_type(user_id: str, graph_id: str, name: str, item: Attribut
     raise HTTPException(status_code=404, detail="Attribute type not found in user schemas")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/attribute-types/{name}")
-def delete_attribute_type(user_id: str, graph_id: str, name: str):
+def delete_attribute_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str,
+    user: User = Depends(current_active_user)
+):
     """Delete an attribute type from user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete attribute type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (cannot delete)
     global_attributes = load_global_json("attribute_types.json", [])
     if any(a["name"] == name for a in global_attributes):
@@ -224,8 +291,20 @@ def get_node_types(user_id: str, graph_id: str):
     return combine_schemas(global_nodes, user_nodes)
 
 @router.post("/users/{user_id}/graphs/{graph_id}/node-types")
-def create_node_type(user_id: str, graph_id: str, item: NodeType):
+def create_node_type(
+    user_id: str, 
+    graph_id: str, 
+    item: NodeType,
+    user: User = Depends(current_active_user)
+):
     """Create a new node type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create node type: Access denied. You can only access your own data."
+        )
+    
     # Check if it already exists in global schemas
     global_nodes = load_global_json("node_types.json", [])
     if any(n["name"] == item.name for n in global_nodes):
@@ -242,8 +321,21 @@ def create_node_type(user_id: str, graph_id: str, item: NodeType):
     return {"status": "node type added to user schemas"}
 
 @router.put("/users/{user_id}/graphs/{graph_id}/node-types/{name}")
-def update_node_type(user_id: str, graph_id: str, name: str, item: NodeType):
+def update_node_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str, 
+    item: NodeType,
+    user: User = Depends(current_active_user)
+):
     """Update a node type in user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot update node type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (read-only)
     global_nodes = load_global_json("node_types.json", [])
     if any(n["name"] == name for n in global_nodes):
@@ -260,8 +352,20 @@ def update_node_type(user_id: str, graph_id: str, name: str, item: NodeType):
     raise HTTPException(status_code=404, detail="Node type not found in user schemas")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/node-types/{name}")
-def delete_node_type(user_id: str, graph_id: str, name: str):
+def delete_node_type(
+    user_id: str, 
+    graph_id: str, 
+    name: str,
+    user: User = Depends(current_active_user)
+):
     """Delete a node type from user space"""
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete node type: Access denied. You can only access your own data."
+        )
+    
     # Check if it exists in global schemas (cannot delete)
     global_nodes = load_global_json("node_types.json", [])
     if any(n["name"] == name for n in global_nodes):

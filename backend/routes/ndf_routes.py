@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Body
+from fastapi import APIRouter, Request, HTTPException, Body, Depends
 from fastapi.responses import PlainTextResponse, FileResponse, JSONResponse
 from pydantic import BaseModel, model_validator
 from pathlib import Path
@@ -32,6 +32,7 @@ from backend.core.atomic_ops import (
     atomic_registry_save,
     atomic_composed_save
 )
+from backend.routes.users import current_active_user, User
 
 
 router = APIRouter()  # All routes prefixed with /api/ndf
@@ -169,7 +170,14 @@ class GraphInitRequest(BaseModel):
 
 
 @router.post("/users/{user_id}/graphs/{graph_id}")
-async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest):
+async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user: User = Depends(current_active_user)):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create graph: Access denied. You can only access your own data."
+        )
+    
     try:
         with graph_transaction(user_id, graph_id, "create_graph") as backup_dir:
             graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
@@ -250,7 +258,14 @@ def migrate_registries_to_include_graphs(user_id: str, graph_id: str):
 
 
 @router.delete("/users/{user_id}/graphs/{graph_id}")
-def delete_graph(user_id: str, graph_id: str):
+def delete_graph(user_id: str, graph_id: str, user: User = Depends(current_active_user)):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete graph: Access denied. You can only access your own data."
+        )
+    
     """
     Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
     Also cleans up relationNodes and attributeNodes that belong only to this graph.
@@ -346,13 +361,20 @@ def delete_graph(user_id: str, graph_id: str):
 
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/delete")
-def delete_graph_with_delete_path(user_id: str, graph_id: str):
+def delete_graph_with_delete_path(user_id: str, graph_id: str, user: User = Depends(current_active_user)):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete graph: Access denied. You can only access your own data."
+        )
+    
     """
     Delete a graph: removes the graph directory, updates node_registry.json, and deletes orphaned nodes.
     This endpoint matches the frontend's expected URL pattern.
     """
     # Delegate to the main delete_graph function
-    return delete_graph(user_id, graph_id)
+    return delete_graph(user_id, graph_id, user)
 
 
 class AddNodeToGraphRequest(BaseModel):

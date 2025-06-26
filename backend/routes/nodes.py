@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Literal
 import os
@@ -24,6 +24,9 @@ from backend.core.atomic_ops import (
     atomic_node_save,
     atomic_composed_save
 )
+from backend.core.validation import require_user_and_graph
+from backend.routes.users import current_active_user, User
+from backend.core.auth_validation import require_self_access_or_superuser, require_graph_exists
 
 router = APIRouter()
 
@@ -41,7 +44,22 @@ class NodeInput(BaseModel):
     name: str
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes")
-def list_all_nodes(user_id: str, graph_id: str):
+async def list_all_nodes(
+    user_id: str, 
+    graph_id: str,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot list nodes: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    # if not require_graph_exists(user_id, graph_id):
+    #     raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     user_id = get_user_id(user_id)
     nodes_dir = os.path.join("graph_data", "users", user_id, "nodes")
     nodes = []
@@ -71,9 +89,25 @@ def list_all_nodes(user_id: str, graph_id: str):
 # def get_node_info(user_id: str, graph_id: str, node_id: str):
 #     ... (legacy logic)
 
-# --- PolyNode CRUD with legacy route decorators ---
+# --- PolyNode CRUD with FastAPI Users authentication only ---
 @router.post("/users/{user_id}/graphs/{graph_id}/nodes")
-def create_polynode(user_id: str, graph_id: str, node: PolyNode):
+async def create_polynode(
+    user_id: str, 
+    graph_id: str, 
+    node: PolyNode,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create node: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    if not require_graph_exists(user_id, graph_id):
+        raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     try:
         with graph_transaction(user_id, graph_id, "create_polynode") as backup_dir:
             # Compute ID from base_name and other fields (but not morph_name)
@@ -155,7 +189,24 @@ def create_polynode(user_id: str, graph_id: str, node: PolyNode):
         raise HTTPException(status_code=500, detail=f"Failed to create PolyNode: {str(e)}")
 
 @router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
-def update_polynode(user_id: str, graph_id: str, node_id: str, node: PolyNode):
+async def update_polynode(
+    user_id: str, 
+    graph_id: str, 
+    node_id: str, 
+    node: PolyNode,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot update node: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    if not require_graph_exists(user_id, graph_id):
+        raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     try:
         with graph_transaction(user_id, graph_id, "update_polynode") as backup_dir:
             node.id = make_polynode_id(node.quantifier or "", getattr(node, 'adverb', "") or "", "", node.base_name or "")
@@ -210,7 +261,23 @@ def update_polynode(user_id: str, graph_id: str, node_id: str, node: PolyNode):
         raise HTTPException(status_code=500, detail=f"Failed to update PolyNode: {str(e)}")
 
 @router.delete("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
-def delete_polynode(user_id: str, graph_id: str, node_id: str):
+async def delete_polynode(
+    user_id: str, 
+    graph_id: str, 
+    node_id: str,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete node: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    if not require_graph_exists(user_id, graph_id):
+        raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     """Delete a PolyNode and clean up all related data atomically."""
     try:
         with graph_transaction(user_id, graph_id, "delete_polynode") as backup_dir:
@@ -221,6 +288,32 @@ def delete_polynode(user_id: str, graph_id: str, node_id: str):
             
             # Load existing node data
             node_data = load_json_file(node_path)
+            
+            # ATOMICITY FIX: Check if node is referenced by any relations before deletion
+            rel_reg_path = f"graph_data/users/{user_id}/relation_registry.json"
+            if Path(rel_reg_path).exists():
+                rel_registry = load_json_file(Path(rel_reg_path))
+                
+                # Find all relations where this node is either source or target
+                referencing_relations = []
+                for rel_id, rel_data in rel_registry.items():
+                    if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
+                        referencing_relations.append({
+                            "id": rel_id,
+                            "name": rel_data.get("name", "unknown"),
+                            "source_id": rel_data.get("source_id"),
+                            "target_id": rel_data.get("target_id"),
+                            "role": "source" if rel_data.get("source_id") == node_id else "target"
+                        })
+                
+                if referencing_relations:
+                    # Prevent deletion and inform user about referencing relations
+                    return {
+                        "error": "Cannot delete node",
+                        "message": f"Node '{node_id}' cannot be deleted because it is referenced by {len(referencing_relations)} relation(s). Please delete these relations first.",
+                        "referencing_relations": referencing_relations,
+                        "node_id": node_id
+                    }
             
             # Delete all related relationNodes and attributeNodes atomically
             morphs = node_data.get("morphs", [])
@@ -259,7 +352,7 @@ def delete_polynode(user_id: str, graph_id: str, node_id: str):
             if Path(rel_reg_path).exists():
                 rel_registry = load_json_file(Path(rel_reg_path))
                 
-                # Remove relations where this node is source or target
+                # ATOMICITY FIX: Remove relations where this node is source OR target
                 to_remove = []
                 for rel_id, rel_data in rel_registry.items():
                     if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
@@ -286,6 +379,58 @@ def delete_polynode(user_id: str, graph_id: str, node_id: str):
                 
                 atomic_registry_save(user_id, "attribute", attr_registry)
             
+            # ATOMICITY FIX: Clean up source nodes that reference this node in their morphs
+            # This handles the case where other nodes have relations pointing to the deleted node
+            nodes_dir = Path(f"graph_data/users/{user_id}/nodes")
+            if nodes_dir.exists():
+                for node_file in nodes_dir.glob("*.json"):
+                    if node_file.name == f"{node_id}.json":
+                        continue  # Skip the node being deleted
+                    
+                    try:
+                        other_node_data = load_json_file(node_file)
+                        other_node_id = other_node_data.get("id") or other_node_data.get("node_id")
+                        
+                        # Skip if we can't determine the node ID
+                        if not other_node_id:
+                            continue
+                        
+                        # Check if any morph in this node references the deleted node
+                        morphs_updated = False
+                        for morph in other_node_data.get("morphs", []):
+                            # Remove relationNode_ids that reference the deleted node
+                            relation_ids = morph.get("relationNode_ids", [])
+                            original_count = len(relation_ids)
+                            
+                            # Filter out relations that reference the deleted node
+                            filtered_relation_ids = []
+                            for rel_id in relation_ids:
+                                # Check if this relation references the deleted node
+                                rel_path = Path(f"graph_data/users/{user_id}/relationNodes/{rel_id}.json")
+                                if rel_path.exists():
+                                    try:
+                                        rel_data = load_json_file(rel_path)
+                                        if rel_data.get("source_id") == node_id or rel_data.get("target_id") == node_id:
+                                            # This relation references the deleted node, remove it
+                                            rel_path.unlink()  # Delete the relation file
+                                            continue  # Don't add to filtered list
+                                    except:
+                                        # If relation file is corrupted, skip it
+                                        continue
+                                filtered_relation_ids.append(rel_id)
+                            
+                            if len(filtered_relation_ids) != original_count:
+                                morph["relationNode_ids"] = filtered_relation_ids
+                                morphs_updated = True
+                        
+                        # Save the updated node if any morphs were modified
+                        if morphs_updated:
+                            atomic_node_save(user_id, other_node_id, other_node_data)
+                    
+                    except Exception as e:
+                        print(f"Warning: Failed to clean up references in node {node_file.name}: {e}")
+                        continue
+            
             # Regenerate composed files atomically
             node_registry = load_node_registry(user_id)
             node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
@@ -305,7 +450,23 @@ def delete_polynode(user_id: str, graph_id: str, node_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete PolyNode: {str(e)}")
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}")
-def get_polynode(user_id: str, graph_id: str, node_id: str):
+async def get_polynode(
+    user_id: str, 
+    graph_id: str, 
+    node_id: str,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot get node: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    if not require_graph_exists(user_id, graph_id):
+        raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")
@@ -313,7 +474,23 @@ def get_polynode(user_id: str, graph_id: str, node_id: str):
         return json.load(f)
 
 @router.get("/users/{user_id}/graphs/{graph_id}/getInfo/{node_id}")
-def get_polynode_info(user_id: str, graph_id: str, node_id: str):
+async def get_polynode_info(
+    user_id: str, 
+    graph_id: str, 
+    node_id: str,
+    user: User = Depends(current_active_user)
+):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot get node info: Access denied. You can only access your own data."
+        )
+    
+    # Validate graph exists
+    if not require_graph_exists(user_id, graph_id):
+        raise HTTPException(status_code=404, detail=f"Graph '{graph_id}' does not exist for user '{user_id}'")
+    
     path = f"graph_data/users/{user_id}/nodes/{node_id}.json"
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Node not found")

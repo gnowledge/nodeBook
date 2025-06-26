@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
-export default function CNLInput({ graphId }) {
-  const userId = useUserId();
+export default function CNLInput({ graphId, graph, rawMarkdown, onGraphUpdate }) {
+  const { userId } = useUserInfo();
   const [cmlMd, setCnlMd] = useState('');
 
   useEffect(() => {

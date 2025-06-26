@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -18,15 +18,14 @@ function PreviewBox({ label, value }) {
  *   difficulty: (optional) controls which fields are enabled (default: 'easy')
  *   onClose: (optional) for modal usage
  */
-export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, graphId }) {
-  const userId = useUserId();
+export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, graphId, nodeId, onAddNodeType, morphId }) {
+  const { userId } = useUserInfo();
   // CNL-style fields
   const [base, setBase] = useState('');
   const [qualifier, setQualifier] = useState('');
   const [quantifier, setQuantifier] = useState('');
   const [role, setRole] = useState('');
   const [editing, setEditing] = useState(false);
-  const [nodeId, setNodeId] = useState(null);
 
   useEffect(() => {
     if (initialData) {
@@ -34,14 +33,12 @@ export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', 
       setQualifier(initialData.qualifier || '');
       setQuantifier(initialData.quantifier || '');
       setRole(initialData.role || '');
-      setNodeId(initialData.id || null);
       setEditing(true);
     } else {
       setBase('');
       setQualifier('');
       setQuantifier('');
       setRole('');
-      setNodeId(null);
       setEditing(false);
     }
   }, [initialData]);
@@ -65,17 +62,24 @@ export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', 
       morphs: []  // Empty morphs array
     };
     try {
+      const token = localStorage.getItem("token");
       let res;
       if (editing && nodeId) {
         res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${token}`
+          },
           body: JSON.stringify(payload)
         });
       } else {
         res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${token}`
+          },
           body: JSON.stringify(payload)
         });
       }
@@ -88,7 +92,6 @@ export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', 
       setQualifier('');
       setQuantifier('');
       setRole('');
-      setNodeId(null);
       onSuccess && onSuccess();
       onClose && onClose();
     } catch (err) {

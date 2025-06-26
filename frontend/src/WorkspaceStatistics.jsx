@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { listGraphs } from "./services/api";
 import Statistics from "./Statistics";
 import { computeStats } from "./statisticsUtils.js";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 export default function WorkspaceStatistics() {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [graphList, setGraphList] = useState([]);
   const [graphStats, setGraphStats] = useState([]);
   const [loading, setLoading] = useState(true);

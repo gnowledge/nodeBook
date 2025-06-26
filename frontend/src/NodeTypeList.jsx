@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 import { API_BASE } from "./config";
 import NodeTypeModal from './NodeTypeModal';
 
-export default function NodeTypeList({ graphId = "graph1" }) {
-  const userId = useUserId();
+export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEdit, onDelete, showAddButton = true }) {
+  const { userId } = useUserInfo();
   const [nodeTypes, setNodeTypes] = useState([]);
   const [globalTypes, setGlobalTypes] = useState([]);
   const [userTypes, setUserTypes] = useState([]);
@@ -15,17 +15,30 @@ export default function NodeTypeList({ graphId = "graph1" }) {
   const loadTypes = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`);
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setNodeTypes(data);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`);
+      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.node_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`);
+      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const userData = await userRes.json();
       setUserTypes(userData.node_types || []);
     } catch (err) {
@@ -44,7 +57,13 @@ export default function NodeTypeList({ graphId = "graph1" }) {
   const handleDelete = async (name) => {
     if (!window.confirm(`Delete node type '${name}'?`)) return;
     try {
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${name}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token");
+      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${name}`, { 
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       loadTypes();
     } catch (err) {
       console.error("Failed to delete node type:", err);
@@ -64,12 +83,14 @@ export default function NodeTypeList({ graphId = "graph1" }) {
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Node Types</h2>
-        <button 
-          onClick={() => { setEditTarget(null); setModalOpen(true); }} 
-          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          + Add Custom Node Type
-        </button>
+        {showAddButton && (
+          <button 
+            onClick={() => { setEditTarget(null); setModalOpen(true); }} 
+            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            + Add Custom Node Type
+          </button>
+        )}
       </div>
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">

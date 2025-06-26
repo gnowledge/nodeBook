@@ -10,7 +10,7 @@ import BlocklyCNLComposer from "./BlocklyCNLComposer";
 import DevPanel from "./DevPanel";
 import CNLInput from "./CNLInput";
 import LogViewer from "./LogViewer";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 const DEFAULT_PREFERENCES = {
   graphLayout: "dagre",
@@ -112,7 +112,7 @@ const DEV_PANEL_TABS = [
 ];
 
 const NDFStudioLayout = () => {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
   const [activeGraph, setActiveGraph] = useState(null);
@@ -148,7 +148,12 @@ const NDFStudioLayout = () => {
       }
       setPrefsLoading(true);
       try {
-        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         if (!res.ok) throw new Error("Failed to load preferences");
         const data = await res.json();
         setPrefs(data);
@@ -168,7 +173,12 @@ const NDFStudioLayout = () => {
     }
     try {
       const raw = await loadGraphCNL(userId, graphId);
-      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      const token = localStorage.getItem("token");
+      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
@@ -185,15 +195,23 @@ const NDFStudioLayout = () => {
     if (!name) return;
     const newId = name.trim().replace(/\s+/g, "_").toLowerCase();
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`/api/ndf/users/${userId}/graphs/${newId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ title: name, description: "" })
       });
       if (!res.ok) throw new Error(await res.text());
 
       const raw = await loadGraphCNL(userId, newId);
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`).then(r => r.json());
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      }).then(r => r.json());
       const fullGraph = { ...composed, raw_markdown: raw };
       const newMeta = { id: newId, title: name };
 
@@ -219,7 +237,12 @@ const NDFStudioLayout = () => {
     if (!activeGraph || !userId) return;
     try {
       console.log("🔄 Refreshing graph data for:", activeGraph);
-      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`);
+      const token = localStorage.getItem("token");
+      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       if (!composedRes.ok) throw new Error("Failed to fetch updated graph data");
       const composed = await composedRes.json();
       setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
@@ -234,7 +257,12 @@ const NDFStudioLayout = () => {
     if (!activeGraph) return;
     try {
       const raw = await loadGraphCNL(userId, activeGraph);
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`).then(r => r.json());
+      const token = localStorage.getItem("token");
+      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      }).then(r => r.json());
       setRawMarkdowns((prev) => ({ ...prev, [activeGraph]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));

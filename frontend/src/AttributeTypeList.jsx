@@ -5,12 +5,12 @@
 // - Deleting existing types (using DELETE - optional backend support needed)
 
 import React, { useEffect, useState } from 'react';
-import { useUserId } from "./UserIdContext";
 import { API_BASE } from "./config";
 import AttributeTypeModal from './AttributeTypeModal';
+import { useUserInfo } from "./UserIdContext";
 
 export default function AttributeTypeList({ graphId = "graph1" }) {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [attributeTypes, setAttributeTypes] = useState([]);
   const [globalTypes, setGlobalTypes] = useState([]);
   const [userTypes, setUserTypes] = useState([]);
@@ -21,18 +21,31 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
   const loadTypes = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`);
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data.attributeTypes || data.attribute_types || []);
       setAttributeTypes(list);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`);
+      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.attribute_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`);
+      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const userData = await userRes.json();
       setUserTypes(userData.attribute_types || []);
     } catch (err) {
@@ -51,7 +64,13 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
   const handleDelete = async (name) => {
     if (!window.confirm(`Delete attribute type '${name}'?`)) return;
     try {
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${name}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token");
+      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${name}`, { 
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       loadTypes();
     } catch (err) {
       console.error("Failed to delete attribute type:", err);

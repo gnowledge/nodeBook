@@ -14,17 +14,30 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
   const loadTypes = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`);
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setRelationTypes(data);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`);
+      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.relation_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`);
+      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const userData = await userRes.json();
       setUserTypes(userData.relation_types || []);
     } catch (err) {
@@ -42,7 +55,13 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
   const handleDelete = async (name) => {
     if (!window.confirm(`Delete relation type '${name}'?`)) return;
     try {
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${name}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token");
+      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${name}`, { 
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       loadTypes();
     } catch (err) {
       console.error("Failed to delete relation type:", err);

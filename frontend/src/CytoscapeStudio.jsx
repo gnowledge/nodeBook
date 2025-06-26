@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 import { marked } from "marked";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 cytoscape.use(dagre);
 
@@ -166,7 +166,7 @@ function ndfToCytoscapeGraph(ndfData) {
 }
 
 const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelations = [], graphAttributes = [] }) => {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [graphData, setGraphData] = useState(graph);

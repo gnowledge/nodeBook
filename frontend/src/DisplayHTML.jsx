@@ -5,7 +5,7 @@ import NodeForm from "./NodeForm";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
 import NodeTypeList from "./NodeTypeList";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -23,7 +23,7 @@ function stripMarkdown(md) {
 }
 
 const DisplayHTML = ({ graphId, onGraphRefresh }) => {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [graph, setGraph] = useState(null);
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [showRelationTypes, setShowRelationTypes] = useState(false);
@@ -33,7 +33,12 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   useEffect(() => {
     const fetchComposed = async () => {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         setGraph(data);
       } catch (err) {
@@ -49,7 +54,12 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   const handleNodeCreated = () => {
     setShowNodeForm(false);
     // Refetch graph locally
-    fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`)
+    const token = localStorage.getItem("token");
+    fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    })
       .then(res => res.json())
       .then(setGraph)
       .catch(() => setGraph(null));
@@ -231,7 +241,13 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
         onClick={async () => {
           if (!window.confirm(`Are you sure you want to delete this graph? This action cannot be undone.`)) return;
           try {
-            const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/delete`, { method: 'DELETE' });
+            const token = localStorage.getItem("token");
+            const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/delete`, { 
+              method: 'DELETE',
+              headers: {
+                "Authorization": `Bearer ${token}`
+              }
+            });
             if (res.ok) {
               // Optionally, redirect or refresh the graph list
               window.location.reload();

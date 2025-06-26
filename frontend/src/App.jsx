@@ -20,10 +20,10 @@ function Logout() {
 }
 
 function App() {
-  const [userId, setUserId] = useState(null); // null by default
+  const [userInfo, setUserInfo] = useState({ userId: null, username: null }); // Store both userId and username
 
-  // Helper to update userId from /auth/whoami
-  const fetchAndSetUserId = async () => {
+  // Helper to update userInfo from /auth/whoami
+  const fetchAndSetUserInfo = async () => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
@@ -33,36 +33,39 @@ function App() {
         if (res.ok) {
           const data = await res.json();
           console.debug("[App.jsx] /auth/whoami response:", data); // Debug message
-          if (data.username) setUserId(data.username);
-          else setUserId(null);
+          if (data.id && data.username) {
+            setUserInfo({ userId: data.id, username: data.username }); // Store both UUID and username
+          } else {
+            setUserInfo({ userId: null, username: null });
+          }
         } else {
-          setUserId(null);
+          setUserInfo({ userId: null, username: null });
           localStorage.removeItem("token");
         }
       } catch (err) {
         console.error("[App.jsx] Error fetching /auth/whoami:", err); // Debug message
-        setUserId(null);
+        setUserInfo({ userId: null, username: null });
         localStorage.removeItem("token");
       }
     } else {
-      setUserId(null);
+      setUserInfo({ userId: null, username: null });
     }
   };
 
   useEffect(() => {
-    fetchAndSetUserId();
+    fetchAndSetUserInfo();
   }, []);
 
   useEffect(() => {
-    console.debug("[App.jsx] userId context value:", userId); // Debug message
-  }, [userId]);
+    console.debug("[App.jsx] userInfo context value:", userInfo); // Debug message
+  }, [userInfo]);
 
   return (
-    <UserIdContext.Provider value={userId}>
+    <UserIdContext.Provider value={userInfo}>
       <Router>
         <UserBar />
         <Routes>
-          <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserId} />} />
+          <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserInfo} />} />
           <Route
             path="/app"
             element={

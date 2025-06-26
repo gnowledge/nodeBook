@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { API_BASE } from "./config";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
-function TransitionForm({ graphId, onSuccess, onClose, onCancel, initialData = null, sourceNodeId = null, sourceNodeName = null }) {
-  const userId = useUserId();
+export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, initialData = null, sourceNodeId = null, sourceNodeName = null }) {
+  const { userId } = useUserInfo();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [availableNodes, setAvailableNodes] = useState([]);
@@ -333,5 +333,3 @@ function TransitionForm({ graphId, onSuccess, onClose, onCancel, initialData = n
     </div>
   );
 }
-
-export default TransitionForm;

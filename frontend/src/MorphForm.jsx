@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { API_BASE } from "./config";
 import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
+import MessageArea from './MessageArea';
 
 // New component for managing morph items with multi-select and actions
 function MorphItemManager({ 
@@ -21,6 +22,8 @@ function MorphItemManager({
   const [actionLoading, setActionLoading] = useState(false);
   const [showTargetSelector, setShowTargetSelector] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('error');
 
   // Function to refresh graph data
   const refreshGraphData = async () => {
@@ -178,7 +181,8 @@ function MorphItemManager({
       
     } catch (error) {
       console.error(`Failed to ${action} items:`, error);
-      alert(`Failed to ${action} selected items: ${error.message}`);
+      setMessage(`Failed to ${action} selected items: ${error.message}`);
+      setMessageType('error');
     }
     setActionLoading(false);
   };
@@ -188,158 +192,165 @@ function MorphItemManager({
   }
 
   return (
-    <div className="space-y-3">
-      {/* Header with selection controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={selectedItems.size === items.length && items.length > 0}
-            indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
-            onChange={handleSelectAll}
-            className="rounded"
-          />
-          <span className="text-sm font-medium">
-            {selectedItems.size > 0 ? `${selectedItems.size} selected` : `${items.length} ${itemType}`}
-          </span>
-        </div>
-        
-        {selectedItems.size > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setShowActionMenu(!showActionMenu)}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'Processing...' : 'Actions'}
-            </button>
-            
-            {showActionMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 min-w-48">
-                <div className="p-2">
-                  <button
-                    onClick={() => handleActionClick('unlist')}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                    disabled={actionLoading}
-                  >
-                    🗑️ Unlist from this morph
-                  </button>
-                  
-                  <button
-                    onClick={() => handleActionClick('delete')}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-red-600"
-                    disabled={actionLoading}
-                  >
-                    ❌ Delete from all morphs
-                  </button>
-                  
-                  {availableMorphs.length > 0 && (
-                    <>
-                      <div className="border-t my-1"></div>
-                      <button
-                        onClick={() => handleActionClick('copy')}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                        disabled={actionLoading}
-                      >
-                        📋 Copy to another morph
-                      </button>
-                      
-                      <button
-                        onClick={() => handleActionClick('move')}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                        disabled={actionLoading}
-                      >
-                        ➡️ Move to another morph
-                      </button>
-                    </>
-                  )}
+    <>
+      <MessageArea 
+        message={message} 
+        type={messageType} 
+        onClose={() => setMessage('')} 
+      />
+      <div className="space-y-3">
+        {/* Header with selection controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedItems.size === items.length && items.length > 0}
+              indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
+              onChange={handleSelectAll}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">
+              {selectedItems.size > 0 ? `${selectedItems.size} selected` : `${items.length} ${itemType}`}
+            </span>
+          </div>
+          
+          {selectedItems.size > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowActionMenu(!showActionMenu)}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processing...' : 'Actions'}
+              </button>
+              
+              {showActionMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 min-w-48">
+                  <div className="p-2">
+                    <button
+                      onClick={() => handleActionClick('unlist')}
+                      className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                      disabled={actionLoading}
+                    >
+                      🗑️ Unlist from this morph
+                    </button>
+                    
+                    <button
+                      onClick={() => handleActionClick('delete')}
+                      className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-red-600"
+                      disabled={actionLoading}
+                    >
+                      ❌ Delete from all morphs
+                    </button>
+                    
+                    {availableMorphs.length > 0 && (
+                      <>
+                        <div className="border-t my-1"></div>
+                        <button
+                          onClick={() => handleActionClick('copy')}
+                          className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          disabled={actionLoading}
+                        >
+                          📋 Copy to another morph
+                        </button>
+                        
+                        <button
+                          onClick={() => handleActionClick('move')}
+                          className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          disabled={actionLoading}
+                        >
+                          ➡️ Move to another morph
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Target morph selector */}
+        {showTargetSelector && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-3">
+            <div className="text-sm font-medium mb-2">
+              Select target morph for {pendingAction}:
+            </div>
+            <div className="space-y-1">
+              {availableMorphs.map(morph => (
+                <button
+                  key={morph.morph_id}
+                  onClick={() => handleTargetMorphSelect(morph.morph_id)}
+                  className="w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
+                  disabled={actionLoading}
+                >
+                  {morph.name || morph.morph_id}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                setShowTargetSelector(false);
+                setPendingAction(null);
+              }}
+              className="mt-2 px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {/* Items list */}
+        {items.length > 0 ? (
+          <div className="space-y-1">
+            {items.map((item) => {
+              const itemId = item[`${itemType.slice(0, -1)}_id`];
+              const isSelected = selectedItems.has(itemId);
+              
+              return (
+                <div 
+                  key={itemId} 
+                  className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
+                    isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleItemSelect(itemId)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleItemSelect(itemId)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded"
+                  />
+                  <span className="flex-1">
+                    <strong>{item.name}</strong>
+                    {itemType === 'attributes' && (
+                      <span className="text-gray-600">
+                        {item.value !== undefined && item.value !== null && item.value !== '' ? (
+                          <>
+                            : {item.value}
+                            {item.unit && <span className="text-gray-500"> {item.unit}</span>}
+                          </>
+                        ) : (
+                          <span className="text-gray-400 italic"> (no value)</span>
+                        )}
+                      </span>
+                    )}
+                    {itemType === 'relations' && item.target_id && (
+                      <span className="text-gray-600"> → {item.target_id}</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500 italic">
+            No {itemType} in this morph.
           </div>
         )}
       </div>
-
-      {/* Target morph selector */}
-      {showTargetSelector && (
-        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-          <div className="text-sm font-medium mb-2">
-            Select target morph for {pendingAction}:
-          </div>
-          <div className="space-y-1">
-            {availableMorphs.map(morph => (
-              <button
-                key={morph.morph_id}
-                onClick={() => handleTargetMorphSelect(morph.morph_id)}
-                className="w-full text-left px-2 py-1 text-sm hover:bg-blue-100 rounded"
-                disabled={actionLoading}
-              >
-                {morph.name || morph.morph_id}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              setShowTargetSelector(false);
-              setPendingAction(null);
-            }}
-            className="mt-2 px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {/* Items list */}
-      {items.length > 0 ? (
-        <div className="space-y-1">
-          {items.map((item) => {
-            const itemId = item[`${itemType.slice(0, -1)}_id`];
-            const isSelected = selectedItems.has(itemId);
-            
-            return (
-              <div 
-                key={itemId} 
-                className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
-                  isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'
-                }`}
-                onClick={() => handleItemSelect(itemId)}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleItemSelect(itemId)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="rounded"
-                />
-                <span className="flex-1">
-                  <strong>{item.name}</strong>
-                  {itemType === 'attributes' && (
-                    <span className="text-gray-600">
-                      {item.value !== undefined && item.value !== null && item.value !== '' ? (
-                        <>
-                          : {item.value}
-                          {item.unit && <span className="text-gray-500"> {item.unit}</span>}
-                        </>
-                      ) : (
-                        <span className="text-gray-400 italic"> (no value)</span>
-                      )}
-                    </span>
-                  )}
-                  {itemType === 'relations' && item.target_id && (
-                    <span className="text-gray-600"> → {item.target_id}</span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-sm text-gray-500 italic">
-          No {itemType} in this morph.
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 
 export default function NDFJsonPreview({ graphId }) {
-  const userId = useUserId();
+  const { userId } = useUserInfo();
   const [jsonText, setJsonText] = useState("");
   const [error, setError] = useState(null);
 

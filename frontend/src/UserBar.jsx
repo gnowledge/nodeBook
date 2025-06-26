@@ -1,9 +1,9 @@
 import React from "react";
-import { useUserId } from "./UserIdContext";
+import { useUserInfo } from "./UserIdContext";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function UserBar() {
-  const userId = useUserId();
+  const { userId, username } = useUserInfo();
   const navigate = useNavigate();
 
   const handleLogin = () => navigate("/login");
@@ -17,7 +17,7 @@ export default function UserBar() {
       <div>
         {userId ? (
           <>
-            <span className="mr-4">Logged in as <b>{userId}</b></span>
+            <span className="mr-4">Logged in as <b>{username}</b></span>
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded text-white font-semibold"
