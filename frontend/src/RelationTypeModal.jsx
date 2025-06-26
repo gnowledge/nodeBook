@@ -7,9 +7,14 @@ export default function RelationTypeModal({
   isOpen,
   onClose,
   onSuccess,
-  initialData = null
+  initialData = null,
+  endpoint,
+  method = 'POST',
+  graphId = 'graph1',
+  userId: propUserId = null
 }) {
-  const { userId } = useUserInfo();
+  const { userId: contextUserId } = useUserInfo();
+  const userId = propUserId || contextUserId;
   const [name, setName] = useState('');
   const [inverseName, setInverseName] = useState('');
   const [symmetric, setSymmetric] = useState(false);
@@ -26,7 +31,12 @@ export default function RelationTypeModal({
   const fetchNodeTypes = async () => {
     setNodeTypesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/graph1/node-types`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setNodeTypes((data || []).map(nt => typeof nt === 'string' ? { name: nt } : nt));
     } catch {
@@ -81,9 +91,13 @@ export default function RelationTypeModal({
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/graph1/relations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const token = localStorage.getItem("token");
+      const res = await fetch(endpoint || `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relations`, {
+        method: method,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       });
 

@@ -4,6 +4,7 @@ import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
+import TransitionCard from "./TransitionCard";
 
 cytoscape.use(dagre);
 
@@ -37,7 +38,27 @@ function ndfToCytoscapeGraph(ndfData) {
     // Process nodes (PolyNodes)
     for (const node of ndfData.nodes) {
       const node_id = node.node_id || node.id;
-      const label = stripMarkdown(node.name || node_id || "");
+      
+      // Determine the label based on morphs
+      let label = stripMarkdown(node.name || node_id || "");
+      const morphs = node.morphs;
+      const nbh = node.nbh;
+      
+      // If polymorphic and has multiple morphs, use the active morph name
+      if (morphs && morphs.length > 1 && nbh) {
+        const activeMorph = morphs.find(m => m.morph_id === nbh);
+        if (activeMorph) {
+          // If it's the basic morph (first morph), use polynode name
+          const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+          if (isBasicMorph) {
+            // Keep the original polynode name
+            label = stripMarkdown(node.name || node_id || "");
+          } else if (activeMorph.name) {
+            // For non-basic morphs, use the morph name
+            label = stripMarkdown(activeMorph.name);
+          }
+        }
+      }
       
       nodes.push({
         data: {
@@ -50,9 +71,6 @@ function ndfToCytoscapeGraph(ndfData) {
       });
       
       // Process morphs and neighborhoods if present
-      const morphs = node.morphs;
-      const nbh = node.nbh;
-      
       if (morphs && nbh) {
         // Find the active morph (neighborhood)
         const active_morph = morphs.find(m => m.morph_id === nbh);
@@ -111,6 +129,88 @@ function ndfToCytoscapeGraph(ndfData) {
               });
             }
           }
+        }
+      }
+    }
+    
+    // Process transitions if present
+    if (ndfData.transitions && ndfData.transitions.length > 0) {
+      console.log("🔄 Processing transitions:", ndfData.transitions);
+      
+      for (const transition of ndfData.transitions) {
+        // Add transition node
+        const transitionNodeId = `transition_${transition.id}`;
+        
+        // Create a more descriptive label for the transition
+        let transitionLabel = transition.name || transition.id;
+        if (transition.adjective) {
+          transitionLabel = `${transition.adjective} ${transitionLabel}`;
+        }
+        
+        nodes.push({
+          data: {
+            id: transitionNodeId,
+            label: transitionLabel,
+            description: transition.description || "",
+            tense: transition.tense || "present",
+            type: "transition"
+          }
+        });
+        
+        // Add input edges (from input nodes to transition)
+        for (const input of transition.inputs || []) {
+          const inputNodeId = input.id;
+          const inputMorphId = input.nbh;
+          
+          // Find the input node to get morph information
+          const inputNode = ndfData.nodes.find(n => (n.node_id || n.id) === inputNodeId);
+          let inputLabel = "from";
+          if (inputMorphId && inputNode?.morphs) {
+            const inputMorph = inputNode.morphs.find(m => m.morph_id === inputMorphId);
+            if (inputMorph) {
+              const morphIndex = inputNode.morphs.indexOf(inputMorph);
+              inputLabel = morphIndex === 0 ? "from basic" : `from ${inputMorph.name || `morph ${morphIndex}`}`;
+            }
+          }
+          
+          // Create edge from input node to transition
+          edges.push({
+            data: {
+              id: `input_${transition.id}_${inputNodeId}`,
+              source: inputNodeId,
+              target: transitionNodeId,
+              label: inputLabel,
+              type: "transition_input"
+            }
+          });
+        }
+        
+        // Add output edges (from transition to output nodes)
+        for (const output of transition.outputs || []) {
+          const outputNodeId = output.id;
+          const outputMorphId = output.nbh;
+          
+          // Find the output node to get morph information
+          const outputNode = ndfData.nodes.find(n => (n.node_id || n.id) === outputNodeId);
+          let outputLabel = "to";
+          if (outputMorphId && outputNode?.morphs) {
+            const outputMorph = outputNode.morphs.find(m => m.morph_id === outputMorphId);
+            if (outputMorph) {
+              const morphIndex = outputNode.morphs.indexOf(outputMorph);
+              outputLabel = morphIndex === 0 ? "to basic" : `to ${outputMorph.name || `morph ${morphIndex}`}`;
+            }
+          }
+          
+          // Create edge from transition to output node
+          edges.push({
+            data: {
+              id: `output_${transition.id}_${outputNodeId}`,
+              source: transitionNodeId,
+              target: outputNodeId,
+              label: outputLabel,
+              type: "transition_output"
+            }
+          });
         }
       }
     }
@@ -315,14 +415,16 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "background-color": "#dbeafe", // light blue
                     "color": "#1e40af", // blue-800
                     "text-outline-width": 0,
-                    "font-size": 12,
+                    "font-size": 11,
                     "width": "label",
                     "height": "label",
-                    "padding": "8px",
+                    "padding": "10px",
                     "border-width": 2,
                     "border-color": "#1e40af", // blue-800
                     "border-style": "solid",
-                    "shape": "diamond" // diamond shape for transitions
+                    "shape": "diamond", // diamond shape for transitions
+                    "text-wrap": "wrap",
+                    "text-max-width": "80px"
                   }
                 },
                 {
@@ -362,14 +464,15 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     label: "data(label)",
                     "curve-style": "bezier",
                     "target-arrow-shape": "triangle",
-                    "width": 2,
+                    "width": 3,
                     "line-color": "#1e40af", // blue-800
                     "target-arrow-color": "#1e40af", // blue-800
                     "font-size": 10,
                     "text-background-color": "#dbeafe",
                     "text-background-opacity": 1,
-                    "text-background-padding": "2px",
-                    "color": "#1e40af" // blue-800
+                    "text-background-padding": "3px",
+                    "color": "#1e40af", // blue-800
+                    "line-style": "solid"
                   }
                 },
                 {
@@ -378,14 +481,15 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     label: "data(label)",
                     "curve-style": "bezier",
                     "target-arrow-shape": "triangle",
-                    "width": 2,
+                    "width": 3,
                     "line-color": "#059669", // emerald-600
                     "target-arrow-color": "#059669", // emerald-600
                     "font-size": 10,
                     "text-background-color": "#d1fae5",
                     "text-background-opacity": 1,
-                    "text-background-padding": "2px",
-                    "color": "#059669" // emerald-600
+                    "text-background-padding": "3px",
+                    "color": "#059669", // emerald-600
+                    "line-style": "solid"
                   }
                 }
               ],
@@ -447,14 +551,16 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "background-color": "#dbeafe", // light blue
                     "color": "#1e40af", // blue-800
                     "text-outline-width": 0,
-                    "font-size": 12,
+                    "font-size": 11,
                     "width": "label",
                     "height": "label",
-                    "padding": "8px",
+                    "padding": "10px",
                     "border-width": 2,
                     "border-color": "#1e40af", // blue-800
                     "border-style": "solid",
-                    "shape": "diamond" // diamond shape for transitions
+                    "shape": "diamond", // diamond shape for transitions
+                    "text-wrap": "wrap",
+                    "text-max-width": "80px"
                   }
                 },
                 {
@@ -494,14 +600,15 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     label: "data(label)",
                     "curve-style": "bezier",
                     "target-arrow-shape": "triangle",
-                    "width": 2,
+                    "width": 3,
                     "line-color": "#1e40af", // blue-800
                     "target-arrow-color": "#1e40af", // blue-800
                     "font-size": 10,
                     "text-background-color": "#dbeafe",
                     "text-background-opacity": 1,
-                    "text-background-padding": "2px",
-                    "color": "#1e40af" // blue-800
+                    "text-background-padding": "3px",
+                    "color": "#1e40af", // blue-800
+                    "line-style": "solid"
                   }
                 },
                 {
@@ -510,14 +617,15 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     label: "data(label)",
                     "curve-style": "bezier",
                     "target-arrow-shape": "triangle",
-                    "width": 2,
+                    "width": 3,
                     "line-color": "#059669", // emerald-600
                     "target-arrow-color": "#059669", // emerald-600
                     "font-size": 10,
                     "text-background-color": "#d1fae5",
                     "text-background-opacity": 1,
-                    "text-background-padding": "2px",
-                    "color": "#059669" // emerald-600
+                    "text-background-padding": "3px",
+                    "color": "#059669", // emerald-600
+                    "line-style": "solid"
                   }
                 }
               ],
@@ -532,9 +640,71 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             const desc = evt.target.data("description") || "No description";
             console.log("Node description:", desc);
           });
+          
+          // Add specific handling for transition nodes
+          cyRef.current.on("mouseover", "node[type = 'transition']", (evt) => {
+            const nodeData = evt.target.data();
+            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}`;
+            console.log("Transition info:", transitionInfo);
+            
+            // Create tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'transition-tooltip';
+            tooltip.style.cssText = `
+              position: absolute;
+              background: #1e40af;
+              color: white;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              white-space: pre-line;
+              z-index: 1000;
+              pointer-events: none;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            tooltip.textContent = transitionInfo;
+            document.body.appendChild(tooltip);
+            
+            // Position tooltip
+            const updateTooltipPosition = () => {
+              const rect = evt.target.renderedBoundingBox();
+              const containerRect = containerRef.current.getBoundingClientRect();
+              tooltip.style.left = (containerRect.left + rect.x1 + rect.w1/2) + 'px';
+              tooltip.style.top = (containerRect.top + rect.y1 - 10) + 'px';
+              tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
+            };
+            updateTooltipPosition();
+            
+            // Store tooltip reference for removal
+            evt.target.data('tooltip', tooltip);
+          });
+          
+          cyRef.current.on("mouseout", "node[type = 'transition']", (evt) => {
+            const tooltip = evt.target.data('tooltip');
+            if (tooltip) {
+              tooltip.remove();
+              evt.target.removeData('tooltip');
+            }
+          });
+          
           cyRef.current.on("tap", "node", (evt) => {
             setSelectedEdge(null);
             const nodeId = evt.target.data("id");
+            const nodeType = evt.target.data("type");
+            
+            // Handle transition nodes differently
+            if (nodeType === "transition") {
+              // Find the transition in the graph data
+              const transition = (graph.transitions || []).find(t => 
+                `transition_${t.id}` === nodeId || t.id === nodeId
+              );
+              if (transition) {
+                setSelectedNode({ ...transition, isTransition: true });
+                return;
+              }
+            }
+            
+            // Handle regular nodes
             const nodeObj = (graph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
             if (nodeObj) setSelectedNode(nodeObj);
           });
@@ -580,14 +750,27 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
             <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl" onClick={() => setSelectedNode(null)}>&times;</button>
-            <NodeCard 
-              node={selectedNode} 
-              userId={userId}
-              graphId={graphId}
-              onSummaryQueued={onSummaryQueued}
-              graphRelations={graphRelations}
-              graphAttributes={graphAttributes}
-            />
+            {selectedNode.isTransition ? (
+              <TransitionCard 
+                transition={selectedNode}
+                userId={userId}
+                graphId={graphId}
+                onGraphUpdate={() => {
+                  // Refresh the graph when transition is updated
+                  if (onSummaryQueued) onSummaryQueued();
+                }}
+                availableNodes={graph.nodes || []}
+              />
+            ) : (
+              <NodeCard 
+                node={selectedNode} 
+                userId={userId}
+                graphId={graphId}
+                onSummaryQueued={onSummaryQueued}
+                graphRelations={graphRelations}
+                graphAttributes={graphAttributes}
+              />
+            )}
           </div>
         </div>
       )}

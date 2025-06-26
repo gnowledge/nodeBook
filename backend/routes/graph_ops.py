@@ -341,9 +341,9 @@ async def create_attribute_node(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -422,9 +422,9 @@ async def update_attribute_node(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -490,9 +490,9 @@ async def delete_attribute_node(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -570,9 +570,9 @@ async def delete_attribute_node_by_id(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -638,9 +638,9 @@ def unlist_attribute_from_morph(user_id: str, graph_id: str, node_id: str, attr_
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -707,9 +707,9 @@ def add_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name:
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -789,9 +789,9 @@ def move_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name
                         graph_description = metadata.get("description", "")
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             return {"status": "Attribute moved between morphs", "attribute_id": attr_id, "from_morph_id": from_morph_id, "to_morph_id": to_morph_id}
@@ -865,9 +865,9 @@ def copy_attribute_to_morph(user_id: str, graph_id: str, node_id: str, attr_name
                     
                     composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                     if composed_data:
-                        atomic_composed_save(user_id, graph_id, composed_data, "json")
-                        atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                        atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                        atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                        atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                        atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
                 except Exception as e:
                     print(f"Warning: Failed to regenerate composed files: {e}")
                 
@@ -1478,9 +1478,9 @@ async def create_relation_node(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             
@@ -1569,9 +1569,9 @@ async def delete_relation(
                 
                 composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             except Exception as e:
                 print(f"Warning: Failed to regenerate composed files: {e}")
             

@@ -205,9 +205,9 @@ def force_regenerate_composed_files(user_id: str, graph_id: str):
         # Regenerate composed files
         composed_data = compose_graph(user_id, graph_id, node_ids, graph_description)
         if composed_data:
-            atomic_composed_save(user_id, graph_id, composed_data, "json")
-            atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-            atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+            atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+            atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+            atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
         
         return {
             "status": "Composed files regenerated successfully",

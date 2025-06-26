@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { API_BASE } from "./config";
 import { useUserInfo } from "./UserIdContext";
+import { generateTransitionId } from "./utils/idUtils";
 
 export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, initialData = null, sourceNodeId = null, sourceNodeName = null }) {
   const { userId } = useUserInfo();
@@ -32,6 +33,29 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
     };
     loadNodes();
   }, [userId, graphId]);
+
+  // Auto-generate ID when name or adjective changes (only for new transitions)
+  useEffect(() => {
+    if (!initialData && (formData.name || formData.adjective)) {
+      const generatedId = generateTransitionId(formData.name, formData.adjective);
+      setFormData(prev => ({ ...prev, id: generatedId }));
+    }
+  }, [formData.name, formData.adjective, initialData]);
+
+  // Set default morph for source node when nodes are loaded
+  useEffect(() => {
+    if (availableNodes.length > 0 && sourceNodeId && !initialData) {
+      const sourceNode = availableNodes.find(n => (n.id || n.node_id) === sourceNodeId);
+      if (sourceNode && sourceNode.nbh) {
+        setFormData(prev => ({
+          ...prev,
+          inputs: prev.inputs.map(input => 
+            input.id === sourceNodeId ? { ...input, nbh: sourceNode.nbh } : input
+          )
+        }));
+      }
+    }
+  }, [availableNodes, sourceNodeId, initialData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,7 +137,19 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
 
   const getNodeMorphs = (nodeId) => {
     const node = availableNodes.find(n => (n.id || n.node_id) === nodeId);
-    return node?.morphs || [];
+    if (!node) return [];
+    
+    // If node has morphs, return them
+    if (node.morphs && node.morphs.length > 0) {
+      return node.morphs;
+    }
+    
+    // If node doesn't have morphs but has an nbh, create a basic morph entry
+    if (node.nbh) {
+      return [{ morph_id: node.nbh, name: "Basic Morph" }];
+    }
+    
+    return [];
   };
 
   return (
@@ -138,15 +174,21 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
               type="text"
               value={formData.id}
               onChange={(e) => setFormData(prev => ({ ...prev, id: e.target.value }))}
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., oxygen_ionization"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+              placeholder="Auto-generated from name"
+              readOnly={!initialData}
               required
             />
+            {!initialData && (
+              <p className="text-xs text-gray-500 mt-1">
+                ID is auto-generated from name and adjective
+              </p>
+            )}
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
+              Name *
             </label>
             <input
               type="text"
@@ -154,6 +196,7 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., ionization"
+              required
             />
           </div>
         </div>
@@ -170,6 +213,11 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
               className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., rapid, slow"
             />
+            {!initialData && (
+              <p className="text-xs text-gray-500 mt-1">
+                Affects ID generation
+              </p>
+            )}
           </div>
           
           <div>
@@ -221,12 +269,12 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
               <select
                 value={input.nbh}
                 onChange={(e) => updateInput(index, "nbh", e.target.value)}
-                className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-32 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Default</option>
-                {getNodeMorphs(input.id).map(morph => (
+                <option value="">Basic Morph</option>
+                {getNodeMorphs(input.id).map((morph, morphIndex) => (
                   <option key={morph.morph_id} value={morph.morph_id}>
-                    {morph.name}
+                    {morphIndex === 0 ? 'Basic Morph' : (morph.name || `Morph ${morphIndex}`)}
                   </option>
                 ))}
               </select>
@@ -275,12 +323,12 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
               <select
                 value={output.nbh}
                 onChange={(e) => updateOutput(index, "nbh", e.target.value)}
-                className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-32 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Default</option>
-                {getNodeMorphs(output.id).map(morph => (
+                <option value="">Basic Morph</option>
+                {getNodeMorphs(output.id).map((morph, morphIndex) => (
                   <option key={morph.morph_id} value={morph.morph_id}>
-                    {morph.name}
+                    {morphIndex === 0 ? 'Basic Morph' : (morph.name || `Morph ${morphIndex}`)}
                   </option>
                 ))}
               </select>

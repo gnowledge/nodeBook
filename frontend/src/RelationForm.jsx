@@ -38,7 +38,12 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
   const fetchRelationTypes = async () => {
     setRelationTypesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setRelationTypes((data || []).map(r => typeof r === 'string' ? r : r.name));
     } catch {
@@ -54,7 +59,12 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
   useEffect(() => {
     async function fetchRegistry() {
       try {
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/node_registry`);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/node_registry`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         setNodeRegistry(data);
       } catch {
@@ -128,7 +138,10 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
       
       const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem("token")}`
+        },
         body: JSON.stringify(payload)
       });
       

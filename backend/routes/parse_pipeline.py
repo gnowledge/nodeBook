@@ -451,6 +451,6 @@ def parse_pipeline(
         "report": report,
         'composed_json_path': composed_json_path,
         'composed_yaml_path': composed_yaml_path,
-        'composed': composed
+        'composed': composed["polymorphic"]  # Use polymorphic format for backward compatibility
     }
     return result

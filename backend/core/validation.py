@@ -9,6 +9,7 @@ import functools
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from fastapi import HTTPException, Request
+from backend.core.id_utils import get_user_directory_path
 
 
 def validate_user_exists(user_id: str) -> bool:
@@ -27,8 +28,8 @@ def validate_user_exists(user_id: str) -> bool:
     if not user_id or not isinstance(user_id, str) or user_id.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid user_id: must be a non-empty string")
     
-    # Check if user directory exists
-    user_dir = Path(f"graph_data/users/{user_id}")
+    # Check if user directory exists using the utility function
+    user_dir = Path(get_user_directory_path(user_id))
     if not user_dir.exists():
         return False
     
@@ -69,8 +70,9 @@ def validate_graph_exists(user_id: str, graph_id: str) -> bool:
     if not validate_user_exists(user_id):
         raise HTTPException(status_code=404, detail=f"User '{user_id}' does not exist")
     
-    # Check if graph directory exists
-    graph_dir = Path(f"graph_data/users/{user_id}/graphs/{graph_id}")
+    # Check if graph directory exists using the utility function
+    user_dir = Path(get_user_directory_path(user_id))
+    graph_dir = user_dir / "graphs" / graph_id
     if not graph_dir.exists():
         return False
     
@@ -86,7 +88,7 @@ def validate_graph_exists(user_id: str, graph_id: str) -> bool:
             metadata = yaml.safe_load(f)
         
         # Basic validation that it's a graph metadata file
-        return isinstance(metadata, dict) and "name" in metadata
+        return isinstance(metadata, dict) and ("title" in metadata or "name" in metadata)
     except (yaml.YAMLError, KeyError, TypeError):
         return False
 
@@ -108,7 +110,8 @@ def get_user_graphs(user_id: str) -> List[Dict]:
         raise HTTPException(status_code=404, detail=f"User '{user_id}' does not exist")
     
     graphs = []
-    user_graphs_dir = Path(f"graph_data/users/{user_id}/graphs")
+    user_dir = Path(get_user_directory_path(user_id))
+    user_graphs_dir = user_dir / "graphs"
     
     if not user_graphs_dir.exists():
         return graphs
@@ -179,8 +182,8 @@ def ensure_user_directory_structure(user_id: str) -> None:
     if not user_id or not isinstance(user_id, str) or user_id.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid user_id: must be a non-empty string")
     
-    # Create user directory structure
-    user_dir = Path(f"graph_data/users/{user_id}")
+    # Create user directory structure using the utility function
+    user_dir = Path(get_user_directory_path(user_id))
     user_dir.mkdir(parents=True, exist_ok=True)
     
     # Create subdirectories
@@ -208,8 +211,9 @@ def ensure_graph_directory_structure(user_id: str, graph_id: str) -> None:
     if not graph_id or not isinstance(graph_id, str) or graph_id.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid graph_id: must be a non-empty string")
     
-    # Create graph directory
-    graph_dir = Path(f"graph_data/users/{user_id}/graphs/{graph_id}")
+    # Create graph directory using the utility function
+    user_dir = Path(get_user_directory_path(user_id))
+    graph_dir = user_dir / "graphs" / graph_id
     graph_dir.mkdir(parents=True, exist_ok=True)
 
 

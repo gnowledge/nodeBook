@@ -430,9 +430,9 @@ def add_nodes_to_graph(user_id: str, graph_id: str, req: AddNodeToGraphRequest):
                 # Compose the graph with all nodes atomically
                 composed_data = compose_graph(user_id, graph_id, graph_nodes, graph_description)
                 if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data, "json")
-                    atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
                 
                 return {
                     "status": "success",

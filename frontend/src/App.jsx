@@ -5,6 +5,7 @@ import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
 import { AUTH_BASE } from "./config";
 import UserBar from "./UserBar";
+import AuthStatus from "./components/AuthStatus";
 
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
 const DEV_TABS = ['json', 'yaml'];
@@ -63,6 +64,7 @@ function App() {
   return (
     <UserIdContext.Provider value={userInfo}>
       <Router>
+        <AuthStatus />
         <UserBar />
         <Routes>
           <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserInfo} />} />

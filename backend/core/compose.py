@@ -226,5 +226,8 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     }
     save_json_file(poly_path, polymorphic)
 
-    # For backward compatibility, return the rich structure
-    return polymorphic
+    # For backward compatibility, return both formats
+    return {
+        "cytoscape": cytoscape_graph,
+        "polymorphic": polymorphic
+    }

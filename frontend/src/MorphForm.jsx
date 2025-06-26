@@ -533,7 +533,7 @@ function MorphForm({
         {activeTab === 1 && (
           <div>
             <RelationForm
-              nodeId={nodeId}
+              relationId={nodeId}
               relationTypes={[]}
               userId={userId}
               graphId={graphId}

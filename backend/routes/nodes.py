@@ -177,9 +177,9 @@ async def create_polynode(
             # Compose graph and save atomically
             composed_data = compose_graph(user_id, graph_id, node_ids)
             if composed_data:
-                atomic_composed_save(user_id, graph_id, composed_data, "json")
-                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             
             return {"status": "PolyNode created and registered", "id": node.id}
             
@@ -249,9 +249,9 @@ async def update_polynode(
             # Compose graph and save atomically
             composed_data = compose_graph(user_id, graph_id, node_ids)
             if composed_data:
-                atomic_composed_save(user_id, graph_id, composed_data, "json")
-                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             
             return {"status": "PolyNode updated and registry synced", "id": node.id}
             
@@ -438,9 +438,9 @@ async def delete_polynode(
             # Compose graph and save atomically
             composed_data = compose_graph(user_id, graph_id, node_ids)
             if composed_data:
-                atomic_composed_save(user_id, graph_id, composed_data, "json")
-                atomic_composed_save(user_id, graph_id, composed_data, "yaml")
-                atomic_composed_save(user_id, graph_id, composed_data, "polymorphic")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
             
             return {"status": "PolyNode deleted and all related data cleaned up", "deleted_node_id": node_id}
             

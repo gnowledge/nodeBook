@@ -17,6 +17,11 @@ import yaml
 import json
 
 
+def normalize_uuid(uuid_str: str) -> str:
+    """Normalize UUID string by removing hyphens for consistent comparison"""
+    return uuid_str.replace('-', '') if uuid_str else uuid_str
+
+
 def require_authenticated_user(operation: str = "perform operation"):
     """
     Decorator to require authentication for any operation.
@@ -70,9 +75,12 @@ def require_self_access_or_superuser(operation: str = "perform operation"):
             if user is None:
                 user = kwargs.get('user')
             
-            # Validate access
+            # Validate access - normalize UUIDs for comparison
             if user_id and user:
-                if not user.is_superuser and str(user.id) != user_id:
+                normalized_user_id = normalize_uuid(user_id)
+                # The user.id from JWT might still have hyphens, so normalize it too
+                normalized_auth_user_id = normalize_uuid(str(user.id))
+                if not user.is_superuser and normalized_auth_user_id != normalized_user_id:
                     raise HTTPException(
                         status_code=403,
                         detail=f"Cannot {operation}: Access denied. You can only access your own data."
@@ -113,7 +121,7 @@ def require_graph_exists(user_id: str, graph_id: str) -> bool:
             metadata = yaml.safe_load(f)
         
         # Basic validation that it's a graph metadata file
-        return isinstance(metadata, dict) and "name" in metadata
+        return isinstance(metadata, dict) and ("title" in metadata or "name" in metadata)
     except (yaml.YAMLError, KeyError, TypeError):
         return False
 

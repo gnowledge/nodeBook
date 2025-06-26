@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { marked } from "marked";
 import NodeCard from "./NodeCard";
+import TransitionCard from "./TransitionCard";
 import NodeForm from "./NodeForm";
 import RelationTypeList from "./RelationTypeList";
 import AttributeTypeList from "./AttributeTypeList";
 import NodeTypeList from "./NodeTypeList";
 import { useUserInfo } from "./UserIdContext";
+import { refreshGraphData, isTokenValid } from "./utils/authUtils";
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -29,21 +31,30 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   const [showRelationTypes, setShowRelationTypes] = useState(false);
   const [showAttributeTypes, setShowAttributeTypes] = useState(false);
   const [showNodeTypes, setShowNodeTypes] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchComposed = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
+        setLoading(true);
+        setError(null);
+        
+        // Check if token is valid before making request
+        if (!isTokenValid()) {
+          setError("Authentication token expired. Please log in again.");
+          setGraph(null);
+          return;
+        }
+        
+        const data = await refreshGraphData(userId, graphId);
         setGraph(data);
       } catch (err) {
         console.error("Failed to load polymorphic_composed.json:", err);
+        setError(err.message || "Failed to load graph data");
         setGraph(null);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -51,24 +62,43 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   }, [userId, graphId]);
 
   // Handler to reload graph after node creation
-  const handleNodeCreated = () => {
+  const handleNodeCreated = async () => {
     setShowNodeForm(false);
-    // Refetch graph locally
-    const token = localStorage.getItem("token");
-    fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    })
-      .then(res => res.json())
-      .then(setGraph)
-      .catch(() => setGraph(null));
+    try {
+      setLoading(true);
+      const data = await refreshGraphData(userId, graphId);
+      setGraph(data);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to refresh graph:", err);
+      setError(err.message || "Failed to refresh graph");
+    } finally {
+      setLoading(false);
+    }
     
     // Also refresh the global graph state if callback provided
     if (onGraphRefresh) {
       onGraphRefresh();
     }
   };
+
+  if (loading) {
+    return <div className="p-4 text-blue-600">Loading graph...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-600">
+        <div className="mb-2">Error: {error}</div>
+        <button 
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          onClick={() => window.location.reload()}
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
 
   if (!graph) {
     return <div className="p-4 text-red-600">Failed to load graph.</div>;
@@ -105,7 +135,14 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
   return (
     <div className="p-4 bg-gray-100 min-h-screen relative">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Nodes</h2>
+        <h2 className="text-xl font-bold">
+          Nodes ({graph.nodes?.length || 0})
+          {graph.transitions && graph.transitions.length > 0 && (
+            <span className="text-blue-600 font-normal ml-2">
+              • Transitions ({graph.transitions.length})
+            </span>
+          )}
+        </h2>
         <div className="flex gap-2">
           <button
             className="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 text-sm"
@@ -222,6 +259,7 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Regular Nodes */}
         {graph.nodes.map((node) => (
           <div key={node.node_id || node.id} className="relative">
             <NodeCard 
@@ -234,6 +272,31 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
             />
           </div>
         ))}
+        
+        {/* Transitions */}
+        {graph.transitions && graph.transitions.length > 0 && (
+          <>
+            {/* Transitions Header */}
+            <div className="col-span-full mb-4">
+              <h3 className="text-lg font-semibold text-blue-700 border-b border-blue-200 pb-2">
+                Transitions ({graph.transitions.length})
+              </h3>
+            </div>
+            
+            {/* Transition Cards */}
+            {graph.transitions.map((transition) => (
+              <div key={transition.id} className="relative">
+                <TransitionCard 
+                  transition={transition}
+                  userId={userId}
+                  graphId={graphId}
+                  onGraphUpdate={handleNodeCreated}
+                  availableNodes={graph.nodes || []}
+                />
+              </div>
+            ))}
+          </>
+        )}
       </div>
       {/* Delete Graph button at bottom left */}
       <button

@@ -34,7 +34,12 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
   const fetchAttributeTypes = async () => {
     setAttributeTypesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setAttributeTypes((data || []).map(a => typeof a === 'string' ? { name: a } : a));
     } catch {
@@ -68,7 +73,10 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
     };
     const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem("token")}`
+      },
       body: JSON.stringify(payload)
     });
     

@@ -4,6 +4,7 @@ from .utils import render_description_md, load_json_file, save_json_file
 from collections import OrderedDict
 import json
 from pathlib import Path
+from backend.core.id_utils import get_user_directory_path
 
 NODE_KEY_ORDER = [
     "id",
@@ -34,7 +35,8 @@ def sort_relations(rels: list[dict]) -> list[dict]:
 
 def node_path(user_id: str, graph_id: str, node_id: str) -> str:
     # Always use the JSON node file in the user nodes directory
-    return os.path.join("graph_data", "users", user_id, "nodes", f"{node_id}.json")
+    user_dir = get_user_directory_path(user_id)
+    return os.path.join(user_dir, "nodes", f"{node_id}.json")
 
 def ensure_basic_morph(node_data: dict, node_id: str) -> dict:
     """
@@ -66,7 +68,8 @@ def load_node_with_basic_morph(user_id: str, node_id: str) -> dict:
     """
     Load a node and ensure it has a basic morph for the new architecture.
     """
-    node_path = Path(f"graph_data/users/{user_id}/nodes/{node_id}.json")
+    user_dir = get_user_directory_path(user_id)
+    node_path = Path(user_dir) / "nodes" / f"{node_id}.json"
     if not node_path.exists():
         raise HTTPException(status_code=404, detail="Node not found")
     

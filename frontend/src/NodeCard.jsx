@@ -8,6 +8,7 @@ import MorphForm from "./MorphForm";
 import RelationTypeModal from "./RelationTypeModal";
 import { useUserInfo } from "./UserIdContext";
 import MonacoEditor from '@monaco-editor/react';
+import { refreshNodeData, authenticatedFetch, safeJsonParse, isTokenValid } from "./utils/authUtils";
 
 // MorphItemManager component for managing morph items with multi-select and actions
 function MorphItemManager({ 
@@ -70,20 +71,22 @@ function MorphItemManager({
   const fetchMorphItems = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      
+      if (!isTokenValid()) {
+        console.error("Token expired, cannot fetch morph items");
+        setItems([]);
+        return;
+      }
+      
       const endpoint = `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
       
       console.log(`[fetchMorphItems] Fetching ${itemType} from:`, endpoint);
       console.log(`[fetchMorphItems] morphId:`, morphId);
       
-      const response = await fetch(endpoint, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      const response = await authenticatedFetch(endpoint);
       if (!response.ok) throw new Error(`Failed to fetch ${itemType}`);
       
-      const data = await response.json();
+      const data = await safeJsonParse(response);
       console.log(`[fetchMorphItems] Response data:`, data);
       
       const morphData = data.morphs[morphId];
@@ -106,15 +109,16 @@ function MorphItemManager({
 
   const fetchAvailableMorphs = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      if (!isTokenValid()) {
+        console.error("Token expired, cannot fetch available morphs");
+        setAvailableMorphs([]);
+        return;
+      }
+      
+      const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       if (!response.ok) throw new Error('Failed to fetch graph data');
       
-      const data = await response.json();
+      const data = await safeJsonParse(response);
       console.log('[fetchAvailableMorphs] Debug info:');
       console.log('  nodeId:', nodeId);
       console.log('  morphId:', morphId);
@@ -182,7 +186,10 @@ function MorphItemManager({
     
     setActionLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      if (!isTokenValid()) {
+        throw new Error("Authentication token expired. Please log in again.");
+      }
+      
       const promises = Array.from(selectedItems).map(async (itemId) => {
         const item = items.find(i => i[`${itemType.slice(0, -1)}_id`] === itemId);
         if (!item) return;
@@ -216,11 +223,10 @@ function MorphItemManager({
             return;
         }
 
-        const response = await fetch(endpoint, {
+        const response = await authenticatedFetch(endpoint, {
           method: action === 'delete' ? 'DELETE' : 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            "Authorization": `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: action === 'delete' ? undefined : body
         });
@@ -229,7 +235,7 @@ function MorphItemManager({
           throw new Error(`Failed to ${action} ${itemName}`);
         }
 
-        return response.json();
+        return await safeJsonParse(response);
       });
 
       await Promise.all(promises);
@@ -444,10 +450,18 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   useEffect(() => {
     const nodeId = node?.node_id || node?.id;
     if (!nodeId) return;
-    fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
-      .then(res => res.json())
-      .then(data => {
+    
+    const fetchNodeData = async () => {
+      try {
+        // Check if token is valid before making request
+        if (!isTokenValid()) {
+          console.error("Token expired, cannot fetch node data");
+          return;
+        }
+        
+        const data = await refreshNodeData(userId, graphId, nodeId);
         setFreshNode(data);
+        
         // Check if node is polymorphic (has morphs)
         if (data.morphs && data.morphs.length > 0) {
           setIsPolymorphic(true);
@@ -459,8 +473,13 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
           setMorphs([]);
           setActiveMorphId(null);
         }
-      })
-      .catch(() => setFreshNode(node));
+      } catch (err) {
+        console.error("Failed to fetch node data:", err);
+        // Don't set freshNode to null on error, keep existing data
+      }
+    };
+    
+    fetchNodeData();
   }, [node?.node_id, node?.id, userId, graphId]);
 
   // Update polymorphic state and morphs when freshNode changes
@@ -1132,6 +1151,27 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                        (freshNode?.attributes && freshNode.attributes.length > 0) ||
                        (nbhCNL && nbhCNL.trim() !== "");
 
+  // Helper function to get the display name based on active morph
+  const getDisplayName = () => {
+    // If polymorphic and has multiple morphs, check which morph is active
+    if (isPolymorphic && morphs.length > 1) {
+      const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
+      if (activeMorph) {
+        // If it's the basic morph (first morph), use polynode name
+        const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+        if (isBasicMorph) {
+          return freshNode?.name || freshNode?.node_id || '';
+        } else if (activeMorph.name) {
+          // For non-basic morphs, use the morph name
+          return activeMorph.name;
+        }
+      }
+    }
+    
+    // Fallback to base node name
+    return freshNode?.name || freshNode?.node_id || '';
+  };
+
   // Guard clause to prevent rendering when freshNode is null/undefined
   if (!freshNode) {
     return <div className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white">
@@ -1140,6 +1180,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   }
 
   const hasDescription = freshNode?.description && freshNode.description.trim() !== "";
+  const displayName = getDisplayName();
 
   const handleSaveMorphs = async (updatedMorphs) => {
     setLoading(true);
@@ -1250,8 +1291,28 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-blue-700">
-            <span dangerouslySetInnerHTML={{ __html: marked.parseInline(freshNode?.name || freshNode?.node_id || '') }} />
+            <span dangerouslySetInnerHTML={{ __html: marked.parseInline(displayName) }} />
+            {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
+              const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
+              const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+              return !isBasicMorph && activeMorph?.name;
+            })() && (
+              <span className="ml-2 text-xs text-purple-600 font-normal">
+                (morph)
+              </span>
+            )}
           </h2>
+          
+          {/* Show base node name as subtitle when non-basic morph is active */}
+          {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
+            const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
+            const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+            return !isBasicMorph && activeMorph?.name;
+          })() && (
+            <p className="text-sm text-gray-500 mt-1">
+              Base: {freshNode?.name || freshNode?.node_id || ''}
+            </p>
+          )}
           
           {/* Morph Selection Radio Buttons */}
           {isPolymorphic && morphs.length > 0 && (
@@ -1273,8 +1334,8 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                       ? 'bg-blue-100 text-blue-800 font-medium' 
                       : 'text-gray-700 hover:text-blue-600'
                   }`}>
-                    {index === 0 ? 'basic morph' : (morph.name || morph.morph_id)}
-                    {activeMorphId === morph.morph_id && ' (active)'}
+                    {index === 0 ? 'basic' : (morph.name || `morph ${index}`)}
+                    {activeMorphId === morph.morph_id && ' ✓'}
                   </span>
                 </label>
               ))}
@@ -1596,22 +1657,28 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               </div>
               {nbhTab===0 ? (
                 <RelationForm
-                  nodeId={freshNode?.node_id || freshNode?.id}
+                  relationId={freshNode?.node_id || freshNode?.id}
                   relationTypes={relationTypes}
                   userId={userId}
                   graphId={graphId}
                   onAddRelationType={() => {}}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     // Immediately refresh this node's data
                     const nodeId = freshNode?.node_id || freshNode?.id;
-                    fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
-                      .then(res => res.json())
-                      .then(data => {
-                        setFreshNode(data);
-                        // Also trigger parent graph update
-                        if (typeof onGraphUpdate === 'function') onGraphUpdate();
-                      })
-                      .catch(err => console.error('Failed to refresh node:', err));
+                    try {
+                      if (!isTokenValid()) {
+                        console.error("Token expired, cannot refresh node data");
+                        return;
+                      }
+                      
+                      const data = await refreshNodeData(userId, graphId, nodeId);
+                      setFreshNode(data);
+                      // Also trigger parent graph update
+                      if (typeof onGraphUpdate === 'function') onGraphUpdate();
+                    } catch (err) {
+                      console.error('Failed to refresh node:', err);
+                      // Don't fail silently, but don't break the UI
+                    }
                   }}
                   morphId={activeMorphId}
                 />
@@ -1623,17 +1690,23 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                   graphId={graphId}
                   onAddAttributeType={() => {}}
                   initialData={{ id: generateRandomId() }}
-                  onSuccess={() => {
+                  onSuccess={async () => {
                     // Immediately refresh this node's data
                     const nodeId = freshNode?.node_id || freshNode?.id;
-                    fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`)
-                      .then(res => res.json())
-                      .then(data => {
-                        setFreshNode(data);
-                        // Also trigger parent graph update
-                        if (typeof onGraphUpdate === 'function') onGraphUpdate();
-                      })
-                      .catch(err => console.error('Failed to refresh node:', err));
+                    try {
+                      if (!isTokenValid()) {
+                        console.error("Token expired, cannot refresh node data");
+                        return;
+                      }
+                      
+                      const data = await refreshNodeData(userId, graphId, nodeId);
+                      setFreshNode(data);
+                      // Also trigger parent graph update
+                      if (typeof onGraphUpdate === 'function') onGraphUpdate();
+                    } catch (err) {
+                      console.error('Failed to refresh node:', err);
+                      // Don't fail silently, but don't break the UI
+                    }
                   }}
                   morphId={activeMorphId}
                 />

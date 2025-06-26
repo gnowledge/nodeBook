@@ -1,4 +1,3 @@
-
 import os
 import json
 from fastapi import APIRouter, HTTPException
@@ -11,8 +10,21 @@ router = APIRouter()
 def load_registry(path):
     if not os.path.exists(path):
         return []
-    with open(path) as f:
-        return json.load(f)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+            # Ensure we always return a list
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict):
+                # If it's a dict, convert to list with the dict as an item
+                return [data]
+            else:
+                # If it's neither list nor dict, return empty list
+                return []
+    except (json.JSONDecodeError, IOError):
+        # If there's any error reading the file, return empty list
+        return []
 
 def save_registry(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -20,9 +32,17 @@ def save_registry(path, data):
         json.dump(data, f, indent=2)
 
 def update_registry_entry(registry, entry):
+    # Ensure registry is a list
+    if not isinstance(registry, list):
+        registry = []
+    
+    # Ensure entry is a dict
+    if not isinstance(entry, dict):
+        raise ValueError("Entry must be a dictionary")
+    
     updated = False
     for i, r in enumerate(registry):
-        if r["id"] == entry["id"]:
+        if isinstance(r, dict) and r.get("id") == entry.get("id"):
             registry[i] = entry
             updated = True
             break
