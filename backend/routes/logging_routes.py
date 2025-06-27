@@ -13,7 +13,7 @@ from pathlib import Path
 import json
 import os
 
-from backend.core.logging_system import get_logger, LogCategory
+from core.logging_system import get_logger, LogCategory
 
 router = APIRouter(prefix="/api/logs", tags=["logging"])
 

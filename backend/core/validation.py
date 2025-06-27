@@ -9,7 +9,7 @@ import functools
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Callable, Any
 from fastapi import HTTPException, Request
-from backend.core.id_utils import get_user_directory_path
+from core.id_utils import get_user_directory_path
 
 
 def validate_user_exists(user_id: str) -> bool:

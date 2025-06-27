@@ -2,7 +2,7 @@ import os
 import json
 import tempfile
 import shutil
-from backend.routes.parse_pipeline import update_node_list, save_section_node
+from routes.parse_pipeline import update_node_list, save_section_node
 
 def test_save_section_node_creates_node_json():
     # Setup temp user dir and registry

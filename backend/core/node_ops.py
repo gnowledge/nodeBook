@@ -4,7 +4,7 @@ from .utils import render_description_md, load_json_file, save_json_file
 from collections import OrderedDict
 import json
 from pathlib import Path
-from backend.core.id_utils import get_user_directory_path
+from core.id_utils import get_user_directory_path
 
 NODE_KEY_ORDER = [
     "id",

@@ -1,5 +1,10 @@
 import os
+import sys
 import networkx as nx
+
+# Add the parent directory to Python path to find the mistral module
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from mistral.summary_queue import SummaryQueue
 
 # This will hold a singleton SummaryQueue for the backend

@@ -4,8 +4,8 @@ import networkx as nx
 from pathlib import Path
 from typing import List, Dict, Optional
 
-from backend.core.utils import normalize_id, load_text_file, save_json_file, load_json_file
-from backend.core.schema_ops import load_schema
+from core.utils import normalize_id, load_text_file, save_json_file, load_json_file
+from core.schema_ops import load_schema
 
 
 # --- Extraction helpers for CNL markup ---
@@ -486,7 +486,7 @@ def save_section_node(user_id: str, graph_id: str, section_text: str, section_na
             return {"success": False, "error": "No node ID found in section"}
         
         # Import registry functions locally to avoid circular imports
-        from backend.core.registry import load_node_registry, update_node_registry, create_node_if_missing
+        from core.registry import load_node_registry, update_node_registry, create_node_if_missing
         
         # Load registry and create/update node
         registry = load_node_registry(user_id)

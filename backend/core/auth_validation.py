@@ -11,7 +11,7 @@ It ensures:
 import functools
 from typing import Callable, Optional
 from fastapi import HTTPException, Depends
-from backend.routes.users import current_active_user, User
+from routes.users import current_active_user, User
 from pathlib import Path
 import yaml
 import json

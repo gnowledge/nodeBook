@@ -5,14 +5,14 @@ import yaml
 import json
 import re
 import os
-from backend.core.models import AttributeNode, RelationNode
-from backend.routes.graph_ops import create_attribute_node, create_relation_node
-from backend.core.node_utils import (
+from core.models import AttributeNode, RelationNode
+from routes.graph_ops import create_attribute_node, create_relation_node
+from core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
-from backend.core.compose import compose_graph
-from backend.core.registry import make_attribute_id, make_relation_id
-from backend.routes.schema_routes import get_relation_types
+from core.compose import compose_graph
+from core.registry import make_attribute_id, make_relation_id
+from routes.schema_routes import get_relation_types
 
 router = APIRouter()
 

@@ -1,5 +1,5 @@
 import pytest
-from backend.routes.parse_pipeline import extract_attributes_from_cnl_block
+from routes.parse_pipeline import extract_attributes_from_cnl_block
 
 def test_extract_attributes_from_cnl_block():
     cnl = """

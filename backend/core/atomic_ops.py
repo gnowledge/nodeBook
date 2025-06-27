@@ -26,7 +26,7 @@ import logging
 from datetime import datetime
 import uuid
 
-from backend.core.logging_system import get_logger, log_atomic, log_error, log_operation
+from core.logging_system import get_logger, log_atomic, log_error, log_operation
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

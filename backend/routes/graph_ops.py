@@ -27,14 +27,14 @@ import os
 import json
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
-from backend.core.id_utils import get_graph_path
-from backend.core.models import Attribute, Relation, AttributeNode, RelationNode
-from backend.routes.nodes import create_polynode
-from backend.core.registry import (
+from core.id_utils import get_graph_path
+from core.models import Attribute, Relation, AttributeNode, RelationNode
+from routes.nodes import create_polynode
+from core.registry import (
     relation_registry_path, attribute_registry_path, load_registry, save_registry, make_relation_id, make_attribute_id
 )
-from backend.core.compose import compose_graph
-from backend.core.atomic_ops import (
+from core.compose import compose_graph
+from core.atomic_ops import (
     atomic_write, save_json_file_atomic, load_json_file, atomic_registry_save,
     graph_transaction, AtomicityError, atomic_node_save, atomic_relation_save, atomic_composed_save, atomic_attribute_save
 )
@@ -42,9 +42,9 @@ from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Literal
-from backend.core.validation import require_user_and_graph
-from backend.routes.users import current_active_user, User
-from backend.core.auth_validation import require_graph_exists
+from core.validation import require_user_and_graph
+from routes.users import current_active_user, User
+from core.auth_validation import require_graph_exists
 
 # Request models for morph operations
 class MorphOperationRequest(BaseModel):
@@ -1206,7 +1206,7 @@ def create_morph(user_id: str, graph_id: str, request: CreateMorphRequest):
 
 def get_graph_node_ids(user_id: str, graph_id: str) -> list[str]:
     """Get list of node IDs that belong to a specific graph"""
-    from backend.core.registry import load_node_registry
+    from core.registry import load_node_registry
     registry = load_node_registry(user_id)
     graph_nodes = []
     
@@ -1598,7 +1598,7 @@ def validate_graph_consistency(user_id: str, graph_id: str):
     
     Returns validation results with issues and warnings.
     """
-    from backend.core.atomic_ops import validate_data_consistency as validate_consistency
+    from core.atomic_ops import validate_data_consistency as validate_consistency
     
     try:
         validation_result = validate_consistency(user_id)
@@ -1619,7 +1619,7 @@ def cleanup_old_backups(user_id: str, graph_id: str, max_age_hours: int = 24):
     Returns:
         Number of backups cleaned up
     """
-    from backend.core.atomic_ops import cleanup_old_backups as cleanup_backups
+    from core.atomic_ops import cleanup_old_backups as cleanup_backups
     
     try:
         cleaned_count = cleanup_backups(user_id, max_age_hours)

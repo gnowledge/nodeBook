@@ -4,9 +4,9 @@ import os
 import json
 from typing import Optional
 
-from backend.core.utils import load_json_file, save_json_file
-from backend.core.node_ops import load_node
-from backend.core.registry import load_registry, relation_registry_path, attribute_registry_path
+from core.utils import load_json_file, save_json_file
+from core.node_ops import load_node
+from core.registry import load_registry, relation_registry_path, attribute_registry_path
 
 def load_transitions(user_id: str) -> list:
     """Load all transitions for a user."""

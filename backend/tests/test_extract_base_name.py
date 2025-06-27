@@ -1,5 +1,5 @@
 import pytest
-from backend.routes.parse_pipeline import extract_node_name_as_is
+from routes.parse_pipeline import extract_node_name_as_is
 import re
 
 def extract_base_name(node_name: str) -> str:

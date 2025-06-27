@@ -1,7 +1,7 @@
 import os
 import json
 import pytest
-from backend.core.schema_ops import (
+from core.schema_ops import (
     load_schema,
     save_schema,
     validate_schema_entry,

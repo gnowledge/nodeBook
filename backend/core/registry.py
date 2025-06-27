@@ -2,11 +2,11 @@ import json
 import hashlib
 from pathlib import Path
 from datetime import datetime
-from backend.core.utils import normalize_id, save_json_file, load_json_file
-from backend.core.cnl_parser import parse_node_title
+from core.utils import normalize_id, save_json_file, load_json_file
+from core.cnl_parser import parse_node_title
 
 try:
-    from backend.config import get_data_root
+    from config import get_data_root
 except ImportError:
     from config import get_data_root
 

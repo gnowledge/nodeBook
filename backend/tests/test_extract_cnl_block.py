@@ -1,5 +1,5 @@
 import pytest
-from backend.routes.parse_pipeline import extract_sections
+from routes.parse_pipeline import extract_sections
 
 def extract_cnl_block(section_content: str) -> str:
     """Extracts the first :::cnl ... ::: block from section content, returns the inner text or empty string."""
