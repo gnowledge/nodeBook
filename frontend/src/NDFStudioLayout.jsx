@@ -109,10 +109,11 @@ const DEV_PANEL_TABS = [
   { key: "relationTypes", label: "Relation Types" },
   { key: "attributeTypes", label: "Attribute Types" },
   { key: "logs", label: "User Logs" },
+  { key: "admin", label: "Admin" },
 ];
 
 const NDFStudioLayout = () => {
-  const { userId } = useUserInfo();
+  const { userId, userInfo } = useUserInfo();
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
   const [activeGraph, setActiveGraph] = useState(null);
@@ -490,6 +491,7 @@ const NDFStudioLayout = () => {
             graphId={activeGraph}
             rawMarkdown={rawMarkdowns[activeGraph]}
             prefs={prefs}
+            userInfo={userInfo}
           />
         </>
       );

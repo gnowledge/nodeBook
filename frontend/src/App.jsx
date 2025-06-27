@@ -21,7 +21,7 @@ function Logout() {
 }
 
 function App() {
-  const [userInfo, setUserInfo] = useState({ userId: null, username: null }); // Store both userId and username
+  const [userInfo, setUserInfo] = useState({ userId: null, username: null, is_superuser: false }); // Store userId, username, and is_superuser
 
   // Helper to update userInfo from /auth/whoami
   const fetchAndSetUserInfo = async () => {
@@ -35,21 +35,25 @@ function App() {
           const data = await res.json();
           console.debug("[App.jsx] /auth/whoami response:", data); // Debug message
           if (data.id && data.username) {
-            setUserInfo({ userId: data.id, username: data.username }); // Store both UUID and username
+            setUserInfo({ 
+              userId: data.id, 
+              username: data.username,
+              is_superuser: data.is_superuser || false
+            }); // Store UUID, username, and is_superuser
           } else {
-            setUserInfo({ userId: null, username: null });
+            setUserInfo({ userId: null, username: null, is_superuser: false });
           }
         } else {
-          setUserInfo({ userId: null, username: null });
+          setUserInfo({ userId: null, username: null, is_superuser: false });
           localStorage.removeItem("token");
         }
       } catch (err) {
         console.error("[App.jsx] Error fetching /auth/whoami:", err); // Debug message
-        setUserInfo({ userId: null, username: null });
+        setUserInfo({ userId: null, username: null, is_superuser: false });
         localStorage.removeItem("token");
       }
     } else {
-      setUserInfo({ userId: null, username: null });
+      setUserInfo({ userId: null, username: null, is_superuser: false });
     }
   };
 

@@ -43,6 +43,16 @@ export const authenticatedFetch = async (url, options = {}) => {
 
   // Handle authentication errors
   if (response.status === 401 || response.status === 403) {
+    // Check if it's an inactivity error by looking at the response
+    try {
+      const errorData = await response.json();
+      if (errorData.detail && errorData.detail.includes("inactivity")) {
+        throw new Error("Session expired due to inactivity. Please log in again.");
+      }
+    } catch (parseError) {
+      // If we can't parse the error, use generic message
+    }
+    
     // Clear invalid token
     localStorage.removeItem("token");
     throw new Error("Authentication failed. Please log in again.");
@@ -80,9 +90,9 @@ export const refreshGraphData = async (userId, graphId) => {
   try {
     const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
     return await safeJsonParse(response);
-  } catch (error) {
-    console.error("Failed to refresh graph data:", error);
-    throw error;
+  } catch (err) {
+    console.error('Failed to refresh graph data:', err);
+    throw err;
   }
 };
 
@@ -91,8 +101,52 @@ export const refreshNodeData = async (userId, graphId, nodeId) => {
   try {
     const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`);
     return await safeJsonParse(response);
+  } catch (err) {
+    console.error('Failed to refresh node data:', err);
+    throw err;
+  }
+};
+
+// Check if user has been inactive (for inactivity-based token expiration)
+export const checkUserActivity = async () => {
+  try {
+    const token = getValidToken();
+    if (!token) return false;
+    
+    // Make a simple API call to check if token is still valid
+    const response = await fetch('/api/auth/whoami', {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    
+    return response.ok;
   } catch (error) {
-    console.error("Failed to refresh node data:", error);
-    throw error;
+    console.error('Error checking user activity:', error);
+    return false;
+  }
+};
+
+// Get inactivity threshold from server (if available)
+export const getInactivityThreshold = async () => {
+  try {
+    const response = await fetch('/api/auth/config');
+    if (response.ok) {
+      const config = await response.json();
+      return config.inactivity_threshold_minutes || 20;
+    }
+  } catch (error) {
+    console.error('Error fetching auth config:', error);
+  }
+  // Default to 20 minutes if not configured
+  return 20; // minutes
+};
+
+// Format inactivity message
+export const getInactivityMessage = (minutes) => {
+  if (minutes < 1) {
+    return "less than a minute";
+  } else if (minutes === 1) {
+    return "1 minute";
+  } else {
+    return `${minutes} minutes`;
   }
 }; 

@@ -7,6 +7,7 @@ from pathlib import Path
 from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions, atomic_routes, logging_routes
 from backend.core.schema_ops import ensure_schema_file
 from backend.core.logging_system import get_logger
+from backend.core.activity_middleware import get_activity_middleware
 # backend/app.py
 
 
@@ -26,6 +27,20 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# ✅ Apply activity tracking middleware for inactivity-based token expiration
+app.add_middleware(
+    get_activity_middleware([
+        "/docs",
+        "/redoc", 
+        "/openapi.json",
+        "/api/logs",  # Don't track log viewing as activity
+        "/favicon.ico",
+        "/static",
+        "/health",
+        "/api/health"
+    ])
 )
 
 # ✅ Include all routers
