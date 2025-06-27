@@ -464,6 +464,7 @@ const NDFStudioLayout = () => {
       return (
         <CytoscapeStudio
           graph={composedGraphs[activeGraph]}
+          prefs={prefs}
           graphId={activeGraph}
           graphRelations={composedGraphs[activeGraph]?.relations || []}
           graphAttributes={composedGraphs[activeGraph]?.attributes || []}

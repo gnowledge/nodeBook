@@ -2,11 +2,13 @@ import NodeCard from "./NodeCard";
 import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
+import compoundDragAndDrop from "cytoscape-compound-drag-and-drop";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
 import TransitionCard from "./TransitionCard";
 
 cytoscape.use(dagre);
+cytoscape.use(compoundDragAndDrop);
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -34,6 +36,7 @@ function ndfToCytoscapeGraph(ndfData) {
     const nodes = [];
     const edges = [];
     const value_node_ids = new Set();
+    const attribute_groups = new Map(); // Track attribute groups per source node
     
     // Process nodes (PolyNodes)
     for (const node of ndfData.nodes) {
@@ -59,6 +62,9 @@ function ndfToCytoscapeGraph(ndfData) {
           }
         }
       }
+      
+      // Initialize attribute group for this node
+      attribute_groups.set(node_id, []);
       
       nodes.push({
         data: {
@@ -108,27 +114,37 @@ function ndfToCytoscapeGraph(ndfData) {
                   value_label = `${attr.adverb} ${value_label}`;
                 }
                 
-                nodes.push({
-                  data: {
+                // Add to attribute group for the source node
+                const sourceGroup = attribute_groups.get(attr.source_id);
+                if (sourceGroup) {
+                  sourceGroup.push({
                     id: value_node_id,
                     label: value_label,
-                    type: "attribute_value"
-                  }
-                });
+                    attribute: attr
+                  });
+                }
+                
                 value_node_ids.add(value_node_id);
               }
-              
-              edges.push({
-                data: {
-                  id: attr.id,
-                  source: attr.source_id,
-                  target: value_node_id,
-                  label: `has ${attr.name}`,
-                  type: "attribute"
-                }
-              });
             }
           }
+        }
+      }
+    }
+    
+    // Create compound nodes for nodes that have attributes
+    for (const [source_id, attributes] of attribute_groups.entries()) {
+      if (attributes.length > 0) {
+        // Create child nodes for each attribute
+        for (const attr of attributes) {
+          nodes.push({
+            data: {
+              id: attr.id,
+              label: attr.label,
+              type: "attribute_value",
+              parent: source_id // Make this a child of the source node
+            }
+          });
         }
       }
     }
@@ -428,6 +444,17 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node:parent",
+                  style: {
+                    "background-color": "#f8fafc", // very light gray for compound nodes
+                    "border-color": "#cbd5e1", // light gray border
+                    "border-width": 2,
+                    "border-style": "dashed",
+                    "padding": "20px",
+                    "shape": "rectangle"
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -494,9 +521,49 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 }
               ],
               layout: {
-                name: prefs?.graphLayout || "dagre"
+                name: prefs?.graphLayout || "dagre",
+                // Dagre-specific options for better layout
+                rankDir: "TB", // Top to bottom direction
+                nodeDimensionsIncludeLabels: true,
+                animate: false,
+                padding: 50,
+                spacingFactor: 1.5,
+                // Additional dagre options
+                rankSep: 100, // Separation between ranks
+                nodeSep: 50,  // Separation between nodes in same rank
+                edgeSep: 20,  // Separation between edges
+                ranker: "network-simplex" // Better algorithm for complex graphs
               }
             });
+            
+            // Add debugging for layout
+            console.log("🔧 Layout configuration:", {
+              prefs: prefs,
+              graphLayout: prefs?.graphLayout,
+              finalLayout: prefs?.graphLayout || "dagre"
+            });
+            
+            // Initialize compound drag and drop with proper options to avoid loops
+            cyRef.current.compoundDragAndDrop({
+              // Only allow dragging nodes that are not parents
+              draggable: function(node) {
+                return !node.isParent();
+              },
+              // Only allow dropping into nodes that are parents
+              droppable: function(node) {
+                return node.isParent();
+              },
+              // Prevent dropping a parent into its own child (avoid loops)
+              dropTarget: function(draggedNode, dropTarget) {
+                if (draggedNode.isParent()) {
+                  // Check if dropTarget is a descendant of draggedNode
+                  const descendants = draggedNode.descendants();
+                  return !descendants.includes(dropTarget);
+                }
+                return true;
+              }
+            });
+            
             console.log("✅ Cytoscape initialized successfully (with filtered edges)");
           } else {
             console.log("✅ All edges are valid, proceeding with full graph");
@@ -564,6 +631,17 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node:parent",
+                  style: {
+                    "background-color": "#f8fafc", // very light gray for compound nodes
+                    "border-color": "#cbd5e1", // light gray border
+                    "border-width": 2,
+                    "border-style": "dashed",
+                    "padding": "20px",
+                    "shape": "rectangle"
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -630,9 +708,49 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 }
               ],
               layout: {
-                name: prefs?.graphLayout || "dagre"
+                name: prefs?.graphLayout || "dagre",
+                // Dagre-specific options for better layout
+                rankDir: "TB", // Top to bottom direction
+                nodeDimensionsIncludeLabels: true,
+                animate: false,
+                padding: 50,
+                spacingFactor: 1.5,
+                // Additional dagre options
+                rankSep: 100, // Separation between ranks
+                nodeSep: 50,  // Separation between nodes in same rank
+                edgeSep: 20,  // Separation between edges
+                ranker: "network-simplex" // Better algorithm for complex graphs
               }
             });
+            
+            // Add debugging for layout
+            console.log("🔧 Layout configuration (full graph):", {
+              prefs: prefs,
+              graphLayout: prefs?.graphLayout,
+              finalLayout: prefs?.graphLayout || "dagre"
+            });
+            
+            // Initialize compound drag and drop with proper options to avoid loops
+            cyRef.current.compoundDragAndDrop({
+              // Only allow dragging nodes that are not parents
+              draggable: function(node) {
+                return !node.isParent();
+              },
+              // Only allow dropping into nodes that are parents
+              droppable: function(node) {
+                return node.isParent();
+              },
+              // Prevent dropping a parent into its own child (avoid loops)
+              dropTarget: function(draggedNode, dropTarget) {
+                if (draggedNode.isParent()) {
+                  // Check if dropTarget is a descendant of draggedNode
+                  const descendants = draggedNode.descendants();
+                  return !descendants.includes(dropTarget);
+                }
+                return true;
+              }
+            });
+            
             console.log("✅ Cytoscape initialized successfully");
           }
           
