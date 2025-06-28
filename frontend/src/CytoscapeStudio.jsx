@@ -1204,6 +1204,47 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     }
   };
 
+  // Reset simulation to original graph state
+  const resetSimulation = () => {
+    console.log("🔄 Resetting simulation to original state");
+    
+    // Reset to original graph data
+    setGraphData(graph);
+    setIsSimulationMode(false);
+    
+    // Force Cytoscape to re-render with original data
+    if (cyRef.current) {
+      cyRef.current.destroy();
+      cyRef.current = null;
+    }
+    
+    // Show reset message
+    const resetMessage = document.createElement('div');
+    resetMessage.className = 'reset-message';
+    resetMessage.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #6b7280;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: slideIn 0.3s ease-out;
+    `;
+    resetMessage.textContent = "Simulation reset to original state";
+    document.body.appendChild(resetMessage);
+    
+    // Remove reset message after 3 seconds
+    setTimeout(() => {
+      if (resetMessage.parentNode) {
+        resetMessage.remove();
+      }
+    }, 3000);
+  };
+
   return (
     <>
       <style>
@@ -1223,8 +1264,14 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
       
       {/* Simulation Mode Indicator */}
       {isSimulationMode && (
-        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm font-medium">
-          🧪 Simulation Mode: Graph changes are in-memory only and will reset on page refresh
+        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm font-medium flex justify-between items-center">
+          <span>🧪 Simulation Mode: Graph changes are in-memory only and will reset on page refresh</span>
+          <button 
+            onClick={resetSimulation}
+            className="ml-2 px-3 py-1 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600 transition-colors"
+          >
+            Reset Simulation
+          </button>
         </div>
       )}
       
