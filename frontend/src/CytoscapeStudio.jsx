@@ -6,7 +6,6 @@ import compoundDragAndDrop from "cytoscape-compound-drag-and-drop";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
 import TransitionCard from "./TransitionCard";
-import { API_BASE } from "./config";
 
 cytoscape.use(dagre);
 cytoscape.use(compoundDragAndDrop);
@@ -287,6 +286,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [graphData, setGraphData] = useState(graph);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
 
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graphData && graphData.nodes ? graphData : null;
@@ -869,9 +869,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     return <span dangerouslySetInnerHTML={{ __html: marked.parseInline(md || '') }} />;
   }
 
-  // Execute a transition by changing input node morphs to output morphs
+  // Execute a soft transition by changing input node morphs to output morphs (in-memory only)
   const executeTransition = async (transition) => {
-    console.log("🔄 Executing transition:", transition);
+    console.log("🔄 Executing soft transition:", transition);
     
     // Show loading message
     const loadingMessage = document.createElement('div');
@@ -889,55 +889,38 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       animation: slideIn 0.3s ease-out;
     `;
-    loadingMessage.textContent = `Executing transition "${transition.name}"...`;
+    loadingMessage.textContent = `Simulating transition "${transition.name}"...`;
     document.body.appendChild(loadingMessage);
     
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      // For each input-output pair, update the node's morph
-      const updatePromises = transition.outputs.map(async (output) => {
+      // Create a deep copy of the current graph data for in-memory modification
+      const inMemoryGraph = JSON.parse(JSON.stringify(graph));
+      
+      // For each input-output pair, update the node's morph in memory
+      const updatedNodes = [];
+      for (const output of transition.outputs) {
         const nodeId = output.id;
         const targetMorphId = output.nbh;
         
-        // Find the node in the graph
-        const node = (graph.nodes || []).find(n => (n.node_id || n.id) === nodeId);
+        // Find the node in the in-memory graph
+        const node = (inMemoryGraph.nodes || []).find(n => (n.node_id || n.id) === nodeId);
         if (!node) {
           console.error(`Node ${nodeId} not found in graph`);
-          return;
+          continue;
         }
 
-        // Update the node's neighborhood (morph)
+        // Update the node's neighborhood (morph) in memory
         const updatedNode = { ...node, nbh: targetMorphId };
         
-        // Save the updated node
-        const response = await fetch(
-          `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
-          {
-            method: "PUT",
-            headers: { 
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify(updatedNode)
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to update node ${nodeId}: ${response.statusText}`);
+        // Update the node in the in-memory graph
+        const nodeIndex = inMemoryGraph.nodes.findIndex(n => (n.node_id || n.id) === nodeId);
+        if (nodeIndex !== -1) {
+          inMemoryGraph.nodes[nodeIndex] = updatedNode;
+          updatedNodes.push(updatedNode);
         }
 
-        console.log(`✅ Updated node ${nodeId} to morph ${targetMorphId}`);
-        return response.json();
-      });
-
-      // Wait for all updates to complete
-      await Promise.all(updatePromises);
-      
-      console.log("✅ Transition executed successfully");
+        console.log(`✅ Updated node ${nodeId} to morph ${targetMorphId} (in-memory)`);
+      }
       
       // Remove loading message
       if (loadingMessage.parentNode) {
@@ -960,7 +943,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         animation: slideIn 0.3s ease-out;
       `;
-      successMessage.textContent = `Transition "${transition.name}" executed!`;
+      successMessage.textContent = `Transition "${transition.name}" simulated! (In-memory only)`;
       document.body.appendChild(successMessage);
       
       // Remove success message after 3 seconds
@@ -970,13 +953,223 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         }
       }, 3000);
       
-      // Refresh the graph to show the changes
-      if (onSummaryQueued) {
-        onSummaryQueued();
+      // Update the local graph state with the in-memory changes
+      setGraphData(inMemoryGraph);
+      setIsSimulationMode(true);
+      
+      // Force Cytoscape to re-render with the new data
+      if (cyRef.current) {
+        cyRef.current.destroy();
+        cyRef.current = null;
       }
       
+      // Trigger a re-initialization with the new graph data
+      const checkAndInit = () => {
+        if (
+          containerRef.current &&
+          containerRef.current.offsetWidth > 0 &&
+          containerRef.current.offsetHeight > 0 &&
+          document.body.contains(containerRef.current) &&
+          mountedRef.current
+        ) {
+          console.log("🔄 Re-initializing Cytoscape with updated graph data...");
+          const { nodes, edges } = ndfToCytoscapeGraph(inMemoryGraph);
+          
+          cyRef.current = cytoscape({
+            container: containerRef.current,
+            elements: [...nodes, ...edges],
+            style: [
+              {
+                selector: "node",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#f3f4f6",
+                  "color": "#2563eb",
+                  "text-outline-width": 0,
+                  "font-size": 14,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "10px",
+                  "border-width": 0.5,
+                  "border-color": "#2563eb",
+                  "border-style": "solid",
+                  "shape": "roundrectangle"
+                }
+              },
+              {
+                selector: "node[type = 'attribute_value']",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#fef3c7",
+                  "color": "#92400e",
+                  "text-outline-width": 0,
+                  "font-size": 12,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "8px",
+                  "border-width": 0.5,
+                  "border-color": "#92400e",
+                  "border-style": "solid",
+                  "shape": "rectangle"
+                }
+              },
+              {
+                selector: "node[type = 'transition']",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#dbeafe",
+                  "color": "#1e40af",
+                  "text-outline-width": 0,
+                  "font-size": 11,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "10px",
+                  "border-width": 2,
+                  "border-color": "#1e40af",
+                  "border-style": "solid",
+                  "shape": "diamond",
+                  "text-wrap": "wrap",
+                  "text-max-width": "80px"
+                }
+              },
+              {
+                selector: "node:parent",
+                style: {
+                  "background-color": "#f8fafc",
+                  "border-color": "#cbd5e1",
+                  "border-width": 2,
+                  "border-style": "dashed",
+                  "padding": "20px",
+                  "shape": "rectangle"
+                }
+              },
+              {
+                selector: "edge",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 1,
+                  "line-color": "#ccc",
+                  "target-arrow-color": "#ccc",
+                  "font-size": 9,
+                  "text-background-color": "#fff",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "2px"
+                }
+              },
+              {
+                selector: "edge[type = 'attribute']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 2,
+                  "line-color": "#92400e",
+                  "target-arrow-color": "#92400e",
+                  "font-size": 10,
+                  "text-background-color": "#fef3c7",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "2px",
+                  "color": "#92400e"
+                }
+              },
+              {
+                selector: "edge[type = 'transition_input']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 3,
+                  "line-color": "#1e40af",
+                  "target-arrow-color": "#1e40af",
+                  "font-size": 10,
+                  "text-background-color": "#dbeafe",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "3px",
+                  "color": "#1e40af",
+                  "line-style": "solid"
+                }
+              },
+              {
+                selector: "edge[type = 'transition_output']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 3,
+                  "line-color": "#059669",
+                  "target-arrow-color": "#059669",
+                  "font-size": 10,
+                  "text-background-color": "#d1fae5",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "3px",
+                  "color": "#059669",
+                  "line-style": "solid"
+                }
+              }
+            ],
+            layout: {
+              name: prefs?.graphLayout || "dagre",
+              rankDir: "TB",
+              nodeDimensionsIncludeLabels: true,
+              animate: false,
+              padding: 50,
+              spacingFactor: 1.5,
+              rankSep: 100,
+              nodeSep: 50,
+              edgeSep: 20,
+              ranker: "network-simplex"
+            }
+          });
+          
+          // Re-initialize event handlers
+          cyRef.current.on("tap", "node", (evt) => {
+            setSelectedEdge(null);
+            const nodeId = evt.target.data("id");
+            const nodeType = evt.target.data("type");
+            
+            if (nodeType === "transition") {
+              const transition = (inMemoryGraph.transitions || []).find(t => 
+                `transition_${t.id}` === nodeId || t.id === nodeId
+              );
+              if (transition) {
+                executeTransition(transition);
+                return;
+              }
+            }
+            
+            const nodeObj = (inMemoryGraph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
+            if (nodeObj) setSelectedNode(nodeObj);
+          });
+          
+          cyRef.current.on("tap", "edge", (evt) => {
+            setSelectedNode(null);
+            const edgeData = evt.target.data();
+            const sourceNode = (inMemoryGraph.nodes || []).find(n => n.node_id === edgeData.source || n.id === edgeData.source);
+            const targetNode = (inMemoryGraph.nodes || []).find(n => n.node_id === edgeData.target || n.id === edgeData.target);
+            setSelectedEdge({
+              edge: edgeData,
+              sourceNode,
+              targetNode
+            });
+          });
+          
+          console.log("✅ Cytoscape re-initialized with updated graph data");
+        } else {
+          setTimeout(checkAndInit, 100);
+        }
+      };
+      checkAndInit();
+      
     } catch (error) {
-      console.error("❌ Failed to execute transition:", error);
+      console.error("❌ Failed to execute soft transition:", error);
       
       // Remove loading message
       if (loadingMessage.parentNode) {
@@ -999,7 +1192,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         animation: slideIn 0.3s ease-out;
       `;
-      errorMessage.textContent = `Failed to execute transition: ${error.message}`;
+      errorMessage.textContent = `Failed to simulate transition: ${error.message}`;
       document.body.appendChild(errorMessage);
       
       // Remove error message after 5 seconds
@@ -1027,6 +1220,14 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           }
         `}
       </style>
+      
+      {/* Simulation Mode Indicator */}
+      {isSimulationMode && (
+        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm font-medium">
+          🧪 Simulation Mode: Graph changes are in-memory only and will reset on page refresh
+        </div>
+      )}
+      
       <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
       {selectedNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
