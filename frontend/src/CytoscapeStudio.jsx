@@ -6,6 +6,7 @@ import compoundDragAndDrop from "cytoscape-compound-drag-and-drop";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
 import TransitionCard from "./TransitionCard";
+import { API_BASE } from "./config";
 
 cytoscape.use(dagre);
 cytoscape.use(compoundDragAndDrop);
@@ -762,8 +763,11 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           // Add specific handling for transition nodes
           cyRef.current.on("mouseover", "node[type = 'transition']", (evt) => {
             const nodeData = evt.target.data();
-            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}`;
+            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}\n\nClick to execute this transition!`;
             console.log("Transition info:", transitionInfo);
+            
+            // Change cursor to indicate clickability
+            evt.target.style('cursor', 'pointer');
             
             // Create tooltip
             const tooltip = document.createElement('div');
@@ -798,6 +802,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           });
           
           cyRef.current.on("mouseout", "node[type = 'transition']", (evt) => {
+            // Reset cursor
+            evt.target.style('cursor', 'default');
+            
             const tooltip = evt.target.data('tooltip');
             if (tooltip) {
               tooltip.remove();
@@ -817,7 +824,8 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 `transition_${t.id}` === nodeId || t.id === nodeId
               );
               if (transition) {
-                setSelectedNode({ ...transition, isTransition: true });
+                // Execute the transition instead of showing a card
+                executeTransition(transition);
                 return;
               }
             }
@@ -861,8 +869,164 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     return <span dangerouslySetInnerHTML={{ __html: marked.parseInline(md || '') }} />;
   }
 
+  // Execute a transition by changing input node morphs to output morphs
+  const executeTransition = async (transition) => {
+    console.log("🔄 Executing transition:", transition);
+    
+    // Show loading message
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'transition-loading-message';
+    loadingMessage.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: slideIn 0.3s ease-out;
+    `;
+    loadingMessage.textContent = `Executing transition "${transition.name}"...`;
+    document.body.appendChild(loadingMessage);
+    
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      // For each input-output pair, update the node's morph
+      const updatePromises = transition.outputs.map(async (output) => {
+        const nodeId = output.id;
+        const targetMorphId = output.nbh;
+        
+        // Find the node in the graph
+        const node = (graph.nodes || []).find(n => (n.node_id || n.id) === nodeId);
+        if (!node) {
+          console.error(`Node ${nodeId} not found in graph`);
+          return;
+        }
+
+        // Update the node's neighborhood (morph)
+        const updatedNode = { ...node, nbh: targetMorphId };
+        
+        // Save the updated node
+        const response = await fetch(
+          `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
+          {
+            method: "PUT",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(updatedNode)
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to update node ${nodeId}: ${response.statusText}`);
+        }
+
+        console.log(`✅ Updated node ${nodeId} to morph ${targetMorphId}`);
+        return response.json();
+      });
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+      
+      console.log("✅ Transition executed successfully");
+      
+      // Remove loading message
+      if (loadingMessage.parentNode) {
+        loadingMessage.remove();
+      }
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'transition-success-message';
+      successMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+      `;
+      successMessage.textContent = `Transition "${transition.name}" executed!`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        if (successMessage.parentNode) {
+          successMessage.remove();
+        }
+      }, 3000);
+      
+      // Refresh the graph to show the changes
+      if (onSummaryQueued) {
+        onSummaryQueued();
+      }
+      
+    } catch (error) {
+      console.error("❌ Failed to execute transition:", error);
+      
+      // Remove loading message
+      if (loadingMessage.parentNode) {
+        loadingMessage.remove();
+      }
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'transition-error-message';
+      errorMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ef4444;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+      `;
+      errorMessage.textContent = `Failed to execute transition: ${error.message}`;
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 5 seconds
+      setTimeout(() => {
+        if (errorMessage.parentNode) {
+          errorMessage.remove();
+        }
+      }, 5000);
+    }
+  };
+
   return (
     <>
+      <style>
+        {`
+          @keyframes slideIn {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `}
+      </style>
       <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
       {selectedNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
