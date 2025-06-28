@@ -1,0 +1,23 @@
+{
+  "oxygen": {
+    "id": "oxygen",
+    "name": "oxygen",
+    "graphs": [
+      "oxygen_example"
+    ]
+  },
+  "ionized_oxygen": {
+    "id": "ionized_oxygen",
+    "name": "ionized oxygen",
+    "graphs": [
+      "oxygen_example"
+    ]
+  },
+  "isotopic_oxygen": {
+    "id": "isotopic_oxygen",
+    "name": "isotopic oxygen",
+    "graphs": [
+      "oxygen_example"
+    ]
+  }
+}

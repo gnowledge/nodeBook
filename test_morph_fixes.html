@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morph Fixes Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .fix-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .fix-section.success {
+            border-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        .fix-section.warning {
+            border-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+        .example {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+        }
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        .before, .after {
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .before {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+        }
+        .after {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+        }
+        .radio-example {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .radio-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .radio-item.active {
+            background: #dbeafe;
+            color: #1e40af;
+            font-weight: bold;
+        }
+        .radio-item:not(.active) {
+            background: #f9fafb;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Morph Fixes Test</h1>
+        <p>This document outlines the fixes for the two morph-related issues.</p>
+
+        <div class="fix-section success">
+            <h2>✅ Fix 1: Label Logic Correction</h2>
+            <p><strong>Issue:</strong> Labels were showing morph names instead of indicating which morph is active.</p>
+            <p><strong>Problem:</strong> The logic was showing "oxygen [oxide ion]" instead of "oxygen [basic]" or just "oxygen".</p>
+            
+            <div class="before-after">
+                <div class="before">
+                    <h4>❌ Before (Incorrect)</h4>
+                    <div class="example">
+                        // Basic morph: "oxygen [basic]"<br>
+                        // Ionized morph: "oxygen [ionized]"<br>
+                        // Isotopic morph: "oxygen [isotopic]"
+                    </div>
+                </div>
+                <div class="after">
+                    <h4>✅ After (Correct)</h4>
+                    <div class="example">
+                        // Basic morph: "oxygen"<br>
+                        // Ionized morph: "oxygen [ionized]"<br>
+                        // Isotopic morph: "oxygen [isotopic]"
+                    </div>
+                </div>
+            </div>
+
+            <h3>🔧 Technical Fix</h3>
+            <div class="example">
+                // Updated label logic in CytoscapeStudio.jsx<br>
+                if (morphIndex === 0) {<br>
+                &nbsp;&nbsp;// Basic morph - show just the original name<br>
+                &nbsp;&nbsp;return node.originalName;<br>
+                } else {<br>
+                &nbsp;&nbsp;// Non-basic morph - show original name + morph name<br>
+                &nbsp;&nbsp;return `${node.originalName}\n[${activeMorph.name}]`;<br>
+                }
+            </div>
+
+            <h3>🎯 Expected Behavior</h3>
+            <ul>
+                <li><strong>Basic morph (first morph):</strong> Shows just the node name (e.g., "oxygen")</li>
+                <li><strong>Non-basic morphs:</strong> Shows node name + morph name in brackets (e.g., "oxygen [ionized]")</li>
+                <li><strong>Success messages:</strong> Show "basic" for first morph, morph name for others</li>
+            </ul>
+        </div>
+
+        <div class="fix-section warning">
+            <h2>⚠️ Fix 2: NodeCard Morph Selection</h2>
+            <p><strong>Issue:</strong> Radio buttons for morph selection in NodeCard were not working properly.</p>
+            <p><strong>Problem:</strong> The `activeMorphId` state was not properly synchronized with `freshNode.nbh`.</p>
+
+            <h3>🔧 Technical Fix</h3>
+            <div class="example">
+                // Added synchronization in useEffect<br>
+                useEffect(() => {<br>
+                &nbsp;&nbsp;if (freshNode?.morphs && freshNode.morphs.length > 0) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;setIsPolymorphic(true);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;setMorphs(freshNode.morphs);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;// Ensure activeMorphId is synchronized with freshNode.nbh<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if (freshNode.nbh) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setActiveMorphId(freshNode.nbh);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;} else if (freshNode.morphs.length > 0) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setActiveMorphId(freshNode.morphs[0].morph_id);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;}<br>
+                }, [freshNode]);
+            </div>
+
+            <h3>🎯 Expected Behavior</h3>
+            <div class="radio-example">
+                <h4>Morph Selection Radio Buttons:</h4>
+                <div class="radio-group">
+                    <div class="radio-item active">
+                        <input type="radio" name="morph-oxygen" value="basic" checked>
+                        <span>basic ✓</span>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="morph-oxygen" value="ionized">
+                        <span>ionized</span>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="morph-oxygen" value="isotopic">
+                        <span>isotopic</span>
+                    </div>
+                    <button style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 3px;">+</button>
+                </div>
+                <p><small>• Radio buttons should be clickable and update the active morph</small></p>
+                <p><small>• Active morph should be highlighted with blue background</small></p>
+                <p><small>• Changes should persist to the backend</small></p>
+            </div>
+
+            <h3>🐛 Debugging Added</h3>
+            <div class="example">
+                // Added console logging to track morph state<br>
+                console.log('[NodeCard] Morph state:', {<br>
+                &nbsp;&nbsp;nodeId, isPolymorphic, morphs, activeMorphId, freshNodeNbh<br>
+                });<br><br>
+                // Added logging to handleMorphSwitch<br>
+                console.log('[handleMorphSwitch] Called with:', { morphId, currentActiveMorphId, freshNodeNbh });
+            </div>
+        </div>
+
+        <div class="fix-section">
+            <h2>🧪 How to Test</h2>
+            <ol>
+                <li><strong>Start the services:</strong>
+                    <div class="example">
+                        ./start_backend.sh<br>
+                        cd frontend && npm run dev
+                    </div>
+                </li>
+                <li><strong>Test Label Logic:</strong>
+                    <ul>
+                        <li>Navigate to a graph with transitions (oxygen example)</li>
+                        <li>Click on a transition node to execute it</li>
+                        <li>Verify compound node labels show correctly:
+                            <ul>
+                                <li>Basic morph: "oxygen"</li>
+                                <li>Non-basic morphs: "oxygen [morph_name]"</li>
+                            </ul>
+                        </li>
+                        <li>Check success message shows correct morph names</li>
+                    </ul>
+                </li>
+                <li><strong>Test Morph Selection:</strong>
+                    <ul>
+                        <li>Open a NodeCard for a polymorphic node</li>
+                        <li>Click on different morph radio buttons</li>
+                        <li>Verify the active morph changes and persists</li>
+                        <li>Check browser console for debug logs</li>
+                        <li>Verify the graph updates to reflect the new morph</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="fix-section">
+            <h2>🔍 Key Changes Made</h2>
+            <h3>CytoscapeStudio.jsx</h3>
+            <ul>
+                <li>Fixed compound node label logic to show "basic" for first morph</li>
+                <li>Updated success message to show correct morph names</li>
+                <li>Improved visual indicators for active morphs</li>
+            </ul>
+
+            <h3>NodeCard.jsx</h3>
+            <ul>
+                <li>Added synchronization between `activeMorphId` and `freshNode.nbh`</li>
+                <li>Added debug logging to track morph state changes</li>
+                <li>Enhanced error handling in `handleMorphSwitch`</li>
+            </ul>
+        </div>
+
+        <div class="fix-section">
+            <h2>📋 Verification Checklist</h2>
+            <ul>
+                <li>☐ Compound node labels show "oxygen" for basic morph</li>
+                <li>☐ Compound node labels show "oxygen [ionized]" for non-basic morphs</li>
+                <li>☐ Success messages show "basic" for first morph</li>
+                <li>☐ Radio buttons in NodeCard are clickable</li>
+                <li>☐ Active morph is highlighted in blue</li>
+                <li>☐ Morph changes persist after page refresh</li>
+                <li>☐ Debug logs appear in browser console</li>
+                <li>☐ Graph visualization updates when morph changes</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

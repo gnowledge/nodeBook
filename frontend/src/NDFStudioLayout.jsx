@@ -119,6 +119,7 @@ const NDFStudioLayout = () => {
   const [activeGraph, setActiveGraph] = useState(null);
   const [rawMarkdowns, setRawMarkdowns] = useState({});
   const [composedGraphs, setComposedGraphs] = useState({});
+  const [inMemoryGraphs, setInMemoryGraphs] = useState({}); // In-memory graphs for morph changes
   const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
   const [activeTopTab, setActiveTopTab] = useState("graphs");
@@ -183,6 +184,7 @@ const NDFStudioLayout = () => {
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
+      setInMemoryGraphs((prev) => ({ ...prev, [graphId]: JSON.parse(JSON.stringify(composed)) })); // Initialize in-memory graph
       const graphMeta = allGraphs.find((g) => g.id === graphId) || { id: graphId, title: graphId };
       setOpenGraphs((prev) => [...prev, graphMeta]);
       setActiveGraph(graphId);
@@ -220,6 +222,7 @@ const NDFStudioLayout = () => {
       setOpenGraphs((prev) => [...prev, newMeta]);
       setActiveGraph(newId);
       setComposedGraphs((prev) => ({ ...prev, [newId]: fullGraph }));
+      setInMemoryGraphs((prev) => ({ ...prev, [newId]: JSON.parse(JSON.stringify(fullGraph)) })); // Initialize in-memory graph
       setRawMarkdowns((prev) => ({ ...prev, [newId]: raw }));
     } catch (err) {
       console.error("Failed to create graph:", err);
@@ -231,6 +234,26 @@ const NDFStudioLayout = () => {
     setComposedGraphs((prev) => ({ ...prev, [activeGraph]: updated }));
     if (activeGraph) {
       setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: true }));
+    }
+  };
+
+  // Handle in-memory morph changes from NodeCard
+  const handleInMemoryMorphChange = (nodeId, newNbh) => {
+    console.log('[NDFStudioLayout] In-memory morph change:', { nodeId, newNbh, activeGraph });
+    
+    if (!activeGraph || !inMemoryGraphs[activeGraph]) return;
+    
+    // Update the node's nbh in the in-memory graph
+    const updatedInMemoryGraph = JSON.parse(JSON.stringify(inMemoryGraphs[activeGraph]));
+    const nodeIndex = updatedInMemoryGraph.nodes.findIndex(n => (n.node_id || n.id) === nodeId);
+    
+    if (nodeIndex !== -1) {
+      updatedInMemoryGraph.nodes[nodeIndex] = {
+        ...updatedInMemoryGraph.nodes[nodeIndex],
+        nbh: newNbh
+      };
+      setInMemoryGraphs((prev) => ({ ...prev, [activeGraph]: updatedInMemoryGraph }));
+      console.log('[NDFStudioLayout] Updated in-memory graph for:', activeGraph);
     }
   };
 
@@ -247,6 +270,7 @@ const NDFStudioLayout = () => {
       if (!composedRes.ok) throw new Error("Failed to fetch updated graph data");
       const composed = await composedRes.json();
       setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
+      setInMemoryGraphs((prev) => ({ ...prev, [activeGraph]: JSON.parse(JSON.stringify(composed)) })); // Reset in-memory graph
       console.log("✅ Graph data refreshed successfully");
     } catch (err) {
       console.error("Failed to refresh graph data:", err);
@@ -283,6 +307,11 @@ const NDFStudioLayout = () => {
       delete newState[graphId];
       return newState;
     });
+    setInMemoryGraphs((prev) => {
+      const newState = { ...prev };
+      delete newState[graphId];
+      return newState;
+    });
     if (activeGraph === graphId) {
       const remaining = openGraphs.filter((g) => g.id !== graphId);
       if (remaining.length > 0) {
@@ -300,6 +329,11 @@ const NDFStudioLayout = () => {
   const handleGraphDeleted = (deletedGraphId) => {
     setOpenGraphs((prev) => prev.filter((g) => g.id !== deletedGraphId));
     setComposedGraphs((prev) => {
+      const newState = { ...prev };
+      delete newState[deletedGraphId];
+      return newState;
+    });
+    setInMemoryGraphs((prev) => {
       const newState = { ...prev };
       delete newState[deletedGraphId];
       return newState;
@@ -322,7 +356,6 @@ const NDFStudioLayout = () => {
         setActiveGraph(null);
       }
     }
-    setActiveTab(mainTabs[0] || "graphs"); // Switch to first main tab
   };
 
   // Handler for PreferencesPanel to update global prefs
@@ -457,17 +490,20 @@ const NDFStudioLayout = () => {
           rawMarkdown={rawMarkdowns[activeGraph]}
           graphId={activeGraph}
           onGraphRefresh={refreshActiveGraph}
+          onInMemoryMorphChange={handleInMemoryMorphChange}
         />
       );
     }
     if (activeWorkTab === "graph") {
+      // Use in-memory graph if available, otherwise fall back to composed graph
+      const graphToUse = inMemoryGraphs[activeGraph] || composedGraphs[activeGraph];
       return (
         <CytoscapeStudio
-          graph={composedGraphs[activeGraph]}
+          graph={graphToUse}
           prefs={prefs}
           graphId={activeGraph}
-          graphRelations={composedGraphs[activeGraph]?.relations || []}
-          graphAttributes={composedGraphs[activeGraph]?.attributes || []}
+          graphRelations={graphToUse?.relations || []}
+          graphAttributes={graphToUse?.attributes || []}
         />
       );
     }

@@ -57,7 +57,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white border-r border-gray-300">
+    <div className="flex flex-col h-full w-full bg-white border-r border-gray-300 p-5">
       {showSummaryComplete && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 bg-green-600 text-white rounded shadow-lg font-semibold animate-fade-in-out">
           Node summary completed!

@@ -24,6 +24,7 @@
     "@monaco-editor/react": "^4.6.0",
     "blockly": "^12.1.0",
     "cytoscape": "^3.28.1",
+    "cytoscape-compound-drag-and-drop": "^1.1.0",
     "cytoscape-dagre": "^2.5.0",
     "js-yaml": "^4.1.0",
     "marked": "^9.1.6",

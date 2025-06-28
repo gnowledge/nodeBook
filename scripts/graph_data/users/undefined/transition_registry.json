@@ -1,0 +1,21 @@
+[
+  {
+    "id": "oxygen_ionization",
+    "name": "ionization",
+    "adjective": "rapid",
+    "tense": "present",
+    "inputs": [
+      {
+        "id": "oxygen",
+        "nbh": "neutral"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "ionized_oxygen",
+        "nbh": "charged"
+      }
+    ],
+    "description": "The process of removing electrons from oxygen atoms, typically through exposure to high energy radiation or electric fields."
+  }
+]

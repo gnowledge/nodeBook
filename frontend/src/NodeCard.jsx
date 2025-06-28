@@ -413,7 +413,7 @@ function MorphItemManager({
   );
 }
 
-function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelations = [], graphAttributes = [] }) {
+function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelations = [], graphAttributes = [], onInMemoryMorphChange }) {
   const { userId } = useUserInfo();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -487,11 +487,29 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     if (freshNode?.morphs && freshNode.morphs.length > 0) {
       setIsPolymorphic(true);
       setMorphs(freshNode.morphs);
+      // Ensure activeMorphId is synchronized with freshNode.nbh
+      if (freshNode.nbh) {
+        setActiveMorphId(freshNode.nbh);
+      } else if (freshNode.morphs.length > 0) {
+        setActiveMorphId(freshNode.morphs[0].morph_id);
+      }
     } else {
       setIsPolymorphic(false);
       setMorphs([]);
+      setActiveMorphId(null);
     }
   }, [freshNode]);
+
+  // Debug logging for morph selection
+  useEffect(() => {
+    console.log('[NodeCard] Morph state:', {
+      nodeId: freshNode?.node_id || freshNode?.id,
+      isPolymorphic,
+      morphs: morphs.map(m => ({ id: m.morph_id, name: m.name })),
+      activeMorphId,
+      freshNodeNbh: freshNode?.nbh
+    });
+  }, [freshNode, isPolymorphic, morphs, activeMorphId]);
 
   // Persist NLP result per node in sessionStorage
   const nodeKey = `nlpResult-${freshNode?.node_id || freshNode?.id}`;
@@ -1211,32 +1229,34 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   };
 
   const handleMorphSwitch = async (morphId) => {
-    if (morphId === activeMorphId) return;
+    console.log('[handleMorphSwitch] Called with:', {
+      morphId,
+      currentActiveMorphId: activeMorphId,
+      freshNodeNbh: freshNode?.nbh
+    });
     
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const updatedNode = { ...freshNode, nbh: morphId };
-      const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
-        {
-          method: "PUT",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(updatedNode)
-        }
-      );
-      if (res.ok) {
-        setFreshNode(updatedNode);
-        setActiveMorphId(morphId);
-        if (onGraphUpdate) onGraphUpdate();
-      }
-    } catch (err) {
-      console.error("Failed to switch morph:", err);
-    } finally {
-      setLoading(false);
+    if (morphId === activeMorphId) {
+      console.log('[handleMorphSwitch] Same morph, skipping');
+      return;
+    }
+    
+    // In-memory morph switch - no database persistence
+    console.log('[handleMorphSwitch] Switching morph in-memory only');
+    
+    // Update the node's nbh in memory
+    const updatedNode = { ...freshNode, nbh: morphId };
+    setFreshNode(updatedNode);
+    setActiveMorphId(morphId);
+    
+    console.log('[handleMorphSwitch] Updated state:', {
+      newNbh: morphId,
+      updatedNode: updatedNode
+    });
+    
+    // Notify parent component about the in-memory morph change
+    if (onInMemoryMorphChange) {
+      console.log('[handleMorphSwitch] Notifying parent of morph change');
+      onInMemoryMorphChange(freshNode.node_id || freshNode.id, morphId);
     }
   };
 

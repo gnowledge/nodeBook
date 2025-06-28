@@ -24,9 +24,10 @@ function stripMarkdown(md) {
     .trim();
 }
 
-const DisplayHTML = ({ graphId, onGraphRefresh }) => {
+const DisplayHTML = ({ graphId, onGraphRefresh, onInMemoryMorphChange }) => {
   const { userId } = useUserInfo();
   const [graph, setGraph] = useState(null);
+  const [inMemoryGraph, setInMemoryGraph] = useState(null); // In-memory graph for morph changes
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [showRelationTypes, setShowRelationTypes] = useState(false);
   const [showAttributeTypes, setShowAttributeTypes] = useState(false);
@@ -44,15 +45,18 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
         if (!isTokenValid()) {
           setError("Authentication token expired. Please log in again.");
           setGraph(null);
+          setInMemoryGraph(null);
           return;
         }
         
         const data = await refreshGraphData(userId, graphId);
         setGraph(data);
+        setInMemoryGraph(JSON.parse(JSON.stringify(data))); // Deep copy for in-memory changes
       } catch (err) {
         console.error("Failed to load polymorphic_composed.json:", err);
         setError(err.message || "Failed to load graph data");
         setGraph(null);
+        setInMemoryGraph(null);
       } finally {
         setLoading(false);
       }
@@ -68,6 +72,7 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
       setLoading(true);
       const data = await refreshGraphData(userId, graphId);
       setGraph(data);
+      setInMemoryGraph(JSON.parse(JSON.stringify(data))); // Reset in-memory graph
       setError(null);
     } catch (err) {
       console.error("Failed to refresh graph:", err);
@@ -79,6 +84,26 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
     // Also refresh the global graph state if callback provided
     if (onGraphRefresh) {
       onGraphRefresh();
+    }
+  };
+
+  // Handler for in-memory morph changes from NodeCard
+  const handleInMemoryMorphChange = (nodeId, newNbh) => {
+    console.log('[DisplayHTML] In-memory morph change:', { nodeId, newNbh });
+    
+    if (!inMemoryGraph) return;
+    
+    // Update the node's nbh in the in-memory graph
+    const updatedInMemoryGraph = JSON.parse(JSON.stringify(inMemoryGraph));
+    const nodeIndex = updatedInMemoryGraph.nodes.findIndex(n => (n.node_id || n.id) === nodeId);
+    
+    if (nodeIndex !== -1) {
+      updatedInMemoryGraph.nodes[nodeIndex] = {
+        ...updatedInMemoryGraph.nodes[nodeIndex],
+        nbh: newNbh
+      };
+      setInMemoryGraph(updatedInMemoryGraph);
+      console.log('[DisplayHTML] Updated in-memory graph:', updatedInMemoryGraph);
     }
   };
 
@@ -269,6 +294,7 @@ const DisplayHTML = ({ graphId, onGraphRefresh }) => {
               onGraphUpdate={handleNodeCreated}
               graphRelations={graph.relations}
               graphAttributes={graph.attributes}
+              onInMemoryMorphChange={onInMemoryMorphChange}
             />
           </div>
         ))}

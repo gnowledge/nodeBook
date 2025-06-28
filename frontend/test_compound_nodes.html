@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compound Nodes Test</title>
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script src="https://unpkg.com/cytoscape-compound-drag-and-drop@1.0.0/cytoscape-compound-drag-and-drop.js"></script>
+    <style>
+        #cy {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Compound Nodes Test - Attribute Grouping</h1>
+    <div id="cy"></div>
+
+    <script>
+        // Sample graph data with nodes and attributes
+        const sampleGraph = {
+            nodes: [
+                {
+                    node_id: "oxygen",
+                    name: "Oxygen",
+                    description: "A chemical element",
+                    morphs: [
+                        {
+                            morph_id: "basic_Oxygen",
+                            name: "Basic Oxygen",
+                            attributeNode_ids: ["attr1", "attr2", "attr3", "attr4"]
+                        }
+                    ],
+                    nbh: "basic_Oxygen"
+                },
+                {
+                    node_id: "hydrogen",
+                    name: "Hydrogen",
+                    description: "Another chemical element",
+                    morphs: [
+                        {
+                            morph_id: "basic_Hydrogen",
+                            name: "Basic Hydrogen",
+                            attributeNode_ids: ["attr5", "attr6"]
+                        }
+                    ],
+                    nbh: "basic_Hydrogen"
+                }
+            ],
+            attributes: [
+                {
+                    id: "attr1",
+                    source_id: "oxygen",
+                    name: "atomic number",
+                    value: 8,
+                    unit: ""
+                },
+                {
+                    id: "attr2",
+                    source_id: "oxygen",
+                    name: "proton number",
+                    value: 8,
+                    unit: ""
+                },
+                {
+                    id: "attr3",
+                    source_id: "oxygen",
+                    name: "electron number",
+                    value: 8,
+                    unit: ""
+                },
+                {
+                    id: "attr4",
+                    source_id: "oxygen",
+                    name: "neutron number",
+                    value: 8,
+                    unit: ""
+                },
+                {
+                    id: "attr5",
+                    source_id: "hydrogen",
+                    name: "atomic number",
+                    value: 1,
+                    unit: ""
+                },
+                {
+                    id: "attr6",
+                    source_id: "hydrogen",
+                    name: "proton number",
+                    value: 1,
+                    unit: ""
+                }
+            ],
+            relations: []
+        };
+
+        // Transform function (same as in CytoscapeStudio.jsx)
+        function stripMarkdown(md) {
+            return md
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/\*(.*?)\*/g, '$1')
+                .replace(/`([^`]+)`/g, '$1')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+                .replace(/_/g, '')
+                .replace(/#+ /g, '')
+                .replace(/<.*?>/g, '')
+                .replace(/!\[(.*?)\]\((.*?)\)/g, '$1')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function ndfToCytoscapeGraph(ndfData) {
+            console.log("🔄 ndfToCytoscapeGraph called with:", ndfData);
+            
+            const nodes = [];
+            const edges = [];
+            const value_node_ids = new Set();
+            const attribute_groups = new Map();
+            
+            // Process nodes (PolyNodes)
+            for (const node of ndfData.nodes) {
+                const node_id = node.node_id || node.id;
+                
+                let label = stripMarkdown(node.name || node_id || "");
+                const morphs = node.morphs;
+                const nbh = node.nbh;
+                
+                if (morphs && morphs.length > 1 && nbh) {
+                    const activeMorph = morphs.find(m => m.morph_id === nbh);
+                    if (activeMorph) {
+                        const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+                        if (isBasicMorph) {
+                            label = stripMarkdown(node.name || node_id || "");
+                        } else if (activeMorph.name) {
+                            label = stripMarkdown(activeMorph.name);
+                        }
+                    }
+                }
+                
+                attribute_groups.set(node_id, []);
+                
+                nodes.push({
+                    data: {
+                        id: node_id,
+                        label: label,
+                        description: node.description || "",
+                        originalName: node.name || node_id || "",
+                        type: "polynode"
+                    }
+                });
+                
+                if (morphs && nbh) {
+                    const active_morph = morphs.find(m => m.morph_id === nbh);
+                    if (active_morph) {
+                        for (const attr_id of active_morph.attributeNode_ids || []) {
+                            const attr = ndfData.attributes.find(a => a.id === attr_id);
+                            if (attr) {
+                                const value_node_id = `attrval_${attr.id}`;
+                                
+                                if (!value_node_ids.has(value_node_id)) {
+                                    let value_label = String(attr.value);
+                                    if (attr.unit) {
+                                        value_label += ` ${attr.unit}`;
+                                    }
+                                    if (attr.adverb) {
+                                        value_label = `${attr.adverb} ${value_label}`;
+                                    }
+                                    
+                                    const sourceGroup = attribute_groups.get(attr.source_id);
+                                    if (sourceGroup) {
+                                        sourceGroup.push({
+                                            id: value_node_id,
+                                            label: value_label,
+                                            attribute: attr
+                                        });
+                                    }
+                                    
+                                    value_node_ids.add(value_node_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Create compound nodes for nodes that have attributes
+            for (const [source_id, attributes] of attribute_groups.entries()) {
+                if (attributes.length > 0) {
+                    for (const attr of attributes) {
+                        nodes.push({
+                            data: {
+                                id: attr.id,
+                                label: attr.label,
+                                type: "attribute_value",
+                                parent: source_id
+                            }
+                        });
+                    }
+                }
+            }
+            
+            const result = { nodes, edges };
+            console.log("🔄 Final transformed result:", result);
+            return result;
+        }
+
+        // Initialize Cytoscape
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: ndfToCytoscapeGraph(sampleGraph),
+            style: [
+                {
+                    selector: "node",
+                    style: {
+                        label: "data(label)",
+                        "text-valign": "center",
+                        "text-halign": "center",
+                        "background-color": "#f3f4f6",
+                        "color": "#2563eb",
+                        "text-outline-width": 0,
+                        "font-size": 14,
+                        "width": "label",
+                        "height": "label",
+                        "padding": "10px",
+                        "border-width": 0.5,
+                        "border-color": "#2563eb",
+                        "border-style": "solid",
+                        "shape": "roundrectangle"
+                    }
+                },
+                {
+                    selector: "node[type = 'attribute_value']",
+                    style: {
+                        label: "data(label)",
+                        "text-valign": "center",
+                        "text-halign": "center",
+                        "background-color": "#fef3c7",
+                        "color": "#92400e",
+                        "text-outline-width": 0,
+                        "font-size": 12,
+                        "width": "label",
+                        "height": "label",
+                        "padding": "8px",
+                        "border-width": 0.5,
+                        "border-color": "#92400e",
+                        "border-style": "solid",
+                        "shape": "rectangle"
+                    }
+                },
+                {
+                    selector: "node:parent",
+                    style: {
+                        "background-color": "#f8fafc",
+                        "border-color": "#cbd5e1",
+                        "border-width": 2,
+                        "border-style": "dashed",
+                        "padding": "20px",
+                        "shape": "rectangle"
+                    }
+                }
+            ],
+            layout: {
+                name: "dagre"
+            }
+        });
+
+        // Initialize compound drag and drop
+        cy.compoundDragAndDrop({
+            draggable: function(node) {
+                return !node.isParent();
+            },
+            droppable: function(node) {
+                return node.isParent();
+            },
+            dropTarget: function(draggedNode, dropTarget) {
+                if (draggedNode.isParent()) {
+                    const descendants = draggedNode.descendants();
+                    return !descendants.includes(dropTarget);
+                }
+                return true;
+            }
+        });
+
+        console.log("✅ Cytoscape initialized with compound nodes");
+    </script>
+</body>
+</html>

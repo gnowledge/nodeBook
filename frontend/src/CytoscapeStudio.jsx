@@ -72,7 +72,9 @@ function ndfToCytoscapeGraph(ndfData) {
           label: label,
           description: node.description || "",
           originalName: node.name || node_id || "",
-          type: "polynode"
+          type: "polynode",
+          currentMorph: nbh || null,
+          morphs: morphs || []
         }
       });
       
@@ -439,7 +441,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "border-width": 2,
                     "border-color": "#1e40af", // blue-800
                     "border-style": "solid",
-                    "shape": "diamond", // diamond shape for transitions
+                    "shape": "roundrectangle", // Changed from diamond to roundrectangle for better dagre compatibility
                     "text-wrap": "wrap",
                     "text-max-width": "80px"
                   }
@@ -447,12 +449,35 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 {
                   selector: "node:parent",
                   style: {
+                    label: function(ele) {
+                      const node = ele.data();
+                      if (node.currentMorph && node.morphs && node.morphs.length > 1) {
+                        const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
+                        if (activeMorph) {
+                          const morphIndex = node.morphs.indexOf(activeMorph);
+                          if (morphIndex === 0) {
+                            // Basic morph - show just the original name
+                            return node.originalName;
+                          } else {
+                            // Non-basic morph - show original name + morph name
+                            return `${node.originalName}\n[${activeMorph.name}]`;
+                          }
+                        }
+                      }
+                      return node.label || node.originalName;
+                    },
+                    "text-valign": "center",
+                    "text-halign": "center",
                     "background-color": "#f8fafc", // very light gray for compound nodes
                     "border-color": "#cbd5e1", // light gray border
                     "border-width": 2,
                     "border-style": "dashed",
                     "padding": "20px",
-                    "shape": "rectangle"
+                    "shape": "rectangle",
+                    "font-size": 12,
+                    "color": "#374151",
+                    "text-wrap": "wrap",
+                    "text-max-width": "120px"
                   }
                 },
                 {
@@ -519,21 +544,55 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "color": "#059669", // emerald-600
                     "line-style": "solid"
                   }
+                },
+                {
+                  selector: "node[type = 'polynode']",
+                  style: {
+                    label: "data(label)",
+                    "text-valign": "center",
+                    "text-halign": "center",
+                    "background-color": "#f3f4f6", // light grey
+                    "color": "#2563eb", // blue-600
+                    "text-outline-width": 0,
+                    "font-size": 14,
+                    "width": "label",
+                    "height": "label",
+                    "padding": "10px",
+                    "border-width": 0.5,
+                    "border-color": "#2563eb", // blue-600
+                    "border-style": "solid",
+                    "shape": "roundrectangle"
+                  }
+                },
+                {
+                  selector: "node[type = 'polynode'][currentMorph]",
+                  style: {
+                    "border-width": 2,
+                    "border-color": "#059669", // emerald-600 for active morph
+                    "background-color": "#d1fae5" // light emerald background
+                  }
                 }
               ],
               layout: {
                 name: prefs?.graphLayout || "dagre",
-                // Dagre-specific options for better layout
-                rankDir: "TB", // Top to bottom direction
+                rankDir: "TB",
                 nodeDimensionsIncludeLabels: true,
                 animate: false,
                 padding: 50,
                 spacingFactor: 1.5,
-                // Additional dagre options
-                rankSep: 100, // Separation between ranks
-                nodeSep: 50,  // Separation between nodes in same rank
-                edgeSep: 20,  // Separation between edges
-                ranker: "network-simplex" // Better algorithm for complex graphs
+                rankSep: 100,
+                nodeSep: 50,
+                edgeSep: 20,
+                ranker: "network-simplex",
+                // Force proper layout
+                fit: true,
+                // Ensure nodes don't overlap
+                nodeOverlap: 20,
+                // Prevent horizontal layout fallback
+                align: "UL", // Upper left alignment
+                // Additional spacing
+                marginX: 50,
+                marginY: 50
               }
             });
             
@@ -626,7 +685,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "border-width": 2,
                     "border-color": "#1e40af", // blue-800
                     "border-style": "solid",
-                    "shape": "diamond", // diamond shape for transitions
+                    "shape": "roundrectangle", // Changed from diamond to roundrectangle for better dagre compatibility
                     "text-wrap": "wrap",
                     "text-max-width": "80px"
                   }
@@ -634,12 +693,35 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 {
                   selector: "node:parent",
                   style: {
+                    label: function(ele) {
+                      const node = ele.data();
+                      if (node.currentMorph && node.morphs && node.morphs.length > 1) {
+                        const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
+                        if (activeMorph) {
+                          const morphIndex = node.morphs.indexOf(activeMorph);
+                          if (morphIndex === 0) {
+                            // Basic morph - show just the original name
+                            return node.originalName;
+                          } else {
+                            // Non-basic morph - show original name + morph name
+                            return `${node.originalName}\n[${activeMorph.name}]`;
+                          }
+                        }
+                      }
+                      return node.label || node.originalName;
+                    },
+                    "text-valign": "center",
+                    "text-halign": "center",
                     "background-color": "#f8fafc", // very light gray for compound nodes
                     "border-color": "#cbd5e1", // light gray border
                     "border-width": 2,
                     "border-style": "dashed",
                     "padding": "20px",
-                    "shape": "rectangle"
+                    "shape": "rectangle",
+                    "font-size": 12,
+                    "color": "#374151",
+                    "text-wrap": "wrap",
+                    "text-max-width": "120px"
                   }
                 },
                 {
@@ -710,17 +792,24 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               ],
               layout: {
                 name: prefs?.graphLayout || "dagre",
-                // Dagre-specific options for better layout
-                rankDir: "TB", // Top to bottom direction
+                rankDir: "TB",
                 nodeDimensionsIncludeLabels: true,
                 animate: false,
                 padding: 50,
                 spacingFactor: 1.5,
-                // Additional dagre options
-                rankSep: 100, // Separation between ranks
-                nodeSep: 50,  // Separation between nodes in same rank
-                edgeSep: 20,  // Separation between edges
-                ranker: "network-simplex" // Better algorithm for complex graphs
+                rankSep: 100,
+                nodeSep: 50,
+                edgeSep: 20,
+                ranker: "network-simplex",
+                // Force proper layout
+                fit: true,
+                // Ensure nodes don't overlap
+                nodeOverlap: 20,
+                // Prevent horizontal layout fallback
+                align: "UL", // Upper left alignment
+                // Additional spacing
+                marginX: 50,
+                marginY: 50
               }
             });
             
@@ -819,8 +908,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             
             // Handle transition nodes differently
             if (nodeType === "transition") {
-              // Find the transition in the graph data
-              const transition = (graph.transitions || []).find(t => 
+              // Use current graphData state instead of original graph prop
+              const currentGraphData = graphData || graph;
+              const transition = (currentGraphData.transitions || []).find(t => 
                 `transition_${t.id}` === nodeId || t.id === nodeId
               );
               if (transition) {
@@ -831,15 +921,18 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             }
             
             // Handle regular nodes
-            const nodeObj = (graph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
+            const currentGraphData = graphData || graph;
+            const nodeObj = (currentGraphData.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
             if (nodeObj) setSelectedNode(nodeObj);
           });
           cyRef.current.on("tap", "edge", (evt) => {
             setSelectedNode(null);
             const edgeData = evt.target.data();
+            // Use current graphData state instead of original graph prop
+            const currentGraphData = graphData || graph;
             // Find source/target node objects
-            const sourceNode = (graph.nodes || []).find(n => n.node_id === edgeData.source || n.id === edgeData.source);
-            const targetNode = (graph.nodes || []).find(n => n.node_id === edgeData.target || n.id === edgeData.target);
+            const sourceNode = (currentGraphData.nodes || []).find(n => n.node_id === edgeData.source || n.id === edgeData.source);
+            const targetNode = (currentGraphData.nodes || []).find(n => n.node_id === edgeData.target || n.id === edgeData.target);
             setSelectedEdge({
               edge: edgeData,
               sourceNode,
@@ -893,8 +986,10 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     document.body.appendChild(loadingMessage);
     
     try {
-      // Create a deep copy of the current graph data for in-memory modification
-      const inMemoryGraph = JSON.parse(JSON.stringify(graph));
+      // Use the current graphData state instead of the original graph prop
+      // This ensures we work with the latest in-memory changes
+      const currentGraphData = graphData || graph;
+      const inMemoryGraph = JSON.parse(JSON.stringify(currentGraphData));
       
       // For each input-output pair, update the node's morph in memory
       const updatedNodes = [];
@@ -942,8 +1037,21 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         z-index: 10000;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         animation: slideIn 0.3s ease-out;
+        max-width: 300px;
+        white-space: pre-line;
       `;
-      successMessage.textContent = `Transition "${transition.name}" simulated! (In-memory only)`;
+      
+      const changedNodes = updatedNodes.map(node => {
+        const morph = node.morphs?.find(m => m.morph_id === node.nbh);
+        if (morph) {
+          const morphIndex = node.morphs.indexOf(morph);
+          const morphName = morphIndex === 0 ? 'basic' : morph.name;
+          return `• ${node.name || node.node_id}: ${morphName}`;
+        }
+        return `• ${node.name || node.node_id}: basic`;
+      }).join('\n');
+      
+      successMessage.textContent = `Transition "${transition.name}" simulated!\n\nChanged nodes:\n${changedNodes}\n\n(In-memory only)`;
       document.body.appendChild(successMessage);
       
       // Remove success message after 3 seconds
@@ -1033,7 +1141,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   "border-width": 2,
                   "border-color": "#1e40af",
                   "border-style": "solid",
-                  "shape": "diamond",
+                  "shape": "roundrectangle", // Changed from diamond to roundrectangle for better dagre compatibility
                   "text-wrap": "wrap",
                   "text-max-width": "80px"
                 }
@@ -1041,12 +1149,35 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               {
                 selector: "node:parent",
                 style: {
-                  "background-color": "#f8fafc",
-                  "border-color": "#cbd5e1",
+                  label: function(ele) {
+                    const node = ele.data();
+                    if (node.currentMorph && node.morphs && node.morphs.length > 1) {
+                      const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
+                      if (activeMorph) {
+                        const morphIndex = node.morphs.indexOf(activeMorph);
+                        if (morphIndex === 0) {
+                          // Basic morph - show just the original name
+                          return node.originalName;
+                        } else {
+                          // Non-basic morph - show original name + morph name
+                          return `${node.originalName}\n[${activeMorph.name}]`;
+                        }
+                      }
+                    }
+                    return node.label || node.originalName;
+                  },
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#f8fafc", // very light gray for compound nodes
+                  "border-color": "#cbd5e1", // light gray border
                   "border-width": 2,
                   "border-style": "dashed",
                   "padding": "20px",
-                  "shape": "rectangle"
+                  "shape": "rectangle",
+                  "font-size": 12,
+                  "color": "#374151",
+                  "text-wrap": "wrap",
+                  "text-max-width": "120px"
                 }
               },
               {
@@ -1125,7 +1256,16 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               rankSep: 100,
               nodeSep: 50,
               edgeSep: 20,
-              ranker: "network-simplex"
+              ranker: "network-simplex",
+              // Force proper layout
+              fit: true,
+              // Ensure nodes don't overlap
+              nodeOverlap: 20,
+              // Prevent horizontal layout fallback
+              align: "UL", // Upper left alignment
+              // Additional spacing
+              marginX: 50,
+              marginY: 50
             }
           });
           
@@ -1275,7 +1415,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         </div>
       )}
       
-      <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
+      <div ref={containerRef} className="w-full h-full min-h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-4" />
       {selectedNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
