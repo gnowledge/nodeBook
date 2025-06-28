@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch, mock_open
 from fastapi import HTTPException
 
-from core.validation import (
+from backend.core.validation import (
     validate_user_exists,
     validate_graph_exists,
     get_user_graphs,

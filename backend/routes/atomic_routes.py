@@ -14,10 +14,16 @@ and provides tools for monitoring and maintaining the system.
 from fastapi import APIRouter, HTTPException
 from pathlib import Path
 from typing import Dict, Any
-from core.atomic_ops import (
+from backend.core.atomic_ops import (
     validate_data_consistency,
     cleanup_old_backups,
-    AtomicityError
+    AtomicityError,
+    save_json_file_atomic,
+    load_json_file,
+    graph_transaction,
+    atomic_registry_save,
+    atomic_node_save,
+    atomic_composed_save
 )
 
 router = APIRouter()
@@ -185,9 +191,9 @@ def force_regenerate_composed_files(user_id: str, graph_id: str):
         Status of the regeneration operation
     """
     try:
-        from core.registry import load_node_registry
-        from core.compose import compose_graph
-        from core.atomic_ops import atomic_composed_save
+        from backend.core.registry import load_node_registry
+        from backend.core.compose import compose_graph
+        from backend.core.atomic_ops import atomic_composed_save
         
         # Get all nodes for this graph
         node_registry = load_node_registry(user_id)

@@ -17,7 +17,7 @@ app = FastAPI(title="NDF: Node-neighborhood Description Framework")
 logger = get_logger("system")
 logger.system("NDF Studio backend starting up", event_type="startup")
 
-# from core.graph_state import populate_graph
+# from backend.core.graph_state import populate_graph
 
 
 # ✅ Apply CORS middleware once

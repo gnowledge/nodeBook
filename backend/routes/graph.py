@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from core.node_ops import load_node, safe_node_summary, safe_edge_summaries
-from core.id_utils import get_graph_path
+from backend.core.node_ops import load_node, safe_node_summary, safe_edge_summaries
+from backend.core.id_utils import get_graph_path
 import os
 
 router = APIRouter()

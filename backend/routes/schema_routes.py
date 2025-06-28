@@ -6,8 +6,8 @@ import json
 import time
 from pathlib import Path
 from fastapi_users import FastAPIUsers
-from routes.users import User
-from core.auth_validation import current_active_user
+from backend.routes.users import User
+from backend.core.auth_validation import current_active_user
 
 router = APIRouter()
 

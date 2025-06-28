@@ -11,8 +11,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 from typing import Callable, Optional
 import time
-from core.logging_system import get_logger
-from routes.users import current_active_user
+from backend.core.logging_system import get_logger
+from backend.routes.users import current_active_user
 from fastapi import HTTPException
 
 
@@ -66,7 +66,7 @@ class ActivityTrackingMiddleware(BaseHTTPMiddleware):
                 # We'll do this in a try-catch to avoid breaking the request flow
                 try:
                     # Import here to avoid circular imports
-                    from routes.users import current_active_user
+                    from backend.routes.users import current_active_user
                     user = await current_active_user(request)
                     if user:
                         user_id = str(user.id)

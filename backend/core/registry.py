@@ -1,9 +1,10 @@
+import os
 import json
 import hashlib
 from pathlib import Path
 from datetime import datetime
-from core.utils import normalize_id, save_json_file, load_json_file
-from core.cnl_parser import parse_node_title
+from backend.core.utils import normalize_id, save_json_file, load_json_file
+from backend.core.cnl_parser import parse_node_title
 
 try:
     from config import get_data_root

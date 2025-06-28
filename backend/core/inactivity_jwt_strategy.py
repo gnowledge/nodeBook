@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, Union
 from fastapi_users.authentication import JWTStrategy
 from fastapi_users.jwt import SecretType, decode_jwt, generate_jwt
-from core.logging_system import get_logger, LogCategory
+from backend.core.logging_system import get_logger, LogCategory
 import json
 
 

@@ -1,8 +1,7 @@
-
 import os
 import json
 from fastapi import APIRouter, HTTPException
-from core.models import Function
+from backend.core.models import Function
 
 router = APIRouter()
 

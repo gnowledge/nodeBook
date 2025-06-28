@@ -15,24 +15,26 @@ try:
 except ImportError:
     from config import get_data_root
 
-from core.clean_cnl_payload import clean_cnl_payload
-from core.path_utils import get_graph_path
-from core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
-from core.ndf_ops import convert_parsed_to_nodes
-from core.schema_utils import filter_used_schema
-from core.utils import load_json_file, save_json_file, normalize_id
-from core.cnl_parser import parse_node_title
-from core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
-from core.compose import compose_graph
-from core.node_ops import load_node
-from core.atomic_ops import (
-    graph_transaction, 
-    AtomicityError, 
-    save_json_file_atomic, 
+from backend.core.clean_cnl_payload import clean_cnl_payload
+from backend.core.path_utils import get_graph_path
+from backend.core.schema_ops import create_attribute_type_from_dict, create_relation_type_from_dict, load_schema
+from backend.core.ndf_ops import convert_parsed_to_nodes
+from backend.core.schema_utils import filter_used_schema
+from backend.core.utils import load_json_file, save_json_file, normalize_id
+from backend.core.cnl_parser import parse_node_title
+from backend.core.registry import create_node_if_missing, load_node_registry, update_node_registry, save_node_registry
+from backend.core.compose import compose_graph
+from backend.core.node_ops import load_node
+from backend.core.atomic_ops import (
+    save_json_file_atomic,
+    load_json_file,
+    graph_transaction,
+    AtomicityError,
     atomic_registry_save,
+    atomic_node_save,
     atomic_composed_save
 )
-from routes.users import current_active_user, User
+from backend.routes.users import current_active_user, User
 
 
 router = APIRouter()  # All routes prefixed with /api/ndf
