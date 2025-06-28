@@ -3,7 +3,7 @@
 from pathlib import Path
 
 try:
-    from backend.config import get_data_root
+    from config import get_data_root
 except ImportError:
     from config import get_data_root
 

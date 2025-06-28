@@ -1,6 +1,7 @@
 import pytest
-from backend.routes.parse_pipeline import (
-    extract_node_name_as_is, extract_base_name, extract_qualifier, extract_quantifier, compose_node_id
+from routes.parse_pipeline import (
+    extract_node_name_as_is, extract_base_name, extract_qualifier, extract_quantifier, compose_node_id,
+    extract_relations_from_cnl_block
 )
 
 def test_extract_relations_from_cnl_block():

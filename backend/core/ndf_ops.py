@@ -1,5 +1,5 @@
 from collections import defaultdict, OrderedDict
-from backend.core.cnl_parser import normalize_id
+from core.cnl_parser import normalize_id
 from typing import List, Dict, Optional
 
 def merge_cnl_into_ndf(ndf_data: dict, parsed_statements: list[dict]) -> dict:

@@ -10,7 +10,7 @@ from pathlib import Path
 from passlib.context import CryptContext
 import json
 from pydantic import BaseModel, EmailStr
-from backend.core.inactivity_jwt_strategy import InactivityJWTStrategy
+from core.inactivity_jwt_strategy import InactivityJWTStrategy
 from typing import Optional
 
 # ---------- CONFIG ----------
@@ -84,7 +84,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                     print(f"[ADMIN] First user '{user.username}' automatically promoted to superuser")
                     
                     # Log the admin promotion
-                    from backend.core.logging_system import get_logger
+                    from core.logging_system import get_logger
                     logger = get_logger()
                     logger.security(
                         f"First user '{user.username}' automatically promoted to superuser",
@@ -351,7 +351,7 @@ async def admin_create_user(
         user = await user_manager.create(user_create)
         
         # Log the admin action
-        from backend.core.logging_system import get_logger
+        from core.logging_system import get_logger
         logger = get_logger()
         logger.security(
             f"Admin '{current_user.username}' created user '{user.username}'",
@@ -415,7 +415,7 @@ async def admin_update_user(
             session.commit()
             
             # Log the admin action
-            from backend.core.logging_system import get_logger
+            from core.logging_system import get_logger
             logger = get_logger()
             logger.security(
                 f"Admin '{current_user.username}' updated user '{user.username}'",
@@ -470,7 +470,7 @@ async def admin_promote_user(
             session.commit()
             
             # Log the admin action
-            from backend.core.logging_system import get_logger
+            from core.logging_system import get_logger
             logger = get_logger()
             logger.security(
                 f"Admin '{current_user.username}' promoted user '{user.username}' to superuser",
@@ -529,7 +529,7 @@ async def admin_demote_user(
             session.commit()
             
             # Log the admin action
-            from backend.core.logging_system import get_logger
+            from core.logging_system import get_logger
             logger = get_logger()
             logger.security(
                 f"Admin '{current_user.username}' demoted user '{user.username}' from superuser",
@@ -587,7 +587,7 @@ async def admin_delete_user(
             session.commit()
             
             # Log the admin action
-            from backend.core.logging_system import get_logger
+            from core.logging_system import get_logger
             logger = get_logger()
             logger.security(
                 f"Admin '{current_user.username}' deleted user '{username}'",

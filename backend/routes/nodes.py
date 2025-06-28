@@ -3,19 +3,19 @@ from pydantic import BaseModel
 from typing import List, Optional, Literal
 import os
 from pathlib import Path
-from backend.core.node_ops import load_node, save_node, node_path, safe_node_summary
-from backend.core.id_utils import normalize_id, get_graph_path, get_user_id
-from backend.summary_queue_singleton import init_summary_queue
+from core.node_ops import load_node, save_node, node_path, safe_node_summary
+from core.id_utils import normalize_id, get_graph_path, get_user_id
+from summary_queue_singleton import init_summary_queue
 import json
 import time
-from backend.core.models import Attribute, Relation, PolyNode, Morph
+from core.models import Attribute, Relation, PolyNode, Morph
 
-from backend.core.node_utils import (
+from core.node_utils import (
     extract_base_name, extract_qualifier, extract_quantifier, compose_node_id, extract_node_name_as_is
 )
-from backend.core.compose import compose_graph
-from backend.core.registry import load_node_registry, make_polynode_id, load_registry, save_registry
-from backend.core.atomic_ops import (
+from core.compose import compose_graph
+from core.registry import load_node_registry, make_polynode_id, load_registry, save_registry
+from core.atomic_ops import (
     save_json_file_atomic,
     load_json_file,
     graph_transaction,
@@ -24,9 +24,9 @@ from backend.core.atomic_ops import (
     atomic_node_save,
     atomic_composed_save
 )
-from backend.core.validation import require_user_and_graph
-from backend.routes.users import current_active_user, User
-from backend.core.auth_validation import require_self_access_or_superuser, require_graph_exists
+from core.validation import require_user_and_graph
+from routes.users import current_active_user, User
+from core.auth_validation import require_self_access_or_superuser, require_graph_exists
 
 router = APIRouter()
 
@@ -127,7 +127,7 @@ async def create_polynode(
             # Create basic morph if it doesn't exist
             basic_morph_exists = any(morph.name == "basic" for morph in node.morphs)
             if not basic_morph_exists:
-                from backend.core.models import Morph
+                from core.models import Morph
                 basic_morph = Morph(
                     morph_id=f"basic_{node.id}",
                     node_id=node.id,
@@ -601,7 +601,7 @@ def nlp_parse_description(user_id: str, graph_id: str, node_id: str):
     description = node.get("description", "")
     if not description:
         return {"error": "No description to parse."}
-    from backend.core.nlp_utils import parse_description_components
+    from core.nlp_utils import parse_description_components
     return parse_description_components(description)
 
 
