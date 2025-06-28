@@ -2,11 +2,13 @@ import NodeCard from "./NodeCard";
 import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
+import compoundDragAndDrop from "cytoscape-compound-drag-and-drop";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
 import TransitionCard from "./TransitionCard";
 
 cytoscape.use(dagre);
+cytoscape.use(compoundDragAndDrop);
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -34,6 +36,7 @@ function ndfToCytoscapeGraph(ndfData) {
     const nodes = [];
     const edges = [];
     const value_node_ids = new Set();
+    const attribute_groups = new Map(); // Track attribute groups per source node
     
     // Process nodes (PolyNodes)
     for (const node of ndfData.nodes) {
@@ -59,6 +62,9 @@ function ndfToCytoscapeGraph(ndfData) {
           }
         }
       }
+      
+      // Initialize attribute group for this node
+      attribute_groups.set(node_id, []);
       
       nodes.push({
         data: {
@@ -108,27 +114,37 @@ function ndfToCytoscapeGraph(ndfData) {
                   value_label = `${attr.adverb} ${value_label}`;
                 }
                 
-                nodes.push({
-                  data: {
+                // Add to attribute group for the source node
+                const sourceGroup = attribute_groups.get(attr.source_id);
+                if (sourceGroup) {
+                  sourceGroup.push({
                     id: value_node_id,
                     label: value_label,
-                    type: "attribute_value"
-                  }
-                });
+                    attribute: attr
+                  });
+                }
+                
                 value_node_ids.add(value_node_id);
               }
-              
-              edges.push({
-                data: {
-                  id: attr.id,
-                  source: attr.source_id,
-                  target: value_node_id,
-                  label: `has ${attr.name}`,
-                  type: "attribute"
-                }
-              });
             }
           }
+        }
+      }
+    }
+    
+    // Create compound nodes for nodes that have attributes
+    for (const [source_id, attributes] of attribute_groups.entries()) {
+      if (attributes.length > 0) {
+        // Create child nodes for each attribute
+        for (const attr of attributes) {
+          nodes.push({
+            data: {
+              id: attr.id,
+              label: attr.label,
+              type: "attribute_value",
+              parent: source_id // Make this a child of the source node
+            }
+          });
         }
       }
     }
@@ -270,6 +286,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [graphData, setGraphData] = useState(graph);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
 
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graphData && graphData.nodes ? graphData : null;
@@ -428,6 +445,17 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node:parent",
+                  style: {
+                    "background-color": "#f8fafc", // very light gray for compound nodes
+                    "border-color": "#cbd5e1", // light gray border
+                    "border-width": 2,
+                    "border-style": "dashed",
+                    "padding": "20px",
+                    "shape": "rectangle"
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -494,9 +522,49 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 }
               ],
               layout: {
-                name: prefs?.graphLayout || "dagre"
+                name: prefs?.graphLayout || "dagre",
+                // Dagre-specific options for better layout
+                rankDir: "TB", // Top to bottom direction
+                nodeDimensionsIncludeLabels: true,
+                animate: false,
+                padding: 50,
+                spacingFactor: 1.5,
+                // Additional dagre options
+                rankSep: 100, // Separation between ranks
+                nodeSep: 50,  // Separation between nodes in same rank
+                edgeSep: 20,  // Separation between edges
+                ranker: "network-simplex" // Better algorithm for complex graphs
               }
             });
+            
+            // Add debugging for layout
+            console.log("🔧 Layout configuration:", {
+              prefs: prefs,
+              graphLayout: prefs?.graphLayout,
+              finalLayout: prefs?.graphLayout || "dagre"
+            });
+            
+            // Initialize compound drag and drop with proper options to avoid loops
+            cyRef.current.compoundDragAndDrop({
+              // Only allow dragging nodes that are not parents
+              draggable: function(node) {
+                return !node.isParent();
+              },
+              // Only allow dropping into nodes that are parents
+              droppable: function(node) {
+                return node.isParent();
+              },
+              // Prevent dropping a parent into its own child (avoid loops)
+              dropTarget: function(draggedNode, dropTarget) {
+                if (draggedNode.isParent()) {
+                  // Check if dropTarget is a descendant of draggedNode
+                  const descendants = draggedNode.descendants();
+                  return !descendants.includes(dropTarget);
+                }
+                return true;
+              }
+            });
+            
             console.log("✅ Cytoscape initialized successfully (with filtered edges)");
           } else {
             console.log("✅ All edges are valid, proceeding with full graph");
@@ -564,6 +632,17 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
+                  selector: "node:parent",
+                  style: {
+                    "background-color": "#f8fafc", // very light gray for compound nodes
+                    "border-color": "#cbd5e1", // light gray border
+                    "border-width": 2,
+                    "border-style": "dashed",
+                    "padding": "20px",
+                    "shape": "rectangle"
+                  }
+                },
+                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -630,9 +709,49 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 }
               ],
               layout: {
-                name: prefs?.graphLayout || "dagre"
+                name: prefs?.graphLayout || "dagre",
+                // Dagre-specific options for better layout
+                rankDir: "TB", // Top to bottom direction
+                nodeDimensionsIncludeLabels: true,
+                animate: false,
+                padding: 50,
+                spacingFactor: 1.5,
+                // Additional dagre options
+                rankSep: 100, // Separation between ranks
+                nodeSep: 50,  // Separation between nodes in same rank
+                edgeSep: 20,  // Separation between edges
+                ranker: "network-simplex" // Better algorithm for complex graphs
               }
             });
+            
+            // Add debugging for layout
+            console.log("🔧 Layout configuration (full graph):", {
+              prefs: prefs,
+              graphLayout: prefs?.graphLayout,
+              finalLayout: prefs?.graphLayout || "dagre"
+            });
+            
+            // Initialize compound drag and drop with proper options to avoid loops
+            cyRef.current.compoundDragAndDrop({
+              // Only allow dragging nodes that are not parents
+              draggable: function(node) {
+                return !node.isParent();
+              },
+              // Only allow dropping into nodes that are parents
+              droppable: function(node) {
+                return node.isParent();
+              },
+              // Prevent dropping a parent into its own child (avoid loops)
+              dropTarget: function(draggedNode, dropTarget) {
+                if (draggedNode.isParent()) {
+                  // Check if dropTarget is a descendant of draggedNode
+                  const descendants = draggedNode.descendants();
+                  return !descendants.includes(dropTarget);
+                }
+                return true;
+              }
+            });
+            
             console.log("✅ Cytoscape initialized successfully");
           }
           
@@ -644,8 +763,11 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           // Add specific handling for transition nodes
           cyRef.current.on("mouseover", "node[type = 'transition']", (evt) => {
             const nodeData = evt.target.data();
-            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}`;
+            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}\n\nClick to execute this transition!`;
             console.log("Transition info:", transitionInfo);
+            
+            // Change cursor to indicate clickability
+            evt.target.style('cursor', 'pointer');
             
             // Create tooltip
             const tooltip = document.createElement('div');
@@ -680,6 +802,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           });
           
           cyRef.current.on("mouseout", "node[type = 'transition']", (evt) => {
+            // Reset cursor
+            evt.target.style('cursor', 'default');
+            
             const tooltip = evt.target.data('tooltip');
             if (tooltip) {
               tooltip.remove();
@@ -699,7 +824,8 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 `transition_${t.id}` === nodeId || t.id === nodeId
               );
               if (transition) {
-                setSelectedNode({ ...transition, isTransition: true });
+                // Execute the transition instead of showing a card
+                executeTransition(transition);
                 return;
               }
             }
@@ -743,8 +869,412 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     return <span dangerouslySetInnerHTML={{ __html: marked.parseInline(md || '') }} />;
   }
 
+  // Execute a soft transition by changing input node morphs to output morphs (in-memory only)
+  const executeTransition = async (transition) => {
+    console.log("🔄 Executing soft transition:", transition);
+    
+    // Show loading message
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'transition-loading-message';
+    loadingMessage.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: slideIn 0.3s ease-out;
+    `;
+    loadingMessage.textContent = `Simulating transition "${transition.name}"...`;
+    document.body.appendChild(loadingMessage);
+    
+    try {
+      // Create a deep copy of the current graph data for in-memory modification
+      const inMemoryGraph = JSON.parse(JSON.stringify(graph));
+      
+      // For each input-output pair, update the node's morph in memory
+      const updatedNodes = [];
+      for (const output of transition.outputs) {
+        const nodeId = output.id;
+        const targetMorphId = output.nbh;
+        
+        // Find the node in the in-memory graph
+        const node = (inMemoryGraph.nodes || []).find(n => (n.node_id || n.id) === nodeId);
+        if (!node) {
+          console.error(`Node ${nodeId} not found in graph`);
+          continue;
+        }
+
+        // Update the node's neighborhood (morph) in memory
+        const updatedNode = { ...node, nbh: targetMorphId };
+        
+        // Update the node in the in-memory graph
+        const nodeIndex = inMemoryGraph.nodes.findIndex(n => (n.node_id || n.id) === nodeId);
+        if (nodeIndex !== -1) {
+          inMemoryGraph.nodes[nodeIndex] = updatedNode;
+          updatedNodes.push(updatedNode);
+        }
+
+        console.log(`✅ Updated node ${nodeId} to morph ${targetMorphId} (in-memory)`);
+      }
+      
+      // Remove loading message
+      if (loadingMessage.parentNode) {
+        loadingMessage.remove();
+      }
+      
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'transition-success-message';
+      successMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+      `;
+      successMessage.textContent = `Transition "${transition.name}" simulated! (In-memory only)`;
+      document.body.appendChild(successMessage);
+      
+      // Remove success message after 3 seconds
+      setTimeout(() => {
+        if (successMessage.parentNode) {
+          successMessage.remove();
+        }
+      }, 3000);
+      
+      // Update the local graph state with the in-memory changes
+      setGraphData(inMemoryGraph);
+      setIsSimulationMode(true);
+      
+      // Force Cytoscape to re-render with the new data
+      if (cyRef.current) {
+        cyRef.current.destroy();
+        cyRef.current = null;
+      }
+      
+      // Trigger a re-initialization with the new graph data
+      const checkAndInit = () => {
+        if (
+          containerRef.current &&
+          containerRef.current.offsetWidth > 0 &&
+          containerRef.current.offsetHeight > 0 &&
+          document.body.contains(containerRef.current) &&
+          mountedRef.current
+        ) {
+          console.log("🔄 Re-initializing Cytoscape with updated graph data...");
+          const { nodes, edges } = ndfToCytoscapeGraph(inMemoryGraph);
+          
+          cyRef.current = cytoscape({
+            container: containerRef.current,
+            elements: [...nodes, ...edges],
+            style: [
+              {
+                selector: "node",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#f3f4f6",
+                  "color": "#2563eb",
+                  "text-outline-width": 0,
+                  "font-size": 14,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "10px",
+                  "border-width": 0.5,
+                  "border-color": "#2563eb",
+                  "border-style": "solid",
+                  "shape": "roundrectangle"
+                }
+              },
+              {
+                selector: "node[type = 'attribute_value']",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#fef3c7",
+                  "color": "#92400e",
+                  "text-outline-width": 0,
+                  "font-size": 12,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "8px",
+                  "border-width": 0.5,
+                  "border-color": "#92400e",
+                  "border-style": "solid",
+                  "shape": "rectangle"
+                }
+              },
+              {
+                selector: "node[type = 'transition']",
+                style: {
+                  label: "data(label)",
+                  "text-valign": "center",
+                  "text-halign": "center",
+                  "background-color": "#dbeafe",
+                  "color": "#1e40af",
+                  "text-outline-width": 0,
+                  "font-size": 11,
+                  "width": "label",
+                  "height": "label",
+                  "padding": "10px",
+                  "border-width": 2,
+                  "border-color": "#1e40af",
+                  "border-style": "solid",
+                  "shape": "diamond",
+                  "text-wrap": "wrap",
+                  "text-max-width": "80px"
+                }
+              },
+              {
+                selector: "node:parent",
+                style: {
+                  "background-color": "#f8fafc",
+                  "border-color": "#cbd5e1",
+                  "border-width": 2,
+                  "border-style": "dashed",
+                  "padding": "20px",
+                  "shape": "rectangle"
+                }
+              },
+              {
+                selector: "edge",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 1,
+                  "line-color": "#ccc",
+                  "target-arrow-color": "#ccc",
+                  "font-size": 9,
+                  "text-background-color": "#fff",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "2px"
+                }
+              },
+              {
+                selector: "edge[type = 'attribute']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 2,
+                  "line-color": "#92400e",
+                  "target-arrow-color": "#92400e",
+                  "font-size": 10,
+                  "text-background-color": "#fef3c7",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "2px",
+                  "color": "#92400e"
+                }
+              },
+              {
+                selector: "edge[type = 'transition_input']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 3,
+                  "line-color": "#1e40af",
+                  "target-arrow-color": "#1e40af",
+                  "font-size": 10,
+                  "text-background-color": "#dbeafe",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "3px",
+                  "color": "#1e40af",
+                  "line-style": "solid"
+                }
+              },
+              {
+                selector: "edge[type = 'transition_output']",
+                style: {
+                  label: "data(label)",
+                  "curve-style": "bezier",
+                  "target-arrow-shape": "triangle",
+                  "width": 3,
+                  "line-color": "#059669",
+                  "target-arrow-color": "#059669",
+                  "font-size": 10,
+                  "text-background-color": "#d1fae5",
+                  "text-background-opacity": 1,
+                  "text-background-padding": "3px",
+                  "color": "#059669",
+                  "line-style": "solid"
+                }
+              }
+            ],
+            layout: {
+              name: prefs?.graphLayout || "dagre",
+              rankDir: "TB",
+              nodeDimensionsIncludeLabels: true,
+              animate: false,
+              padding: 50,
+              spacingFactor: 1.5,
+              rankSep: 100,
+              nodeSep: 50,
+              edgeSep: 20,
+              ranker: "network-simplex"
+            }
+          });
+          
+          // Re-initialize event handlers
+          cyRef.current.on("tap", "node", (evt) => {
+            setSelectedEdge(null);
+            const nodeId = evt.target.data("id");
+            const nodeType = evt.target.data("type");
+            
+            if (nodeType === "transition") {
+              const transition = (inMemoryGraph.transitions || []).find(t => 
+                `transition_${t.id}` === nodeId || t.id === nodeId
+              );
+              if (transition) {
+                executeTransition(transition);
+                return;
+              }
+            }
+            
+            const nodeObj = (inMemoryGraph.nodes || []).find(n => n.node_id === nodeId || n.id === nodeId);
+            if (nodeObj) setSelectedNode(nodeObj);
+          });
+          
+          cyRef.current.on("tap", "edge", (evt) => {
+            setSelectedNode(null);
+            const edgeData = evt.target.data();
+            const sourceNode = (inMemoryGraph.nodes || []).find(n => n.node_id === edgeData.source || n.id === edgeData.source);
+            const targetNode = (inMemoryGraph.nodes || []).find(n => n.node_id === edgeData.target || n.id === edgeData.target);
+            setSelectedEdge({
+              edge: edgeData,
+              sourceNode,
+              targetNode
+            });
+          });
+          
+          console.log("✅ Cytoscape re-initialized with updated graph data");
+        } else {
+          setTimeout(checkAndInit, 100);
+        }
+      };
+      checkAndInit();
+      
+    } catch (error) {
+      console.error("❌ Failed to execute soft transition:", error);
+      
+      // Remove loading message
+      if (loadingMessage.parentNode) {
+        loadingMessage.remove();
+      }
+      
+      // Show error message
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'transition-error-message';
+      errorMessage.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ef4444;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+      `;
+      errorMessage.textContent = `Failed to simulate transition: ${error.message}`;
+      document.body.appendChild(errorMessage);
+      
+      // Remove error message after 5 seconds
+      setTimeout(() => {
+        if (errorMessage.parentNode) {
+          errorMessage.remove();
+        }
+      }, 5000);
+    }
+  };
+
+  // Reset simulation to original graph state
+  const resetSimulation = () => {
+    console.log("🔄 Resetting simulation to original state");
+    
+    // Reset to original graph data
+    setGraphData(graph);
+    setIsSimulationMode(false);
+    
+    // Force Cytoscape to re-render with original data
+    if (cyRef.current) {
+      cyRef.current.destroy();
+      cyRef.current = null;
+    }
+    
+    // Show reset message
+    const resetMessage = document.createElement('div');
+    resetMessage.className = 'reset-message';
+    resetMessage.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #6b7280;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      animation: slideIn 0.3s ease-out;
+    `;
+    resetMessage.textContent = "Simulation reset to original state";
+    document.body.appendChild(resetMessage);
+    
+    // Remove reset message after 3 seconds
+    setTimeout(() => {
+      if (resetMessage.parentNode) {
+        resetMessage.remove();
+      }
+    }, 3000);
+  };
+
   return (
     <>
+      <style>
+        {`
+          @keyframes slideIn {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `}
+      </style>
+      
+      {/* Simulation Mode Indicator */}
+      {isSimulationMode && (
+        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm font-medium flex justify-between items-center">
+          <span>🧪 Simulation Mode: Graph changes are in-memory only and will reset on page refresh</span>
+          <button 
+            onClick={resetSimulation}
+            className="ml-2 px-3 py-1 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600 transition-colors"
+          >
+            Reset Simulation
+          </button>
+        </div>
+      )}
+      
       <div ref={containerRef} className="w-full h-[600px] min-h-[400px]" />
       {selectedNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" onClick={() => setSelectedNode(null)}>
