@@ -38,6 +38,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/site
-          external_repository: nodebook/nodebook.github.io
+          external_repository: gnowledge/nodebook.github.io
           publish_branch: main
-          force_orphan: true 
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com' 

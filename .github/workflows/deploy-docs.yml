@@ -1,0 +1,46 @@
+name: Deploy Documentation to nodebook.github.io
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'docs/**', 'backend/**', '.github/workflows/deploy-docs.yml' ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocstrings[python] mkdocs-material
+
+      - name: Install spaCy model
+        run: |
+          python -m spacy download en_core_web_sm
+
+      - name: Build documentation
+        run: |
+          cd docs
+          mkdocs build
+
+      - name: Deploy to nodebook.github.io
+        run: |
+          cd docs/site
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy documentation from nodeBook repository"
+          git branch -M main
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/gnowledge/nodebook.github.io.git
+          git push -f origin main 
