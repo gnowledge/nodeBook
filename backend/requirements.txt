@@ -15,4 +15,5 @@ bleach
 markdown
 pytest
 ruamel.yaml
+httpx
 

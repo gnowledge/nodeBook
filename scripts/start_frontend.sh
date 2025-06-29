@@ -4,6 +4,9 @@
 
 echo "Starting NDF Studio Frontend..."
 
+# Change to the project root directory (parent of scripts)
+cd "$(dirname "$0")/.."
+
 # Check if we're in the correct directory
 if [[ ! -f "frontend/package.json" ]]; then
     echo "❌ Error: Not in the correct directory!"

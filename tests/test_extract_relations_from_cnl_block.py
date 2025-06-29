@@ -1,5 +1,5 @@
 import pytest
-from routes.parse_pipeline import (
+from backend.routes.parse_pipeline import (
     extract_node_name_as_is, extract_base_name, extract_qualifier, extract_quantifier, compose_node_id,
     extract_relations_from_cnl_block
 )
@@ -14,7 +14,13 @@ def test_extract_relations_from_cnl_block():
     """
     source_node = 'source_id'
     report = []
-    relations = extract_relations_from_cnl_block(cnl, source_node, report)
+    # Create a valid_relation_name_map for the test
+    valid_relation_name_map = {
+        'parent_of': 'parent_of',
+        'friend_of': 'friend_of', 
+        'related_to': 'related_to'
+    }
+    relations = extract_relations_from_cnl_block(cnl, source_node, report, valid_relation_name_map=valid_relation_name_map)
     assert len(relations) == 4
     assert relations[0]['relation_name'] == 'parent_of'
     assert relations[0]['source_node'] == source_node

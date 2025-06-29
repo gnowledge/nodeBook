@@ -52,23 +52,19 @@ fi
 run_backend_tests() {
     print_status "Running backend tests..."
     
-    cd backend
-    
     # Check if pytest is installed
     if ! python -c "import pytest" 2>/dev/null; then
         print_status "Installing pytest and dependencies..."
         pip install pytest pytest-cov pytest-asyncio httpx
     fi
     
-    # Run tests with coverage
-    if python -m pytest tests/ -v --cov=core --cov-report=term-missing; then
+    # Run tests from the root directory
+    if python -m pytest tests/ -v; then
         print_success "Backend tests passed!"
     else
         print_error "Backend tests failed!"
         return 1
     fi
-    
-    cd ..
 }
 
 # Function to run frontend tests

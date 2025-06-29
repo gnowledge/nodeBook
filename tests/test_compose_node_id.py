@@ -1,5 +1,5 @@
 import pytest
-from routes.parse_pipeline import extract_node_name_as_is, extract_base_name, extract_qualifier, extract_quantifier
+from backend.routes.parse_pipeline import extract_node_name_as_is, extract_base_name, extract_qualifier, extract_quantifier
 
 def compose_node_id(quantifier: str, qualifier: str, base_name: str) -> str:
     """Compose a node id as quantifier_qualifier_base_name, skipping empty parts and joining with underscores. base_name is mandatory."""

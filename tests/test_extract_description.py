@@ -1,5 +1,5 @@
 import pytest
-from routes.parse_pipeline import extract_description
+from backend.routes.parse_pipeline import extract_description
 
 def test_extract_description():
     # Description with CNL block at end
