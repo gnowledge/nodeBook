@@ -1,5 +1,5 @@
 import pytest
-from routes.parse_pipeline import extract_node_name_as_is, extract_base_name
+from backend.routes.parse_pipeline import extract_node_name_as_is, extract_base_name
 
 def extract_qualifier(node_name: str) -> str:
     """Extracts the qualifier (bold text) from a node name, if present."""

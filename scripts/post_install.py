@@ -11,6 +11,13 @@ You can add more post-installation steps to this script as needed.
 """
 import subprocess
 import sys
+import os
+from pathlib import Path
+
+# Add the parent directory to sys.path so we can import backend modules
+script_dir = Path(__file__).parent
+project_root = script_dir.parent
+sys.path.insert(0, str(project_root))
 
 # --- 1. Create admin user ---
 def create_admin_user():

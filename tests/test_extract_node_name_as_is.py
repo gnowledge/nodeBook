@@ -1,5 +1,5 @@
 import pytest
-from routes.parse_pipeline import extract_cnl_block
+from backend.routes.parse_pipeline import extract_cnl_block
 
 def extract_node_name_as_is(heading: str) -> str:
     """Extracts the node name as-is from a markdown heading (removes leading # and whitespace)."""

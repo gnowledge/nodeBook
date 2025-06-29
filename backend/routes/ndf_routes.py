@@ -11,9 +11,9 @@ from os.path import getmtime
 import shutil
 
 try:
-    from config import get_data_root
+    from backend.config import get_data_root
 except ImportError:
-    from config import get_data_root
+    from backend.config import get_data_root
 
 from backend.core.clean_cnl_payload import clean_cnl_payload
 from backend.core.path_utils import get_graph_path

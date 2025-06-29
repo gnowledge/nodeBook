@@ -7,9 +7,9 @@ from backend.core.utils import normalize_id, save_json_file, load_json_file
 from backend.core.cnl_parser import parse_node_title
 
 try:
-    from config import get_data_root
+    from backend.config import get_data_root
 except ImportError:
-    from config import get_data_root
+    from backend.config import get_data_root
 
 def get_registry_path(user_id: str) -> Path:
     return get_data_root() / "users" / user_id / "node_registry.json"

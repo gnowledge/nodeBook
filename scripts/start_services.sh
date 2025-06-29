@@ -4,8 +4,11 @@
 
 echo "🚀 Starting NDF Studio Services..."
 
+# Change to the project root directory (parent of scripts)
+cd "$(dirname "$0")/.."
+
 # Check if we're in the correct virtual environment
-if [[ "$VIRTUAL_ENV" != *"ndf-studio"* ]]; then
+if [[ "$VIRTUAL_ENV" != *"nodeBook"* ]]; then
     echo "❌ Error: Not running in the correct virtual environment!"
     echo "Please activate the virtual environment first:"
     echo "  source venv/bin/activate"
@@ -39,7 +42,7 @@ fi
 
 # Start backend in background
 echo "🚀 Starting backend server..."
-PYTHONPATH=/home/nagarjun/dev/ndf-studio/backend python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000 &
+PYTHONPATH="$(pwd)/backend" python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 
 # Wait a moment for backend to start
