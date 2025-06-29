@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://gnowledge.github.io/nodeBook/</loc>
+         <loc>https://gnowledge.github.io/nodebook.github.io/</loc>
          <lastmod>2025-06-29</lastmod>
     </url>
     <url>
-         <loc>https://gnowledge.github.io/nodeBook/api/core/models/</loc>
+         <loc>https://gnowledge.github.io/nodebook.github.io/api/core/models/</loc>
          <lastmod>2025-06-29</lastmod>
     </url>
     <url>
-         <loc>https://gnowledge.github.io/nodeBook/api/core/utils/</loc>
+         <loc>https://gnowledge.github.io/nodebook.github.io/api/core/utils/</loc>
          <lastmod>2025-06-29</lastmod>
     </url>
     <url>
-         <loc>https://gnowledge.github.io/nodeBook/api/routes/graph_ops/</loc>
+         <loc>https://gnowledge.github.io/nodebook.github.io/api/routes/graph_ops/</loc>
          <lastmod>2025-06-29</lastmod>
     </url>
     <url>
-         <loc>https://gnowledge.github.io/nodeBook/development/installation/</loc>
+         <loc>https://gnowledge.github.io/nodebook.github.io/development/installation/</loc>
          <lastmod>2025-06-29</lastmod>
     </url>
 </urlset>
