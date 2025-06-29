@@ -84,3 +84,6 @@ graph_data/*.db
 # OS-specific
 .DS_Store
 Thumbs.db
+
+# Temporary deployment directories
+temp_deploy/

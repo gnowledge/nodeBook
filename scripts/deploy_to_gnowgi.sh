@@ -14,8 +14,11 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 Deploying Documentation to gnowgi/nodebook.github.io${NC}"
 echo ""
 
+# Store the project root directory
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # Change to project root
-cd "$(dirname "$0")/.."
+cd "$PROJECT_ROOT"
 
 # Activate virtual environment
 source venv/bin/activate
@@ -28,14 +31,21 @@ mkdocs build
 echo -e "${GREEN}✅ Documentation built successfully!${NC}"
 echo ""
 
-# Deploy to gnowgi/nodebook.github.io
-echo -e "${YELLOW}Deploying to gnowgi/nodebook.github.io...${NC}"
-cd site
+# Create a temporary directory for deployment
+echo -e "${YELLOW}Setting up deployment...${NC}"
+cd ..
+TEMP_DIR=$(mktemp -d)
+echo "Using temporary directory: $TEMP_DIR"
 
-# Initialize git repository
-git init
-git config user.name "Documentation Deployer"
-git config user.email "deploy@nodebook.org"
+# Clone the target repository
+echo -e "${YELLOW}Cloning gnowgi/nodebook.github.io...${NC}"
+cd "$TEMP_DIR"
+git clone https://github.com/gnowgi/nodebook.github.io.git
+cd nodebook.github.io
+
+# Copy the built documentation
+echo -e "${YELLOW}Copying built documentation...${NC}"
+cp -r "$PROJECT_ROOT/docs/site/"* .
 
 # Add all files
 git add .
@@ -43,12 +53,13 @@ git add .
 # Commit changes
 git commit -m "Deploy documentation from nodeBook repository - $(date)"
 
-# Set up remote and push
-git branch -M main
-git remote add origin https://github.com/gnowgi/nodebook.github.io.git
-
+# Push to repository
 echo -e "${YELLOW}Pushing to gnowgi/nodebook.github.io...${NC}"
-git push -f origin main
+git push origin main
+
+# Clean up
+cd ../..
+rm -rf "$TEMP_DIR"
 
 echo -e "${GREEN}✅ Documentation deployed successfully!${NC}"
 echo ""
