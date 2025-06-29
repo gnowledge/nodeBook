@@ -6,7 +6,7 @@ on:
     paths: [ 'docs/**', 'backend/**', '.github/workflows/deploy-docs.yml' ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,13 +34,12 @@ jobs:
           mkdocs build
 
       - name: Deploy to nodebook.github.io
-        run: |
-          cd docs/site
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Deploy documentation from nodeBook repository"
-          git branch -M main
-          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/gnowledge/nodebook.github.io.git
-          git push -f origin main 
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/site
+          external_repository: gnowgi/nodebook.github.io
+          publish_branch: main
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com' 
