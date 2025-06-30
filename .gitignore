@@ -87,3 +87,9 @@ Thumbs.db
 
 # Temporary deployment directories
 temp_deploy/
+
+# not required in the nodeBook repo
+CNAME
+# Documentation site (generated)
+docs/site/
+docs/site/*
