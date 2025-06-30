@@ -1,6 +1,6 @@
-site_name: NDF Studio Backend Documentation
-site_description: Comprehensive documentation for the NDF Studio backend API and implementation
-site_author: NDF Studio Team
+site_name: NodeBook Backend Documentation
+site_description: Comprehensive documentation for the NodeBook backend API and implementation
+site_author: NodeBook Team
 site_url: https://nodebook.github.io/
 
 # Repository
@@ -144,4 +144,4 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 # Copyright
-copyright: Copyright &copy; 2024 NDF Studio Team
+copyright: Copyright &copy; 2025 NodeBook Team

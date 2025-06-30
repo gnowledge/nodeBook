@@ -1,10 +1,20 @@
-# NDF Studio Backend Documentation
+# Node Book Backend Documentation
 
-Welcome to the comprehensive documentation for the NDF Studio backend API and implementation.
+Welcome to the comprehensive documentation for the Node Book backend API and implementation. 
+
+The documentation is generated dynamically.  For direct access to the source code of the project, please visit https://github.com/gnowledge/nodeBook 
 
 ## 🚀 Quick Start
 
-NDF Studio is a Node-neighborhood Description Framework that provides a powerful backend API for managing graph-based knowledge representations.
+Node Book is designed based on a model of knowledge,
+**Node-neighborhood Description Framework (NDF)** that provides a
+comprehensive model for creating and managing graph-based knowledge
+representation of things, concepts, events, processes and functions in
+terms of describing relations between them, and their properties
+(attributes).
+
+The audience of this documentation is developers and curious
+visitors. The end-users documentation is yet to be created.
 
 ### Key Features
 
@@ -90,4 +100,4 @@ We welcome contributions! Please see our [Installation Guide](development/instal
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/gnowledge/nodeBook/blob/main/LICENSE) file for details.
+This project is licensed under  Affero GPL 3.0 [LICENSE](https://github.com/gnowledge/nodeBook/blob/main/LICENSE) file for details.
