@@ -60,8 +60,37 @@ nav:
     - Core Modules:
       - Models: api/core/models.md
       - Utils: api/core/utils.md
-    - Routes:
+      - Registry: api/core/registry.md
+    - Schema Operations:
+      - Schema Operations: api/core/schema_ops.md
+      - Schema Utilities: api/core/schema_utils.md
+      - Schema Management: api/routes/schema_routes.md
+    - Node Operations:
+      - Node Utils: api/core/node_utils.md
+      - Node Management: api/routes/nodes.md
+      - NDF Routes: api/routes/ndf_routes.md
+      - Parse Pipeline: api/routes/parse_pipeline.md
+    - NBH Operations:
       - Graph Operations: api/routes/graph_ops.md
+      - Graph Management: api/routes/graphs.md
+      - Graph Routes: api/routes/graph.md
+      - Graph Transitions: api/routes/transitions.md
+    - System Operations:
+      - Atomic Operations: api/core/atomic_ops.md
+      - Atomic Routes: api/routes/atomic_routes.md
+      - User Management: api/routes/users.md
+      - Functions: api/routes/functions.md
+      - Preferences: api/routes/preferences.md
+      - Logging: api/routes/logging.md
+    - Third Party Operations:
+      - User Registration/Authentication: api/external/auth.md
+      - NLP Support: api/external/nlp.md
+      - LLM Endpoints: api/external/llm.md
+      - Documentation: api/external/docs.md
+      - Cytoscape Integration: api/external/cytoscape.md
+      - Database Operations: api/external/database.md
+      - File System Operations: api/external/filesystem.md
+      - Network Operations: api/external/network.md
   - Development:
     - Installation: development/installation.md
 

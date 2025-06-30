@@ -17,3 +17,9 @@ pytest
 ruamel.yaml
 httpx
 
+# Documentation
+mkdocs
+mkdocs-material
+mkdocstrings
+mkdocstrings-python
+
