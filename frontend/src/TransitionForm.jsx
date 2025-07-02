@@ -64,8 +64,8 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
 
     try {
       const url = initialData 
-        ? `${API_BASE}/api/ndf/users/${userId}/transitions/${formData.id}`
-        : `${API_BASE}/api/ndf/users/${userId}/transitions/`;
+        ? `${API_BASE}/api/ndf/users/${userId}/transitions/${formData.id}?graph_id=${encodeURIComponent(graphId)}`
+        : `${API_BASE}/api/ndf/users/${userId}/transitions/?graph_id=${encodeURIComponent(graphId)}`;
       
       const method = initialData ? "PUT" : "POST";
       

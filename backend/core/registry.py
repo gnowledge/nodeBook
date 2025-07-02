@@ -206,6 +206,25 @@ def attribute_registry_path(user_id: str) -> Path:
     """
     return get_data_root() / "users" / user_id / "attribute_registry.json"
 
+def transition_registry_path(user_id: str) -> Path:
+    """
+    Get the path to a user's transition registry file.
+    
+    This function constructs the file path for a user's transition registry,
+    which stores metadata about all transitions created by that user.
+    
+    Args:
+        user_id (str): Unique identifier for the user
+        
+    Returns:
+        Path: Path object pointing to the transition registry file
+        
+    Example:
+        >>> transition_registry_path("user123")
+        PosixPath('/path/to/data/users/user123/transition_registry.json')
+    """
+    return get_data_root() / "users" / user_id / "transition_registry.json"
+
 def load_registry(path: Path) -> dict:
     """
     Load any registry from a given path.

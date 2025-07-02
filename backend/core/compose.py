@@ -7,13 +7,39 @@ from backend.core.utils import load_json_file, save_json_file
 from backend.core.node_ops import load_node
 from backend.core.registry import load_registry, relation_registry_path, attribute_registry_path
 
-def load_transitions(user_id: str) -> list:
-    """Load all transitions for a user."""
-    transitions_path = Path(f"graph_data/users/{user_id}/transition_registry.json")
-    if transitions_path.exists():
-        with open(transitions_path) as f:
-            return json.load(f)
-    return []
+def load_transitions(user_id: str, graph_id: Optional[str] = None) -> list:
+    """Load transitions for a user, optionally filtered by graph."""
+    from backend.core.registry import transition_registry_path, load_registry
+    
+    transitions_path = transition_registry_path(user_id)
+    if not transitions_path.exists():
+        return []
+    
+    registry = load_registry(transitions_path)
+    
+    # If registry is a list (old format), convert to new format
+    if isinstance(registry, list):
+        # Convert old list format to new dict format
+        new_registry = {}
+        for transition in registry:
+            transition_id = transition.get('id', 'unknown')
+            new_registry[transition_id] = {
+                **transition,
+                'graphs': [graph_id] if graph_id is not None else []
+            }
+        # Save the converted registry
+        from backend.core.registry import save_registry
+        save_registry(transitions_path, new_registry)
+        registry = new_registry
+    
+    # Filter by graph if specified
+    if graph_id:
+        return [
+            transition for transition in registry.values()
+            if graph_id in transition.get('graphs', [])
+        ]
+    else:
+        return list(registry.values())
 
 def compose_graph(user_id: str, graph_id: str, node_list: list, graph_description: Optional[str] = None, report: Optional[dict] = None) -> dict:
     """
@@ -45,8 +71,8 @@ def compose_graph(user_id: str, graph_id: str, node_list: list, graph_descriptio
     relations = list(load_registry(relation_registry_path(user_id)).values())
     attributes = list(load_registry(attribute_registry_path(user_id)).values())
     
-    # Load transitions
-    transitions = load_transitions(user_id)
+    # Load transitions for this specific graph
+    transitions = load_transitions(user_id, graph_id)
 
     # Embed relations into each node (legacy fallback)
     node_id_to_node = {n["node_id"]: n for n in nodes if "node_id" in n}

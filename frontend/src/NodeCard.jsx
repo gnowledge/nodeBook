@@ -445,6 +445,9 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   const [editingMorph, setEditingMorph] = useState(null);
   const [morphs, setMorphs] = useState([]);
   const [activeMorphId, setActiveMorphId] = useState(null);
+  // Title editing state
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -633,6 +636,50 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         setTimeout(() => setShowSuccess(false), 1200);
       } else {
         setStatus("error saving");
+      }
+    } catch (err) {
+      setStatus("error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Title editing handlers
+  const handleEditTitle = () => {
+    setEditTitle(freshNode?.name || "");
+    setEditingTitle(true);
+  };
+
+  const handleCancelEditTitle = () => {
+    setEditingTitle(false);
+    setEditTitle(freshNode?.name || "");
+  };
+
+  const handleSaveEditTitle = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      // Save the updated name to backend
+      const updatedNode = { ...freshNode, name: editTitle };
+      const res = await fetch(
+        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(updatedNode)
+        }
+      );
+      if (res.ok) {
+        setFreshNode(updatedNode);
+        setEditingTitle(false);
+        if (onGraphUpdate) onGraphUpdate();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 1200);
+      } else {
+        setStatus("error saving title");
       }
     } catch (err) {
       setStatus("error");
@@ -1310,18 +1357,53 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     <div id={"node-" + (freshNode?.node_id || freshNode?.id)} className="border border-gray-300 rounded-lg shadow-sm p-4 bg-white relative">
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h2 className="text-lg font-semibold text-blue-700">
-            <span dangerouslySetInnerHTML={{ __html: marked.parseInline(displayName) }} />
-            {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
-              const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
-              const isBasicMorph = morphs.indexOf(activeMorph) === 0;
-              return !isBasicMorph && activeMorph?.name;
-            })() && (
-              <span className="ml-2 text-xs text-purple-600 font-normal">
-                (morph)
-              </span>
-            )}
-          </h2>
+          {editingTitle ? (
+            <div className="mb-2">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-lg font-semibold text-blue-700"
+                placeholder="Enter node name"
+                autoFocus
+              />
+              <div className="flex gap-2 mt-1">
+                <button 
+                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs" 
+                  onClick={handleSaveEditTitle} 
+                  disabled={loading}
+                >
+                  Save
+                </button>
+                <button 
+                  className="bg-gray-300 px-2 py-1 rounded text-xs" 
+                  onClick={handleCancelEditTitle}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <h2 className="text-lg font-semibold text-blue-700">
+              <span dangerouslySetInnerHTML={{ __html: marked.parseInline(displayName) }} />
+              {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
+                const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
+                const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+                return !isBasicMorph && activeMorph?.name;
+              })() && (
+                <span className="ml-2 text-xs text-purple-600 font-normal">
+                  (morph)
+                </span>
+              )}
+              <button 
+                className="ml-2 text-blue-600 underline text-xs" 
+                onClick={handleEditTitle}
+                title="Edit title"
+              >
+                Edit
+              </button>
+            </h2>
+          )}
           
           {/* Show base node name as subtitle when non-basic morph is active */}
           {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
@@ -1432,22 +1514,21 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         </div>
       </div>
 
-      {/* Description section - only show if there's content or we're editing */}
-      {(hasDescription || editing) && (
-        <div className="mb-2">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold">Description:</span>
-            <button className="text-blue-600 underline text-xs" onClick={handleEdit}>Edit</button>
-            {hasDescription && (
-              <button
-                className="text-purple-600 underline text-xs"
-                onClick={() => setShowParseModal(true)}
-                disabled={nlpLoading}
-              >
-                Parse
-              </button>
-            )}
-          </div>
+      {/* Description section - always show */}
+      <div className="mb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-semibold">Description:</span>
+          <button className="text-blue-600 underline text-xs" onClick={handleEdit}>Edit</button>
+          {hasDescription && (
+            <button
+              className="text-purple-600 underline text-xs"
+              onClick={() => setShowParseModal(true)}
+              disabled={nlpLoading}
+            >
+              Parse
+            </button>
+          )}
+        </div>
           
           {editing ? (
             <div>
@@ -1471,9 +1552,8 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
             <div className="prose prose-sm bg-gray-50 p-2 rounded" dangerouslySetInnerHTML={{ __html: marked.parse(freshNode?.description || '') }} />
           )}
         </div>
-      )}
 
-      {/* Generate Summary button - only show if no description */}
+      {/* Generate Summary button - only show if no description and not editing */}
       {!hasDescription && !editing && (
         <div className="mb-2">
           <button
