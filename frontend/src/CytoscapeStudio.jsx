@@ -2,13 +2,11 @@ import NodeCard from "./NodeCard";
 import React, { useEffect, useRef, useState } from "react";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
-import compoundDragAndDrop from "cytoscape-compound-drag-and-drop";
 import { marked } from "marked";
 import { useUserInfo } from "./UserIdContext";
 import TransitionCard from "./TransitionCard";
 
 cytoscape.use(dagre);
-cytoscape.use(compoundDragAndDrop);
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -36,7 +34,6 @@ function ndfToCytoscapeGraph(ndfData) {
     const nodes = [];
     const edges = [];
     const value_node_ids = new Set();
-    const attribute_groups = new Map(); // Track attribute groups per source node
     
     // Process nodes (PolyNodes)
     for (const node of ndfData.nodes) {
@@ -62,9 +59,6 @@ function ndfToCytoscapeGraph(ndfData) {
           }
         }
       }
-      
-      // Initialize attribute group for this node
-      attribute_groups.set(node_id, []);
       
       nodes.push({
         data: {
@@ -116,37 +110,33 @@ function ndfToCytoscapeGraph(ndfData) {
                   value_label = `${attr.adverb} ${value_label}`;
                 }
                 
-                // Add to attribute group for the source node
-                const sourceGroup = attribute_groups.get(attr.source_id);
-                if (sourceGroup) {
-                  sourceGroup.push({
+                // Add attribute value node with rectangular styling
+                nodes.push({
+                  data: {
                     id: value_node_id,
                     label: value_label,
-                    attribute: attr
-                  });
-                }
+                    type: "attribute_value",
+                    attributeName: attr.name,
+                    attributeUnit: attr.unit,
+                    attributeAdverb: attr.adverb
+                  }
+                });
+                
+                // Add edge from source node to attribute value
+                edges.push({
+                  data: {
+                    id: attr.id,
+                    source: attr.source_id,
+                    target: value_node_id,
+                    label: `has ${attr.name}`,
+                    type: "attribute"
+                  }
+                });
                 
                 value_node_ids.add(value_node_id);
               }
             }
           }
-        }
-      }
-    }
-    
-    // Create compound nodes for nodes that have attributes
-    for (const [source_id, attributes] of attribute_groups.entries()) {
-      if (attributes.length > 0) {
-        // Create child nodes for each attribute
-        for (const attr of attributes) {
-          nodes.push({
-            data: {
-              id: attr.id,
-              label: attr.label,
-              type: "attribute_value",
-              parent: source_id // Make this a child of the source node
-            }
-          });
         }
       }
     }
@@ -447,40 +437,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   }
                 },
                 {
-                  selector: "node:parent",
-                  style: {
-                    label: function(ele) {
-                      const node = ele.data();
-                      if (node.currentMorph && node.morphs && node.morphs.length > 1) {
-                        const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
-                        if (activeMorph) {
-                          const morphIndex = node.morphs.indexOf(activeMorph);
-                          if (morphIndex === 0) {
-                            // Basic morph - show just the original name
-                            return node.originalName;
-                          } else {
-                            // Non-basic morph - show original name + morph name
-                            return `${node.originalName}\n[${activeMorph.name}]`;
-                          }
-                        }
-                      }
-                      return node.label || node.originalName;
-                    },
-                    "text-valign": "center",
-                    "text-halign": "center",
-                    "background-color": "#f8fafc", // very light gray for compound nodes
-                    "border-color": "#cbd5e1", // light gray border
-                    "border-width": 2,
-                    "border-style": "dashed",
-                    "padding": "20px",
-                    "shape": "rectangle",
-                    "font-size": 12,
-                    "color": "#374151",
-                    "text-wrap": "wrap",
-                    "text-max-width": "120px"
-                  }
-                },
-                {
                   selector: "edge",
                   style: {
                     label: "data(label)",
@@ -544,33 +500,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "color": "#059669", // emerald-600
                     "line-style": "solid"
                   }
-                },
-                {
-                  selector: "node[type = 'polynode']",
-                  style: {
-                    label: "data(label)",
-                    "text-valign": "center",
-                    "text-halign": "center",
-                    "background-color": "#f3f4f6", // light grey
-                    "color": "#2563eb", // blue-600
-                    "text-outline-width": 0,
-                    "font-size": 14,
-                    "width": "label",
-                    "height": "label",
-                    "padding": "10px",
-                    "border-width": 0.5,
-                    "border-color": "#2563eb", // blue-600
-                    "border-style": "solid",
-                    "shape": "roundrectangle"
-                  }
-                },
-                {
-                  selector: "node[type = 'polynode'][currentMorph]",
-                  style: {
-                    "border-width": 2,
-                    "border-color": "#059669", // emerald-600 for active morph
-                    "background-color": "#d1fae5" // light emerald background
-                  }
                 }
               ],
               layout: {
@@ -601,27 +530,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               prefs: prefs,
               graphLayout: prefs?.graphLayout,
               finalLayout: prefs?.graphLayout || "dagre"
-            });
-            
-            // Initialize compound drag and drop with proper options to avoid loops
-            cyRef.current.compoundDragAndDrop({
-              // Only allow dragging nodes that are not parents
-              draggable: function(node) {
-                return !node.isParent();
-              },
-              // Only allow dropping into nodes that are parents
-              droppable: function(node) {
-                return node.isParent();
-              },
-              // Prevent dropping a parent into its own child (avoid loops)
-              dropTarget: function(draggedNode, dropTarget) {
-                if (draggedNode.isParent()) {
-                  // Check if dropTarget is a descendant of draggedNode
-                  const descendants = draggedNode.descendants();
-                  return !descendants.includes(dropTarget);
-                }
-                return true;
-              }
             });
             
             console.log("✅ Cytoscape initialized successfully (with filtered edges)");
@@ -688,40 +596,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "shape": "roundrectangle", // Changed from diamond to roundrectangle for better dagre compatibility
                     "text-wrap": "wrap",
                     "text-max-width": "80px"
-                  }
-                },
-                {
-                  selector: "node:parent",
-                  style: {
-                    label: function(ele) {
-                      const node = ele.data();
-                      if (node.currentMorph && node.morphs && node.morphs.length > 1) {
-                        const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
-                        if (activeMorph) {
-                          const morphIndex = node.morphs.indexOf(activeMorph);
-                          if (morphIndex === 0) {
-                            // Basic morph - show just the original name
-                            return node.originalName;
-                          } else {
-                            // Non-basic morph - show original name + morph name
-                            return `${node.originalName}\n[${activeMorph.name}]`;
-                          }
-                        }
-                      }
-                      return node.label || node.originalName;
-                    },
-                    "text-valign": "center",
-                    "text-halign": "center",
-                    "background-color": "#f8fafc", // very light gray for compound nodes
-                    "border-color": "#cbd5e1", // light gray border
-                    "border-width": 2,
-                    "border-style": "dashed",
-                    "padding": "20px",
-                    "shape": "rectangle",
-                    "font-size": 12,
-                    "color": "#374151",
-                    "text-wrap": "wrap",
-                    "text-max-width": "120px"
                   }
                 },
                 {
@@ -818,27 +692,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               prefs: prefs,
               graphLayout: prefs?.graphLayout,
               finalLayout: prefs?.graphLayout || "dagre"
-            });
-            
-            // Initialize compound drag and drop with proper options to avoid loops
-            cyRef.current.compoundDragAndDrop({
-              // Only allow dragging nodes that are not parents
-              draggable: function(node) {
-                return !node.isParent();
-              },
-              // Only allow dropping into nodes that are parents
-              droppable: function(node) {
-                return node.isParent();
-              },
-              // Prevent dropping a parent into its own child (avoid loops)
-              dropTarget: function(draggedNode, dropTarget) {
-                if (draggedNode.isParent()) {
-                  // Check if dropTarget is a descendant of draggedNode
-                  const descendants = draggedNode.descendants();
-                  return !descendants.includes(dropTarget);
-                }
-                return true;
-              }
             });
             
             console.log("✅ Cytoscape initialized successfully");
@@ -1144,40 +997,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   "shape": "roundrectangle", // Changed from diamond to roundrectangle for better dagre compatibility
                   "text-wrap": "wrap",
                   "text-max-width": "80px"
-                }
-              },
-              {
-                selector: "node:parent",
-                style: {
-                  label: function(ele) {
-                    const node = ele.data();
-                    if (node.currentMorph && node.morphs && node.morphs.length > 1) {
-                      const activeMorph = node.morphs.find(m => m.morph_id === node.currentMorph);
-                      if (activeMorph) {
-                        const morphIndex = node.morphs.indexOf(activeMorph);
-                        if (morphIndex === 0) {
-                          // Basic morph - show just the original name
-                          return node.originalName;
-                        } else {
-                          // Non-basic morph - show original name + morph name
-                          return `${node.originalName}\n[${activeMorph.name}]`;
-                        }
-                      }
-                    }
-                    return node.label || node.originalName;
-                  },
-                  "text-valign": "center",
-                  "text-halign": "center",
-                  "background-color": "#f8fafc", // very light gray for compound nodes
-                  "border-color": "#cbd5e1", // light gray border
-                  "border-width": 2,
-                  "border-style": "dashed",
-                  "padding": "20px",
-                  "shape": "rectangle",
-                  "font-size": 12,
-                  "color": "#374151",
-                  "text-wrap": "wrap",
-                  "text-max-width": "120px"
                 }
               },
               {
