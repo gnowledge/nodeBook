@@ -280,6 +280,16 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   const [graphData, setGraphData] = useState(graph);
   const [isSimulationMode, setIsSimulationMode] = useState(false);
 
+  // Update graphData when graph prop changes (but preserve in-memory changes during simulation)
+  useEffect(() => {
+    if (!isSimulationMode) {
+      console.log("🔄 Updating graphData from graph prop");
+      setGraphData(graph);
+    } else {
+      console.log("🔄 Skipping graphData update - in simulation mode");
+    }
+  }, [graph, isSimulationMode]);
+
   // If graph is actually raw_markdown, try to extract parsed YAML if present
   const parsedGraph = graphData && graphData.nodes ? graphData : null;
   if (!parsedGraph) {
@@ -345,7 +355,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           mountedRef.current
         ) {
           console.log("✅ Container ready, transforming graph data...");
-          const { nodes, edges } = ndfToCytoscapeGraph(graph);
+          // Use graphData state if available, otherwise fall back to graph prop
+          const currentGraphData = graphData || graph;
+          const { nodes, edges } = ndfToCytoscapeGraph(currentGraphData);
           console.log("✅ Transformed nodes:", nodes);
           console.log("✅ Transformed edges:", edges);
           
@@ -770,7 +782,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
       const tooltips = document.querySelectorAll('.transition-tooltip');
       tooltips.forEach(tooltip => tooltip.remove());
     };
-  }, [graph, prefs]);
+  }, [graph, graphData, prefs]);
 
   // Helper to render markdown inline
   function renderMarkdownInline(md) {
@@ -810,17 +822,39 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
       const currentGraphData = graphData || graph;
       const inMemoryGraph = JSON.parse(JSON.stringify(currentGraphData));
       
-      // For each input-output pair, update the node's morph in memory
+      // For each input-output pair, determine the direction and update the node's morph in memory
       const updatedNodes = [];
-      for (const output of transition.outputs) {
+      for (let i = 0; i < transition.outputs.length; i++) {
+        const output = transition.outputs[i];
+        const input = transition.inputs[i]; // Corresponding input
         const nodeId = output.id;
-        const targetMorphId = output.nbh;
+        const outputMorphId = output.nbh;
+        const inputMorphId = input.nbh;
         
         // Find the node in the in-memory graph
         const node = (inMemoryGraph.nodes || []).find(n => (n.node_id || n.id) === nodeId);
         if (!node) {
           console.error(`Node ${nodeId} not found in graph`);
           continue;
+        }
+
+        // Determine the direction: if current morph matches input, go to output; otherwise go back to input
+        const currentMorphId = node.nbh;
+        let targetMorphId;
+        let direction;
+        
+        if (currentMorphId === inputMorphId) {
+          // Currently in input state, go to output
+          targetMorphId = outputMorphId;
+          direction = 'forward';
+        } else if (currentMorphId === outputMorphId) {
+          // Currently in output state, go back to input
+          targetMorphId = inputMorphId;
+          direction = 'backward';
+        } else {
+          // Current state doesn't match either input or output, default to output
+          targetMorphId = outputMorphId;
+          direction = 'forward (default)';
         }
 
         // Update the node's neighborhood (morph) in memory
@@ -833,7 +867,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           updatedNodes.push(updatedNode);
         }
 
-        console.log(`✅ Updated node ${nodeId} to morph ${targetMorphId} (in-memory)`);
+        console.log(`✅ Updated node ${nodeId} from ${currentMorphId} to ${targetMorphId} (${direction})`);
       }
       
       // Remove loading message
@@ -870,7 +904,11 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         return `• ${node.name || node.node_id}: basic`;
       }).join('\n');
       
-      successMessage.textContent = `Transition "${transition.name}" simulated!\n\nChanged nodes:\n${changedNodes}\n\n(In-memory only)`;
+      // Determine if this was a forward or backward transition
+      const isReversible = transition.inputs.length > 0 && transition.outputs.length > 0;
+      const transitionType = isReversible ? " (reversible)" : "";
+      
+      successMessage.textContent = `Transition "${transition.name}"${transitionType} simulated!\n\nChanged nodes:\n${changedNodes}\n\n(In-memory only)\n\nClick again to reverse!`;
       document.body.appendChild(successMessage);
       
       // Remove success message after 3 seconds
