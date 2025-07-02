@@ -220,6 +220,22 @@ function ndfToCytoscapeGraph(ndfData) {
             }
           });
         }
+        
+        // Add invisible edges to help with layout positioning
+        // Connect transition to its primary input node with a very short edge
+        if (transition.inputs && transition.inputs.length > 0) {
+          const primaryInput = transition.inputs[0];
+          edges.push({
+            data: {
+              id: `layout_${transition.id}_${primaryInput.id}`,
+              source: primaryInput.id,
+              target: transitionNodeId,
+              label: "",
+              type: "layout_helper",
+              invisible: true
+            }
+          });
+        }
       }
     }
     
@@ -512,18 +528,28 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "color": "#059669", // emerald-600
                     "line-style": "solid"
                   }
+                },
+                {
+                  selector: "edge[type = 'layout_helper']",
+                  style: {
+                    "curve-style": "bezier",
+                    "width": 0.5,
+                    "line-color": "transparent",
+                    "target-arrow-shape": "none",
+                    "opacity": 0.1
+                  }
                 }
               ],
               layout: {
                 name: prefs?.graphLayout || "dagre",
-                rankDir: "TB",
+                rankDir: "LR", // Left to right for better transition grouping
                 nodeDimensionsIncludeLabels: true,
                 animate: false,
                 padding: 50,
-                spacingFactor: 1.5,
-                rankSep: 100,
-                nodeSep: 50,
-                edgeSep: 20,
+                spacingFactor: 1.2, // Reduced spacing for tighter grouping
+                rankSep: 80, // Reduced rank separation
+                nodeSep: 40, // Reduced node separation
+                edgeSep: 15, // Reduced edge separation
                 ranker: "network-simplex",
                 // Force proper layout
                 fit: true,
@@ -674,18 +700,28 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                     "color": "#059669", // emerald-600
                     "line-style": "solid"
                   }
+                },
+                {
+                  selector: "edge[type = 'layout_helper']",
+                  style: {
+                    "curve-style": "bezier",
+                    "width": 0.5,
+                    "line-color": "transparent",
+                    "target-arrow-shape": "none",
+                    "opacity": 0.1
+                  }
                 }
               ],
               layout: {
                 name: prefs?.graphLayout || "dagre",
-                rankDir: "TB",
+                rankDir: "LR", // Left to right for better transition grouping
                 nodeDimensionsIncludeLabels: true,
                 animate: false,
                 padding: 50,
-                spacingFactor: 1.5,
-                rankSep: 100,
-                nodeSep: 50,
-                edgeSep: 20,
+                spacingFactor: 1.2, // Reduced spacing for tighter grouping
+                rankSep: 80, // Reduced rank separation
+                nodeSep: 40, // Reduced node separation
+                edgeSep: 15, // Reduced edge separation
                 ranker: "network-simplex",
                 // Force proper layout
                 fit: true,
@@ -1058,27 +1094,37 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                   "curve-style": "bezier",
                   "target-arrow-shape": "triangle",
                   "width": 3,
-                  "line-color": "#059669",
-                  "target-arrow-color": "#059669",
+                  "line-color": "#059669", // emerald-600
+                  "target-arrow-color": "#059669", // emerald-600
                   "font-size": 10,
                   "text-background-color": "#d1fae5",
                   "text-background-opacity": 1,
                   "text-background-padding": "3px",
-                  "color": "#059669",
+                  "color": "#059669", // emerald-600
                   "line-style": "solid"
+                }
+              },
+              {
+                selector: "edge[type = 'layout_helper']",
+                style: {
+                  "curve-style": "bezier",
+                  "width": 0.5,
+                  "line-color": "transparent",
+                  "target-arrow-shape": "none",
+                  "opacity": 0.1
                 }
               }
             ],
             layout: {
               name: prefs?.graphLayout || "dagre",
-              rankDir: "TB",
+              rankDir: "LR", // Left to right for better transition grouping
               nodeDimensionsIncludeLabels: true,
               animate: false,
               padding: 50,
-              spacingFactor: 1.5,
-              rankSep: 100,
-              nodeSep: 50,
-              edgeSep: 20,
+              spacingFactor: 1.2, // Reduced spacing for tighter grouping
+              rankSep: 80, // Reduced rank separation
+              nodeSep: 40, // Reduced node separation
+              edgeSep: 15, // Reduced edge separation
               ranker: "network-simplex",
               // Force proper layout
               fit: true,
