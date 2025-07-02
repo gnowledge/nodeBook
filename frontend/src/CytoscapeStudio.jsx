@@ -704,54 +704,13 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           
           // Add specific handling for transition nodes
           cyRef.current.on("mouseover", "node[type = 'transition']", (evt) => {
-            const nodeData = evt.target.data();
-            const transitionInfo = `Transition: ${nodeData.label}\nTense: ${nodeData.tense || 'present'}\nDescription: ${nodeData.description || 'No description'}\n\nClick to execute this transition!`;
-            console.log("Transition info:", transitionInfo);
-            
             // Change cursor to indicate clickability
             evt.target.style('cursor', 'pointer');
-            
-            // Create tooltip
-            const tooltip = document.createElement('div');
-            tooltip.className = 'transition-tooltip';
-            tooltip.style.cssText = `
-              position: absolute;
-              background: #1e40af;
-              color: white;
-              padding: 8px 12px;
-              border-radius: 6px;
-              font-size: 12px;
-              white-space: pre-line;
-              z-index: 1000;
-              pointer-events: none;
-              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            `;
-            tooltip.textContent = transitionInfo;
-            document.body.appendChild(tooltip);
-            
-            // Position tooltip
-            const updateTooltipPosition = () => {
-              const rect = evt.target.renderedBoundingBox();
-              const containerRect = containerRef.current.getBoundingClientRect();
-              tooltip.style.left = (containerRect.left + rect.x1 + rect.w1/2) + 'px';
-              tooltip.style.top = (containerRect.top + rect.y1 - 10) + 'px';
-              tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
-            };
-            updateTooltipPosition();
-            
-            // Store tooltip reference for removal
-            evt.target.data('tooltip', tooltip);
           });
           
           cyRef.current.on("mouseout", "node[type = 'transition']", (evt) => {
             // Reset cursor
             evt.target.style('cursor', 'default');
-            
-            const tooltip = evt.target.data('tooltip');
-            if (tooltip) {
-              tooltip.remove();
-              evt.target.removeData('tooltip');
-            }
           });
           
           cyRef.current.on("tap", "node", (evt) => {
@@ -807,6 +766,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
         cyRef.current.destroy();
         cyRef.current = null;
       }
+      // Clean up any remaining tooltips
+      const tooltips = document.querySelectorAll('.transition-tooltip');
+      tooltips.forEach(tooltip => tooltip.remove());
     };
   }, [graph, prefs]);
 
@@ -818,6 +780,10 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   // Execute a soft transition by changing input node morphs to output morphs (in-memory only)
   const executeTransition = async (transition) => {
     console.log("🔄 Executing soft transition:", transition);
+    
+    // Clean up any existing tooltips
+    const tooltips = document.querySelectorAll('.transition-tooltip');
+    tooltips.forEach(tooltip => tooltip.remove());
     
     // Show loading message
     const loadingMessage = document.createElement('div');
