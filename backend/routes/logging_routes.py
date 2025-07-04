@@ -62,11 +62,24 @@ def get_recent_logs(
 
 @router.get("/categories")
 def get_log_categories():
-    """Get all available log categories"""
+    """Get all available log categories with user-friendly names"""
+    # User-friendly display names
+    display_names = {
+        "AUDIT": "User Actions",
+        "OPERATION": "System Operations", 
+        "DEBUG": "Debug Info",
+        "ERROR": "Errors",
+        "SECURITY": "Security",
+        "PERFORMANCE": "Performance",
+        "ATOMIC": "System Actions",
+        "SYSTEM": "System Events"
+    }
+    
     return {
         "categories": [
             {
                 "name": category.value,
+                "display_name": display_names.get(category.value, category.value),
                 "description": category.name,
                 "color": _get_category_color(category)
             }

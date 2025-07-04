@@ -47,6 +47,7 @@ export default function DevPanel({ userId, graphId, graph, onGraphUpdate, prefs,
               userId={userId}
               maxHeight="600px"
               refreshInterval={3000}
+              isAdmin={userInfo?.is_superuser || false}
             />
           </div>
         )}

@@ -6,7 +6,8 @@ const LogViewer = ({
   showUserSpecific = false, 
   userId = null, 
   maxHeight = "400px",
-  refreshInterval = 5000 
+  refreshInterval = 5000,
+  isAdmin = false  // New prop to determine if user is admin
 }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,18 @@ const LogViewer = ({
     SYSTEM: '#6b7280'
   };
 
+  // User-friendly category names
+  const userFriendlyCategories = {
+    'AUDIT': 'User Actions',
+    'OPERATION': 'System Operations', 
+    'DEBUG': 'Debug Info',
+    'ERROR': 'Errors',
+    'SECURITY': 'Security',
+    'PERFORMANCE': 'Performance',
+    'ATOMIC': 'System Actions',
+    'SYSTEM': 'System Events'
+  };
+
   const fetchLogs = async () => {
     try {
       setLoading(true);
@@ -41,7 +54,8 @@ const LogViewer = ({
         params.append('category', selectedCategory);
       }
       
-      if (showUserSpecific && userId) {
+      // For regular users, only show their own logs
+      if (!isAdmin && showUserSpecific && userId) {
         params.append('user_id', userId);
       }
       
@@ -51,7 +65,38 @@ const LogViewer = ({
       }
       
       const data = await response.json();
-      setLogs(data.logs || []);
+      let filteredLogs = data.logs || [];
+      
+      // For regular users, filter out technical operations and only show CUD actions
+      if (!isAdmin) {
+        filteredLogs = filteredLogs.filter(log => {
+          // Only show AUDIT logs for regular users (user actions)
+          if (log.category !== 'AUDIT') {
+            return false;
+          }
+          
+          // Filter out technical operations
+          const message = log.message?.toLowerCase() || '';
+          const excludeTerms = [
+            'api request',
+            'get_',
+            'fetch',
+            'load',
+            'read',
+            'retrieve',
+            'download',
+            'export',
+            'import',
+            'health',
+            'status',
+            'ping'
+          ];
+          
+          return !excludeTerms.some(term => message.includes(term));
+        });
+      }
+      
+      setLogs(filteredLogs);
       
     } catch (err) {
       setError(err.message);
@@ -104,7 +149,7 @@ const LogViewer = ({
         hours: '24'
       });
       
-      if (showUserSpecific && userId) {
+      if (!isAdmin && showUserSpecific && userId) {
         params.append('user_id', userId);
       }
       
@@ -136,7 +181,7 @@ const LogViewer = ({
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedCategory, showUserSpecific, userId]);
+  }, [selectedCategory, showUserSpecific, userId, isAdmin]);
 
   useEffect(() => {
     let interval;
@@ -173,11 +218,32 @@ const LogViewer = ({
     }
   };
 
+  const getUserFriendlyMessage = (log) => {
+    // For admin users, show technical details
+    if (isAdmin) {
+      return log.message;
+    }
+    
+    // For regular users, show simplified messages
+    const message = log.message || '';
+    
+    // Remove technical prefixes and simplify
+    let friendlyMessage = message
+      .replace(/^API request: /, '')
+      .replace(/^User activity detected during /, '')
+      .replace(/^Failed to /, 'Error: ')
+      .replace(/^Successfully /, '');
+    
+    return friendlyMessage;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6 space-y-4 w-full">
       <div className="pb-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-semibold">
+            {isAdmin ? title : "Your Activity"}
+          </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
@@ -196,12 +262,14 @@ const LogViewer = ({
             >
               {loading ? '...' : 'Refresh'}
             </button>
-            <button
-              onClick={clearLogs}
-              className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
-            >
-              Clear
-            </button>
+            {isAdmin && (
+              <button
+                onClick={clearLogs}
+                className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
+              >
+                Clear
+              </button>
+            )}
             <button
               onClick={exportLogs}
               className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded hover:bg-purple-200"
@@ -211,34 +279,42 @@ const LogViewer = ({
           </div>
         </div>
         
-        {/* Category Filter */}
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-sm text-gray-600">Filter:</span>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="text-xs border rounded px-2 py-1"
-          >
-            <option value="ALL">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat.name} value={cat.name}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Category Filter - only show for admin users */}
+        {isAdmin && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-sm text-gray-600">Filter:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="text-xs border rounded px-2 py-1"
+            >
+              <option value="ALL">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.display_name || cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {/* Stats */}
+        {/* Stats - simplified for regular users */}
         {stats && (
           <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
-            <span>Total: {stats.total_logs}</span>
-            <span>Last Hour: {stats.recent_activity?.last_hour || 0}</span>
-            <span>Last 24h: {stats.recent_activity?.last_24_hours || 0}</span>
-            {stats.by_category && Object.entries(stats.by_category).map(([cat, count]) => (
-              <span key={cat} style={{ color: categoryColors[cat] }}>
-                {cat}: {count}
-              </span>
-            ))}
+            {isAdmin ? (
+              <>
+                <span>Total: {stats.total_logs}</span>
+                <span>Last Hour: {stats.recent_activity?.last_hour || 0}</span>
+                <span>Last 24h: {stats.recent_activity?.last_24_hours || 0}</span>
+                {stats.by_category && Object.entries(stats.by_category).map(([cat, count]) => (
+                  <span key={cat} style={{ color: categoryColors[cat] }}>
+                    {userFriendlyCategories[cat] || cat}: {count}
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span>Recent activity: {stats.recent_activity?.last_24_hours || 0} actions in the last 24 hours</span>
+            )}
           </div>
         )}
       </div>
@@ -256,7 +332,7 @@ const LogViewer = ({
         >
           {logs.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
-              {loading ? 'Loading logs...' : 'No logs available'}
+              {loading ? 'Loading logs...' : (isAdmin ? 'No logs available' : 'No recent activity')}
             </div>
           ) : (
             <div className="p-2">
@@ -273,30 +349,32 @@ const LogViewer = ({
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span 
-                          className="px-2 py-1 rounded text-xs font-semibold text-white"
-                          style={{ backgroundColor: categoryColors[log.category] || '#6b7280' }}
-                        >
-                          {log.category}
-                        </span>
+                        {isAdmin && (
+                          <span 
+                            className="px-2 py-1 rounded text-xs font-semibold text-white"
+                            style={{ backgroundColor: categoryColors[log.category] || '#6b7280' }}
+                          >
+                            {log.category}
+                          </span>
+                        )}
                         <span className="text-gray-600">
                           {formatTimestamp(log.timestamp)}
                         </span>
-                        {log.user_id && (
+                        {isAdmin && log.user_id && (
                           <span className="text-blue-600 font-medium">
                             User: {log.user_id}
                           </span>
                         )}
-                        {log.operation && (
+                        {isAdmin && log.operation && (
                           <span className="text-green-600">
                             Op: {log.operation}
                           </span>
                         )}
                       </div>
                       <div className="text-gray-800 mb-1">
-                        {log.message}
+                        {getUserFriendlyMessage(log)}
                       </div>
-                      {log.error && (
+                      {isAdmin && log.error && (
                         <div className="text-red-700 bg-red-100 p-2 rounded text-xs">
                           <div><strong>Error:</strong> {log.error.error_type}</div>
                           <div>{log.error.error_message}</div>
@@ -308,12 +386,12 @@ const LogViewer = ({
                           )}
                         </div>
                       )}
-                      {log.duration && (
+                      {isAdmin && log.duration && (
                         <div className="text-blue-600 text-xs">
                           Duration: {log.duration.toFixed(3)}s
                         </div>
                       )}
-                      {log.transaction_id && (
+                      {isAdmin && log.transaction_id && (
                         <div className="text-purple-600 text-xs">
                           TX: {log.transaction_id}
                         </div>

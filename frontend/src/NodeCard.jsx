@@ -61,15 +61,7 @@ function MorphItemManager({
     fetchAvailableMorphs();
   }, [nodeId]);
 
-  useEffect(() => {
-    // Debug: log availableMorphs and items for both item types
-    if (itemType === 'relations' || itemType === 'attributes') {
-      console.log(`[MorphItemManager] itemType: ${itemType}`);
-      console.log('  availableMorphs:', availableMorphs);
-      console.log('  items:', items);
-      console.log('  morphId:', morphId);
-    }
-  }, [availableMorphs, items, itemType, morphId]);
+
 
   const fetchMorphItems = async () => {
     try {
@@ -83,24 +75,19 @@ function MorphItemManager({
       
       const endpoint = `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
       
-      console.log(`[fetchMorphItems] Fetching ${itemType} from:`, endpoint);
-      console.log(`[fetchMorphItems] morphId:`, morphId);
+
       
       const response = await authenticatedFetch(endpoint);
       if (!response.ok) throw new Error(`Failed to fetch ${itemType}`);
       
       const data = await safeJsonParse(response);
-      console.log(`[fetchMorphItems] Response data:`, data);
       
       const morphData = data.morphs[morphId];
-      console.log(`[fetchMorphItems] Morph data for ${morphId}:`, morphData);
       
       if (morphData && morphData[itemType]) {
         setItems(morphData[itemType]);
-        console.log(`[fetchMorphItems] Set ${itemType}:`, morphData[itemType]);
       } else {
         setItems([]);
-        console.log(`[fetchMorphItems] No ${itemType} found for morph ${morphId}`);
       }
     } catch (error) {
       console.error(`Error fetching ${itemType}:`, error);
@@ -122,26 +109,13 @@ function MorphItemManager({
       if (!response.ok) throw new Error('Failed to fetch graph data');
       
       const data = await safeJsonParse(response);
-      console.log('[fetchAvailableMorphs] Debug info:');
-      console.log('  nodeId:', nodeId);
-      console.log('  morphId:', morphId);
-      console.log('  itemType:', itemType);
-      console.log('  data.nodes:', data.nodes);
       
       // Try to find the node by both node_id and id
       const node = data.nodes?.find(n => n.node_id === nodeId || n.id === nodeId);
-      console.log('  found node:', node);
-      
-      if (!node) {
-        console.warn('  Node not found! Available nodes:', data.nodes?.map(n => ({ id: n.id, node_id: n.node_id, name: n.name })));
-      }
       
       const morphs = node?.morphs || [];
-      console.log('  all morphs:', morphs);
       
       const filteredMorphs = morphs.filter(m => m.morph_id !== morphId);
-      console.log('  filtered morphs (availableMorphs):', filteredMorphs);
-      console.log('  current morphId being filtered out:', morphId);
       
       setAvailableMorphs(filteredMorphs);
     } catch (error) {
@@ -549,16 +523,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     }
   }, [freshNode]);
 
-  // Debug logging for morph selection
-  useEffect(() => {
-    console.log('[NodeCard] Morph state:', {
-      nodeId: freshNode?.node_id || freshNode?.id,
-      isPolymorphic,
-      morphs: morphs.map(m => ({ id: m.morph_id, name: m.name })),
-      activeMorphId,
-      freshNodeNbh: freshNode?.nbh
-    });
-  }, [freshNode, isPolymorphic, morphs, activeMorphId]);
+
 
   // Persist NLP result per node in sessionStorage
   const nodeKey = `nlpResult-${freshNode?.node_id || freshNode?.id}`;
@@ -1409,33 +1374,17 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   };
 
   const handleMorphSwitch = async (morphId) => {
-    console.log('[handleMorphSwitch] Called with:', {
-      morphId,
-      currentActiveMorphId: activeMorphId,
-      freshNodeNbh: freshNode?.nbh
-    });
-    
     if (morphId === activeMorphId) {
-      console.log('[handleMorphSwitch] Same morph, skipping');
       return;
     }
     
     // In-memory morph switch - no database persistence
-    console.log('[handleMorphSwitch] Switching morph in-memory only');
-    
-    // Update the node's nbh in memory
     const updatedNode = { ...freshNode, nbh: morphId };
     setFreshNode(updatedNode);
     setActiveMorphId(morphId);
     
-    console.log('[handleMorphSwitch] Updated state:', {
-      newNbh: morphId,
-      updatedNode: updatedNode
-    });
-    
     // Notify parent component about the in-memory morph change
     if (onInMemoryMorphChange) {
-      console.log('[handleMorphSwitch] Notifying parent of morph change');
       onInMemoryMorphChange(freshNode.node_id || freshNode.id, morphId);
     }
   };

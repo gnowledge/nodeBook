@@ -555,6 +555,7 @@ const NDFStudioLayout = () => {
             showUserSpecific={false}
             maxHeight="700px"
             refreshInterval={5000}
+            isAdmin={userInfo?.is_superuser || false}
           />
         </div>
       );
