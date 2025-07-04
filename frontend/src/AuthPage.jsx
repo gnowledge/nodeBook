@@ -37,7 +37,13 @@ export default function AuthPage({ onAuth }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-      {/* Removed old userbar here, only welcome and login/register UI remain */}
+      {/* Logo at the top, centered */}
+      <img
+        src="/logo.png"
+        alt="NodeBook Logo"
+        style={{ width: 120, height: 120 }}
+        className="mb-6"
+      />
       <div className="mb-6 text-center">
         <h1 className="text-3xl font-bold mb-2">Welcome to Node Book</h1>
         <p className="text-gray-700 max-w-md mx-auto">
@@ -64,6 +70,17 @@ export default function AuthPage({ onAuth }) {
         {tab === 'login' && <Login onLogin={(user) => { setUser(user); if (onAuth) onAuth(); }} />}
         {tab === 'register' && adminMode && <Register onRegister={() => setTab('login')} />}
       </div>
+      {/* Footer */}
+      <footer className="w-full text-center text-xs text-gray-500 py-2 mt-8 fixed bottom-0 left-0 bg-transparent">
+        <a
+          href="https://github.com/gnowledge/nodeBook"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          a free and open source software
+        </a>
+      </footer>
     </div>
   );
 }

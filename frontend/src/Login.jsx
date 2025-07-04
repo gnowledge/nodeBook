@@ -38,7 +38,7 @@ export default function Login({ onLogin, onAuth }) {
 
   return (
     <div className="max-w-sm mx-auto mt-10 p-4 bg-white border shadow rounded">
-      <h2 className="text-xl font-bold mb-4 text-center">Login to NDF-Studio</h2>
+      <h2 className="text-xl font-bold mb-4 text-center">Login to Node Book</h2>
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
         <input

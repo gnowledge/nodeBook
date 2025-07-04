@@ -11,8 +11,16 @@ export default function UserBar() {
 
   return (
     <header className="flex items-center justify-between px-4 py-2 bg-blue-900 text-white shadow">
-      <div className="text-2xl font-bold tracking-wide">
-        <Link to="/" className="hover:underline">Node Book</Link>
+      <div className="flex items-center">
+        <img
+          src="/logo.png"
+          alt="NodeBook Logo"
+          style={{ width: 60, height: 60 }}
+          className="mr-3"
+        />
+        <div className="text-2xl font-bold tracking-wide">
+          <Link to="/" className="hover:underline">Node Book</Link>
+        </div>
       </div>
       <div>
         {userId ? (
