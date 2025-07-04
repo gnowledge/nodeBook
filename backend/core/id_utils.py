@@ -24,7 +24,7 @@ def normalize_id(label: str) -> str:
     This function converts a human-readable label into a safe identifier
     that can be used for file names and database keys by:
     - Trimming whitespace
-    - Converting to lowercase
+    - Preserving case (to avoid conflicts between 'Water' and 'water')
     - Replacing spaces with underscores
     
     Args:
@@ -35,11 +35,13 @@ def normalize_id(label: str) -> str:
         
     Example:
         >>> normalize_id("My Node Name")
-        'my_node_name'
-        >>> normalize_id("  Special@Node!  ")
-        'special@node!'
+        'My_Node_Name'
+        >>> normalize_id("  Water  ")
+        'Water'
+        >>> normalize_id("  water  ")
+        'water'
     """
-    return label.strip().lower().replace(" ", "_")
+    return label.strip().replace(" ", "_")
 
 
 def normalize_uuid(uuid_str: Optional[str]) -> Optional[str]:

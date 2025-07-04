@@ -24,7 +24,24 @@ export default function WorkspaceStatistics() {
             const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
             if (!res.ok) throw new Error();
             const graph = await res.json();
-            const stats = computeStats(graph);
+            
+            // Fetch cross-graph reuse data
+            let crossGraphReuseCount = 0;
+            try {
+              const reuseRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cross_graph_reuse`, {
+                headers: {
+                  "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+              });
+              if (reuseRes.ok) {
+                const reuseData = await reuseRes.json();
+                crossGraphReuseCount = reuseData.cross_graph_reuse_count || 0;
+              }
+            } catch (error) {
+              console.error(`Failed to fetch cross-graph reuse for ${graphId}:`, error);
+            }
+            
+            const stats = computeStats(graph, crossGraphReuseCount);
             statsArr.push({ graphId, stats });
           } catch {
             statsArr.push({ graphId, stats: null });
@@ -66,6 +83,7 @@ export default function WorkspaceStatistics() {
                 <th className="px-2 py-1 border">Nodes</th>
                 <th className="px-2 py-1 border">Relations</th>
                 <th className="px-2 py-1 border">Attributes</th>
+                <th className="px-2 py-1 border">Reuse</th>
                 <th className="px-2 py-1 border">Score</th>
               </tr>
             </thead>
@@ -76,6 +94,7 @@ export default function WorkspaceStatistics() {
                   <td className="border px-2">{stats?.nodeCount ?? "-"}</td>
                   <td className="border px-2">{stats?.relationCount ?? "-"}</td>
                   <td className="border px-2">{stats?.attributeCount ?? "-"}</td>
+                  <td className="border px-2">{stats?.crossGraphReuseCount ?? "-"}</td>
                   <td className="border px-2 font-bold">{stats?.total ?? "-"}</td>
                 </tr>
               ))}
@@ -84,6 +103,7 @@ export default function WorkspaceStatistics() {
                 <td className="border px-2">{total.nodeCount ?? 0}</td>
                 <td className="border px-2">{total.relationCount ?? 0}</td>
                 <td className="border px-2">{total.attributeCount ?? 0}</td>
+                <td className="border px-2">{total.crossGraphReuseCount ?? 0}</td>
                 <td className="border px-2">{total.total ?? 0}</td>
               </tr>
             </tbody>

@@ -139,10 +139,44 @@ async def create_polynode(
                 # Set nbh to basic morph
                 node.nbh = basic_morph.morph_id
             
-            # Check if node already exists
+            # Check if node already exists in this graph
             node_path = Path(f"graph_data/users/{user_id}/nodes/{node.id}.json")
-            if node_path.exists():
-                return {"status": "PolyNode already exists", "id": node.id}
+            reg_path = f"graph_data/users/{user_id}/node_registry.json"
+            registry = load_registry(Path(reg_path))
+            
+            # If node exists but is not in this graph, add it to this graph
+            if node_path.exists() and node.id in registry:
+                if graph_id not in registry[node.id]["graphs"]:
+                    # Add existing node to this graph
+                    registry[node.id]["graphs"].append(graph_id)
+                    registry[node.id]["updated_at"] = time.time()
+                    
+                    # Atomically save updated registry
+                    atomic_registry_save(user_id, "node", registry)
+                    
+                    # Regenerate composed files atomically
+                    node_registry = load_node_registry(user_id)
+                    node_ids = [nid for nid, entry in node_registry.items() if graph_id in (entry.get('graphs') or [])]
+                    
+                    # Compose graph and save atomically
+                    composed_data = compose_graph(user_id, graph_id, node_ids)
+                    if composed_data:
+                        atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
+                        atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
+                        atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
+                    
+                    return {
+                        "status": "Existing PolyNode added to graph", 
+                        "id": node.id, 
+                        "reused": True,
+                        "crossGraphReuse": True,
+                        "originalGraphs": registry[node.id]["graphs"]
+                    }
+                else:
+                    return {"status": "PolyNode already exists in this graph", "id": node.id}
+            elif node_path.exists():
+                # Node file exists but not in registry - this shouldn't happen, but handle gracefully
+                return {"status": "PolyNode file exists but not in registry", "id": node.id}
             
             # Atomically save node file
             atomic_node_save(user_id, node.id, node.dict())
@@ -620,3 +654,26 @@ def list_polynodes(user_id: str):
     reg_path = f"graph_data/users/{user_id}/node_registry.json"
     registry = load_registry(Path(reg_path))
     return [n for n in registry if n.get("role", "") == "class"]
+
+@router.get("/users/{user_id}/graphs/{graph_id}/cross_graph_reuse")
+def get_cross_graph_reuse_stats(user_id: str, graph_id: str):
+    """Get statistics about cross-graph node reuse for a specific graph."""
+    registry = load_node_registry(user_id)
+    reuse_count = 0
+    reused_nodes = []
+    
+    for node_id, entry in registry.items():
+        graphs = entry.get("graphs", [])
+        if graph_id in graphs and len(graphs) > 1:
+            # This node is used in multiple graphs, including the current one
+            reuse_count += 1
+            reused_nodes.append({
+                "id": node_id,
+                "name": entry.get("name", node_id),
+                "graphs": graphs
+            })
+    
+    return {
+        "cross_graph_reuse_count": reuse_count,
+        "reused_nodes": reused_nodes
+    }

@@ -11,9 +11,10 @@ export const RUBRIC = {
   quantified: 5,
   modality: 5,
   logicalConnective: 10,
+  crossGraphReuse: 15, // Bonus for reusing nodes across graphs (parsimony)
 };
 
-export function computeStats(graph) {
+export function computeStats(graph, crossGraphReuseCount = 0) {
   if (!graph || !graph.nodes) return null;
   let nodeCount = 0;
   let relationCount = 0;
@@ -57,7 +58,8 @@ export function computeStats(graph) {
     attributeWithQualifier * RUBRIC.attributeWithQualifier +
     quantified * RUBRIC.quantified +
     modality * RUBRIC.modality +
-    logicalConnective * RUBRIC.logicalConnective;
+    logicalConnective * RUBRIC.logicalConnective +
+    crossGraphReuseCount * RUBRIC.crossGraphReuse;
 
   return {
     nodeCount,
@@ -69,6 +71,7 @@ export function computeStats(graph) {
     quantified,
     modality,
     logicalConnective,
+    crossGraphReuseCount,
     total,
   };
 }

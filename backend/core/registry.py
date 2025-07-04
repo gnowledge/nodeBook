@@ -26,6 +26,7 @@ import json
 import hashlib
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 from backend.core.utils import normalize_id, save_json_file, load_json_file
 from backend.core.cnl_parser import parse_node_title
 
@@ -129,7 +130,7 @@ def update_node_registry(registry: dict, node_id: str, graph_id: str):
         registry[node_id]["updated_at"] = now
 
 
-def create_node_if_missing(user_id: str, node_id: str, name: str = None):
+def create_node_if_missing(user_id: str, node_id: str, name: Optional[str] = None):
     """
     Create a node file if it doesn't exist.
     
@@ -325,13 +326,14 @@ def make_attribute_id(node_id: str, name: str, value: str = "", unit: str = "", 
     # Return a human-readable prefix with the hash for uniqueness
     return f"{node_id}::{name}::{hash_value}"
 
-def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "", base_name: str = "") -> str:
+def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "", base_name: Optional[str] = "") -> str:
     """
     Create a unique polynode identifier.
     
     This function creates a unique identifier for a polynode by combining
     quantifier, adverb, morph name, and base name. If the morph name is "basic",
     it's excluded from the ID. Empty components are filtered out.
+    The base_name is normalized to lowercase to ensure consistent IDs.
     
     Args:
         quantifier (str, optional): Quantifier (e.g., "some", "all"). Defaults to "".
@@ -347,11 +349,17 @@ def make_polynode_id(quantifier: str = "", adverb: str = "", morph_name: str = "
         'some_very_ionized_oxygen'
         >>> make_polynode_id("", "", "basic", "atom")
         'atom'
+        >>> make_polynode_id("", "", "", "Water")
+        'water'
     """
     # If morph_name is "basic", don't include it in the ID calculation
     if morph_name == "basic":
         morph_name = ""
-    parts = [quantifier, adverb, morph_name, base_name]
+    
+    # Normalize base_name to lowercase to ensure consistent IDs
+    normalized_base_name = base_name.lower() if base_name and base_name != "" else ""
+    
+    parts = [quantifier, adverb, morph_name, normalized_base_name]
     return '_'.join([p for p in parts if p])
 
 def make_morph_id(name: str, node_id: str) -> str:

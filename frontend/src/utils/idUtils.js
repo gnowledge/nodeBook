@@ -7,12 +7,11 @@ export const normalizeToId = (name) => {
   }
   
   return name
-    .toLowerCase()
     .trim()
     // Replace spaces and common separators with underscores
     .replace(/[\s\-_]+/g, '_')
-    // Remove special characters except underscores
-    .replace(/[^a-z0-9_]/g, '')
+    // Remove special characters except underscores and alphanumeric
+    .replace(/[^a-zA-Z0-9_]/g, '')
     // Remove leading/trailing underscores
     .replace(/^_+|_+$/g, '')
     // Ensure it's not empty

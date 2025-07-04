@@ -85,11 +85,21 @@ export default function NodeForm({ onSuccess, initialData, difficulty: propDiffi
           body: JSON.stringify(payload)
         });
       }
+      const response = await res.json();
+      
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert('Failed to save node: ' + (err.detail || res.statusText));
+        alert('Failed to save node: ' + (response.detail || res.statusText));
         return;
       }
+      
+      // Show cross-graph reuse notification if applicable
+      if (response.crossGraphReuse && response.originalGraphs) {
+        const originalGraphs = response.originalGraphs.filter(g => g !== graphId);
+        if (originalGraphs.length > 0) {
+          alert(`✅ Node reused from other graphs: ${originalGraphs.join(', ')}\n\n🎉 Cross-graph reuse enhances parsimony and earns bonus points!`);
+        }
+      }
+      
       setBase('');
       setQualifier('');
       setQuantifier('');

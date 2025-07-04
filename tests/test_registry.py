@@ -256,6 +256,26 @@ class TestIDGeneration:
         result = make_polynode_id(quantifier, adverb, morph_name, base_name)
         assert result == expected
     
+    def test_make_polynode_id_case_normalization(self):
+        """Test that polynode ID generation normalizes base_name to lowercase."""
+        # Test that different case variations create the same ID
+        result1 = make_polynode_id("", "", "", "Water")
+        result2 = make_polynode_id("", "", "", "water")
+        result3 = make_polynode_id("", "", "", "WATER")
+        
+        assert result1 == "water"
+        assert result2 == "water"
+        assert result3 == "water"
+        assert result1 == result2 == result3
+        
+        # Test with other components
+        result4 = make_polynode_id("some", "very", "ionized", "Oxygen")
+        result5 = make_polynode_id("some", "very", "ionized", "oxygen")
+        
+        assert result4 == "some_very_ionized_oxygen"
+        assert result5 == "some_very_ionized_oxygen"
+        assert result4 == result5
+    
     @pytest.mark.parametrize("name,node_id,expected", [
         ("ionized", "oxygen", "ionized_oxygen"),
         ("excited", "atom", "excited_atom"),
