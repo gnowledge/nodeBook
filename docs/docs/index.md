@@ -14,7 +14,7 @@ terms of describing relations between them, and their properties
 (attributes).
 
 The audience of this documentation is developers and curious
-visitors. The end-users documentation is yet to be created.
+visitors. For end-user documentation, please see the [NodeBook Users](users/index.md) section.
 
 ### Key Features
 
@@ -25,6 +25,12 @@ visitors. The end-users documentation is yet to be created.
 - **CNL Parsing**: Natural language processing for graph descriptions
 
 ## 📚 Documentation Sections
+
+### NodeBook Users
+- **Getting Started**: Introduction to NodeBook for end users
+- **Difficulty Levels**: Understanding the progressive learning system
+- **User Guide**: Comprehensive guide to using NodeBook features
+- **CNL Syntax**: Understanding Controlled Natural Language
 
 ### API Reference
 - **Core Modules**: Core functionality including models, utilities, and validation

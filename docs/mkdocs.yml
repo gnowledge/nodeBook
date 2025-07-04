@@ -56,6 +56,11 @@ plugins:
 # Navigation
 nav:
   - Home: index.md
+  - NodeBook Users:
+    - Getting Started: users/index.md
+    - Difficulty Levels: users/difficulty-levels.md
+    - User Guide: users/user-guide.md
+    - CNL Syntax: users/cnl-syntax.md
   - API Reference:
     - Core Modules:
       - Models: api/core/models.md
