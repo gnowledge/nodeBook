@@ -6,6 +6,7 @@ import AttributeForm from "./AttributeForm";
 import TransitionForm from "./TransitionForm";
 import MorphForm from "./MorphForm";
 import RelationTypeModal from "./RelationTypeModal";
+import CNLHelperModal from "./CNLHelperModal";
 import { useUserInfo } from "./UserIdContext";
 import { useDifficulty } from "./DifficultyContext";
 import MonacoEditor from '@monaco-editor/react';
@@ -18,7 +19,8 @@ function MorphItemManager({
   userId, 
   morphId, 
   itemType, // 'attributes' or 'relations'
-  onGraphUpdate 
+  onGraphUpdate,
+  showSelections = false // New prop to control selection visibility
 }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -254,82 +256,97 @@ function MorphItemManager({
     setActionLoading(false);
   };
 
+  // Function to scroll to a target node
+  const scrollToNode = (targetNodeId) => {
+    const targetElement = document.getElementById(`node-${targetNodeId}`);
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a brief highlight effect
+      targetElement.style.backgroundColor = '#fef3c7';
+      setTimeout(() => {
+        targetElement.style.backgroundColor = '';
+      }, 2000);
+    }
+  };
+
   if (loading) {
     return <div className="text-sm text-gray-500">Loading {itemType}...</div>;
   }
 
   return (
     <div className="space-y-3">
-      {/* Header with selection controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={selectedItems.size === items.length && items.length > 0}
-            indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
-            onChange={handleSelectAll}
-            className="rounded"
-          />
-          <span className="text-sm font-medium">
-            {selectedItems.size > 0 ? `${selectedItems.size} selected` : `${items.length} ${itemType}`}
-          </span>
-        </div>
-        
-        {selectedItems.size > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setShowActionMenu(!showActionMenu)}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'Processing...' : 'Actions'}
-            </button>
-            
-            {showActionMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 min-w-48">
-                <div className="p-2">
-                  <button
-                    onClick={() => handleActionClick('unlist')}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                    disabled={actionLoading}
-                  >
-                    🗑️ Unlist from this morph
-                  </button>
-                  
-                  <button
-                    onClick={() => handleActionClick('delete')}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-red-600"
-                    disabled={actionLoading}
-                  >
-                    ❌ Delete from all morphs
-                  </button>
-                  
-                  {availableMorphs.length > 0 && (
-                    <>
-                      <div className="border-t my-1"></div>
-                      <button
-                        onClick={() => handleActionClick('copy')}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                        disabled={actionLoading}
-                      >
-                        📋 Copy to another morph
-                      </button>
-                      
-                      <button
-                        onClick={() => handleActionClick('move')}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
-                        disabled={actionLoading}
-                      >
-                        ➡️ Move to another morph
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+      {/* Header with selection controls - only show when showSelections is true */}
+      {showSelections && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedItems.size === items.length && items.length > 0}
+              indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
+              onChange={handleSelectAll}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">
+              {selectedItems.size > 0 ? `${selectedItems.size} selected` : `${items.length} ${itemType}`}
+            </span>
           </div>
-        )}
-      </div>
+          
+          {selectedItems.size > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowActionMenu(!showActionMenu)}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processing...' : 'Actions'}
+              </button>
+              
+              {showActionMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded shadow-lg z-10 min-w-48">
+                  <div className="p-2">
+                    <button
+                      onClick={() => handleActionClick('unlist')}
+                      className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                      disabled={actionLoading}
+                    >
+                      🗑️ Unlist from this morph
+                    </button>
+                    
+                    <button
+                      onClick={() => handleActionClick('delete')}
+                      className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded text-red-600"
+                      disabled={actionLoading}
+                    >
+                      ❌ Delete from all morphs
+                    </button>
+                    
+                    {availableMorphs.length > 0 && (
+                      <>
+                        <div className="border-t my-1"></div>
+                        <button
+                          onClick={() => handleActionClick('copy')}
+                          className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          disabled={actionLoading}
+                        >
+                          📋 Copy to another morph
+                        </button>
+                        
+                        <button
+                          onClick={() => handleActionClick('move')}
+                          className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                          disabled={actionLoading}
+                        >
+                          ➡️ Move to another morph
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Target morph selector */}
       {showTargetSelector && (
@@ -371,18 +388,22 @@ function MorphItemManager({
             return (
               <div 
                 key={itemId} 
-                className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
-                  isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'
+                className={`flex items-center gap-2 p-2 rounded text-sm ${
+                  showSelections 
+                    ? `cursor-pointer ${isSelected ? 'bg-blue-100 border border-blue-300' : 'bg-gray-50 hover:bg-gray-100'}`
+                    : 'bg-gray-50'
                 }`}
-                onClick={() => handleItemSelect(itemId)}
+                onClick={showSelections ? () => handleItemSelect(itemId) : undefined}
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleItemSelect(itemId)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="rounded"
-                />
+                {showSelections && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleItemSelect(itemId)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded"
+                  />
+                )}
                 <span className="flex-1">
                   <strong>{item.name}</strong>
                   {itemType === 'attributes' && (
@@ -398,7 +419,23 @@ function MorphItemManager({
                     </span>
                   )}
                   {itemType === 'relations' && item.target_id && (
-                    <span className="text-gray-600"> → {item.target_id}</span>
+                    <span className="text-gray-600">
+                      → 
+                      {showSelections ? (
+                        <span>{item.target_id}</span>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollToNode(item.target_id);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 underline"
+                          title={`Go to ${item.target_id}`}
+                        >
+                          {item.target_id}
+                        </button>
+                      )}
+                    </span>
                   )}
                 </span>
               </div>
@@ -450,6 +487,13 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
   // Title editing state
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
+  
+  // CNL editing state
+  const [showCNLModal, setShowCNLModal] = useState(false);
+  const [nodeCNL, setNodeCNL] = useState("");
+  
+  // Morph management state
+  const [morphManagementMode, setMorphManagementMode] = useState(false);
 
   // Always fetch the latest node data when node.id/node.node_id changes
   useEffect(() => {
@@ -891,8 +935,14 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         <div className="space-y-4">
           {/* Relations Section */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-sm">Relations</h4>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-sm">Relations</h4>
+                <span className="text-xs text-gray-500">({(() => {
+                  const activeMorph = freshNode?.morphs?.find(m => m.morph_id === activeMorphId);
+                  return activeMorph?.relationNode_ids?.length || 0;
+                })()})</span>
+              </div>
               <button 
                 className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
                 onClick={() => {
@@ -911,13 +961,20 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               morphId={activeMorphId}
               itemType="relations"
               onGraphUpdate={onGraphUpdate}
+              showSelections={morphManagementMode}
             />
           </div>
 
           {/* Attributes Section */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-sm">Attributes</h4>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-sm">Attributes</h4>
+                <span className="text-xs text-gray-500">({(() => {
+                  const activeMorph = freshNode?.morphs?.find(m => m.morph_id === activeMorphId);
+                  return activeMorph?.attributeNode_ids?.length || 0;
+                })()})</span>
+              </div>
               <button 
                 className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
                 onClick={() => {
@@ -936,6 +993,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               morphId={activeMorphId}
               itemType="attributes"
               onGraphUpdate={onGraphUpdate}
+              showSelections={morphManagementMode}
             />
           </div>
         </div>
@@ -968,7 +1026,14 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               {nbhRelations.map((rel, index) => (
                 <li key={rel.id || index} className="flex items-center gap-2 text-sm">
                   <span className="flex-1">
-                    <strong>{rel.name || rel.type}</strong>: {rel.target_id || rel.target_name || rel.target}
+                    <strong>{rel.name || rel.type}</strong>: 
+                    <button
+                      onClick={() => scrollToNode(rel.target_id || rel.target_name || rel.target)}
+                      className="text-blue-600 hover:text-blue-800 underline ml-1"
+                      title={`Go to ${rel.target_id || rel.target_name || rel.target}`}
+                    >
+                      {rel.target_id || rel.target_name || rel.target}
+                    </button>
                     {rel.adverb && <em className="text-gray-600"> (adverb: {rel.adverb})</em>}
                     {rel.modality && <span className="text-gray-500"> [{rel.modality}]</span>}
                   </span>
@@ -1047,6 +1112,60 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     setShowNbhModal(true);
     setNbhTab(0);
     setNbhSaveStatus(null);
+  };
+
+  // Function to scroll to a target node
+  const scrollToNode = (targetNodeId) => {
+    const targetElement = document.getElementById(`node-${targetNodeId}`);
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a brief highlight effect
+      targetElement.style.backgroundColor = '#fef3c7';
+      setTimeout(() => {
+        targetElement.style.backgroundColor = '';
+      }, 2000);
+    }
+  };
+
+  // CNL editing handlers
+  const handleOpenCNLModal = () => {
+    // Generate CNL from current node data
+    const cnlLines = [];
+    const nodeId = freshNode?.node_id || freshNode?.id;
+    
+    // Add relations
+    if (freshNode?.relations) {
+      freshNode.relations.forEach(rel => {
+        let cnl = '';
+        if (rel.modality) cnl += `[${rel.modality}] `;
+        if (rel.adverb) cnl += `++${rel.adverb}++ `;
+        cnl += `<${rel.name || rel.type}> `;
+        cnl += rel.target_id || rel.target_name || rel.target;
+        cnlLines.push(cnl);
+      });
+    }
+    
+    // Add attributes
+    if (freshNode?.attributes) {
+      freshNode.attributes.forEach(attr => {
+        let cnl = '';
+        if (attr.modality) cnl += `[${attr.modality}] `;
+        if (attr.adverb) cnl += `++${attr.adverb}++ `;
+        cnl += `has ${attr.name || attr.attribute_name}: `;
+        cnl += attr.value;
+        if (attr.unit) cnl += ` *${attr.unit}*`;
+        cnlLines.push(cnl);
+      });
+    }
+    
+    setNodeCNL(cnlLines.join('\n'));
+    setShowCNLModal(true);
+  };
+
+  const handleCNLSave = (cnlText) => {
+    // Update the node CNL and refresh
+    setNodeCNL(cnlText);
+    if (onGraphUpdate) onGraphUpdate();
   };
 
   // Save NBH edits (relations/attributes)
@@ -1501,6 +1620,26 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                   {isPolymorphic && morphs.length >= 2 && restrictions.canCreateTransitions && (
                     <button className="text-green-600 underline text-xs" onClick={() => setShowTransitionForm(true)}>Create Transition</button>
                   )}
+                  {/* CNL Edit button for advanced/expert users */}
+                  {restrictions.canEditCNL && (
+                    <button 
+                      className="text-blue-600 underline text-xs" 
+                      onClick={handleOpenCNLModal}
+                      title="Edit CNL for this node"
+                    >
+                      Edit CNL
+                    </button>
+                  )}
+                  {/* Morph Management toggle */}
+                  {isPolymorphic && (
+                    <button 
+                      className={`underline text-xs ${morphManagementMode ? 'text-purple-600' : 'text-gray-600'}`}
+                      onClick={() => setMorphManagementMode(!morphManagementMode)}
+                      title={morphManagementMode ? 'Exit morph management' : 'Enter morph management'}
+                    >
+                      {morphManagementMode ? 'Exit Management' : 'Morph Management'}
+                    </button>
+                  )}
                   <button 
                     className="text-gray-600 underline text-xs" 
                     onClick={() => setNbhViewMode(nbhViewMode === 'rendered' ? 'editor' : 'rendered')}
@@ -1512,6 +1651,16 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
             ) : (
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold">Node Neighborhood:</span>
+                {/* CNL Edit button for advanced/expert users */}
+                {restrictions.canEditCNL && (
+                  <button 
+                    className="text-blue-600 underline text-xs" 
+                    onClick={handleOpenCNLModal}
+                    title="Edit CNL for this node"
+                  >
+                    Edit CNL
+                  </button>
+                )}
                 <button 
                   className="text-gray-600 underline text-xs" 
                   onClick={() => setNbhViewMode(nbhViewMode === 'rendered' ? 'editor' : 'rendered')}
@@ -2029,6 +2178,17 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       >
         [Delete Node]
       </button>
+
+      {/* CNL Helper Modal */}
+      <CNLHelperModal
+        isOpen={showCNLModal}
+        onClose={() => setShowCNLModal(false)}
+        nodeId={freshNode?.node_id || freshNode?.id}
+        graphId={graphId}
+        initialCNL={nodeCNL}
+        onSave={handleCNLSave}
+        onGraphUpdate={onGraphUpdate}
+      />
     </div>
   );
 }

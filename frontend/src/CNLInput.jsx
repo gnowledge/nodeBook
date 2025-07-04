@@ -6,140 +6,176 @@ import { useDifficulty } from "./DifficultyContext";
 export default function CNLInput({ graphId, graph, rawMarkdown, onGraphUpdate }) {
   const { userId } = useUserInfo();
   const { restrictions } = useDifficulty();
-  const [cmlMd, setCnlMd] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
+  const [cnlMd, setCnlMd] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchCnlMd() {
-      // Fetch the generated CNL.md for the graph (should be generated server-side or in DisplayHTML/NodeCard logic)
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`);
-      if (res.ok) {
-        const text = await res.text();
-        setCnlMd(text);
-        setEditValue(text);
-      } else {
-        setCnlMd('# No CNL.md available for this graph.');
-        setEditValue('# No CNL.md available for this graph.');
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch the generated CNL.md from the backend
+        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`);
+        if (res.ok) {
+          const text = await res.text();
+          setCnlMd(text);
+        } else {
+          // If the endpoint doesn't exist or fails, show a helpful message
+          setCnlMd(`# CNL (Controlled Natural Language) Guide
+
+This file shows examples of how to write CNL based on your graph structure.
+
+## Basic Syntax
+
+### Relations
+\`\`\`
+<relation_name> target_node
+\`\`\`
+
+### Attributes
+\`\`\`
+has attribute_name: value
+\`\`\`
+
+### Examples
+\`\`\`
+heart <pumps> blood
+heart has color: red
+\`\`\`
+
+## Difficulty Levels
+
+### Easy Level
+- Basic relations: \`<relation> target\`
+- Simple attributes: \`has attribute: value\`
+
+### Moderate Level
+- Add qualifiers: \`**qualifier** <relation> target\`
+- Add units: \`has attribute: value *unit*\`
+
+### Advanced Level
+- Add adverbs: \`++adverb++ <relation> target\`
+- Add quantifiers: \`*quantifier* <relation> target\`
+
+### Expert Level
+- Add modality: \`[modality] <relation> target\`
+- Complex combinations: \`[likely] ++efficiently++ <pumps> *all* **red** blood\`
+
+*This file will be populated with examples from your graph data when you add nodes and relationships.*`);
+        }
+      } catch (error) {
+        console.error('Failed to fetch CNL.md:', error);
+        setError('Failed to load CNL guide');
+        setCnlMd(`# CNL (Controlled Natural Language) Guide
+
+*Loading CNL examples...*
+
+If this message persists, please check your connection and try refreshing the page.`);
+      } finally {
+        setIsLoading(false);
       }
     }
-    if (userId && graphId) fetchCnlMd();
+    
+    if (userId && graphId) {
+      fetchCnlMd();
+    }
   }, [userId, graphId]);
 
-  const handleEdit = () => {
-    setEditValue(cmlMd);
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditValue(cmlMd);
-  };
-
-  const handleSave = async () => {
-    setSaveStatus('saving');
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'text/plain',
-          'Authorization': `Bearer ${token}`
-        },
-        body: editValue
-      });
+  // Refresh CNL.md when graph updates
+  useEffect(() => {
+    if (onGraphUpdate) {
+      const handleGraphUpdate = () => {
+        // Refetch CNL.md when graph is updated
+        if (userId && graphId) {
+          fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`)
+            .then(res => res.ok ? res.text() : null)
+            .then(text => {
+              if (text) {
+                setCnlMd(text);
+              }
+            })
+            .catch(err => console.error('Failed to refresh CNL.md:', err));
+        }
+      };
       
-      if (res.ok) {
-        setCmlMd(editValue);
-        setIsEditing(false);
-        setSaveStatus('saved');
-        if (onGraphUpdate) onGraphUpdate();
-        
-        // Clear saved status after 2 seconds
-        setTimeout(() => {
-          setSaveStatus('idle');
-        }, 2000);
-      } else {
-        throw new Error('Failed to save CNL');
-      }
-    } catch (error) {
-      console.error('Failed to save CNL:', error);
-      setSaveStatus('error');
-      
-      // Clear error status after 3 seconds
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 3000);
+      // Listen for graph updates
+      window.addEventListener('graph-updated', handleGraphUpdate);
+      return () => window.removeEventListener('graph-updated', handleGraphUpdate);
     }
-  };
+  }, [userId, graphId, onGraphUpdate]);
 
   const canEdit = restrictions.canEditCNL;
 
   return (
     <div className="h-full w-full flex flex-col">
       <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-        <div className="text-lg font-semibold">CNL (NodeBook Markdown)</div>
-        {canEdit && !isEditing && (
-          <button
-            onClick={handleEdit}
-            className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-          >
-            Edit
-          </button>
-        )}
-        {canEdit && isEditing && (
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
-            >
-              {saveStatus === 'saving' ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={saveStatus === 'saving'}
-              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+        <div className="text-lg font-semibold">CNL (Controlled Natural Language) Guide</div>
+        <div className="text-sm text-gray-600">
+          {canEdit ? (
+            <span className="text-green-600">✓ CNL editing available</span>
+          ) : (
+            <span className="text-orange-600">Read-only guide</span>
+          )}
+        </div>
       </div>
       
-      {/* Save status indicator */}
-      {saveStatus === 'saved' && (
-        <div className="px-4 py-2 bg-green-100 text-green-700 text-sm border-b">
-          ✓ CNL saved successfully!
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="px-4 py-2 bg-blue-100 text-blue-700 text-sm border-b">
+          Loading CNL examples...
         </div>
       )}
-      {saveStatus === 'error' && (
+      
+      {/* Error message */}
+      {error && (
         <div className="px-4 py-2 bg-red-100 text-red-700 text-sm border-b">
-          ✗ Failed to save CNL. Please try again.
+          ✗ {error}
         </div>
       )}
+      
+      {/* Info message */}
+      <div className="px-4 py-2 bg-blue-50 text-blue-700 text-xs border-b">
+        <strong>CNL Guide:</strong> This read-only file shows examples of how to write CNL based on your graph structure. 
+        Use these patterns as a reference for writing CNL in node neighborhoods (Advanced/Expert users only).
+      </div>
       
       <div className="flex-1 min-h-0">
         <MonacoEditor
           height="100%"
           language="markdown"
-          value={isEditing ? editValue : cmlMd}
-          onChange={isEditing ? setEditValue : undefined}
+          value={cnlMd}
           options={{ 
-            readOnly: !isEditing, 
+            readOnly: true, // Always read-only
             wordWrap: 'on',
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: 'on',
+            folding: true,
+            renderWhitespace: 'none',
+            scrollBeyondLastLine: false
           }}
         />
       </div>
       
-      {/* Info message for read-only mode */}
-      {!canEdit && (
-        <div className="p-2 bg-blue-50 text-blue-700 text-xs border-t">
-          CNL editing is available at Advanced and Expert difficulty levels.
+      {/* Footer with difficulty info */}
+      <div className="p-2 bg-gray-50 text-xs text-gray-600 border-t">
+        <div className="flex justify-between items-center">
+          <div>
+            <strong>CNL Editing:</strong>
+            <span className="ml-2">
+              {canEdit 
+                ? "Available for Advanced/Expert users in node neighborhoods" 
+                : "Requires Advanced or Expert difficulty level"
+              }
+            </span>
+          </div>
+          <div>
+            <strong>Current Level:</strong> {restrictions.difficulty || 'Easy'}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

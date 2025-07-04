@@ -491,8 +491,8 @@ def save_section_node(user_id: str, graph_id: str, section_text: str, section_na
         
         # Load registry and create/update node
         registry = load_node_registry(user_id)
-        create_node_if_missing(user_id, node_id, name=name)
-        update_node_registry(registry, node_id, graph_id)
+        create_node_if_missing(user_id, str(node_id), name=str(name) if name else "")
+        update_node_registry(registry, str(node_id), graph_id)
         
         return {
             "success": True,
@@ -503,3 +503,262 @@ def save_section_node(user_id: str, graph_id: str, section_text: str, section_na
         
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def generate_cnl_md_from_polymorphic(polymorphic_data: dict) -> str:
+    """
+    Generate CNL.md content from polymorphic_composed.json data.
+    
+    This function creates a compact CNL documentation file that shows
+    users how to write CNL by converting the graph structure into readable
+    CNL examples. The file is designed to be read-only and educational.
+    
+    Args:
+        polymorphic_data: Dictionary containing nodes, relations, attributes, and transitions
+        
+    Returns:
+        str: Markdown content with CNL examples and explanations
+    """
+    md_lines = []
+    
+    # Header
+    md_lines.append("# CNL (Controlled Natural Language) Examples")
+    md_lines.append("")
+    md_lines.append("This file shows examples of how to write CNL based on the current graph structure.")
+    md_lines.append("Use these patterns as a guide for writing your own CNL statements.")
+    md_lines.append("")
+    
+    # Extract data
+    nodes = polymorphic_data.get("nodes", [])
+    relations = polymorphic_data.get("relations", [])
+    attributes = polymorphic_data.get("attributes", [])
+    
+    # Create a map of relation/attribute IDs to their data for quick lookup
+    relation_map = {rel.get("id"): rel for rel in relations}
+    attribute_map = {attr.get("id"): attr for attr in attributes}
+    
+    # Process each node
+    for node in nodes:
+        node_id = node.get("id") or node.get("node_id") or ""
+        name = node.get("name", node_id) or ""
+        adjective = node.get("adjective", "")
+        description = node.get("description", "")
+        
+        # Build rendered name: adjective + base-name
+        rendered_name = name
+        if adjective:
+            rendered_name = f"{adjective} {name}"
+        
+        # Start node section
+        md_lines.append(f"# {rendered_name}")
+        if description:
+            md_lines.append("")
+            md_lines.append(description)
+        md_lines.append("")
+        
+        # Check if node has morphs
+        morphs = node.get("morphs", [])
+        nbh = node.get("nbh")
+        
+        if not morphs:
+            # Simple node without morphs - check for direct relations/attributes
+            relations_list = node.get("relations", [])
+            attributes_list = node.get("attributes", [])
+            
+            if relations_list or attributes_list:
+                md_lines.append("::: cnl")
+                # Add relations
+                for rel in relations_list:
+                    cnl_line = build_cnl_relation_line(rel, node_id)
+                    if cnl_line:
+                        md_lines.append(cnl_line)
+                
+                # Add attributes
+                for attr in attributes_list:
+                    cnl_line = build_cnl_attribute_line(attr, node_id)
+                    if cnl_line:
+                        md_lines.append(cnl_line)
+                md_lines.append(":::")
+                md_lines.append("")
+        else:
+            # Node with morphs
+            if len(morphs) == 1:
+                # Single morph - treat like simple node
+                morph = morphs[0]
+                morph_id = morph.get("morph_id")
+                
+                # Check if this is the active morph (nbh)
+                if nbh == morph_id:
+                    morph_relations = []
+                    morph_attributes = []
+                    
+                    # Get relations from morph
+                    for rel_id in morph.get("relationNode_ids", []):
+                        if rel_id in relation_map:
+                            morph_relations.append(relation_map[rel_id])
+                    
+                    # Get attributes from morph
+                    for attr_id in morph.get("attributeNode_ids", []):
+                        if attr_id in attribute_map:
+                            morph_attributes.append(attribute_map[attr_id])
+                    
+                    if morph_relations or morph_attributes:
+                        md_lines.append("::: cnl")
+                        # Add relations
+                        for rel in morph_relations:
+                            cnl_line = build_cnl_relation_line(rel, node_id)
+                            if cnl_line:
+                                md_lines.append(cnl_line)
+                        
+                        # Add attributes
+                        for attr in morph_attributes:
+                            cnl_line = build_cnl_attribute_line(attr, node_id)
+                            if cnl_line:
+                                md_lines.append(cnl_line)
+                        md_lines.append(":::")
+                        md_lines.append("")
+            else:
+                # Multiple morphs - use subsections
+                for morph in morphs:
+                    morph_id = morph.get("morph_id")
+                    morph_name = morph.get("name", "")
+                    morph_adjective = morph.get("adjective", "")
+                    morph_description = morph.get("description", "")
+                    
+                    # Build morph rendered name
+                    morph_rendered_name = morph_name
+                    if morph_adjective:
+                        morph_rendered_name = f"{morph_adjective} {morph_name}"
+                    
+                    # Check if this morph has content
+                    morph_relations = []
+                    morph_attributes = []
+                    
+                    # Get relations from morph
+                    for rel_id in morph.get("relationNode_ids", []):
+                        if rel_id in relation_map:
+                            morph_relations.append(relation_map[rel_id])
+                    
+                    # Get attributes from morph
+                    for attr_id in morph.get("attributeNode_ids", []):
+                        if attr_id in attribute_map:
+                            morph_attributes.append(attribute_map[attr_id])
+                    
+                    # Only add subsection if morph has content
+                    if morph_relations or morph_attributes:
+                        md_lines.append(f"## {morph_rendered_name}")
+                        if morph_description:
+                            md_lines.append("")
+                            md_lines.append(morph_description)
+                        md_lines.append("")
+                        md_lines.append("::: cnl")
+                        
+                        # Add relations
+                        for rel in morph_relations:
+                            cnl_line = build_cnl_relation_line(rel, node_id)
+                            if cnl_line:
+                                md_lines.append(cnl_line)
+                        
+                        # Add attributes
+                        for attr in morph_attributes:
+                            cnl_line = build_cnl_attribute_line(attr, node_id)
+                            if cnl_line:
+                                md_lines.append(cnl_line)
+                        md_lines.append(":::")
+                        md_lines.append("")
+    
+    # Add basic CNL syntax guide at the end
+    md_lines.append("---")
+    md_lines.append("## CNL Syntax Guide")
+    md_lines.append("")
+    md_lines.append("### Basic Elements")
+    md_lines.append("- **Relations**: `<relation_name> target`")
+    md_lines.append("- **Attributes**: `has attribute_name: value`")
+    md_lines.append("- **Adverbs**: `++adverb++ <relation> target`")
+    md_lines.append("- **Quantifiers**: `*quantifier* <relation> target`")
+    md_lines.append("- **Adjectives**: `**adjective** <relation> target`")
+    md_lines.append("- **Modality**: `[modality] <relation> target`")
+    md_lines.append("")
+    md_lines.append("*This file is automatically generated and read-only. Use it as a reference for writing CNL.*")
+    
+    return "\n".join(md_lines)
+
+
+def build_cnl_relation_line(rel: dict, subject_id: str) -> str:
+    """
+    Build a CNL line for a relation.
+    
+    Args:
+        rel: Relation dictionary
+        subject_id: The subject node ID
+        
+    Returns:
+        str: CNL line for the relation
+    """
+    if not rel:
+        return ""
+    
+    cnl_parts = []
+    
+    # Add modality if present
+    if rel.get("modality"):
+        cnl_parts.append(f"[{rel['modality']}]")
+    
+    # Add adverb if present
+    if rel.get("adverb"):
+        cnl_parts.append(f"++{rel['adverb']}++")
+    
+    # Add relation
+    rel_name = rel.get("name", "")
+    if rel_name:
+        cnl_parts.append(f"<{rel_name}>")
+    
+    # Add target
+    target_id = rel.get("target_id")
+    target_name = rel.get("target_name", target_id)
+    if target_name:
+        cnl_parts.append(target_name)
+    
+    return " ".join(cnl_parts) if cnl_parts else ""
+
+
+def build_cnl_attribute_line(attr: dict, subject_id: str) -> str:
+    """
+    Build a CNL line for an attribute.
+    
+    Args:
+        attr: Attribute dictionary
+        subject_id: The subject node ID
+        
+    Returns:
+        str: CNL line for the attribute
+    """
+    if not attr:
+        return ""
+    
+    cnl_parts = []
+    
+    # Add modality if present
+    if attr.get("modality"):
+        cnl_parts.append(f"[{attr['modality']}]")
+    
+    # Add adverb if present
+    if attr.get("adverb"):
+        cnl_parts.append(f"++{attr['adverb']}++")
+    
+    # Add attribute
+    attr_name = attr.get("name", "")
+    if attr_name:
+        cnl_parts.append(f"has {attr_name}:")
+    
+    # Add value
+    value = attr.get("value", "")
+    if value:
+        cnl_parts.append(str(value))
+    
+    # Add unit if present
+    unit = attr.get("unit")
+    if unit:
+        cnl_parts.append(f"*{unit}*")
+    
+    return " ".join(cnl_parts) if cnl_parts else ""

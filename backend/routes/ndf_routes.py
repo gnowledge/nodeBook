@@ -504,3 +504,171 @@ def list_graph_nodes(user_id: str, graph_id: str):
                     continue
     
     return graph_nodes
+
+@router.get("/users/{user_id}/graphs/{graph_id}/cnl_md")
+async def get_cnl_md(user_id: str, graph_id: str):
+    """
+    Generate and return CNL.md content from polymorphic_composed.json.
+    This creates a read-only educational file showing CNL examples.
+    """
+    try:
+        # Load polymorphic_composed.json
+        poly_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "polymorphic_composed.json"
+        
+        if not poly_path.exists():
+            # Return a basic CNL guide if no data exists
+            basic_cnl = """# CNL (Controlled Natural Language) Guide
+
+This file shows examples of how to write CNL based on your graph structure.
+
+## Basic Syntax
+
+### Relations
+```
+<relation_name> target_node
+```
+
+### Attributes
+```
+has attribute_name: value
+```
+
+### Examples
+```
+heart <pumps> blood
+heart has color: red
+```
+
+*This file will be populated with examples from your graph data.*"""
+            return PlainTextResponse(content=basic_cnl, media_type="text/markdown")
+        
+        # Load polymorphic data
+        with open(poly_path, 'r') as f:
+            polymorphic_data = json.load(f)
+        
+        # Generate CNL.md content
+        from backend.core.cnl_parser import generate_cnl_md_from_polymorphic
+        cnl_content = generate_cnl_md_from_polymorphic(polymorphic_data)
+        
+        # Save the generated CNL.md file (read-only)
+        cnl_md_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
+        with open(cnl_md_path, 'w') as f:
+            f.write(cnl_content)
+        
+        return PlainTextResponse(content=cnl_content, media_type="text/markdown")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate CNL.md: {str(e)}")
+
+@router.put("/users/{user_id}/graphs/{graph_id}/cnl_md")
+async def update_cnl_md(user_id: str, graph_id: str, request: Request):
+    """
+    Update CNL.md content (for advanced/expert users only).
+    This endpoint is restricted based on user difficulty level.
+    """
+    try:
+        # Check user difficulty level
+        pref_path = get_data_root() / "users" / user_id / "preferences.json"
+        if pref_path.exists():
+            with open(pref_path, 'r') as f:
+                prefs = json.load(f)
+        else:
+            prefs = {"difficulty": "easy"}
+        difficulty = prefs.get("difficulty", "easy")
+        
+        # Only allow editing for advanced and expert users
+        if difficulty not in ["advanced", "expert"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="CNL editing is only available for Advanced and Expert difficulty levels"
+            )
+        
+        # Get the CNL content from request body
+        cnl_content = await request.body()
+        cnl_text = cnl_content.decode('utf-8')
+        
+        # Save the updated CNL.md file
+        cnl_md_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
+        with open(cnl_md_path, 'w') as f:
+            f.write(cnl_text)
+        
+        return {"message": "CNL.md updated successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update CNL.md: {str(e)}")
+
+@router.put("/users/{user_id}/graphs/{graph_id}/nodes/{node_id}/cnl")
+async def update_node_cnl(user_id: str, graph_id: str, node_id: str, request: Request):
+    """
+    Update CNL for a specific node's neighborhood (for advanced/expert users only).
+    This endpoint parses CNL and updates the node's neighborhood data.
+    """
+    try:
+        # Check user difficulty level
+        pref_path = get_data_root() / "users" / user_id / "preferences.json"
+        if pref_path.exists():
+            with open(pref_path, 'r') as f:
+                prefs = json.load(f)
+        else:
+            prefs = {"difficulty": "easy"}
+        difficulty = prefs.get("difficulty", "easy")
+        
+        # Only allow editing for advanced and expert users
+        if difficulty not in ["advanced", "expert"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="CNL editing is only available for Advanced and Expert difficulty levels"
+            )
+        
+        # Get the CNL content from request body
+        cnl_content = await request.body()
+        cnl_text = cnl_content.decode('utf-8')
+        
+        # Parse the CNL text
+        from backend.core.cnl_parser import parse_logical_cnl
+        parsed_facts = parse_logical_cnl(cnl_text, subject=node_id)
+        
+        if not parsed_facts:
+            raise HTTPException(status_code=400, detail="No valid CNL statements found")
+        
+        # Load the node data
+        node_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "nodes" / f"{node_id}.json"
+        if not node_path.exists():
+            raise HTTPException(status_code=404, detail="Node not found")
+        
+        with open(node_path, 'r') as f:
+            node_data = json.load(f)
+        
+        # Update node with parsed CNL data
+        # This is a simplified implementation - in a full system, you'd want to
+        # properly merge the CNL data with existing node structure
+        node_data["cnl"] = cnl_text
+        node_data["parsed_cnl"] = parsed_facts
+        
+        # Save the updated node
+        with open(node_path, 'w') as f:
+            json.dump(node_data, f, indent=2)
+        
+        # Regenerate composed files
+        try:
+            from backend.core.compose import compose_graph
+            # Get the list of nodes in this graph
+            graph_nodes = []
+            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id / "nodes"
+            if graph_dir.exists():
+                for node_file in graph_dir.glob("*.json"):
+                    graph_nodes.append(node_file.stem)
+            
+            if graph_nodes:
+                compose_graph(user_id, graph_id, graph_nodes)
+        except Exception as e:
+            print(f"Warning: Failed to regenerate composed files: {e}")
+        
+        return {"message": "Node CNL updated successfully", "parsed_facts": parsed_facts}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update node CNL: {str(e)}")
