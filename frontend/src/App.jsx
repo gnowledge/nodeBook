@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import NDFStudioLayout from "./NDFStudioLayout";
 import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
+import { DifficultyProvider } from "./DifficultyContext";
 import { AUTH_BASE } from "./config";
 import UserBar from "./UserBar";
 import AuthStatus from "./components/AuthStatus";
@@ -67,25 +68,27 @@ function App() {
 
   return (
     <UserIdContext.Provider value={userInfo}>
-      <Router>
-        <AuthStatus />
-        <UserBar />
-        <Routes>
-          <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserInfo} />} />
-          <Route
-            path="/app"
-            element={
-              <RequireAuth>
-                <div className="h-screen w-screen overflow-hidden">
-                  <NDFStudioLayout mainTabs={MAIN_TABS} devTabs={DEV_TABS} />
-                </div>
-              </RequireAuth>
-            }
-          />
-          <Route path="/logout" element={<Logout />} />
-          <Route path="/" element={<Navigate to="/app" replace />} />
-        </Routes>
-      </Router>
+      <DifficultyProvider>
+        <Router>
+          <AuthStatus />
+          <UserBar />
+          <Routes>
+            <Route path="/login" element={<AuthPage onAuth={fetchAndSetUserInfo} />} />
+            <Route
+              path="/app"
+              element={
+                <RequireAuth>
+                  <div className="h-screen w-screen overflow-hidden">
+                    <NDFStudioLayout mainTabs={MAIN_TABS} devTabs={DEV_TABS} />
+                  </div>
+                </RequireAuth>
+              }
+            />
+            <Route path="/logout" element={<Logout />} />
+            <Route path="/" element={<Navigate to="/app" replace />} />
+          </Routes>
+        </Router>
+      </DifficultyProvider>
     </UserIdContext.Provider>
   );
 }

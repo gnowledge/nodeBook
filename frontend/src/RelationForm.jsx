@@ -3,6 +3,7 @@ import { API_BASE } from './config';
 import RelationTypeModal from './RelationTypeModal';
 import MessageArea from './MessageArea';
 import { useUserInfo } from "./UserIdContext";
+import { useDifficulty } from "./DifficultyContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -14,6 +15,7 @@ function PreviewBox({ label, value }) {
 
 export default function RelationForm({ relationId, graphId = "graph1", onAddRelationType, initialData = null, editMode = false, onSuccess, morphId }) {
   const { userId } = useUserInfo();
+  const { restrictions } = useDifficulty();
   // CNL-style fields
   const [relation, setRelation] = useState(initialData?.name || initialData?.type || '');
   const [relTarget, setRelTarget] = useState(initialData?.target || '');
@@ -196,6 +198,10 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
         onClose={() => setMessage('')} 
       />
       <form className="space-y-4" onSubmit={handleRelationSubmit}>
+        {/* CNL Preview - prominent and at the top */}
+        <div className="mb-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-lg font-bold rounded">
+          CNL Preview: <span className="text-blue-800">{relPreview || <span className="text-gray-400">(relation preview)</span>}</span>
+        </div>
         <h3 className="text-lg font-semibold text-gray-800">{editMode ? 'Edit Relation' : 'Create Relation'}</h3>
         <div>
           <label className="block text-sm font-medium mb-1">Source Node:</label>
@@ -232,16 +238,28 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
             <div className="text-xs text-red-500 mt-1">Invalid relation type. Please select from the list.</div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3 items-end mb-2">
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Target Qualifier</label>
-            <input className="border rounded px-2 py-1 text-center" value={relTargetQualifier} onChange={e => setRelTargetQualifier(e.target.value)} placeholder="e.g. Darwinian" />
+        {restrictions.canUseAdjectives && (
+          <div className="grid grid-cols-2 gap-3 items-end mb-2">
+            <div className="flex flex-col">
+              <label className="font-semibold text-xs mb-1 text-center">Target Qualifier</label>
+              <input className="border rounded px-2 py-1 text-center" value={relTargetQualifier} onChange={e => setRelTargetQualifier(e.target.value)} placeholder="e.g. Darwinian" />
+            </div>
+            {restrictions.canUseQuantifiers && (
+              <div className="flex flex-col">
+                <label className="font-semibold text-xs mb-1 text-center">Target Quantifier</label>
+                <input className="border rounded px-2 py-1 text-center" value={relTargetQuantifier} onChange={e => setRelTargetQuantifier(e.target.value)} placeholder="e.g. all" />
+              </div>
+            )}
           </div>
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Target Quantifier</label>
-            <input className="border rounded px-2 py-1 text-center" value={relTargetQuantifier} onChange={e => setRelTargetQuantifier(e.target.value)} placeholder="e.g. all" />
+        )}
+        {restrictions.canUseQuantifiers && !restrictions.canUseAdjectives && (
+          <div className="grid grid-cols-1 gap-3 items-end mb-2">
+            <div className="flex flex-col">
+              <label className="font-semibold text-xs mb-1 text-center">Target Quantifier</label>
+              <input className="border rounded px-2 py-1 text-center" value={relTargetQuantifier} onChange={e => setRelTargetQuantifier(e.target.value)} placeholder="e.g. all" />
+            </div>
           </div>
-        </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">Target Node:</label>
           <input
@@ -278,17 +296,22 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
             </ul>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3 items-end mb-2">
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Adverb</label>
-            <input className="border rounded px-2 py-1 text-center" value={relAdverb} onChange={e => setRelAdverb(e.target.value)} placeholder="e.g. quickly" />
+        {(restrictions.canUseAdverbs || restrictions.canUseModality) && (
+          <div className="grid grid-cols-2 gap-3 items-end mb-2">
+            {restrictions.canUseAdverbs && (
+              <div className="flex flex-col">
+                <label className="font-semibold text-xs mb-1 text-center">Adverb</label>
+                <input className="border rounded px-2 py-1 text-center" value={relAdverb} onChange={e => setRelAdverb(e.target.value)} placeholder="e.g. quickly" />
+              </div>
+            )}
+            {restrictions.canUseModality && (
+              <div className="flex flex-col">
+                <label className="font-semibold text-xs mb-1 text-center">Modality</label>
+                <input className="border rounded px-2 py-1 text-center" value={relModality} onChange={e => setRelModality(e.target.value)} placeholder="e.g. probably" />
+              </div>
+            )}
           </div>
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Modality</label>
-            <input className="border rounded px-2 py-1 text-center" value={relModality} onChange={e => setRelModality(e.target.value)} placeholder="e.g. probably" />
-          </div>
-        </div>
-        <PreviewBox label="relation" value={relPreview} />
+        )}
         <div className="flex justify-end gap-2 mt-4">
           <button
             type="submit"
@@ -297,13 +320,6 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
           >
             {isSubmitting ? 'Creating...' : (editMode ? 'Update' : 'Submit')}
           </button>
-        </div>
-        <div className="text-xs text-gray-500 mt-2">
-          <div><b>Examples:</b></div>
-          <div>Easy: <span className="italic">&lt;discovered&gt; natural selection</span></div>
-          <div>Medium: <span className="italic">&lt;discovered&gt; **Darwinian** theory</span></div>
-          <div>Advanced: <span className="italic">&lt;discovered&gt; *all* theories</span></div>
-          <div>Expert: <span className="italic">++rapidly++ &lt;spreads&gt; *some* **ancient** philosophers [possibly]</span></div>
         </div>
         {showRelationModal && (
           <RelationTypeModal

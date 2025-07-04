@@ -7,6 +7,7 @@ import TransitionForm from "./TransitionForm";
 import MorphForm from "./MorphForm";
 import RelationTypeModal from "./RelationTypeModal";
 import { useUserInfo } from "./UserIdContext";
+import { useDifficulty } from "./DifficultyContext";
 import MonacoEditor from '@monaco-editor/react';
 import { refreshNodeData, authenticatedFetch, safeJsonParse, isTokenValid } from "./utils/authUtils";
 
@@ -415,6 +416,7 @@ function MorphItemManager({
 
 function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelations = [], graphAttributes = [], onInMemoryMorphChange }) {
   const { userId } = useUserInfo();
+  const { restrictions, difficulty } = useDifficulty();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -870,6 +872,18 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
 
   // Helper to render NBH with interactive elements
   function renderInteractiveNBH() {
+    // Show CNL view if nbhViewMode is 'editor'
+    if (nbhViewMode === 'editor') {
+      return (
+        <div className="bg-gray-50 p-3 rounded border">
+          <div className="text-sm font-semibold mb-2">CNL View (Read-only):</div>
+          <div className="text-sm font-mono text-gray-800 whitespace-pre-wrap">
+            {nbhCNL || 'No neighborhood data available.'}
+          </div>
+        </div>
+      );
+    }
+
     // For polymorphic nodes with morphs, use MorphItemManager
     if (freshNode?.morphs && freshNode?.nbh) {
       const activeMorphId = freshNode.nbh;
@@ -1405,112 +1419,240 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
             </h2>
           )}
           
-          {/* Show base node name as subtitle when non-basic morph is active */}
-          {isPolymorphic && morphs.length > 1 && activeMorphId && (() => {
-            const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
-            const isBasicMorph = morphs.indexOf(activeMorph) === 0;
-            return !isBasicMorph && activeMorph?.name;
-          })() && (
-            <p className="text-sm text-gray-500 mt-1">
-              Base: {freshNode?.name || freshNode?.node_id || ''}
-            </p>
-          )}
-          
-          {/* Morph Selection Radio Buttons */}
-          {isPolymorphic && morphs.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <span className="text-xs text-gray-600 font-medium">Morphs:</span>
-              {morphs.map((morph, index) => (
-                <label key={morph.morph_id} className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    name={`morph-${freshNode?.node_id || freshNode?.id}`}
-                    value={morph.morph_id}
-                    checked={activeMorphId === morph.morph_id}
-                    onChange={() => handleMorphSwitch(morph.morph_id)}
-                    disabled={loading}
-                    className="text-blue-600"
-                  />
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    activeMorphId === morph.morph_id 
-                      ? 'bg-blue-100 text-blue-800 font-medium' 
-                      : 'text-gray-700 hover:text-blue-600'
-                  }`}>
-                    {index === 0 ? 'basic' : (morph.name || `morph ${index}`)}
-                    {activeMorphId === morph.morph_id && ' ✓'}
+          {/* --- Node Neighborhood Section --- */}
+          <div className="mb-2">
+            {restrictions.canUseMorphManagement && morphs.length > 1 ? (
+              <>
+                {/* Show base node name as subtitle when non-basic morph is active */}
+                {isPolymorphic && activeMorphId && (() => {
+                  const activeMorph = morphs.find(m => m.morph_id === activeMorphId);
+                  const isBasicMorph = morphs.indexOf(activeMorph) === 0;
+                  return !isBasicMorph && activeMorph?.name;
+                })() && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Base: {freshNode?.name || freshNode?.node_id || ''}
+                  </p>
+                )}
+                {/* Morph Selection Radio Buttons */}
+                {isPolymorphic && morphs.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="text-xs text-gray-600 font-medium">Morphs:</span>
+                    {morphs.map((morph, index) => (
+                      <label key={morph.morph_id} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`morph-${freshNode?.node_id || freshNode?.id}`}
+                          value={morph.morph_id}
+                          checked={activeMorphId === morph.morph_id}
+                          onChange={() => handleMorphSwitch(morph.morph_id)}
+                          disabled={loading}
+                          className="text-blue-600"
+                        />
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          activeMorphId === morph.morph_id 
+                            ? 'bg-blue-100 text-blue-800 font-medium' 
+                            : 'text-gray-700 hover:text-blue-600'
+                        }`}>
+                          {index === 0 ? 'basic' : (morph.name || `morph ${index}`)}
+                          {activeMorphId === morph.morph_id && ' ✓'}
+                        </span>
+                      </label>
+                    ))}
+                    <button 
+                      className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+                      onClick={() => setShowMorphForm(true)}
+                      title="Add new morph"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+                {/* Add Morph button when polymorphic but no morphs yet */}
+                {isPolymorphic && morphs.length === 0 && (
+                  <div className="mt-2">
+                    <button 
+                      className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
+                      onClick={() => setShowMorphForm(true)}
+                      title="Add first morph"
+                    >
+                      + Add Morph
+                    </button>
+                  </div>
+                )}
+                {/* Morph management buttons in Node Neighborhood section */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold">
+                    {isPolymorphic && activeMorphId 
+                      ? `${morphs.findIndex(m => m.morph_id === activeMorphId) === 0 ? 'Basic Morph' : (morphs.find(m => m.morph_id === activeMorphId)?.name || 'Morph')} Neighborhood:`
+                      : 'Node Neighborhood:'
+                    }
                   </span>
-                </label>
-              ))}
-              <button 
-                className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
-                onClick={() => setShowMorphForm(true)}
-                title="Add new morph"
-              >
-                +
-              </button>
+                  {/* Morph management buttons */}
+                  {isPolymorphic && morphs.length > 1 && morphs[0]?.morph_id !== activeMorphId && (
+                    <button 
+                      className="text-red-600 underline text-xs"
+                      onClick={() => handleDeleteMorph(activeMorphId)}
+                      disabled={loading}
+                    >
+                      Delete Current Morph
+                    </button>
+                  )}
+                  {/* Only show transition creation if we have polymorphic nodes with multiple morphs and user has permission */}
+                  {isPolymorphic && morphs.length >= 2 && restrictions.canCreateTransitions && (
+                    <button className="text-green-600 underline text-xs" onClick={() => setShowTransitionForm(true)}>Create Transition</button>
+                  )}
+                  <button 
+                    className="text-gray-600 underline text-xs" 
+                    onClick={() => setNbhViewMode(nbhViewMode === 'rendered' ? 'editor' : 'rendered')}
+                  >
+                    {nbhViewMode === 'rendered' ? 'View CNL' : 'View Rendered'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold">Node Neighborhood:</span>
+                <button 
+                  className="text-gray-600 underline text-xs" 
+                  onClick={() => setNbhViewMode(nbhViewMode === 'rendered' ? 'editor' : 'rendered')}
+                >
+                  {nbhViewMode === 'rendered' ? 'View CNL' : 'View Rendered'}
+                </button>
+              </div>
+            )}
+            {/* Always show add buttons and NBH content/message */}
+            <div className="space-y-3">
+              {renderInteractiveNBH()}
             </div>
-          )}
-          
-          {/* Add Morph button when polymorphic but no morphs yet */}
-          {isPolymorphic && morphs.length === 0 && (
-            <div className="mt-2">
-              <button 
-                className="text-green-600 hover:text-green-700 text-xs px-2 py-1 rounded border border-green-300 hover:border-green-400"
-                onClick={() => setShowMorphForm(true)}
-                title="Add first morph"
-              >
-                + Add Morph
-              </button>
-            </div>
-          )}
+          </div>
         </div>
         
         {/* Role selector as compact button group */}
         <div className="flex gap-1">
-          {["individual", "class"].map(option => (
-            <button
-              key={option}
-              className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode?.role === option ? "bg-blue-600 text-white border-blue-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-100"}`}
-              style={{ minWidth: 0 }}
-              onClick={async () => {
-                if (freshNode?.role === option) return;
-                setLoading(true);
-                try {
-                  const token = localStorage.getItem("token");
-                  const updatedNode = { ...freshNode, role: option };
-                  const res = await fetch(
-                    `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
-                    {
-                      method: "PUT",
-                      headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                      },
-                      body: JSON.stringify(updatedNode)
+          {restrictions.canChooseRoles ? (
+            <>
+              {["individual", "class"].map(option => (
+                <button
+                  key={option}
+                  className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode?.role === option ? "bg-blue-600 text-white border-blue-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-100"}`}
+                  style={{ minWidth: 0 }}
+                  onClick={async () => {
+                    if (freshNode?.role === option) return;
+                    setLoading(true);
+                    try {
+                      const token = localStorage.getItem("token");
+                      const updatedNode = { ...freshNode, role: option };
+                      const res = await fetch(
+                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        {
+                          method: "PUT",
+                          headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                          },
+                          body: JSON.stringify(updatedNode)
+                        }
+                      );
+                      if (res.ok) {
+                        setFreshNode(updatedNode);
+                        if (onGraphUpdate) onGraphUpdate();
+                      }
+                    } finally {
+                      setLoading(false);
                     }
-                  );
-                  if (res.ok) {
-                    setFreshNode(updatedNode);
-                    if (onGraphUpdate) onGraphUpdate();
-                  }
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              title={option.charAt(0).toUpperCase() + option.slice(1)}
-            >
-              {option.charAt(0).toUpperCase()}
-            </button>
-          ))}
+                  }}
+                  disabled={loading}
+                  title={option.charAt(0).toUpperCase() + option.slice(1)}
+                >
+                  {option.charAt(0).toUpperCase()}
+                </button>
+              ))}
+              {restrictions.canUseProcessRole && (
+                <button
+                  className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode?.role === "process" ? "bg-green-600 text-white border-green-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-100"}`}
+                  style={{ minWidth: 0 }}
+                  onClick={async () => {
+                    if (freshNode?.role === "process") return;
+                    setLoading(true);
+                    try {
+                      const token = localStorage.getItem("token");
+                      const updatedNode = { ...freshNode, role: "process" };
+                      const res = await fetch(
+                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        {
+                          method: "PUT",
+                          headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                          },
+                          body: JSON.stringify(updatedNode)
+                        }
+                      );
+                      if (res.ok) {
+                        setFreshNode(updatedNode);
+                        if (onGraphUpdate) onGraphUpdate();
+                      }
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  title="Process"
+                >
+                  P
+                </button>
+              )}
+              {restrictions.canUseFunctionRole && (
+                <button
+                  className={`px-2 py-0.5 rounded text-xs font-semibold border ${freshNode?.role === "function" ? "bg-orange-600 text-white border-orange-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-orange-100"}`}
+                  style={{ minWidth: 0 }}
+                  onClick={async () => {
+                    if (freshNode?.role === "function") return;
+                    setLoading(true);
+                    try {
+                      const token = localStorage.getItem("token");
+                      const updatedNode = { ...freshNode, role: "function" };
+                      const res = await fetch(
+                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        {
+                          method: "PUT",
+                          headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                          },
+                          body: JSON.stringify(updatedNode)
+                        }
+                      );
+                      if (res.ok) {
+                        setFreshNode(updatedNode);
+                        if (onGraphUpdate) onGraphUpdate();
+                      }
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  title="Function"
+                >
+                  F
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="px-2 py-0.5 rounded text-xs font-semibold border bg-blue-600 text-white border-blue-600 cursor-default select-none">
+              {freshNode?.role ? freshNode.role.charAt(0).toUpperCase() + freshNode.role.slice(1) : restrictions.defaultRole.charAt(0).toUpperCase() + restrictions.defaultRole.slice(1)}
+            </div>
+          )}
           {/* Polymorphic toggle */}
-          <button
-            className={`px-2 py-0.5 rounded text-xs font-semibold border ${isPolymorphic ? "bg-purple-600 text-white border-purple-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-purple-100"}`}
-            onClick={() => setIsPolymorphic(!isPolymorphic)}
-            title="Polymorphic Node"
-          >
-            P
-          </button>
+          {restrictions.canUseMorphManagement && (
+            <button
+              className={`px-2 py-0.5 rounded text-xs font-semibold border ${isPolymorphic ? "bg-purple-600 text-white border-purple-600" : "bg-gray-100 text-gray-600 border-gray-300 hover:bg-purple-100"}`}
+              onClick={() => setIsPolymorphic(!isPolymorphic)}
+              title="Polymorphic Node"
+            >
+              M
+            </button>
+          )}
         </div>
       </div>
 
@@ -1519,7 +1661,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold">Description:</span>
           <button className="text-blue-600 underline text-xs" onClick={handleEdit}>Edit</button>
-          {hasDescription && (
+          {hasDescription && restrictions.canUseParseButton && (
             <button
               className="text-purple-600 underline text-xs"
               onClick={() => setShowParseModal(true)}
@@ -1571,13 +1713,15 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
           <div className="bg-white p-4 rounded shadow-lg border border-gray-200 min-w-[220px]">
             <div className="mb-2 font-semibold text-sm">Select NLP Parse Mode:</div>
-            <button
-              className="w-full mb-2 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs"
-              onClick={() => { setParseMode('enhanced'); handleNlpParse(); }}
-              disabled={nlpLoading}
-            >
-              Enhanced
-            </button>
+            {restrictions.canUseAdvancedParse && (
+              <button
+                className="w-full mb-2 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs"
+                onClick={() => { setParseMode('enhanced'); handleNlpParse(); }}
+                disabled={nlpLoading}
+              >
+                Enhanced
+              </button>
+            )}
             <button
               className="w-full mb-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
               onClick={() => { setParseMode('basic'); handleBasicNlpParse(); }}
@@ -1707,119 +1851,85 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         <div className={`text-xs mt-1 ${status === "submitted" ? "text-green-600" : "text-gray-500"}`}>{status}</div>
       )}
 
-      {/* --- Node Neighborhood Section --- */}
-      <div className="mb-2">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-semibold">
-            {isPolymorphic && activeMorphId 
-              ? `${morphs.findIndex(m => m.morph_id === activeMorphId) === 0 ? 'Basic Morph' : (morphs.find(m => m.morph_id === activeMorphId)?.name || 'Morph')} Neighborhood:`
-              : 'Node Neighborhood:'
-            }
-          </span>
-          {/* Morph management buttons */}
-          {isPolymorphic && morphs.length > 1 && morphs[0]?.morph_id !== activeMorphId && (
-            <button 
-              className="text-red-600 underline text-xs"
-              onClick={() => handleDeleteMorph(activeMorphId)}
-              disabled={loading}
-            >
-              Delete Current Morph
-            </button>
-          )}
-          {/* Only show transition creation if we have polymorphic nodes with multiple morphs */}
-          {isPolymorphic && morphs.length >= 2 && (
-            <button className="text-green-600 underline text-xs" onClick={() => setShowTransitionForm(true)}>Create Transition</button>
-          )}
-          <button 
-            className="text-gray-600 underline text-xs" 
-            onClick={() => setNbhViewMode(nbhViewMode === 'rendered' ? 'editor' : 'rendered')}
-          >
-            {nbhViewMode === 'rendered' ? 'View CNL' : 'View Rendered'}
-          </button>
-        </div>
-        {/* Always show add buttons and NBH content/message */}
-        <div className="space-y-3">
-          {renderInteractiveNBH()}
-        </div>
-        {showNbhModal && (
-          <div className="mt-2 bg-white p-4 rounded shadow-lg border border-gray-200">
-            <div className="mb-2 font-semibold text-base">Edit Node Neighborhood</div>
-            <div className="mb-3">
-              <div className="flex border-b mb-2">
-                <button
-                  className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===0 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
-                  onClick={()=>setNbhTab(0)}
-                >Relations</button>
-                <button
-                  className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===1 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
-                  onClick={()=>setNbhTab(1)}
-                >Attributes</button>
-              </div>
-              {nbhTab===0 ? (
-                <RelationForm
-                  relationId={freshNode?.node_id || freshNode?.id}
-                  relationTypes={relationTypes}
-                  userId={userId}
-                  graphId={graphId}
-                  onAddRelationType={() => {}}
-                  onSuccess={async () => {
-                    // Immediately refresh this node's data
-                    const nodeId = freshNode?.node_id || freshNode?.id;
-                    try {
-                      if (!isTokenValid()) {
-                        console.error("Token expired, cannot refresh node data");
-                        return;
-                      }
-                      
-                      const data = await refreshNodeData(userId, graphId, nodeId);
-                      setFreshNode(data);
-                      // Also trigger parent graph update
-                      if (typeof onGraphUpdate === 'function') onGraphUpdate();
-                    } catch (err) {
-                      console.error('Failed to refresh node:', err);
-                      // Don't fail silently, but don't break the UI
-                    }
-                  }}
-                  morphId={activeMorphId}
-                />
-              ) : (
-                <AttributeForm
-                  nodeId={freshNode?.node_id || freshNode?.id}
-                  attributeTypes={attributeTypes}
-                  userId={userId}
-                  graphId={graphId}
-                  onAddAttributeType={() => {}}
-                  initialData={{ id: generateRandomId() }}
-                  onSuccess={async () => {
-                    // Immediately refresh this node's data
-                    const nodeId = freshNode?.node_id || freshNode?.id;
-                    try {
-                      if (!isTokenValid()) {
-                        console.error("Token expired, cannot refresh node data");
-                        return;
-                      }
-                      
-                      const data = await refreshNodeData(userId, graphId, nodeId);
-                      setFreshNode(data);
-                      // Also trigger parent graph update
-                      if (typeof onGraphUpdate === 'function') onGraphUpdate();
-                    } catch (err) {
-                      console.error('Failed to refresh node:', err);
-                      // Don't fail silently, but don't break the UI
-                    }
-                  }}
-                  morphId={activeMorphId}
-                />
-              )}
+      {/* NBH Modal */}
+      {showNbhModal && (
+        <div className="mt-2 bg-white p-4 rounded shadow-lg border border-gray-200">
+          <div className="mb-2 font-semibold text-base">Edit Node Neighborhood</div>
+          <div className="mb-3">
+            <div className="flex border-b mb-2">
+              <button
+                className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===0 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                onClick={()=>setNbhTab(0)}
+              >Relations</button>
+              <button
+                className={`flex-1 px-2 py-1 text-xs font-bold ${nbhTab===1 ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500'}`}
+                onClick={()=>setNbhTab(1)}
+              >Attributes</button>
             </div>
-            {nbhSaveStatus && <div className="text-xs text-red-500 mb-2">{nbhSaveStatus}</div>}
-            <div className="flex gap-2 justify-end">
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs" onClick={handleSaveNbh} disabled={nbhLoading}>Save</button>
-              <button className="px-3 py-1 bg-gray-300 rounded text-xs" onClick={()=>setShowNbhModal(false)} disabled={nbhLoading}>Cancel</button>
-            </div>
+            {nbhTab===0 ? (
+              <RelationForm
+                relationId={freshNode?.node_id || freshNode?.id}
+                relationTypes={relationTypes}
+                userId={userId}
+                graphId={graphId}
+                onAddRelationType={() => {}}
+                onSuccess={async () => {
+                  // Immediately refresh this node's data
+                  const nodeId = freshNode?.node_id || freshNode?.id;
+                  try {
+                    if (!isTokenValid()) {
+                      console.error("Token expired, cannot refresh node data");
+                      return;
+                    }
+                    
+                    const data = await refreshNodeData(userId, graphId, nodeId);
+                    setFreshNode(data);
+                    // Also trigger parent graph update
+                    if (typeof onGraphUpdate === 'function') onGraphUpdate();
+                  } catch (err) {
+                    console.error('Failed to refresh node:', err);
+                    // Don't fail silently, but don't break the UI
+                  }
+                }}
+                morphId={activeMorphId}
+              />
+            ) : (
+              <AttributeForm
+                nodeId={freshNode?.node_id || freshNode?.id}
+                attributeTypes={attributeTypes}
+                userId={userId}
+                graphId={graphId}
+                onAddAttributeType={() => {}}
+                initialData={{ id: generateRandomId() }}
+                onSuccess={async () => {
+                  // Immediately refresh this node's data
+                  const nodeId = freshNode?.node_id || freshNode?.id;
+                  try {
+                    if (!isTokenValid()) {
+                      console.error("Token expired, cannot refresh node data");
+                      return;
+                    }
+                    
+                    const data = await refreshNodeData(userId, graphId, nodeId);
+                    setFreshNode(data);
+                    // Also trigger parent graph update
+                    if (typeof onGraphUpdate === 'function') onGraphUpdate();
+                  } catch (err) {
+                    console.error('Failed to refresh node:', err);
+                    // Don't fail silently, but don't break the UI
+                  }
+                }}
+                morphId={activeMorphId}
+              />
+            )}
           </div>
-        )}
-      </div>
+          {nbhSaveStatus && <div className="text-xs text-red-500 mb-2">{nbhSaveStatus}</div>}
+          <div className="flex gap-2 justify-end">
+            <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs" onClick={handleSaveNbh} disabled={nbhLoading}>Save</button>
+            <button className="px-3 py-1 bg-gray-300 rounded text-xs" onClick={()=>setShowNbhModal(false)} disabled={nbhLoading}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Transition Form Modal */}
       {showTransitionForm && (

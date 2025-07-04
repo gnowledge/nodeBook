@@ -25,11 +25,9 @@ function stripMarkdown(md) {
 
 // ✅ Transform function to extract only relevant node and edge data
 function ndfToCytoscapeGraph(ndfData) {
-  console.log("🔄 ndfToCytoscapeGraph called with:", ndfData);
   
-  // Handle polymorphic data structure (nodes, relations, attributes)
-  if (ndfData.nodes && ndfData.relations && ndfData.attributes) {
-    console.log("🔄 Processing polymorphic data structure");
+      // Handle polymorphic data structure (nodes, relations, attributes)
+    if (ndfData.nodes && ndfData.relations && ndfData.attributes) {
     
     const nodes = [];
     const edges = [];
@@ -141,9 +139,8 @@ function ndfToCytoscapeGraph(ndfData) {
       }
     }
     
-    // Process transitions if present
-    if (ndfData.transitions && ndfData.transitions.length > 0) {
-      console.log("🔄 Processing transitions:", ndfData.transitions);
+          // Process transitions if present
+      if (ndfData.transitions && ndfData.transitions.length > 0) {
       
       for (const transition of ndfData.transitions) {
         // Add transition node
@@ -239,30 +236,26 @@ function ndfToCytoscapeGraph(ndfData) {
       }
     }
     
-    const result = { nodes, edges };
-    console.log("🔄 Final transformed result (polymorphic):", result);
-    return result;
+          const result = { nodes, edges };
+      return result;
   }
   
   // Handle legacy Cytoscape format (nodes, edges)
   if (ndfData.nodes && ndfData.edges) {
-    console.log("🔄 Processing legacy Cytoscape format");
     return ndfData;
   }
   
-  // Handle legacy NDF format with embedded relations
-  console.log("🔄 Processing legacy NDF format with embedded relations");
+      // Handle legacy NDF format with embedded relations
   const nodes = (ndfData.nodes || []).map(node => {
-    const transformedNode = {
-      data: {
-        id: node.node_id || node.id,
-        label: stripMarkdown(node.name || node.node_id || node.id || ""),
-        description: node.description || "",
-        originalName: node.name || node.node_id || node.id || ""
-      }
-    };
-    console.log("🔄 Transformed node:", transformedNode);
-    return transformedNode;
+          const transformedNode = {
+        data: {
+          id: node.node_id || node.id,
+          label: stripMarkdown(node.name || node.node_id || node.id || ""),
+          description: node.description || "",
+          originalName: node.name || node.node_id || node.id || ""
+        }
+      };
+      return transformedNode;
   });
 
   // Handle relations from the top-level relations array
@@ -280,12 +273,10 @@ function ndfToCytoscapeGraph(ndfData) {
         adverb: rel.adverb || undefined
       }
     };
-    console.log("🔄 Transformed edge:", transformedEdge);
     return transformedEdge;
   });
 
   const result = { nodes, edges };
-  console.log("🔄 Final transformed result (legacy):", result);
   return result;
 }
 
@@ -299,10 +290,8 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   // Update graphData when graph prop changes (but preserve in-memory changes during simulation)
   useEffect(() => {
     if (!isSimulationMode) {
-      console.log("🔄 Updating graphData from graph prop");
       setGraphData(graph);
     } else {
-      console.log("🔄 Skipping graphData update - in simulation mode");
     }
   }, [graph, isSimulationMode]);
 
@@ -313,9 +302,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     return <div className="p-4 text-red-600">No parsed graph data available for visualization.</div>;
   }
 
-    console.log("📊 graph data:", graph);
     
-    console.log("CytoscapeStudio graph prop:", graph);
   const cyRef = useRef(null);
   const containerRef = useRef(null);
   // Track mount state to force re-init on remount
@@ -325,14 +312,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   useEffect(() => {
     const checkContainer = () => {
       if (containerRef.current) {
-        console.log("📏 Container dimensions:", {
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-          clientWidth: containerRef.current.clientWidth,
-          clientHeight: containerRef.current.clientHeight,
-          scrollWidth: containerRef.current.scrollWidth,
-          scrollHeight: containerRef.current.scrollHeight
-        });
+        // no-op
       }
     };
     
@@ -344,24 +324,14 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   // Always clean up on unmount
   useEffect(() => {
     mountedRef.current = true;
-    console.log("🔄 useEffect triggered with graph:", graph);
-    console.log("🔄 graph.nodes:", graph?.nodes);
-    console.log("🔄 graphData:", graphData);
     
     // Always initialize Cytoscape on mount
     if (graph && graph.nodes) {
-      console.log("✅ Graph has nodes, proceeding with initialization");
       if (cyRef.current) {
         cyRef.current.destroy();
         cyRef.current = null;
       }
       const checkAndInit = () => {
-        console.log("🔍 Checking container dimensions...");
-        console.log("🔍 containerRef.current:", containerRef.current);
-        console.log("🔍 container width:", containerRef.current?.offsetWidth);
-        console.log("🔍 container height:", containerRef.current?.offsetHeight);
-        console.log("🔍 document.body.contains:", document.body.contains(containerRef.current));
-        console.log("🔍 mountedRef.current:", mountedRef.current);
         
         if (
           containerRef.current &&
@@ -370,12 +340,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           document.body.contains(containerRef.current) &&
           mountedRef.current
         ) {
-          console.log("✅ Container ready, transforming graph data...");
           // Use graphData state if available, otherwise fall back to graph prop
           const currentGraphData = graphData || graph;
           const { nodes, edges } = ndfToCytoscapeGraph(currentGraphData);
-          console.log("✅ Transformed nodes:", nodes);
-          console.log("✅ Transformed edges:", edges);
           
           // Validate that all edge sources and targets exist in nodes
           const nodeIds = new Set(nodes.map(n => n.data.id));
@@ -399,7 +366,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               const targetExists = nodeIds.has(edge.data.target);
               return sourceExists && targetExists;
             });
-            console.log("✅ Valid edges:", validEdges);
             
             cyRef.current = cytoscape({
               container: containerRef.current,
@@ -563,16 +529,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               }
             });
             
-            // Add debugging for layout
-            console.log("🔧 Layout configuration:", {
-              prefs: prefs,
-              graphLayout: prefs?.graphLayout,
-              finalLayout: prefs?.graphLayout || "dagre"
-            });
-            
-            console.log("✅ Cytoscape initialized successfully (with filtered edges)");
           } else {
-            console.log("✅ All edges are valid, proceeding with full graph");
             cyRef.current = cytoscape({
               container: containerRef.current,
               elements: [...nodes, ...edges],
@@ -735,19 +692,10 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               }
             });
             
-            // Add debugging for layout
-            console.log("🔧 Layout configuration (full graph):", {
-              prefs: prefs,
-              graphLayout: prefs?.graphLayout,
-              finalLayout: prefs?.graphLayout || "dagre"
-            });
-            
-            console.log("✅ Cytoscape initialized successfully");
           }
           
           cyRef.current.on("mouseover", "node", (evt) => {
             const desc = evt.target.data("description") || "No description";
-            console.log("Node description:", desc);
           });
           
           // Add specific handling for transition nodes
@@ -800,13 +748,11 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             });
           });
         } else {
-          console.log("⏳ Container not ready, retrying in 100ms...");
           setTimeout(checkAndInit, 100);
         }
       };
       checkAndInit();
     } else {
-      console.log("❌ Graph is missing or has no nodes");
     }
     return () => {
       mountedRef.current = false;
@@ -827,7 +773,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
 
   // Execute a soft transition by changing input node morphs to output morphs (in-memory only)
   const executeTransition = async (transition) => {
-    console.log("🔄 Executing soft transition:", transition);
     
     // Clean up any existing tooltips
     const tooltips = document.querySelectorAll('.transition-tooltip');
@@ -903,7 +848,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           updatedNodes.push(updatedNode);
         }
 
-        console.log(`✅ Updated node ${nodeId} from ${currentMorphId} to ${targetMorphId} (${direction})`);
       }
       
       // Remove loading message
@@ -973,7 +917,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           document.body.contains(containerRef.current) &&
           mountedRef.current
         ) {
-          console.log("🔄 Re-initializing Cytoscape with updated graph data...");
           const { nodes, edges } = ndfToCytoscapeGraph(inMemoryGraph);
           
           cyRef.current = cytoscape({
@@ -1170,7 +1113,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             });
           });
           
-          console.log("✅ Cytoscape re-initialized with updated graph data");
         } else {
           setTimeout(checkAndInit, 100);
         }
@@ -1215,7 +1157,6 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
 
   // Reset simulation to original graph state
   const resetSimulation = () => {
-    console.log("🔄 Resetting simulation to original state");
     
     // Reset to original graph data
     setGraphData(graph);

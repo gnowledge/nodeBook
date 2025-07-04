@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useDifficulty } from "./DifficultyContext";
 
 // Helper for preview rendering (shared for all tabs)
 function PreviewBox({ label, value }) {
@@ -9,7 +10,8 @@ function PreviewBox({ label, value }) {
   );
 }
 
-export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "easy" }) {
+export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty: propDifficulty = "easy" }) {
+  const { restrictions } = useDifficulty();
   const [tab, setTab] = useState("node");
 
   // Node tab state
@@ -32,11 +34,11 @@ export default function CNLHelperModal({ onCNLGenerated, onClose, difficulty = "
   const [attrUnit, setAttrUnit] = useState("");
   const [attrModality, setAttrModality] = useState("");
 
-  // Difficulty logic
-  const isQualifierEnabled = ["medium", "advanced", "expert"].includes(difficulty);
-  const isQuantifierEnabled = ["advanced", "expert"].includes(difficulty);
-  const isAdverbEnabled = ["expert"].includes(difficulty);
-  const isModalityEnabled = ["expert"].includes(difficulty);
+  // Difficulty logic - use restrictions from context
+  const isQualifierEnabled = restrictions.canUseAdjectives;
+  const isQuantifierEnabled = restrictions.canUseQuantifiers;
+  const isAdverbEnabled = restrictions.canUseAdverbs;
+  const isModalityEnabled = restrictions.canUseModality;
 
   // Node preview
   let nodePreview = base.trim();

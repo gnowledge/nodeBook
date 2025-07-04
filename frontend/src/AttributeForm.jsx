@@ -3,6 +3,7 @@ import { API_BASE } from './config';
 import AttributeTypeModal from './AttributeTypeModal';
 import MessageArea from './MessageArea';
 import { useUserInfo } from "./UserIdContext";
+import { useDifficulty } from "./DifficultyContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -14,6 +15,7 @@ function PreviewBox({ label, value }) {
 
 export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttributeType, initialData = {}, onSuccess, morphId }) {
   const { userId } = useUserInfo();
+  const { restrictions } = useDifficulty();
   // CNL-style fields
   const [attribute, setAttribute] = useState(initialData.name || '');
   const [attrValue, setAttrValue] = useState(initialData.value || '');
@@ -117,6 +119,10 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
         onClose={() => setMessage('')} 
       />
       <form className="space-y-4" onSubmit={handleAttributeSubmit}>
+        {/* CNL Preview - prominent and at the top */}
+        <div className="mb-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-lg font-bold rounded">
+          CNL Preview: <span className="text-blue-800">{attrPreview || <span className="text-gray-400">(attribute preview)</span>}</span>
+        </div>
         <h3 className="text-lg font-semibold text-gray-800">Assign Attribute</h3>
         <div>
           <label className="block text-sm font-medium mb-1">Target Node:</label>
@@ -150,10 +156,12 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
           {attributeTypesLoading && <div className="text-xs text-gray-400">Loading attribute types...</div>}
         </div>
         <div className="grid grid-cols-3 gap-3 items-end mb-2">
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Adverb</label>
-            <input className="border rounded px-2 py-1 text-center" value={attrAdverb} onChange={e => setAttrAdverb(e.target.value)} placeholder="e.g. rapidly" />
-          </div>
+          {restrictions.canUseAdverbs && (
+            <div className="flex flex-col">
+              <label className="font-semibold text-xs mb-1 text-center">Adverb</label>
+              <input className="border rounded px-2 py-1 text-center" value={attrAdverb} onChange={e => setAttrAdverb(e.target.value)} placeholder="e.g. rapidly" />
+            </div>
+          )}
           <div className="flex flex-col">
             <label className="font-semibold text-xs mb-1 text-center">Value<span className="text-red-500">*</span></label>
             <input className="border rounded px-2 py-1 text-center" value={attrValue} onChange={e => setAttrValue(e.target.value)} placeholder="e.g. 50" required />
@@ -163,13 +171,14 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
             <input className="border rounded px-2 py-1 text-center" value={attrUnit} onChange={e => setAttrUnit(e.target.value)} placeholder="e.g. microns" />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-3 items-end mb-2">
-          <div className="flex flex-col">
-            <label className="font-semibold text-xs mb-1 text-center">Modality</label>
-            <input className="border rounded px-2 py-1 text-center" value={attrModality} onChange={e => setAttrModality(e.target.value)} placeholder="e.g. uncertain" />
+        {restrictions.canUseModality && (
+          <div className="grid grid-cols-1 gap-3 items-end mb-2">
+            <div className="flex flex-col">
+              <label className="font-semibold text-xs mb-1 text-center">Modality</label>
+              <input className="border rounded px-2 py-1 text-center" value={attrModality} onChange={e => setAttrModality(e.target.value)} placeholder="e.g. uncertain" />
+            </div>
           </div>
-        </div>
-        <PreviewBox label="attribute" value={attrPreview} />
+        )}
         <div className="flex justify-end gap-2 mt-4">
           <button
             type="submit"
@@ -178,11 +187,6 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
           >
             Submit
           </button>
-        </div>
-        <div className="text-xs text-gray-500 mt-2">
-          <div><b>Examples:</b></div>
-          <div>Easy: <span className="italic">has size: 50 *microns*</span></div>
-          <div>Expert: <span className="italic">has growth_rate: ++rapidly++ 5 *cm/year* [uncertain]</span></div>
         </div>
         {showAttributeModal && (
           <AttributeTypeModal

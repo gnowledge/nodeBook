@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { API_BASE } from "./config";
+import { useDifficulty } from "./DifficultyContext";
 
 // Initial preferences (used as fallback)
 const DEFAULT_PREFERENCES = {
@@ -23,6 +24,7 @@ const DISABLED_PREFS = [
 ];
 
 export default function PreferencesPanel({ userId, onPrefsChange }) {
+  const { setDifficulty } = useDifficulty();
   const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -104,6 +106,11 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
     setPrefs(updated);
     debouncedSave(updated);
     if (onPrefsChange) onPrefsChange(updated);
+    
+    // Update difficulty context when difficulty changes
+    if (name === 'difficulty') {
+      setDifficulty(value);
+    }
   }
 
   // Cleanup timeout on unmount
@@ -154,12 +161,17 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
       <div>
         <label className="block font-medium mb-1">Difficulty Level</label>
         <select name="difficulty" value={prefs.difficulty} onChange={handleChange} className="border rounded px-2 py-1">
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="advanced">Advanced</option>
-          <option value="expert">Expert</option>
+          <option value="easy">Easy - Basic features only</option>
+          <option value="moderate">Moderate - Add qualifiers and basic parsing</option>
+          <option value="advanced">Advanced - Add quantifiers and morph management</option>
+          <option value="expert">Expert - Full features including adverbs and modality</option>
         </select>
-        <span className="text-xs text-gray-400 ml-2">(Affects UI and AI prompts in future)</span>
+        <div className="text-xs text-gray-600 mt-1">
+          <strong>Easy:</strong> Basic nodes, no advanced features<br/>
+          <strong>Moderate:</strong> Add qualifiers, basic parse button<br/>
+          <strong>Advanced:</strong> Add quantifiers, morph management, transitions<br/>
+          <strong>Expert:</strong> Full features including adverbs, modality, all roles
+        </div>
       </div>
       <div>
         <label className="block font-medium mb-1">Graph Layout</label>

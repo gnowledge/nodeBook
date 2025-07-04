@@ -278,7 +278,6 @@ const DisplayHTML = ({ graphId, onGraphRefresh, onInMemoryMorphChange }) => {
               graphId={graphId}
               onSuccess={handleNodeCreated}
               onClose={() => setShowNodeForm(false)}
-              difficulty="expert"
             />
           </div>
         </div>

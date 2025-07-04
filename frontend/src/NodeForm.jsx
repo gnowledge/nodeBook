@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './config';
 import { useUserInfo } from "./UserIdContext";
+import { useDifficulty } from "./DifficultyContext";
 
 function PreviewBox({ label, value }) {
   return (
@@ -18,8 +19,9 @@ function PreviewBox({ label, value }) {
  *   difficulty: (optional) controls which fields are enabled (default: 'easy')
  *   onClose: (optional) for modal usage
  */
-export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', onClose, graphId, nodeId, onAddNodeType, morphId }) {
+export default function NodeForm({ onSuccess, initialData, difficulty: propDifficulty = 'easy', onClose, graphId, nodeId, onAddNodeType, morphId }) {
   const { userId } = useUserInfo();
+  const { restrictions } = useDifficulty();
   // CNL-style fields
   const [base, setBase] = useState('');
   const [qualifier, setQualifier] = useState('');
@@ -43,9 +45,9 @@ export default function NodeForm({ onSuccess, initialData, difficulty = 'easy', 
     }
   }, [initialData]);
 
-  // Difficulty logic
-  const isQualifierEnabled = ["medium", "advanced", "expert"].includes(difficulty);
-  const isQuantifierEnabled = ["advanced", "expert"].includes(difficulty);
+  // Difficulty logic - use restrictions from context instead of prop
+  const isQualifierEnabled = restrictions.canUseAdjectives;
+  const isQuantifierEnabled = restrictions.canUseQuantifiers;
 
   // Node preview logic (matches CNL Helper)
   let nodePreview = base.trim();
