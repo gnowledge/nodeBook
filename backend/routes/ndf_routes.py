@@ -183,7 +183,24 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user:
     try:
         with graph_transaction(user_id, graph_id, "create_graph") as backup_dir:
             graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-            template_dir = Path("graph_data/global/templates/defaultGraphFiles")
+            
+            # Determine template directory based on environment
+            try:
+                from backend.core.appimage_utils import is_running_from_appimage, get_appimage_resources_path
+                if is_running_from_appimage():
+                    # In AppImage, templates are in resources/graph_data/global/templates/defaultGraphFiles
+                    resources_path = get_appimage_resources_path()
+                    if resources_path:
+                        template_dir = resources_path / "graph_data" / "global" / "templates" / "defaultGraphFiles"
+                    else:
+                        # Fallback to relative path
+                        template_dir = Path("graph_data/global/templates/defaultGraphFiles")
+                else:
+                    # Development mode - use relative path
+                    template_dir = Path("graph_data/global/templates/defaultGraphFiles")
+            except ImportError:
+                # Fallback if appimage_utils is not available
+                template_dir = Path("graph_data/global/templates/defaultGraphFiles")
 
             if graph_dir.exists():
                 raise HTTPException(status_code=400, detail="Graph already exists")
@@ -198,6 +215,12 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user:
                 if not src.exists():
                     raise HTTPException(status_code=500, detail=f"Template file missing: {fname}")
                 copyfile(src, dest)
+
+            # Ensure polymorphic_composed.json exists as an empty array
+            poly_path = graph_dir / "polymorphic_composed.json"
+            if not poly_path.exists():
+                with open(poly_path, "w") as f:
+                    json.dump([], f)
 
             # Update metadata atomically
             metadata_path = graph_dir / "metadata.yaml"

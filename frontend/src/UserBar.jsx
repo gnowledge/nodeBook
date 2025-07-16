@@ -13,7 +13,7 @@ export default function UserBar() {
     <header className="flex items-center justify-between px-4 py-2 bg-blue-900 text-white shadow">
       <div className="flex items-center">
         <img
-          src="/logo.png"
+          src="./logo.png"
           alt="NodeBook Logo"
           style={{ width: 60, height: 60 }}
           className="mr-3"

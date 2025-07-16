@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import NDFStudioPanel from "./NDFStudioPanel";
-import { listGraphsWithTitles, loadGraphCNL } from "./services/api";
+import { listGraphsWithTitles, loadGraphCNL, loadDocFile, authenticatedApiCall } from "./services/api";
+import { API_BASE } from "./config";
 import WorkspaceStatistics from "./WorkspaceStatistics";
 import PreferencesPanel from "./PreferencesPanel";
 import { marked } from "marked";
@@ -127,6 +128,8 @@ const NDFStudioLayout = () => {
   const [activeDevTab, setActiveDevTab] = useState("json");
   const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
   const [prefsLoading, setPrefsLoading] = useState(true);
+  const [showNewGraphModal, setShowNewGraphModal] = useState(false);
+  const [newGraphName, setNewGraphName] = useState("");
 
   useEffect(() => {
     async function init() {
@@ -150,13 +153,7 @@ const NDFStudioLayout = () => {
       }
       setPrefsLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        if (!res.ok) throw new Error("Failed to load preferences");
+        const res = await authenticatedApiCall(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         const data = await res.json();
         setPrefs(data);
       } catch (e) {
@@ -175,12 +172,7 @@ const NDFStudioLayout = () => {
     }
     try {
       const raw = await loadGraphCNL(userId, graphId);
-      const token = localStorage.getItem("token");
-      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      const composedRes = await authenticatedApiCall(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
@@ -194,12 +186,18 @@ const NDFStudioLayout = () => {
   };
 
   const handleAddGraph = async () => {
-    const name = prompt("Enter a name for the new graph:");
-    if (!name) return;
-    const newId = name.trim().replace(/\s+/g, "_").toLowerCase();
+    setShowNewGraphModal(true);
+  };
+
+  const handleCreateGraph = async () => {
+    if (!newGraphName.trim()) return;
+    
+    const name = newGraphName.trim();
+    const newId = name.replace(/\s+/g, "_").toLowerCase();
+    
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${newId}`, {
+      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${newId}`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -210,11 +208,8 @@ const NDFStudioLayout = () => {
       if (!res.ok) throw new Error(await res.text());
 
       const raw = await loadGraphCNL(userId, newId);
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      }).then(r => r.json());
+      const composedRes = await authenticatedApiCall(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`);
+      const composed = await composedRes.json();
       const fullGraph = { ...composed, raw_markdown: raw };
       const newMeta = { id: newId, title: name };
 
@@ -224,6 +219,10 @@ const NDFStudioLayout = () => {
       setComposedGraphs((prev) => ({ ...prev, [newId]: fullGraph }));
       setInMemoryGraphs((prev) => ({ ...prev, [newId]: JSON.parse(JSON.stringify(fullGraph)) })); // Initialize in-memory graph
       setRawMarkdowns((prev) => ({ ...prev, [newId]: raw }));
+      
+      // Close modal and reset input
+      setShowNewGraphModal(false);
+      setNewGraphName("");
     } catch (err) {
       console.error("Failed to create graph:", err);
       alert("Failed to create graph. See console for details.");
@@ -582,6 +581,46 @@ const NDFStudioLayout = () => {
       <div className="flex-1 overflow-auto bg-white">
         {renderMainContent()}
       </div>
+      
+      {/* New Graph Modal */}
+      {showNewGraphModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Create New Graph</h3>
+            <input
+              type="text"
+              placeholder="Enter graph name"
+              value={newGraphName}
+              onChange={(e) => setNewGraphName(e.target.value)}
+              className="w-full p-2 border rounded mb-4"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleCreateGraph();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowNewGraphModal(false);
+                  setNewGraphName("");
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGraph}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                disabled={!newGraphName.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -591,11 +630,7 @@ function HelpTab() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch("/doc/Help.md")
-      .then((res) => {
-        if (!res.ok) throw new Error("Help.md not found");
-        return res.text();
-      })
+    loadDocFile("Help.md")
       .then(setHelpMd)
       .catch((e) => setError(e.message));
   }, []);

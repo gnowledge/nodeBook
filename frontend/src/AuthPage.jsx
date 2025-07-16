@@ -39,7 +39,7 @@ export default function AuthPage({ onAuth }) {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
       {/* Logo at the top, centered */}
       <img
-        src="/logo.png"
+        src="./logo.png"
         alt="NodeBook Logo"
         style={{ width: 120, height: 120 }}
         className="mb-6"

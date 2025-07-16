@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useParams, Link as RouterLink } from "react-router-dom";
+import { loadDocFile } from "./services/api";
 // import "github-markdown-css/github-markdown-light.css";
 
 export default function HelpPage() {
@@ -10,11 +11,7 @@ export default function HelpPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`/doc/${page}.md`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`${page}.md not found`);
-        return res.text();
-      })
+    loadDocFile(`${page}.md`)
       .then(setContent)
       .catch((e) => setError(e.message));
   }, [page]);

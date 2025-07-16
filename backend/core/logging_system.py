@@ -45,8 +45,17 @@ class NDFLogger:
     
     def __init__(self, user_id: str = "system", log_dir: str = "logs"):
         self.user_id = user_id
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
+        
+        # Check if we're running from an AppImage and use user's home directory for logs
+        if os.environ.get('APPIMAGE') or 'app.asar' in sys.executable:
+            # Use user's home directory for logs in AppImage mode
+            home_dir = Path.home()
+            self.log_dir = home_dir / '.local' / 'share' / 'nodebook' / 'logs'
+        else:
+            # Use the specified log directory for development
+            self.log_dir = Path(log_dir)
+        
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize loggers for each category
         self.loggers: Dict[LogCategory, logging.Logger] = {}

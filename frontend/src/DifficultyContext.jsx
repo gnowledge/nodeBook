@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useUserInfo } from './UserIdContext';
+import { authenticatedApiCall } from './services/api';
 
 const DifficultyContext = createContext();
 
@@ -26,18 +27,9 @@ export const DifficultyProvider = ({ children }) => {
       }
       
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setDifficulty(data.difficulty || 'easy');
-        } else {
-          setDifficulty('easy');
-        }
+        const res = await authenticatedApiCall(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+        setDifficulty(data.difficulty || 'easy');
       } catch (error) {
         console.error('Failed to fetch difficulty:', error);
         setDifficulty('easy');
