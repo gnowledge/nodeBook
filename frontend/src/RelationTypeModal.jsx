@@ -1,6 +1,6 @@
 // Updated RelationTypeModal.jsx to support both POST (create) and PUT (edit) modes
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import { useUserInfo } from "./UserIdContext";
 
 export default function RelationTypeModal({
@@ -32,7 +32,7 @@ export default function RelationTypeModal({
     setNodeTypesLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -92,7 +92,7 @@ export default function RelationTypeModal({
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(endpoint || `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relations`, {
+      const res = await fetch(endpoint || `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relations`, {
         method: method,
         headers: { 
           'Content-Type': 'application/json',

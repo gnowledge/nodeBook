@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import { useUserInfo } from "./UserIdContext";
-import { useDifficulty } from "./DifficultyContext";
+import { useUserInfo } from './UserIdContext';
+import { useDifficulty } from './DifficultyContext';
+import { getApiBase } from './config';
 
 export default function CNLHelperModal({ 
   isOpen, 
@@ -42,7 +43,7 @@ export default function CNLHelperModal({
       const token = localStorage.getItem("token");
       
       // Parse CNL and update node neighborhood
-      const response = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/cnl`, {
+      const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/cnl`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'text/plain',

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import NDFStudioPanel from "./NDFStudioPanel";
 import { listGraphsWithTitles, loadGraphCNL, loadDocFile, authenticatedApiCall } from "./services/api";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import WorkspaceStatistics from "./WorkspaceStatistics";
 import PreferencesPanel from "./PreferencesPanel";
 import { marked } from "marked";
@@ -11,6 +12,7 @@ import BlocklyCNLComposer from "./BlocklyCNLComposer";
 import DevPanel from "./DevPanel";
 import CNLInput from "./CNLInput";
 import LogViewer from "./LogViewer";
+import ShareButton from "./components/ShareButton";
 import { useUserInfo } from "./UserIdContext";
 
 const DEFAULT_PREFERENCES = {
@@ -115,13 +117,13 @@ const DEV_PANEL_TABS = [
 
 const NDFStudioLayout = () => {
   const { userId, userInfo } = useUserInfo();
+  const [searchParams] = useSearchParams();
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
   const [activeGraph, setActiveGraph] = useState(null);
   const [rawMarkdowns, setRawMarkdowns] = useState({});
   const [composedGraphs, setComposedGraphs] = useState({});
   const [inMemoryGraphs, setInMemoryGraphs] = useState({}); // In-memory graphs for morph changes
-  const [showMenu, setShowMenu] = useState(false);
   const [modifiedGraphs, setModifiedGraphs] = useState({});
   const [activeTopTab, setActiveTopTab] = useState("graphs");
   const [activeWorkTab, setActiveWorkTab] = useState("display");
@@ -130,6 +132,18 @@ const NDFStudioLayout = () => {
   const [prefsLoading, setPrefsLoading] = useState(true);
   const [showNewGraphModal, setShowNewGraphModal] = useState(false);
   const [newGraphName, setNewGraphName] = useState("");
+
+  // Handle URL parameters for graph sharing
+  useEffect(() => {
+    const graphParam = searchParams.get('graph');
+    if (graphParam && userId && allGraphs.length > 0) {
+      // Check if the graph exists in the user's graphs
+      const graphExists = allGraphs.find(g => g.id === graphParam);
+      if (graphExists) {
+        openGraphInTab(graphParam);
+      }
+    }
+  }, [searchParams, userId, allGraphs]);
 
   useEffect(() => {
     async function init() {
@@ -153,7 +167,7 @@ const NDFStudioLayout = () => {
       }
       setPrefsLoading(true);
       try {
-        const res = await authenticatedApiCall(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await authenticatedApiCall(`${getApiBase()}/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         const data = await res.json();
         setPrefs(data);
       } catch (e) {
@@ -172,7 +186,7 @@ const NDFStudioLayout = () => {
     }
     try {
       const raw = await loadGraphCNL(userId, graphId);
-      const composedRes = await authenticatedApiCall(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      const composedRes = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
@@ -197,7 +211,7 @@ const NDFStudioLayout = () => {
     
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${newId}`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${newId}`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -208,7 +222,7 @@ const NDFStudioLayout = () => {
       if (!res.ok) throw new Error(await res.text());
 
       const raw = await loadGraphCNL(userId, newId);
-      const composedRes = await authenticatedApiCall(`/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`);
+      const composedRes = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`);
       const composed = await composedRes.json();
       const fullGraph = { ...composed, raw_markdown: raw };
       const newMeta = { id: newId, title: name };
@@ -257,41 +271,42 @@ const NDFStudioLayout = () => {
   };
 
   const refreshActiveGraph = async () => {
-    if (!activeGraph || !userId) return;
-    try {
-      console.log("🔄 Refreshing graph data for:", activeGraph);
-      const token = localStorage.getItem("token");
-      const composedRes = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      if (!composedRes.ok) throw new Error("Failed to fetch updated graph data");
+    if (!activeGraph) return;
+    
+    console.log("🔄 Refreshing graph data for:", activeGraph);
+    const token = localStorage.getItem("token");
+    const composedRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    
+    if (composedRes.ok) {
       const composed = await composedRes.json();
       setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
-      setInMemoryGraphs((prev) => ({ ...prev, [activeGraph]: JSON.parse(JSON.stringify(composed)) })); // Reset in-memory graph
-      console.log("✅ Graph data refreshed successfully");
-    } catch (err) {
-      console.error("Failed to refresh graph data:", err);
-      alert("Failed to refresh graph data. See console for details.");
+      setInMemoryGraphs((prev) => ({ ...prev, [activeGraph]: JSON.parse(JSON.stringify(composed)) }));
     }
   };
 
   const handleSaveGraph = async () => {
     if (!activeGraph) return;
+    
     try {
       const raw = await loadGraphCNL(userId, activeGraph);
       const token = localStorage.getItem("token");
-      const composed = await fetch(`/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+      const composed = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
-      }).then(r => r.json());
-      setRawMarkdowns((prev) => ({ ...prev, [activeGraph]: raw }));
-      setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composed }));
-      setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));
+      });
+      
+      if (composed.ok) {
+        const composedData = await composed.json();
+        setComposedGraphs((prev) => ({ ...prev, [activeGraph]: composedData }));
+        setModifiedGraphs((prev) => ({ ...prev, [activeGraph]: false }));
+      }
     } catch (err) {
-      console.error("Failed to re-fetch after save/parse:", err);
+      console.error("Failed to save graph:", err);
     }
   };
 
@@ -365,7 +380,8 @@ const NDFStudioLayout = () => {
   // --- Logout handler ---
   const handleLogout = () => {
     localStorage.removeItem("token");
-    window.location.href = "/login";
+    // Force a complete page reload to clear all state
+    window.location.reload();
   };
 
   // Render top-level tabs
@@ -385,67 +401,33 @@ const NDFStudioLayout = () => {
 
   // Render file selector and open graph tabs (only for Knowledge Base)
   const renderGraphSelectorBar = () => (
-    <div className="flex items-center space-x-2 border-b pb-2 relative bg-gray-50">
-      <div className="relative">
-        <button onClick={() => setShowMenu(!showMenu)} className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-          File ▾
-        </button>
-        {showMenu && (
-          <div className="absolute mt-1 bg-white shadow border rounded z-10">
-            {allGraphs.map(({ id, title }) => (
-              <div
-                key={id}
-                onClick={() => {
-                  openGraphInTab(id);
-                  setShowMenu(false);
-                }}
-                className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
-              >
-                {title}
-              </div>
-            ))}
-            <div
-              onClick={() => {
-                handleAddGraph();
-                setShowMenu(false);
-              }}
-              className="border-t px-3 py-1 text-green-600 hover:bg-green-100 cursor-pointer"
-            >
-              + New Graph
-            </div>
-          </div>
-        )}
-      </div>
-      {openGraphs.map(({ id, title }) => (
-        <div key={id} className="flex items-center">
-          <button
-            onClick={() => openGraphInTab(id)}
-            className={`px-4 py-1 rounded-t-md transition-colors duration-150 ${
-              activeGraph === id
-                ? "bg-blue-100 text-blue-900 border-b-2 border-blue-600 font-bold shadow"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-50"
-            }`}
-            style={activeGraph === id ? { position: "relative", zIndex: 2 } : {}}
-          >
-            {title}{modifiedGraphs[id] ? " *" : ""}
-          </button>
-          <button
-            onClick={() => handleCloseTab(id)}
-            className="ml-1 text-red-500 hover:text-red-700 font-bold"
-            title="Close tab"
-          >
-            ×
-          </button>
-        </div>
-      ))}
-      {activeGraph && (
-        <button
-          onClick={refreshActiveGraph}
-          className="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          title="Refresh graph data"
+    <div className="flex items-center justify-between bg-gray-100 border-b border-gray-200 px-4 py-2">
+      <div className="flex items-center space-x-2">
+        <span className="text-sm font-medium text-gray-700">Graph:</span>
+        <select
+          value={activeGraph || ""}
+          onChange={(e) => openGraphInTab(e.target.value)}
+          className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
         >
-          🔄 Refresh
+          <option value="">Select a graph</option>
+          {allGraphs.map((graph) => (
+            <option key={graph.id} value={graph.id}>
+              {graph.title || graph.id}
+            </option>
+          ))}
+        </select>
+        
+        <button
+          onClick={handleAddGraph}
+          className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+        >
+          + New Graph
         </button>
+      </div>
+      
+      {/* Add Share Button */}
+      {activeGraph && (
+        <ShareButton graphId={activeGraph} />
       )}
     </div>
   );

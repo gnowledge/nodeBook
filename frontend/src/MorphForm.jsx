@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
 import MessageArea from './MessageArea';
@@ -51,8 +51,8 @@ function MorphItemManager({
     try {
       setLoading(true);
       const endpoint = itemType === 'attributes' 
-        ? `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`
-        : `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
+        ? `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`
+        : `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
       
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error(`Failed to fetch ${itemType}`);
@@ -74,7 +74,7 @@ function MorphItemManager({
 
   const fetchAvailableMorphs = async () => {
     try {
-      const response = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       if (!response.ok) throw new Error('Failed to fetch graph data');
       
       const data = await response.json();
@@ -134,24 +134,24 @@ function MorphItemManager({
 
         switch (action) {
           case 'unlist':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/unlist_from_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/unlist_from_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ morph_id: morphId });
             break;
           case 'copy':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/copy_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/copy_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ morph_id: targetMorphId });
             break;
           case 'move':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/move_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/move_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ from_morph_id: morphId, to_morph_id: targetMorphId });
             break;
           case 'delete':
             // Use the proper delete endpoint
             if (itemType === 'attributes') {
-              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/delete/${nodeId}/${encodeURIComponent(itemName)}`;
+              endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute/delete/${nodeId}/${encodeURIComponent(itemName)}`;
             } else {
               // For relations, we need target_id
-              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/delete/${nodeId}/${encodeURIComponent(itemName)}/${encodeURIComponent(item.target_id || '')}`;
+              endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation/delete/${nodeId}/${encodeURIComponent(itemName)}/${encodeURIComponent(item.target_id || '')}`;
             }
             break;
           default:
@@ -412,7 +412,7 @@ function MorphForm({
   const handleEditRelation = async (relId) => {
     try {
       // Fetch the existing relation data
-      const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relationNodes/${relId}`);
+      const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relationNodes/${relId}`);
       if (response.ok) {
         const relationData = await response.json();
         setEditingRelation(relationData);
@@ -425,7 +425,7 @@ function MorphForm({
   const handleEditAttribute = async (attrId) => {
     try {
       // Fetch the existing attribute data
-      const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attributeNodes/${attrId}`);
+      const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attributeNodes/${attrId}`);
       if (response.ok) {
         const attributeData = await response.json();
         setEditingAttribute(attributeData);

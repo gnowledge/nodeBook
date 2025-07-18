@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { computeStats, RUBRIC } from "./statisticsUtils.js";
+import { getApiBase } from "./config";
 
 export default function Statistics({ userId, graphId, graph }) {
   const [crossGraphReuse, setCrossGraphReuse] = useState(0);
@@ -13,7 +14,7 @@ export default function Statistics({ userId, graphId, graph }) {
     const fetchCrossGraphReuse = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cross_graph_reuse`, {
+        const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/cross_graph_reuse`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }

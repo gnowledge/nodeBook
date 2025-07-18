@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 
 export default function NodeUpdateForm({ nodeId, userId, graphId = "graph1", onSuccess, onCancel }) {
   const [name, setName] = useState('');
@@ -15,7 +15,7 @@ export default function NodeUpdateForm({ nodeId, userId, graphId = "graph1", onS
     async function fetchNode() {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`);
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`);
         const data = await res.json();
         setName(data.name || data.label || '');
         setDescription(data.description || '');
@@ -47,7 +47,7 @@ export default function NodeUpdateForm({ nodeId, userId, graphId = "graph1", onS
       key => (payload[key] === null) && delete payload[key]
     );
     try {
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

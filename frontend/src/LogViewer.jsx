@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 
 const LogViewer = ({ 
   title = "System Logs", 
@@ -59,7 +59,7 @@ const LogViewer = ({
         params.append('user_id', userId);
       }
       
-      const response = await fetch(`${API_BASE}/api/logs/recent?${params}`);
+      const response = await fetch(`${getApiBase()}/api/logs/recent?${params}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch logs: ${response.statusText}`);
       }
@@ -108,7 +108,7 @@ const LogViewer = ({
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/logs/categories`);
+      const response = await fetch(`${getApiBase()}/api/logs/categories`);
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories || []);
@@ -120,7 +120,7 @@ const LogViewer = ({
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/logs/stats`);
+      const response = await fetch(`${getApiBase()}/api/logs/stats`);
       if (response.ok) {
         const data = await response.json();
         setStats(data.statistics);
@@ -132,7 +132,7 @@ const LogViewer = ({
 
   const clearLogs = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/logs/clear`, {
+      const response = await fetch(`${getApiBase()}/api/logs/clear`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -153,7 +153,7 @@ const LogViewer = ({
         params.append('user_id', userId);
       }
       
-      const response = await fetch(`${API_BASE}/api/logs/export?${params}`, {
+      const response = await fetch(`${getApiBase()}/api/logs/export?${params}`, {
         method: 'POST'
       });
       

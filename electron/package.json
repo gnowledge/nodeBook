@@ -1,18 +1,27 @@
 {
-  "name": "ndf-electron",
+  "name": "nodeBook-electron",
   "version": "0.1.0",
   "description": "NodeBook Desktop Application",
   "main": "main.js",
   "homepage": "./",
+  "author": {
+    "name": "NodeBook Team",
+    "email": "nagarjun@gnowledge.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gnowledge/nodebook.git"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
     "build-and-run": "cd ../frontend && npm run build && cd ../electron && npm run start",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux",
+    "build": "cd ../frontend && npm run build && cd ../electron && electron-builder",
+    "pack": "cd ../frontend && npm run build && cd ../electron && electron-builder --dir",
+    "dist": "cd ../frontend && npm run build && cd ../electron && electron-builder",
+    "dist:win": "cd ../frontend && npm run build && cd ../electron && electron-builder --win",
+    "dist:mac": "cd ../frontend && npm run build && cd ../electron && electron-builder --mac",
+    "dist:linux": "cd ../frontend && npm run build && cd ../electron && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps",
     "postbuild": "cd ../backend && python scripts/post_install.py"
   },
@@ -25,25 +34,12 @@
     "files": [
       "main.js",
       "preload.js",
-      "../frontend/dist/**/*",
       "node_modules/**/*"
     ],
     "extraResources": [
       {
-        "from": "../backend",
-        "to": "backend",
-        "filter": [
-          "**/*",
-          "!__pycache__/**/*",
-          "!*.pyc",
-          "!venv/**/*",
-          "!tests/**/*",
-          "!*.log"
-        ]
-      },
-      {
-        "from": "../graph_data",
-        "to": "graph_data"
+        "from": "../frontend/dist",
+        "to": "frontend/dist"
       }
     ],
     "win": {
@@ -81,7 +77,8 @@
         }
       ],
       "icon": "../frontend/public/nodebook.png",
-      "category": "Development"
+      "category": "Development",
+      "executableName": "nodebook"
     },
     "nsis": {
       "oneClick": false,
@@ -95,4 +92,3 @@
     "electron-builder": "^24.6.4"
   }
 }
-

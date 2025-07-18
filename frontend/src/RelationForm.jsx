@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import RelationTypeModal from './RelationTypeModal';
 import MessageArea from './MessageArea';
 import { useUserInfo } from "./UserIdContext";
@@ -41,7 +41,7 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
     setRelationTypesLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -62,7 +62,7 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
     async function fetchRegistry() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/node_registry`, {
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/node_registry`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -138,7 +138,7 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
       
       console.log('Creating relation with payload:', payload);
       
-      const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
+      const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation/create`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -328,7 +328,7 @@ export default function RelationForm({ relationId, graphId = "graph1", onAddRela
             onSuccess={handleRelationTypeCreated}
             userId={userId}
             graphId={graphId}
-            endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/create`}
+            endpoint={`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/create`}
             method="POST"
           />
         )}

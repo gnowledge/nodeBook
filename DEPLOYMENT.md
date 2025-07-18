@@ -118,7 +118,7 @@ services:
 ```bash
 # Build for current platform
 cd electron
-npm run dist
+npm run build
 
 # Build for specific platforms
 npm run dist:win    # Windows

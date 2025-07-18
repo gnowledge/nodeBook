@@ -1,6 +1,6 @@
 // Login.jsx
 import React, { useState } from 'react';
-import { AUTH_BASE } from "./config";
+import { getServerAddress } from "./config";
 
 export default function Login({ onLogin, onAuth }) {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -19,7 +19,7 @@ export default function Login({ onLogin, onAuth }) {
         password: password
       };
       // Use dynamic auth base
-      const res = await fetch(`${AUTH_BASE}/login`, {
+      const res = await fetch(`${getServerAddress()}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginPayload)

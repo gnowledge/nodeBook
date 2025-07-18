@@ -7,7 +7,12 @@ export default function UserBar() {
   const navigate = useNavigate();
 
   const handleLogin = () => navigate("/login");
-  const handleLogout = () => navigate("/logout");
+  
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    // Force a complete page reload to clear all state
+    window.location.reload();
+  };
 
   return (
     <header className="flex items-center justify-between px-4 py-2 bg-blue-900 text-white shadow">

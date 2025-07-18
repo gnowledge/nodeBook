@@ -13,6 +13,7 @@ from pydantic import BaseModel, EmailStr
 from backend.core.inactivity_jwt_strategy import InactivityJWTStrategy
 from typing import Optional
 from backend.core.logging_system import get_logger
+from datetime import datetime
 
 # ---------- CONFIG ----------
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "graph_data"
@@ -28,16 +29,31 @@ class User(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(nullable=False, unique=True, index=True)
     hashed_password: str = Field(nullable=False)
-    is_active: bool = Field(default=True, nullable=False)
+    is_active: bool = Field(default=False, nullable=False)  # Changed to False - requires approval
     is_superuser: bool = Field(default=False, nullable=False)
     is_verified: bool = Field(default=True, nullable=False)
     username: str = Field(nullable=False, unique=True, index=True)
+    # New approval fields
+    is_approved: bool = Field(default=False, nullable=False)
+    approval_note: str = Field(default="", nullable=False)  # User's introduction note
+    institution: str = Field(default="", nullable=False)  # School/college/institution
+    approved_by: Optional[UUID] = Field(default=None, nullable=True)  # Admin who approved
+    approved_at: Optional[datetime] = Field(default=None, nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 class UserCreate(schemas.BaseUserCreate):
     username: str
+    approval_note: str
+    institution: str
 
 class UserRead(schemas.BaseUser[UUID]):
     username: str
+    is_approved: bool
+    approval_note: str
+    institution: str
+    approved_by: Optional[UUID]
+    approved_at: Optional[datetime]
+    created_at: datetime
 
 class UserUpdate(schemas.BaseUserUpdate):
     username: str
@@ -158,16 +174,19 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             return user
 
     async def _create(self, user_create: UserCreate) -> User:
-        """Override _create to handle username field"""
+        """Override _create to handle username field and approval fields"""
         pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
         
         user_data = {
             "email": user_create.email,
             "username": user_create.username,
             "hashed_password": pwd_context.hash(user_create.password),
-            "is_active": user_create.is_active,
-            "is_superuser": user_create.is_superuser,
-            "is_verified": user_create.is_verified
+            "is_active": False,  # New users are inactive until approved
+            "is_superuser": False,  # New users are never superusers
+            "is_verified": True,  # Email verification not required for approval system
+            "is_approved": False,  # New users need approval
+            "approval_note": user_create.approval_note,
+            "institution": user_create.institution
         }
         
         user = User(**user_data)
@@ -225,6 +244,9 @@ async def login(credentials: UserLogin):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    if not user.is_approved:
+        raise HTTPException(status_code=403, detail="Account pending approval. Please wait for admin approval.")
+    
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     
@@ -240,7 +262,8 @@ async def login(credentials: UserLogin):
             "username": user.username,
             "email": user.email,
             "is_active": user.is_active,
-            "is_superuser": user.is_superuser
+            "is_superuser": user.is_superuser,
+            "is_approved": user.is_approved
         }
     }
 
@@ -315,7 +338,12 @@ async def admin_list_users(user: User = Depends(current_active_user)):
                         "is_active": u.is_active,
                         "is_superuser": u.is_superuser,
                         "is_verified": u.is_verified,
-                        "created_at": getattr(u, 'created_at', None)
+                        "is_approved": u.is_approved,
+                        "approval_note": u.approval_note,
+                        "institution": u.institution,
+                        "approved_by": str(u.approved_by) if u.approved_by else None,
+                        "approved_at": u.approved_at.isoformat() if u.approved_at else None,
+                        "created_at": u.created_at.isoformat()
                     }
                     for u in users
                 ],
@@ -343,9 +371,8 @@ async def admin_create_user(
             email=user_data.email,
             username=user_data.username,
             password=user_data.password,
-            is_active=user_data.is_active,
-            is_superuser=user_data.is_superuser,
-            is_verified=True
+            approval_note="Created by admin",  # Default note for admin-created users
+            institution="Admin created"  # Default institution for admin-created users
         )
         
         user = await user_manager.create(user_create)
@@ -625,3 +652,101 @@ async def admin_get_stats(current_user: User = Depends(current_active_user)):
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+# ---------- APPROVAL ENDPOINTS ----------
+
+class UserApprovalRequest(BaseModel):
+    approved: bool
+    reason: Optional[str] = None
+
+@users_router.get("/admin/pending-approvals")
+async def admin_list_pending_approvals(current_user: User = Depends(current_active_user)):
+    """List users pending approval (admin only)"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        with Session(engine) as session:
+            # Get users who are not approved yet
+            pending_users = session.exec(
+                select(User).where(User.is_approved == False)
+            ).all()
+            
+            return {
+                "pending_users": [
+                    {
+                        "id": str(u.id),
+                        "username": u.username,
+                        "email": u.email,
+                        "approval_note": u.approval_note,
+                        "institution": u.institution,
+                        "created_at": u.created_at.isoformat(),
+                        "is_active": u.is_active
+                    }
+                    for u in pending_users
+                ],
+                "count": len(pending_users)
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending approvals: {str(e)}")
+
+@users_router.post("/admin/users/{user_id}/approve")
+async def admin_approve_user(
+    user_id: str,
+    request: UserApprovalRequest,
+    current_user: User = Depends(current_active_user)
+):
+    """Approve or reject a user (admin only)"""
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Convert user_id to proper UUID format if needed
+        if len(user_id) == 32:
+            user_id = f"{user_id[:8]}-{user_id[8:12]}-{user_id[12:16]}-{user_id[16:20]}-{user_id[20:]}"
+        
+        with Session(engine) as session:
+            user = session.exec(select(User).where(User.id == UUID(user_id))).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            if user.is_approved:
+                raise HTTPException(status_code=400, detail="User is already approved")
+            
+            # Update approval status
+            user.is_approved = request.approved
+            user.is_active = request.approved  # Activate user if approved
+            user.approved_by = current_user.id if request.approved else None
+            user.approved_at = datetime.utcnow() if request.approved else None
+            
+            session.add(user)
+            session.commit()
+            
+            # Log the admin action
+            logger = get_logger()
+            action = "approved" if request.approved else "rejected"
+            logger.security(
+                f"Admin '{current_user.username}' {action} user '{user.username}'",
+                event_type=f"admin_user_{action}",
+                admin_user_id=str(current_user.id),
+                target_user_id=str(user.id),
+                target_username=user.username,
+                reason=request.reason
+            )
+            
+            return {
+                "message": f"User '{user.username}' {action} successfully",
+                "user": {
+                    "id": str(user.id),
+                    "username": user.username,
+                    "email": user.email,
+                    "is_approved": user.is_approved,
+                    "is_active": user.is_active,
+                    "approved_by": str(user.approved_by) if user.approved_by else None,
+                    "approved_at": user.approved_at.isoformat() if user.approved_at else None
+                }
+            }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid user ID format: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to approve user: {str(e)}")

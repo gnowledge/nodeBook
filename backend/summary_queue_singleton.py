@@ -5,7 +5,18 @@ import networkx as nx
 # Add the parent directory to Python path to find the mistral module
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from mistral.summary_queue import SummaryQueue
+try:
+    from mistral.summary_queue import SummaryQueue
+except ImportError:
+    # Fallback for when mistral module is not available
+    class SummaryQueue:
+        def __init__(self, graph, on_complete=None):
+            self.graph = graph
+            self.on_complete = on_complete
+        
+        def submit(self, user_id, graph_id, node_id, node_data):
+            # Placeholder implementation
+            pass
 
 # This will hold a singleton SummaryQueue for the backend
 # For demo, we use a single graph for all users/graphs (customize as needed)

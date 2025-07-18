@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { AUTH_BASE } from './config';
+import { getAuthBase } from './config';
 import { authenticatedFetch, safeJsonParse } from './utils/authUtils';
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('approvals'); // Default to approvals tab
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -22,6 +23,8 @@ const AdminPanel = () => {
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
+    } else if (activeTab === 'approvals') {
+      fetchPendingApprovals();
     } else if (activeTab === 'stats') {
       fetchStats();
     }
@@ -31,7 +34,7 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users`);
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users`);
       const data = await safeJsonParse(response);
       setUsers(data.users || []);
     } catch (err) {
@@ -42,11 +45,26 @@ const AdminPanel = () => {
     }
   };
 
+  const fetchPendingApprovals = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/pending-approvals`);
+      const data = await safeJsonParse(response);
+      setPendingApprovals(data.pending_users || []);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching pending approvals:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchStats = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/stats`);
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/stats`);
       const data = await safeJsonParse(response);
       setStats(data);
     } catch (err) {
@@ -63,7 +81,7 @@ const AdminPanel = () => {
       setLoading(true);
       setError(null);
       
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users`, {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -92,7 +110,7 @@ const AdminPanel = () => {
       const updateData = { ...formData };
       delete updateData.password; // Don't send password in updates
       
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users/${selectedUser.id}`, {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users/${selectedUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
@@ -120,7 +138,7 @@ const AdminPanel = () => {
       setLoading(true);
       setError(null);
       
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users/${user.id}/promote`, {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users/${user.id}/promote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Admin promotion' })
@@ -145,7 +163,7 @@ const AdminPanel = () => {
       setLoading(true);
       setError(null);
       
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users/${user.id}/demote`, {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users/${user.id}/demote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Admin demotion' })
@@ -170,7 +188,7 @@ const AdminPanel = () => {
       setLoading(true);
       setError(null);
       
-      const response = await authenticatedFetch(`${AUTH_BASE}/admin/users/${user.id}`, {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users/${user.id}`, {
         method: 'DELETE'
       });
       
@@ -181,6 +199,35 @@ const AdminPanel = () => {
     } catch (err) {
       setError(err.message);
       console.error('Error deleting user:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveUser = async (user, approved) => {
+    const action = approved ? 'approve' : 'reject';
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} user '${user.username}'?`)) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/users/${user.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          approved: approved,
+          reason: approved ? 'Approved by admin' : 'Rejected by admin'
+        })
+      });
+      
+      const data = await safeJsonParse(response);
+      fetchPendingApprovals(); // Refresh the list
+      
+      alert(data.message);
+    } catch (err) {
+      setError(err.message);
+      console.error(`Error ${action}ing user:`, err);
     } finally {
       setLoading(false);
     }
@@ -293,6 +340,12 @@ const AdminPanel = () => {
             Users
           </button>
           <button
+            onClick={() => setActiveTab('approvals')}
+            className={`px-4 py-2 rounded ${activeTab === 'approvals' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+          >
+            Approvals
+          </button>
+          <button
             onClick={() => setActiveTab('stats')}
             className={`px-4 py-2 rounded ${activeTab === 'stats' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
           >
@@ -390,6 +443,80 @@ const AdminPanel = () => {
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'approvals' && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Pending User Approvals</h3>
+          {loading ? (
+            <div className="text-center py-8">Loading pending approvals...</div>
+          ) : pendingApprovals.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No pending user approvals.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User Info
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Institution
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Approval Note
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {pendingApprovals.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">{user.institution}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 max-w-xs truncate" title={user.approval_note}>
+                          {user.approval_note}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-500">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleApproveUser(user, true)}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleApproveUser(user, false)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Reject
                         </button>
                       </td>
                     </tr>

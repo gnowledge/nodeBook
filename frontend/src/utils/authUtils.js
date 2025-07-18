@@ -1,3 +1,5 @@
+import { getApiBase } from "../config";
+
 // Authentication utility functions for better error handling and token management
 
 // Check if token is valid (not expired)
@@ -88,7 +90,7 @@ export const retryFetch = async (fetchFn, maxRetries = 2) => {
 // Refresh graph data with error handling
 export const refreshGraphData = async (userId, graphId) => {
   try {
-    const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+    const response = await authenticatedFetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
     return await safeJsonParse(response);
   } catch (err) {
     console.error('Failed to refresh graph data:', err);
@@ -97,15 +99,31 @@ export const refreshGraphData = async (userId, graphId) => {
 };
 
 // Refresh node data with error handling
-export const refreshNodeData = async (userId, graphId, nodeId) => {
+export async function refreshNodeData(userId, graphId, nodeId) {
   try {
-    const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`);
-    return await safeJsonParse(response);
-  } catch (err) {
-    console.error('Failed to refresh node data:', err);
-    throw err;
+    const response = await authenticatedFetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+    if (!response.ok) throw new Error('Failed to fetch graph data');
+    
+    const data = await safeJsonParse(response);
+    const node = data.nodes?.find(n => n.node_id === nodeId || n.id === nodeId);
+    return node;
+  } catch (error) {
+    console.error('Error refreshing node data:', error);
+    return null;
   }
-};
+}
+
+export async function getNodeInfo(userId, graphId, nodeId) {
+  try {
+    const response = await authenticatedFetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`);
+    if (!response.ok) throw new Error('Failed to fetch node info');
+    
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error fetching node info:', error);
+    return null;
+  }
+}
 
 // Check if user has been inactive (for inactivity-based token expiration)
 export const checkUserActivity = async () => {
@@ -114,7 +132,7 @@ export const checkUserActivity = async () => {
     if (!token) return false;
     
     // Make a simple API call to check if token is still valid
-    const response = await fetch('/api/auth/whoami', {
+    const response = await fetch(`${getApiBase()}/api/auth/whoami`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     
@@ -128,7 +146,7 @@ export const checkUserActivity = async () => {
 // Get inactivity threshold from server (if available)
 export const getInactivityThreshold = async () => {
   try {
-    const response = await fetch('/api/auth/config');
+    const response = await fetch(`${getApiBase()}/api/auth/config`);
     if (response.ok) {
       const config = await response.json();
       return config.inactivity_threshold_minutes || 20;

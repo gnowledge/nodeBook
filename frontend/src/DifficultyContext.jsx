@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useUserInfo } from './UserIdContext';
 import { authenticatedApiCall } from './services/api';
+import { getApiBase } from './config';
 
 const DifficultyContext = createContext();
 
@@ -27,7 +28,7 @@ export const DifficultyProvider = ({ children }) => {
       }
       
       try {
-        const res = await authenticatedApiCall(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await authenticatedApiCall(`${getApiBase()}/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         const data = await res.json();
         setDifficulty(data.difficulty || 'easy');
       } catch (error) {

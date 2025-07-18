@@ -1,9 +1,9 @@
 import yaml from "js-yaml";
-import { getServerAddress, API_BASE, AUTH_BASE } from "../config";
+import { getApiBase } from "../config";
 
 // Utility function for all API calls
 export async function apiCall(endpoint, options = {}) {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${getApiBase()}${endpoint}`;
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -53,19 +53,19 @@ export async function loadDocFile(filename) {
 }
 
 export async function loadGraphCNL(userId, graphId) {
-  const res = await apiCall(`/api/ndf/users/${userId}/graphs/${graphId}/cnl`);
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/cnl`);
   return await res.text();
 }
 
 export async function loadGraph(userId, graphId) {
-  const res = await apiCall(`${API_BASE}/users/${userId}/graphs/${graphId}/composed`);
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/composed`);
   const data = await res.json();
   console.log("Loaded composed.json:", data);
   return data;
 }
 
 export async function listGraphsWithTitles(userId) {
-  const res = await apiCall(`${API_BASE}/users/${userId}/graphs`);
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs`);
   const ids = await res.json();
 
   // Ensure ids is an array
@@ -76,7 +76,7 @@ export async function listGraphsWithTitles(userId) {
 
   const graphList = await Promise.all(ids.map(async (id) => {
     try {
-      const metaRes = await apiCall(`${API_BASE}/users/${userId}/graphs/${id}/metadata.yaml`);
+      const metaRes = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${id}/metadata.yaml`);
       const meta = await metaRes.text();
       const parsed = yaml.load(meta);
       return { id, title: parsed?.title || id };
@@ -89,12 +89,12 @@ export async function listGraphsWithTitles(userId) {
 }
 
 export async function listGraphs(userId = "user0") {
-  const res = await apiCall(`${API_BASE}/users/${userId}/graphs`);
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs`);
   return await res.json();  // Returns ["graph1", "graph2", ...]
 }
 
 export async function saveGraph(userId, graphId, rawMarkdown) {
-  const res = await apiCall(`${API_BASE}/users/${userId}/graphs/${graphId}`, {
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}`, {
     method: "PUT",
     headers: { "Content-Type": "text/plain" },
     body: rawMarkdown,
@@ -106,12 +106,12 @@ export async function saveGraph(userId, graphId, rawMarkdown) {
 }
 
 export async function loadGraphNDF(userId, graphId) {
-  const res = await apiCall(`${API_BASE}/users/${userId}/graphs/${graphId}/raw`);
+  const res = await apiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/raw`);
   return await res.text();  // Returns markdown
 }
 
 export async function parseMarkdown(markdown) {
-  const res = await apiCall(`${API_BASE}/parse-markdown`, {
+  const res = await apiCall(`${getApiBase()}/api/ndf/parse-markdown`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ raw_markdown: markdown }),

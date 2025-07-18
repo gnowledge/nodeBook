@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { useUserInfo } from "./UserIdContext";
 import { useDifficulty } from "./DifficultyContext";
+import { getApiBase } from "./config";
 
 export default function CNLInput({ graphId, graph, rawMarkdown, onGraphUpdate }) {
   const { userId } = useUserInfo();
@@ -17,7 +18,7 @@ export default function CNLInput({ graphId, graph, rawMarkdown, onGraphUpdate })
         setError(null);
         
         // Fetch the generated CNL.md from the backend
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`);
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`);
         if (res.ok) {
           const text = await res.text();
           setCnlMd(text);
@@ -89,7 +90,7 @@ If this message persists, please check your connection and try refreshing the pa
       const handleGraphUpdate = () => {
         // Refetch CNL.md when graph is updated
         if (userId && graphId) {
-          fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`)
+          fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/cnl_md`)
             .then(res => res.ok ? res.text() : null)
             .then(text => {
               if (text) {

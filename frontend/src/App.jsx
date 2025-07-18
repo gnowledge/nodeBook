@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import NDFStudioLayout from "./NDFStudioLayout";
 import AuthPage from "./AuthPage";
 import { UserIdContext } from "./UserIdContext";
 import { DifficultyProvider } from "./DifficultyContext";
-import { AUTH_BASE } from "./config";
+import { getAuthBase } from "./config";
 import UserBar from "./UserBar";
 import AuthStatus from "./components/AuthStatus";
 
@@ -18,7 +18,9 @@ function RequireAuth({ children }) {
 
 function Logout() {
   localStorage.removeItem("token");
-  return <Navigate to="/login" replace />;
+  // Force a complete page reload to clear all state
+  window.location.reload();
+  return null; // This won't render since we're reloading
 }
 
 function App() {
@@ -29,7 +31,7 @@ function App() {
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        const res = await fetch(`${AUTH_BASE}/whoami`, {
+        const res = await fetch(`${getAuthBase()}/whoami`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

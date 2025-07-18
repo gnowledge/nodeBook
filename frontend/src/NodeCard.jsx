@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { marked } from "marked";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import RelationForm from "./RelationForm";
 import AttributeForm from "./AttributeForm";
 import TransitionForm from "./TransitionForm";
@@ -11,6 +11,7 @@ import { useUserInfo } from "./UserIdContext";
 import { useDifficulty } from "./DifficultyContext";
 import MonacoEditor from '@monaco-editor/react';
 import { refreshNodeData, authenticatedFetch, safeJsonParse, isTokenValid } from "./utils/authUtils";
+import { markdownToHtml } from "./utils/markdownUtils";
 
 // MorphItemManager component for managing morph items with multi-select and actions
 function MorphItemManager({ 
@@ -73,7 +74,7 @@ function MorphItemManager({
         return;
       }
       
-      const endpoint = `/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
+      const endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/list_by_morph/${nodeId}`;
       
 
       
@@ -105,7 +106,7 @@ function MorphItemManager({
         return;
       }
       
-      const response = await authenticatedFetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      const response = await authenticatedFetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
       if (!response.ok) throw new Error('Failed to fetch graph data');
       
       const data = await safeJsonParse(response);
@@ -176,24 +177,24 @@ function MorphItemManager({
 
         switch (action) {
           case 'unlist':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/unlist_from_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/unlist_from_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ morph_id: morphId });
             break;
           case 'copy':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/copy_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/copy_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ morph_id: targetMorphId });
             break;
           case 'move':
-            endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/move_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
+            endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/${itemType.slice(0, -1)}/move_to_morph/${nodeId}/${encodeURIComponent(itemName)}`;
             body = JSON.stringify({ from_morph_id: morphId, to_morph_id: targetMorphId });
             break;
           case 'delete':
             // Use the proper delete endpoint
             if (itemType === 'attributes') {
-              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/delete/${nodeId}/${encodeURIComponent(itemName)}`;
+              endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute/delete/${nodeId}/${encodeURIComponent(itemName)}`;
             } else {
               // For relations, we need target_id
-              endpoint = `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation/delete/${nodeId}/${encodeURIComponent(itemName)}/${encodeURIComponent(item.target_id || '')}`;
+              endpoint = `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation/delete/${nodeId}/${encodeURIComponent(itemName)}/${encodeURIComponent(item.target_id || '')}`;
             }
             break;
           default:
@@ -547,7 +548,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${freshNode?.node_id || freshNode?.id}/submit_to_summary_queue`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${freshNode?.node_id || freshNode?.id}/submit_to_summary_queue`,
         { 
           method: "POST",
           headers: {
@@ -588,7 +589,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         relations: relations || [],
       };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`,
         {
           method: "PUT",
           headers: { 
@@ -629,7 +630,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       // Save the updated description to backend
       const updatedNode = { ...freshNode, description: editDescription };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { 
@@ -673,7 +674,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       // Save the updated name to backend
       const updatedNode = { ...freshNode, name: editTitle };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { 
@@ -709,7 +710,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description`,
         { 
           method: "POST",
           headers: {
@@ -743,7 +744,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description?mode=basic`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}/nlp_parse_description?mode=basic`,
         { 
           method: "POST",
           headers: {
@@ -793,7 +794,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       const token = localStorage.getItem("token");
       const relId = rel.id;
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relations/${relId}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relations/${relId}`,
         { 
           method: "DELETE",
           headers: {
@@ -805,7 +806,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         if (onGraphUpdate) onGraphUpdate();
         // Reload this node to update the display
         const nodeId = freshNode?.node_id || freshNode?.id;
-        fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`, {
+        fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -827,7 +828,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       const token = localStorage.getItem("token");
       const attrId = attr.id;
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attributes/${attrId}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attributes/${attrId}`,
         { 
           method: "DELETE",
           headers: {
@@ -839,7 +840,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
         if (onGraphUpdate) onGraphUpdate();
         // Reload this node to update the display
         const nodeId = freshNode?.node_id || freshNode?.id;
-        fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`, {
+        fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${nodeId}`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -1141,7 +1142,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       const token = localStorage.getItem("token");
       const updatedNode = { ...freshNode, relations: editRelations, attributes: editAttributes };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { 
@@ -1351,7 +1352,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       const token = localStorage.getItem("token");
       const updatedNode = { ...freshNode, morphs: updatedMorphs };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { 
@@ -1413,7 +1414,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       
       const updatedNode = { ...freshNode, morphs: updatedMorphs, nbh: newNbh };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
         {
           method: "PUT",
           headers: { 
@@ -1641,7 +1642,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                       const token = localStorage.getItem("token");
                       const updatedNode = { ...freshNode, role: option };
                       const res = await fetch(
-                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
                         {
                           method: "PUT",
                           headers: { 
@@ -1676,7 +1677,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                       const token = localStorage.getItem("token");
                       const updatedNode = { ...freshNode, role: "process" };
                       const res = await fetch(
-                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
                         {
                           method: "PUT",
                           headers: { 
@@ -1711,7 +1712,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
                       const token = localStorage.getItem("token");
                       const updatedNode = { ...freshNode, role: "function" };
                       const res = await fetch(
-                        `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
+                        `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${updatedNode.node_id || updatedNode.id}`,
                         {
                           method: "PUT",
                           headers: { 
@@ -1789,7 +1790,23 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
               </div>
             </div>
           ) : (
-            <div className="prose prose-sm bg-gray-50 p-2 rounded" dangerouslySetInnerHTML={{ __html: marked.parse(freshNode?.description || '') }} />
+            <div 
+              className="prose prose-sm bg-gray-50 p-2 rounded" 
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(freshNode?.description || '') }}
+              onClick={(e) => {
+                // Handle clicks on graph links
+                if (e.target.classList.contains('graph-link')) {
+                  e.preventDefault();
+                  const href = e.target.getAttribute('href');
+                  if (href && href.startsWith('#/app?graph=')) {
+                    // Extract graph ID and navigate
+                    const graphId = href.replace('#/app?graph=', '');
+                    // You might need to implement navigation here or use a callback
+                    console.log('Navigate to graph:', graphId);
+                  }
+                }
+              }}
+            />
           )}
         </div>
 
@@ -2099,7 +2116,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
           try {
             const token = localStorage.getItem("token");
             const res = await fetch(
-              `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${freshNode?.node_id || freshNode?.id}`,
+              `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${freshNode?.node_id || freshNode?.id}`,
               { 
                 method: "DELETE",
                 headers: {

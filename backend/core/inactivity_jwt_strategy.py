@@ -31,7 +31,7 @@ class InactivityJWTStrategy(JWTStrategy):
         self,
         secret: SecretType,
         lifetime_seconds: Optional[int] = 3600,  # Default 1 hour max lifetime
-        inactivity_threshold_minutes: int = 20,  # Default 20 minutes inactivity
+        inactivity_threshold_minutes: int = 5256000,  # Effectively disable inactivity expiry (10 years)
         token_audience: list[str] = ["fastapi-users:auth"],
         algorithm: str = "HS256",
         public_key: Optional[SecretType] = None,
@@ -127,94 +127,8 @@ class InactivityJWTStrategy(JWTStrategy):
             return None
     
     def _is_user_active(self, user_id: str) -> bool:
-        """
-        Check if user has been active within the inactivity threshold.
-        
-        Args:
-            user_id: User identifier
-            
-        Returns:
-            True if user has been active recently, False otherwise
-        """
-        try:
-            # Get recent logs for this user
-            recent_logs = self.logger.get_recent_logs(limit=1000)
-            
-            # Filter logs for this user and relevant categories
-            user_logs = [
-                log for log in recent_logs
-                if log.get("user_id") == user_id and
-                log.get("category") in [LogCategory.AUDIT.value, LogCategory.OPERATION.value]
-            ]
-            
-            if not user_logs:
-                # No activity logs found - this could be a newly logged-in user
-                # Check if we have any recent login activity or if this is a fresh token
-                # For now, be more lenient and allow the token if no logs exist
-                # This prevents newly logged-in users from being immediately rejected
-                self.logger.debug(
-                    f"No activity logs found for user {user_id}, allowing token (new user or fresh login)",
-                    user_id=user_id
-                )
-                return True
-            
-            # Get the most recent activity timestamp
-            latest_activity = max(
-                user_logs,
-                key=lambda log: log.get("timestamp", "")
-            )
-            
-            latest_timestamp = latest_activity.get("timestamp")
-            if not latest_timestamp:
-                return True  # Be lenient if timestamp is missing
-            
-            # Parse the timestamp
-            try:
-                # Handle both ISO format and other formats
-                if 'T' in latest_timestamp:
-                    # ISO format
-                    latest_time = datetime.fromisoformat(
-                        latest_timestamp.replace('Z', '+00:00')
-                    )
-                else:
-                    # Try parsing as regular datetime
-                    latest_time = datetime.fromisoformat(latest_timestamp)
-                
-                # Calculate time difference
-                now = datetime.now(timezone.utc)
-                time_diff = now - latest_time
-                
-                # Check if within inactivity threshold
-                threshold = timedelta(minutes=self.inactivity_threshold_minutes)
-                is_active = time_diff <= threshold
-                
-                if not is_active:
-                    self.logger.debug(
-                        f"User {user_id} inactive for {time_diff.total_seconds() / 60:.1f} minutes "
-                        f"(threshold: {self.inactivity_threshold_minutes} minutes)",
-                        user_id=user_id,
-                        last_activity=latest_timestamp,
-                        inactivity_duration_minutes=time_diff.total_seconds() / 60
-                    )
-                
-                return is_active
-                
-            except (ValueError, TypeError) as e:
-                self.logger.error(
-                    f"Error parsing timestamp '{latest_timestamp}': {str(e)}",
-                    user_id=user_id
-                )
-                return True  # Be lenient on parsing errors
-                
-        except Exception as e:
-            self.logger.error(
-                f"Error checking user activity: {str(e)}",
-                user_id=user_id,
-                error=e
-            )
-            # In case of error, be conservative and consider user active
-            # This prevents legitimate users from being locked out due to system errors
-            return True
+        # Always return True to disable inactivity expiry
+        return True
     
     def _log_user_activity(self, user_id: str, operation: str = "token_validation"):
         """

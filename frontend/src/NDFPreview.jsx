@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useUserInfo } from "./UserIdContext";
 import yaml from 'js-yaml';
+import { getApiBase } from "./config";
 
 const NDFPreview = ({ graphId }) => {
   const { userId } = useUserInfo();
@@ -11,7 +12,7 @@ const NDFPreview = ({ graphId }) => {
     const fetchParsed = async () => {
       try {
         // Fetch polymorphic_composed.json and convert to YAML
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
         if (!res.ok) throw new Error("Failed to fetch polymorphic_composed.json");
         const data = await res.json();
         

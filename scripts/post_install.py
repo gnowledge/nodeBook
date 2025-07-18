@@ -25,12 +25,14 @@ def create_admin_user():
     from uuid import uuid4
     from passlib.context import CryptContext
     from sqlmodel import select
+    from datetime import datetime
 
     username = "admin"
     email = "admin@example.com"
     password = "admin123"  # Change as needed
     pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
     hashed_password = pwd_context.hash(password)
+    now = datetime.utcnow()
 
     with Session(engine) as session:
         existing = session.exec(select(User).where(User.username == username)).first()
@@ -44,7 +46,13 @@ def create_admin_user():
             hashed_password=hashed_password,
             is_active=True,
             is_superuser=True,
-            is_verified=True
+            is_verified=True,
+            is_approved=True,
+            approval_note="Initial admin user created by post_install script.",
+            institution="System",
+            approved_by=None,
+            approved_at=now,
+            created_at=now
         )
         session.add(user)
         session.commit()

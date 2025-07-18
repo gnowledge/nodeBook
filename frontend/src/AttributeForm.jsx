@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import AttributeTypeModal from './AttributeTypeModal';
 import MessageArea from './MessageArea';
 import { useUserInfo } from "./UserIdContext";
@@ -37,7 +37,7 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
     setAttributeTypesLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -73,7 +73,7 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
       modality: attrModality || undefined,
       ...(morphId ? { morph_id: [morphId] } : {})
     };
-    const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
+    const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute/create`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export default function AttributeForm({ nodeId, graphId = "graph1", onAddAttribu
             onSuccess={handleAttributeTypeCreated}
             userId={userId}
             graphId={graphId}
-            endpoint={`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/create`}
+            endpoint={`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/create`}
             method="POST"
           />
         )}

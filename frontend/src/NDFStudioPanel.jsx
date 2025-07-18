@@ -5,7 +5,7 @@ import CytoscapeStudio from "./CytoscapeStudio";
 import DisplayHTML from "./DisplayHTML";
 import RelationTypeModal from "./RelationTypeModal";
 import AttributeTypeModal from "./AttributeTypeModal";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 
 const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComposedGraph, onGraphDeleted, prefs }) => {
   const [activeTab, setActiveTab] = useState("CNL");
@@ -22,18 +22,16 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
     if (lastSummaryNode) {
       interval = setInterval(async () => {
         // Fetch node info to check if description is now present
-        const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${lastSummaryNode}`);
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/getInfo/${lastSummaryNode}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.description && data.description !== "") {
-            setShowSummaryComplete(true);
-            setTimeout(() => setShowSummaryComplete(false), 3000);
-            setLastSummaryNode(null);
+          if (data.description && data.description.trim()) {
+            // Description is now available, stop polling
             clearInterval(interval);
-            if (onGraphUpdate) onGraphUpdate(); // Optionally refresh graph
+            onGraphUpdate(); // Refresh the graph display
           }
         }
-      }, 2000); // Poll every 2s
+      }, 2000); // Check every 2 seconds
     }
     return () => interval && clearInterval(interval);
   }, [lastSummaryNode, userId, graphId, onGraphUpdate]);
@@ -47,7 +45,7 @@ const NDFStudioPanel = ({ userId, graphId, graph, onGraphUpdate, onSave, setComp
 
   const handleParsed = async () => {
     try {
-      const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/composed`);
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/composed`);
       const parsed = await res.json();
       if (setComposedGraph) setComposedGraph(graphId, parsed);
       if (onSave) onSave();

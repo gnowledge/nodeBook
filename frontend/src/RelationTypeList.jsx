@@ -1,6 +1,6 @@
 // Updated RelationTypeList.jsx to show cards with Edit and Delete actions
 import React, { useEffect, useState } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import RelationTypeModal from './RelationTypeModal';
 
 export default function RelationTypeList({ userId, graphId = "graph1" }) {
@@ -16,7 +16,7 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
     try {
       const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -25,7 +25,7 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
       setRelationTypes(data);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+      const globalRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/global`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -33,7 +33,7 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.relation_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+      const userRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/user`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -56,7 +56,7 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
     if (!window.confirm(`Delete relation type '${name}'?`)) return;
     try {
       const token = localStorage.getItem("token");
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${name}`, { 
+      await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${name}`, { 
         method: 'DELETE',
         headers: {
           "Authorization": `Bearer ${token}`
@@ -154,7 +154,7 @@ export default function RelationTypeList({ userId, graphId = "graph1" }) {
         onSuccess={loadTypes}
         userId={userId}
         graphId={graphId}
-        endpoint={editTarget ? `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${editTarget.name}` : `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/create`}
+        endpoint={editTarget ? `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/${editTarget.name}` : `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/relation-types/create`}
         method={editTarget ? 'PUT' : 'POST'}
         initialData={editTarget}
       />

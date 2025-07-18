@@ -5,7 +5,7 @@
 // - Deleting existing types (using DELETE - optional backend support needed)
 
 import React, { useEffect, useState } from 'react';
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import AttributeTypeModal from './AttributeTypeModal';
 import { useUserInfo } from "./UserIdContext";
 
@@ -23,7 +23,7 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
     try {
       const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -33,7 +33,7 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
       setAttributeTypes(list);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+      const globalRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/global`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -41,7 +41,7 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.attribute_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+      const userRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/user`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -65,7 +65,7 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
     if (!window.confirm(`Delete attribute type '${name}'?`)) return;
     try {
       const token = localStorage.getItem("token");
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${name}`, { 
+      await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${name}`, { 
         method: 'DELETE',
         headers: {
           "Authorization": `Bearer ${token}`
@@ -162,7 +162,7 @@ export default function AttributeTypeList({ graphId = "graph1" }) {
         onSuccess={loadTypes}
         userId={userId}
         graphId={graphId}
-        endpoint={editTarget ? `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${editTarget.name}` : `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`}
+        endpoint={editTarget ? `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types/${editTarget.name}` : `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/attribute-types`}
         method={editTarget ? 'PUT' : 'POST'}
         initialData={editTarget}
       />

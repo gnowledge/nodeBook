@@ -6,5 +6,10 @@ export function getServerAddress() {
   );
 }
 
-export const API_BASE = getServerAddress();
-export const AUTH_BASE = `${API_BASE}/api/auth`;
+export function getApiBase() {
+  return getServerAddress();
+}
+
+export function getAuthBase() {
+  return `${getApiBase()}/api/auth`;
+}

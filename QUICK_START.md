@@ -52,7 +52,7 @@ docker-compose down
 cd frontend && npm install && npm run build
 
 # Build Electron package
-cd electron && npm install && npm run dist
+cd electron && npm install && npm run build
 ```
 
 ### Install Desktop App
@@ -77,7 +77,7 @@ This will:
 ```bash
 cd electron
 npm run pack  # Creates unpacked app
-npm run dist  # Creates installable packages
+npm run build  # Creates installable packages
 ```
 
 ## 🔧 Development Mode

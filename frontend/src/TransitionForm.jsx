@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import { useUserInfo } from "./UserIdContext";
 import { generateTransitionId } from "./utils/idUtils";
 
@@ -22,7 +22,7 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
   useEffect(() => {
     const loadNodes = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+        const response = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
         if (response.ok) {
           const graphData = await response.json();
           setAvailableNodes(graphData.nodes || []);
@@ -64,8 +64,8 @@ export default function TransitionForm({ graphId, onSuccess, onClose, onCancel, 
 
     try {
       const url = initialData 
-        ? `${API_BASE}/api/ndf/users/${userId}/transitions/${formData.id}?graph_id=${encodeURIComponent(graphId)}`
-        : `${API_BASE}/api/ndf/users/${userId}/transitions/?graph_id=${encodeURIComponent(graphId)}`;
+        ? `${getApiBase()}/api/ndf/users/${userId}/transitions/${formData.id}?graph_id=${encodeURIComponent(graphId)}`
+        : `${getApiBase()}/api/ndf/users/${userId}/transitions/?graph_id=${encodeURIComponent(graphId)}`;
       
       const method = initialData ? "PUT" : "POST";
       

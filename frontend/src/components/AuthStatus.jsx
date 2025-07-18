@@ -1,27 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { isTokenValid, checkUserActivity, getInactivityThreshold, getInactivityMessage } from '../utils/authUtils';
+import { isTokenValid } from '../utils/authUtils';
 
 const AuthStatus = () => {
   const [tokenExpiry, setTokenExpiry] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
-  const [inactivityWarning, setInactivityWarning] = useState(false);
-  const [lastActivityCheck, setLastActivityCheck] = useState(null);
-  const [inactivityThreshold, setInactivityThreshold] = useState(20);
 
   useEffect(() => {
-    // Load inactivity threshold from server
-    const loadConfig = async () => {
-      const threshold = await getInactivityThreshold();
-      setInactivityThreshold(threshold);
-    };
-    loadConfig();
-
     const checkTokenExpiry = () => {
       const token = localStorage.getItem("token");
       if (!token) {
         setTokenExpiry(null);
         setShowWarning(false);
-        setInactivityWarning(false);
         return;
       }
 
@@ -42,83 +31,21 @@ const AuthStatus = () => {
         console.error("Error parsing token:", error);
         setTokenExpiry(null);
         setShowWarning(false);
-        setInactivityWarning(false);
-      }
-    };
-
-    const checkInactivity = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const isActive = await checkUserActivity();
-        if (!isActive) {
-          setInactivityWarning(true);
-          setShowWarning(false); // Don't show time-based warning if inactivity warning is shown
-        } else {
-          setInactivityWarning(false);
-          setLastActivityCheck(new Date());
-        }
-      } catch (error) {
-        console.error("Error checking user activity:", error);
-        // Don't show inactivity warning on network errors
       }
     };
 
     // Check immediately
     checkTokenExpiry();
-    checkInactivity();
     
     // Check every 30 seconds for token expiry
     const tokenInterval = setInterval(checkTokenExpiry, 30000);
     
-    // Check every 2 minutes for inactivity
-    const inactivityInterval = setInterval(checkInactivity, 120000);
-    
     return () => {
       clearInterval(tokenInterval);
-      clearInterval(inactivityInterval);
     };
   }, []);
 
-  if (!showWarning && !inactivityWarning) return null;
-
-  if (inactivityWarning) {
-    return (
-      <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded shadow-lg z-50">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">
-              Session expired due to inactivity
-            </p>
-            <p className="text-xs mt-1">
-              You have been inactive for more than {getInactivityMessage(inactivityThreshold)}. 
-              Please refresh the page to continue.
-            </p>
-          </div>
-          <div className="ml-auto pl-3">
-            <button
-              onClick={() => {
-                setInactivityWarning(false);
-                window.location.reload();
-              }}
-              className="text-red-400 hover:text-red-600"
-            >
-              <span className="sr-only">Refresh</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!showWarning) return null;
 
   const minutes = Math.floor(tokenExpiry / 60);
   const seconds = Math.floor(tokenExpiry % 60);
@@ -138,11 +65,6 @@ const AuthStatus = () => {
           <p className="text-xs mt-1">
             Please save your work and refresh the page to continue.
           </p>
-          {lastActivityCheck && (
-            <p className="text-xs mt-1 text-yellow-600">
-              Last activity: {lastActivityCheck.toLocaleTimeString()}
-            </p>
-          )}
         </div>
         <div className="ml-auto pl-3">
           <button

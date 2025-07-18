@@ -8,6 +8,7 @@ import AttributeTypeList from "./AttributeTypeList";
 import NodeTypeList from "./NodeTypeList";
 import { useUserInfo } from "./UserIdContext";
 import { refreshGraphData, isTokenValid } from "./utils/authUtils";
+import { getApiBase } from "./config";
 
 // Utility to strip markdown (basic, for bold/italic/inline code/links)
 function stripMarkdown(md) {
@@ -330,7 +331,7 @@ const DisplayHTML = ({ graphId, onGraphRefresh, onInMemoryMorphChange }) => {
           if (!window.confirm(`Are you sure you want to delete this graph? This action cannot be undone.`)) return;
           try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/delete`, { 
+            const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/delete`, { 
               method: 'DELETE',
               headers: {
                 "Authorization": `Bearer ${token}`

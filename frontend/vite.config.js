@@ -5,6 +5,7 @@ import UnoCSS from 'unocss/vite'
 
 export default defineConfig({
   plugins: [react(), UnoCSS()],
+  base: './', // Use relative paths for Electron AppImage
   server: {
     proxy: {
       '/api': {

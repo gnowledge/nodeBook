@@ -3,6 +3,7 @@ import { listGraphs } from "./services/api";
 import Statistics from "./Statistics";
 import { computeStats } from "./statisticsUtils.js";
 import { useUserInfo } from "./UserIdContext";
+import { getApiBase } from "./config";
 
 export default function WorkspaceStatistics() {
   const { userId } = useUserInfo();
@@ -21,7 +22,7 @@ export default function WorkspaceStatistics() {
         const statsArr = [];
         for (const graphId of ids) {
           try {
-            const res = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+            const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
             if (!res.ok) throw new Error();
             const graph = await res.json();
 
@@ -29,7 +30,7 @@ export default function WorkspaceStatistics() {
             // Fetch cross-graph reuse data
             let crossGraphReuseCount = 0;
             try {
-              const reuseRes = await fetch(`/api/ndf/users/${userId}/graphs/${graphId}/cross_graph_reuse`, {
+              const reuseRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/cross_graph_reuse`, {
                 headers: {
                   "Authorization": `Bearer ${localStorage.getItem("token")}`
                 }

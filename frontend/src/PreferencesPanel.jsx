@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import { useDifficulty } from "./DifficultyContext";
 
 // Initial preferences (used as fallback)
@@ -43,7 +43,7 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
       setError(null);
       try {
         // Fetch preferences from backend API, sending user_id as query param
-        const res = await fetch(`/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await fetch(`${getApiBase()}/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
         if (!res.ok) throw new Error("Failed to load preferences");
         const data = await res.json();
         setPrefs(data);
@@ -72,7 +72,7 @@ export default function PreferencesPanel({ userId, onPrefsChange }) {
     // Create new timeout for debounced save
     const timeout = setTimeout(async () => {
     try {
-        await fetch(`/api/ndf/preferences`, {
+        await fetch(`${getApiBase()}/ndf/preferences`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
         body: JSON.stringify(newPrefs),

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { marked } from "marked";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import { useUserInfo } from "./UserIdContext";
 
 function TransitionCard({ transition, userId, graphId, onGraphUpdate, availableNodes = [] }) {
@@ -54,7 +54,7 @@ function TransitionCard({ transition, userId, graphId, onGraphUpdate, availableN
       const token = localStorage.getItem("token");
       const updatedTransition = { ...transition, description: editDescription };
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/transitions/${transition.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/transitions/${transition.id}`,
         {
           method: "PUT",
           headers: { 
@@ -87,7 +87,7 @@ function TransitionCard({ transition, userId, graphId, onGraphUpdate, availableN
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${API_BASE}/api/ndf/users/${userId}/transitions/${transition.id}`,
+        `${getApiBase()}/api/ndf/users/${userId}/transitions/${transition.id}`,
         { 
           method: "DELETE",
           headers: {

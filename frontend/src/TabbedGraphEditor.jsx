@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import CytoscapeStudio from "./CytoscapeStudio";
 import NDFStudioPanel from "./NDFStudioPanel";
 import yaml from "js-yaml";
+import { getApiBase } from "./config";
 
 const TabbedGraphEditor = ({ userId, initialGraphs = ["graph1"] }) => {
   const [tabs, setTabs] = useState(initialGraphs.map((id) => ({ id, name: id })));
@@ -11,7 +12,7 @@ const TabbedGraphEditor = ({ userId, initialGraphs = ["graph1"] }) => {
   useEffect(() => {
     const fetchGraph = async () => {
       try {
-        const res = await fetch(`/api/ndf/users/${userId}/graphs/${activeTab}`);
+        const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${activeTab}`);
         const text = await res.text();
         const parsed = yaml.load(text);
         setGraphData(parsed);

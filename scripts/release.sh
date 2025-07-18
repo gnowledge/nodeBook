@@ -30,9 +30,9 @@ updateVersion('electron/package.json');
 echo "🐳 Building Docker images..."
 ./scripts/build-docker.sh
 
-# Build Electron packages
-echo "📱 Building Electron packages..."
-./scripts/build-electron.sh
+# Build Electron packages with Python dependencies
+echo "📱 Building Electron packages with Python dependencies..."
+./scripts/build-electron-with-python.sh "$VERSION" "NodeBook Team" "admin@nodebook.com"
 
 # Run post-install script for backend
 echo "🔧 Running post-install script..."

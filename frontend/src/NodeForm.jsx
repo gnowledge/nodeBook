@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE } from './config';
+import { getApiBase } from './config';
 import { useUserInfo } from "./UserIdContext";
 import { useDifficulty } from "./DifficultyContext";
 
@@ -67,7 +67,7 @@ export default function NodeForm({ onSuccess, initialData, difficulty: propDiffi
       const token = localStorage.getItem("token");
       let res;
       if (editing && nodeId) {
-        res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
+        res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes/${nodeId}`, {
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function NodeForm({ onSuccess, initialData, difficulty: propDiffi
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
+        res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/nodes`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

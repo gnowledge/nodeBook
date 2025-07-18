@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUserInfo } from "./UserIdContext";
-import { API_BASE } from "./config";
+import { getApiBase } from "./config";
 import NodeTypeModal from './NodeTypeModal';
 
 export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEdit, onDelete, showAddButton = true }) {
@@ -17,7 +17,7 @@ export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEd
     try {
       const token = localStorage.getItem("token");
       // Load combined types (global + user)
-      const res = await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
+      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/node-types`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -26,7 +26,7 @@ export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEd
       setNodeTypes(data);
 
       // Load global and user types separately for display
-      const globalRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/global`, {
+      const globalRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/global`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -34,7 +34,7 @@ export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEd
       const globalData = await globalRes.json();
       setGlobalTypes(globalData.node_types || []);
 
-      const userRes = await fetch(`${API_BASE}/api/ndf/users/${userId}/schemas/user`, {
+      const userRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/schemas/user`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -58,7 +58,7 @@ export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEd
     if (!window.confirm(`Delete node type '${name}'?`)) return;
     try {
       const token = localStorage.getItem("token");
-      await fetch(`${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${name}`, { 
+      await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${name}`, { 
         method: 'DELETE',
         headers: {
           "Authorization": `Bearer ${token}`
@@ -158,7 +158,7 @@ export default function NodeTypeList({ graphId = "graph1", onSelect, onAdd, onEd
         onSuccess={loadTypes}
         userId={userId}
         graphId={graphId}
-        endpoint={editTarget ? `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${editTarget.name}` : `${API_BASE}/api/ndf/users/${userId}/graphs/${graphId}/node-types`}
+        endpoint={editTarget ? `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/node-types/${editTarget.name}` : `${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/node-types`}
         method={editTarget ? 'PUT' : 'POST'}
         initialData={editTarget}
       />
