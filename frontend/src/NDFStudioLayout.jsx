@@ -13,7 +13,9 @@ import DevPanel from "./DevPanel";
 import CNLInput from "./CNLInput";
 import LogViewer from "./LogViewer";
 import ShareButton from "./components/ShareButton";
+import SaveButton from "./components/SaveButton";
 import { useUserInfo } from "./UserIdContext";
+import AdminPanel from "./AdminPanel";
 
 const DEFAULT_PREFERENCES = {
   graphLayout: "dagre",
@@ -95,6 +97,7 @@ const TOP_TABS = [
   { key: "system-logs", label: "System Logs" },
   { key: "help", label: "Help" },
   { key: "preferences", label: "Preferences" },
+  { key: "admin", label: "Admin", adminOnly: true },
 ];
 
 const WORKAREA_TABS = [
@@ -116,7 +119,8 @@ const DEV_PANEL_TABS = [
 ];
 
 const NDFStudioLayout = () => {
-  const { userId, userInfo } = useUserInfo();
+  const userInfo = useUserInfo();
+  
   const [searchParams] = useSearchParams();
   const [allGraphs, setAllGraphs] = useState([]);
   const [openGraphs, setOpenGraphs] = useState([]);
@@ -132,42 +136,44 @@ const NDFStudioLayout = () => {
   const [prefsLoading, setPrefsLoading] = useState(true);
   const [showNewGraphModal, setShowNewGraphModal] = useState(false);
   const [newGraphName, setNewGraphName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
   // Handle URL parameters for graph sharing
   useEffect(() => {
     const graphParam = searchParams.get('graph');
-    if (graphParam && userId && allGraphs.length > 0) {
+    if (graphParam && userInfo?.userId && allGraphs.length > 0) {
       // Check if the graph exists in the user's graphs
       const graphExists = allGraphs.find(g => g.id === graphParam);
       if (graphExists) {
         openGraphInTab(graphParam);
       }
     }
-  }, [searchParams, userId, allGraphs]);
+  }, [searchParams, userInfo?.userId, allGraphs]);
 
   useEffect(() => {
     async function init() {
-      if (!userId) return; // Don't make API calls if no user is logged in
+      if (!userInfo?.userId) return; // Don't make API calls if no user is logged in
       try {
-        const graphList = await listGraphsWithTitles(userId);
+        const graphList = await listGraphsWithTitles(userInfo?.userId);
         setAllGraphs(graphList);
       } catch (err) {
         console.error("Error loading graph list:", err);
       }
     }
     init();
-  }, [userId]);
+  }, [userInfo?.userId]);
 
   useEffect(() => {
     async function fetchPrefs() {
-      if (!userId) {
+      if (!userInfo?.userId) {
         setPrefs(DEFAULT_PREFERENCES);
         setPrefsLoading(false);
         return; // Don't make API calls if no user is logged in
       }
       setPrefsLoading(true);
       try {
-        const res = await authenticatedApiCall(`${getApiBase()}/api/ndf/preferences?user_id=${encodeURIComponent(userId)}`);
+        const res = await authenticatedApiCall(`${getApiBase()}/api/ndf/preferences?user_id=${encodeURIComponent(userInfo?.userId)}`);
         const data = await res.json();
         setPrefs(data);
       } catch (e) {
@@ -177,7 +183,43 @@ const NDFStudioLayout = () => {
       }
     }
     fetchPrefs();
-  }, [userId]);
+  }, [userInfo?.userId]);
+
+  // Fetch pending approvals count for admin users
+  useEffect(() => {
+    async function fetchPendingApprovals() {
+      if (!userInfo?.userId || !userInfo?.is_superuser) return;
+      
+      try {
+        const response = await authenticatedApiCall(`${getApiBase()}/api/auth/admin/pending-approvals`);
+        if (response.ok) {
+          const data = await response.json();
+          setPendingApprovalsCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching pending approvals:", error);
+      }
+    }
+    
+    fetchPendingApprovals();
+    // Refresh every 30 seconds for admins
+    const interval = setInterval(fetchPendingApprovals, 30000);
+    return () => clearInterval(interval);
+  }, [userInfo?.userId, userInfo?.is_superuser]);
+
+  const refreshPendingApprovalsCount = async () => {
+    if (!userInfo?.userId || !userInfo?.is_superuser) return;
+    
+    try {
+      const response = await authenticatedApiCall(`${getApiBase()}/api/auth/admin/pending-approvals`);
+      if (response.ok) {
+        const data = await response.json();
+        setPendingApprovalsCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching pending approvals:", error);
+    }
+  };
 
   const openGraphInTab = async (graphId) => {
     if (openGraphs.find((g) => g.id === graphId)) {
@@ -185,8 +227,8 @@ const NDFStudioLayout = () => {
       return;
     }
     try {
-      const raw = await loadGraphCNL(userId, graphId);
-      const composedRes = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${graphId}/polymorphic_composed`);
+      const raw = await loadGraphCNL(userInfo?.userId, graphId);
+      const composedRes = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs/${graphId}/polymorphic_composed`);
       const composed = await composedRes.json();
       setRawMarkdowns((prev) => ({ ...prev, [graphId]: raw }));
       setComposedGraphs((prev) => ({ ...prev, [graphId]: composed }));
@@ -206,40 +248,80 @@ const NDFStudioLayout = () => {
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
     
-    const name = newGraphName.trim();
-    const newId = name.replace(/\s+/g, "_").toLowerCase();
-    
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${newId}`, {
+      const response = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ title: name, description: "" })
+        body: JSON.stringify({
+          graph_id: newGraphName.trim(),
+          user_id: userInfo?.userId,
+        }),
       });
-      if (!res.ok) throw new Error(await res.text());
 
-      const raw = await loadGraphCNL(userId, newId);
-      const composedRes = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userId}/graphs/${newId}/polymorphic_composed`);
-      const composed = await composedRes.json();
-      const fullGraph = { ...composed, raw_markdown: raw };
-      const newMeta = { id: newId, title: name };
+      if (response.ok) {
+        const newGraph = await response.json();
+        setAllGraphs((prev) => [...prev, newGraph]);
+        await openGraphInTab(newGraph.id);
+        setShowNewGraphModal(false);
+        setNewGraphName("");
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to create graph: ${errorData.detail || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error creating graph:", error);
+      alert("Failed to create graph. Please try again.");
+    }
+  };
 
-      setAllGraphs((prev) => [...prev, newMeta]);
-      setOpenGraphs((prev) => [...prev, newMeta]);
-      setActiveGraph(newId);
-      setComposedGraphs((prev) => ({ ...prev, [newId]: fullGraph }));
-      setInMemoryGraphs((prev) => ({ ...prev, [newId]: JSON.parse(JSON.stringify(fullGraph)) })); // Initialize in-memory graph
-      setRawMarkdowns((prev) => ({ ...prev, [newId]: raw }));
-      
-      // Close modal and reset input
-      setShowNewGraphModal(false);
-      setNewGraphName("");
-    } catch (err) {
-      console.error("Failed to create graph:", err);
-      alert("Failed to create graph. See console for details.");
+  const handleImportGraph = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Reset file input
+    event.target.value = "";
+
+    if (!file.name.endsWith('.ndf')) {
+      alert('Please select a .ndf file');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${getApiBase()}/api/exchange/import_ndf/${userInfo?.userId}`, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Refresh the graph list to include the imported graph
+        const graphList = await listGraphsWithTitles(userInfo?.userId);
+        setAllGraphs(graphList);
+        
+        // Open the imported graph
+        await openGraphInTab(result.imported_graph_id);
+        
+        alert(`Graph '${result.imported_graph_id}' imported successfully!\n\nImported files: ${result.imported_files.length}\nNew types: ${result.imported_types.nodes + result.imported_types.attributes + result.imported_types.relations}`);
+      } else {
+        const errorData = await response.json();
+        alert(`Import failed: ${errorData.detail || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error importing graph:", error);
+      alert("Failed to import graph. Please try again.");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -252,7 +334,6 @@ const NDFStudioLayout = () => {
 
   // Handle in-memory morph changes from NodeCard
   const handleInMemoryMorphChange = (nodeId, newNbh) => {
-    console.log('[NDFStudioLayout] In-memory morph change:', { nodeId, newNbh, activeGraph });
     
     if (!activeGraph || !inMemoryGraphs[activeGraph]) return;
     
@@ -266,18 +347,15 @@ const NDFStudioLayout = () => {
         nbh: newNbh
       };
       setInMemoryGraphs((prev) => ({ ...prev, [activeGraph]: updatedInMemoryGraph }));
-      console.log('[NDFStudioLayout] Updated in-memory graph for:', activeGraph);
     }
   };
 
   const refreshActiveGraph = async () => {
     if (!activeGraph) return;
     
-    console.log("🔄 Refreshing graph data for:", activeGraph);
-    const token = localStorage.getItem("token");
-    const composedRes = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+    const composedRes = await fetch(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs/${activeGraph}/polymorphic_composed`, {
       headers: {
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
       }
     });
     
@@ -292,9 +370,9 @@ const NDFStudioLayout = () => {
     if (!activeGraph) return;
     
     try {
-      const raw = await loadGraphCNL(userId, activeGraph);
+      const raw = await loadGraphCNL(userInfo?.userId, activeGraph);
       const token = localStorage.getItem("token");
-      const composed = await fetch(`${getApiBase()}/api/ndf/users/${userId}/graphs/${activeGraph}/polymorphic_composed`, {
+      const composed = await fetch(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs/${activeGraph}/polymorphic_composed`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -387,15 +465,32 @@ const NDFStudioLayout = () => {
   // Render top-level tabs
   const renderTopTabs = () => (
     <div className="flex border-b bg-gray-100">
-      {TOP_TABS.map(({ key, label }) => (
-        <button
-          key={key}
-          className={`px-4 py-2 ${activeTopTab === key ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
-          onClick={() => setActiveTopTab(key)}
-        >
-          {label}
-        </button>
-      ))}
+      {TOP_TABS.map(({ key, label, adminOnly }) => {
+        // Skip admin tab if user is not a superuser
+        if (adminOnly && !userInfo?.is_superuser) {
+          return null;
+        }
+        
+        return (
+          <button
+            key={key}
+            className={`px-4 py-2 ${activeTopTab === key ? "bg-white border-b-2 border-blue-600 font-bold" : ""}`}
+            onClick={() => {
+              setActiveTopTab(key);
+              if (key === "admin") {
+                refreshPendingApprovalsCount();
+              }
+            }}
+          >
+            {label}
+            {key === "admin" && pendingApprovalsCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                {pendingApprovalsCount}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -423,11 +518,30 @@ const NDFStudioLayout = () => {
         >
           + New Graph
         </button>
+
+        <button
+          onClick={() => document.getElementById('import-ndf-input').click()}
+          disabled={importing}
+          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {importing ? "Importing..." : "📂 Open Graph"}
+        </button>
+
+        <input
+          id="import-ndf-input"
+          type="file"
+          accept=".ndf"
+          onChange={handleImportGraph}
+          style={{ display: 'none' }}
+        />
       </div>
       
-      {/* Add Share Button */}
+      {/* Add Save and Share Buttons */}
       {activeGraph && (
-        <ShareButton graphId={activeGraph} />
+        <div className="flex items-center space-x-2">
+          <SaveButton userId={userInfo?.userId} graphId={activeGraph} />
+          <ShareButton graphId={activeGraph} />
+        </div>
       )}
     </div>
   );
@@ -552,11 +666,28 @@ const NDFStudioLayout = () => {
         </div>
       );
     }
+    if (activeTopTab === "admin" && userInfo?.is_superuser) {
+      return (
+        <div className="p-4">
+          <AdminPanel />
+        </div>
+      );
+    }
+    if (activeTopTab === "admin" && !userInfo?.is_superuser) {
+      return (
+        <div className="p-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <strong>Access Denied:</strong> Admin privileges required to access this panel.
+          </div>
+        </div>
+      );
+    }
     return null;
   };
 
   return (
     <div className="h-full w-full flex flex-col">
+      
       {renderTopTabs()}
       {activeTopTab === "graphs" && renderGraphSelectorBar()}
       {activeTopTab === "graphs" && activeGraph && renderWorkareaTabs()}

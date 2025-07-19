@@ -96,9 +96,7 @@
     "transitive": true,
     "description": "Indicates that one entity is a part of another entity",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": true
+    "range": []
   },
   {
     "name": "contains",
@@ -107,9 +105,7 @@
     "transitive": true,
     "description": "Indicates that one entity contains another entity",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": true
+    "range": []
   },
   {
     "name": "parent_of",
@@ -117,10 +113,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates a parent-child relationship",
-    "domain": ["Person"],
-    "range": ["Person"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Person"
+    ]
   },
   {
     "name": "spouse_of",
@@ -128,10 +126,12 @@
     "symmetric": true,
     "transitive": false,
     "description": "Indicates a marital relationship between two people",
-    "domain": ["Person"],
-    "range": ["Person"],
-    "symmetric": true,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Person"
+    ]
   },
   {
     "name": "works_for",
@@ -139,10 +139,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates employment relationship",
-    "domain": ["Person"],
-    "range": ["Organization"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Organization"
+    ]
   },
   {
     "name": "founded",
@@ -150,10 +152,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that a person founded an organization",
-    "domain": ["Person"],
-    "range": ["Organization"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Organization"
+    ]
   },
   {
     "name": "owns",
@@ -161,10 +165,13 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates ownership relationship",
-    "domain": ["Person", "Organization"],
-    "range": ["Object"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Object"
+    ]
   },
   {
     "name": "created",
@@ -172,10 +179,15 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an entity was created by another entity",
-    "domain": ["Person", "Organization"],
-    "range": ["Object", "Document", "Event"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Object",
+      "Document",
+      "Event"
+    ]
   },
   {
     "name": "authored",
@@ -183,10 +195,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that a person authored a document",
-    "domain": ["Person"],
-    "range": ["Document"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Document"
+    ]
   },
   {
     "name": "published",
@@ -194,10 +208,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an organization published a document",
-    "domain": ["Organization"],
-    "range": ["Document"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Organization"
+    ],
+    "range": [
+      "Document"
+    ]
   },
   {
     "name": "attended",
@@ -205,10 +221,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that a person attended an event",
-    "domain": ["Person"],
-    "range": ["Event"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Event"
+    ]
   },
   {
     "name": "organized",
@@ -216,10 +234,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an organization organized an event",
-    "domain": ["Organization"],
-    "range": ["Event"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Organization"
+    ],
+    "range": [
+      "Event"
+    ]
   },
   {
     "name": "happened_at",
@@ -227,10 +247,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an event happened at a specific location",
-    "domain": ["Event"],
-    "range": ["Place"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Event"
+    ],
+    "range": [
+      "Place"
+    ]
   },
   {
     "name": "happened_during",
@@ -238,10 +260,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an event happened during a specific time period",
-    "domain": ["Event"],
-    "range": ["Time"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Event"
+    ],
+    "range": [
+      "Time"
+    ]
   },
   {
     "name": "before",
@@ -249,10 +273,14 @@
     "symmetric": false,
     "transitive": true,
     "description": "Indicates temporal ordering",
-    "domain": ["Event", "Time"],
-    "range": ["Event", "Time"],
-    "symmetric": false,
-    "transitive": true
+    "domain": [
+      "Event",
+      "Time"
+    ],
+    "range": [
+      "Event",
+      "Time"
+    ]
   },
   {
     "name": "similar_to",
@@ -261,9 +289,7 @@
     "transitive": false,
     "description": "Indicates similarity between entities",
     "domain": [],
-    "range": [],
-    "symmetric": true,
-    "transitive": false
+    "range": []
   },
   {
     "name": "related_to",
@@ -272,9 +298,7 @@
     "transitive": false,
     "description": "Indicates a general relationship between entities",
     "domain": [],
-    "range": [],
-    "symmetric": true,
-    "transitive": false
+    "range": []
   },
   {
     "name": "influences",
@@ -283,9 +307,7 @@
     "transitive": false,
     "description": "Indicates that one entity influences another",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": false
+    "range": []
   },
   {
     "name": "causes",
@@ -293,10 +315,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates a causal relationship",
-    "domain": ["Event"],
-    "range": ["Event"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Event"
+    ],
+    "range": [
+      "Event"
+    ]
   },
   {
     "name": "depends_on",
@@ -305,9 +329,7 @@
     "transitive": true,
     "description": "Indicates a dependency relationship",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": true
+    "range": []
   },
   {
     "name": "uses",
@@ -315,10 +337,14 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that one entity uses another",
-    "domain": ["Person", "Organization"],
-    "range": ["Object", "Document"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Object",
+      "Document"
+    ]
   },
   {
     "name": "produces",
@@ -326,10 +352,14 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that one entity produces another",
-    "domain": ["Person", "Organization"],
-    "range": ["Object", "Document"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Object",
+      "Document"
+    ]
   },
   {
     "name": "sells",
@@ -337,10 +367,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an organization sells a product",
-    "domain": ["Organization"],
-    "range": ["Object"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Organization"
+    ],
+    "range": [
+      "Object"
+    ]
   },
   {
     "name": "buys",
@@ -348,10 +380,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an organization buys a product",
-    "domain": ["Organization"],
-    "range": ["Object"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Organization"
+    ],
+    "range": [
+      "Object"
+    ]
   },
   {
     "name": "competes_with",
@@ -359,10 +393,12 @@
     "symmetric": true,
     "transitive": false,
     "description": "Indicates competition between organizations",
-    "domain": ["Organization"],
-    "range": ["Organization"],
-    "symmetric": true,
-    "transitive": false
+    "domain": [
+      "Organization"
+    ],
+    "range": [
+      "Organization"
+    ]
   },
   {
     "name": "collaborates_with",
@@ -370,10 +406,14 @@
     "symmetric": true,
     "transitive": false,
     "description": "Indicates collaboration between entities",
-    "domain": ["Person", "Organization"],
-    "range": ["Person", "Organization"],
-    "symmetric": true,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Person",
+      "Organization"
+    ]
   },
   {
     "name": "studies",
@@ -381,10 +421,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that a person studies a subject",
-    "domain": ["Person"],
-    "range": ["Concept"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Concept"
+    ]
   },
   {
     "name": "teaches",
@@ -392,10 +434,12 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that a person teaches a subject",
-    "domain": ["Person"],
-    "range": ["Concept"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person"
+    ],
+    "range": [
+      "Concept"
+    ]
   },
   {
     "name": "specializes_in",
@@ -403,10 +447,13 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates specialization in a field",
-    "domain": ["Person", "Organization"],
-    "range": ["Concept"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Concept"
+    ]
   },
   {
     "name": "measures",
@@ -414,10 +461,10 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that an attribute measures a property",
-    "domain": ["Quantity"],
-    "range": [],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Quantity"
+    ],
+    "range": []
   },
   {
     "name": "represents",
@@ -425,10 +472,14 @@
     "symmetric": false,
     "transitive": false,
     "description": "Indicates that one entity represents another",
-    "domain": ["Person", "Organization"],
-    "range": ["Person", "Organization"],
-    "symmetric": false,
-    "transitive": false
+    "domain": [
+      "Person",
+      "Organization"
+    ],
+    "range": [
+      "Person",
+      "Organization"
+    ]
   },
   {
     "name": "replaces",
@@ -437,9 +488,7 @@
     "transitive": false,
     "description": "Indicates that one entity replaces another",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": false
+    "range": []
   },
   {
     "name": "connects",
@@ -448,9 +497,7 @@
     "transitive": false,
     "description": "Indicates a connection between entities",
     "domain": [],
-    "range": [],
-    "symmetric": false,
-    "transitive": false
+    "range": []
   },
   {
     "name": "leads_to",
@@ -459,8 +506,14 @@
     "transitive": true,
     "description": "Indicates a path or sequence",
     "domain": [],
-    "range": [],
+    "range": []
+  },
+  {
+    "name": "belongs to",
+    "description": "Relation type used in the graph",
     "symmetric": false,
-    "transitive": true
+    "transitive": false,
+    "domain": [],
+    "range": []
   }
 ]

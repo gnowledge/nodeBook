@@ -29,20 +29,22 @@ function App() {
   // Helper to update userInfo from /auth/whoami
   const fetchAndSetUserInfo = async () => {
     const token = localStorage.getItem("token");
+    
     if (token) {
       try {
         const res = await fetch(`${getAuthBase()}/whoami`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        
         if (res.ok) {
           const data = await res.json();
-          console.debug("[App.jsx] /auth/whoami response:", data); // Debug message
           if (data.id && data.username) {
-            setUserInfo({ 
+            const newUserInfo = { 
               userId: data.id, 
               username: data.username,
               is_superuser: data.is_superuser || false
-            }); // Store UUID, username, and is_superuser
+            };
+            setUserInfo(newUserInfo); // Store UUID, username, and is_superuser
           } else {
             setUserInfo({ userId: null, username: null, is_superuser: false });
           }
@@ -51,7 +53,6 @@ function App() {
           localStorage.removeItem("token");
         }
       } catch (err) {
-        console.error("[App.jsx] Error fetching /auth/whoami:", err); // Debug message
         setUserInfo({ userId: null, username: null, is_superuser: false });
         localStorage.removeItem("token");
       }
@@ -63,10 +64,6 @@ function App() {
   useEffect(() => {
     fetchAndSetUserInfo();
   }, []);
-
-  useEffect(() => {
-    console.debug("[App.jsx] userInfo context value:", userInfo); // Debug message
-  }, [userInfo]);
 
   return (
     <UserIdContext.Provider value={userInfo}>

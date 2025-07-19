@@ -7,7 +7,7 @@ Run this script to update the existing database schema.
 import sqlite3
 import os
 from pathlib import Path
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 def migrate_user_approval():
     """Add approval fields to the User table"""
@@ -40,7 +40,7 @@ def migrate_user_approval():
             ("institution", "TEXT DEFAULT ''"),
             ("approved_by", "TEXT"),  # UUID as text
             ("approved_at", "TEXT"),  # ISO datetime as text
-            ("created_at", "TEXT DEFAULT '" + datetime.now(datetime.UTC).isoformat() + "'")
+            ("created_at", "TEXT DEFAULT '" + datetime.now(timezone.utc).isoformat() + "'")
         ]
         
         for column_name, column_def in new_columns:
@@ -55,19 +55,9 @@ def migrate_user_approval():
         
         # Commit changes
         conn.commit()
-        
-        # Verify the migration
-        cursor.execute("PRAGMA table_info(user)")
-        final_columns = [column[1] for column in cursor.fetchall()]
-        print(f"Final columns: {final_columns}")
-        
-        # Count users
-        cursor.execute("SELECT COUNT(*) FROM user")
-        user_count = cursor.fetchone()[0]
-        print(f"Total users in database: {user_count}")
-        
         conn.close()
-        print("✅ Migration completed successfully!")
+        
+        print("✅ Database migration completed successfully!")
         return True
         
     except Exception as e:

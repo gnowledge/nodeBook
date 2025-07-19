@@ -4,7 +4,7 @@ from backend.routes.users import users_router
 import os
 from pathlib import Path
 
-from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions, atomic_routes, logging_routes
+from backend.routes import graph, nodes, graph_ops, schema_routes, graphs, ndf_routes, preferences, parse_pipeline, functions, transitions, atomic_routes, logging_routes, exchange
 from backend.core.schema_ops import ensure_schema_file
 from backend.core.logging_system import get_logger
 from backend.core.activity_middleware import get_activity_middleware
@@ -57,7 +57,7 @@ app.include_router(functions.router, prefix="/api/ndf")
 app.include_router(transitions.router, prefix="/api/ndf")
 app.include_router(atomic_routes.router, prefix="/api/ndf")
 app.include_router(logging_routes.router)
-
+app.include_router(exchange.router)
 
 
 # ✅ Health check route

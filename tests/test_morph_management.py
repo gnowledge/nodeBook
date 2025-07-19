@@ -86,7 +86,7 @@ class TestMorphManagement:
         graph_path = Path("graph_data") / "users" / user_id / "graphs" / graph_id
         assert graph_path.exists()
         assert (graph_path / "metadata.yaml").exists()
-        assert (graph_path / "cnl.md").exists()
+        assert (graph_path / "CNL.md").exists()
         assert (graph_path / "composed.json").exists()
         assert (graph_path / "composed.yaml").exists()
         

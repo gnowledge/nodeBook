@@ -22,7 +22,7 @@ def setup_cnl_graph(user_id, graph_id, cnl_md):
     data_root = Path(os.environ["NDF_DATA_ROOT"])
     graph_dir = data_root / "users" / user_id / "graphs" / graph_id
     graph_dir.mkdir(parents=True, exist_ok=True)
-    (graph_dir / "cnl.md").write_text(cnl_md)
+    (graph_dir / "CNL.md").write_text(cnl_md)
     return graph_dir
 
 # Skip this test since parse_graph function doesn't exist in current codebase

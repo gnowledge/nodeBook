@@ -1,3 +1,5 @@
+![nodeBook logo](users/static/nodebook.png)
+
 # Node Book Backend Documentation
 
 Welcome to the comprehensive documentation for the Node Book backend API and implementation. 

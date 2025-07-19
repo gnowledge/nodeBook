@@ -22,136 +22,190 @@
   {
     "name": "Person",
     "description": "A human being",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Organization",
     "description": "A group of people organized for a purpose",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Place",
     "description": "A physical location or geographical area",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Event",
     "description": "Something that happens at a specific time and place",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Concept",
     "description": "An abstract idea or mental construct",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Object",
     "description": "A physical thing or artifact",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Document",
     "description": "A written or digital record",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Agent",
     "description": "An entity that can act (person, organization, software)",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Location",
     "description": "A place or position in space",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Time",
     "description": "A temporal entity or period",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Quantity",
     "description": "A measurable amount or number",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Element",
     "description": "A fundamental chemical element",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "Substance",
     "description": "A material or chemical substance",
-    "parent_types": ["individual"]
+    "parent_types": [
+      "individual"
+    ]
   },
   {
     "name": "City",
     "description": "A large human settlement",
-    "parent_types": ["Place"]
+    "parent_types": [
+      "Place"
+    ]
   },
   {
     "name": "Country",
     "description": "A sovereign state or nation",
-    "parent_types": ["Place"]
+    "parent_types": [
+      "Place"
+    ]
   },
   {
     "name": "Region",
     "description": "A geographical area or administrative division",
-    "parent_types": ["Place"]
+    "parent_types": [
+      "Place"
+    ]
   },
   {
     "name": "Vehicle",
     "description": "A means of transportation",
-    "parent_types": ["Object"]
+    "parent_types": [
+      "Object"
+    ]
   },
   {
     "name": "Particle",
     "description": "A subatomic particle or small object",
-    "parent_types": ["Object"]
+    "parent_types": [
+      "Object"
+    ]
   },
   {
     "name": "Electron",
     "description": "A negatively charged subatomic particle",
-    "parent_types": ["Particle"]
+    "parent_types": [
+      "Particle"
+    ]
   },
   {
     "name": "Ion",
     "description": "An atom or molecule with a net electric charge",
-    "parent_types": ["Particle"]
+    "parent_types": [
+      "Particle"
+    ]
   },
   {
     "name": "Field",
     "description": "A physical field or force field",
-    "parent_types": ["Object"]
+    "parent_types": [
+      "Object"
+    ]
   },
   {
     "name": "Gas",
     "description": "A state of matter with no fixed shape or volume",
-    "parent_types": ["Substance"]
+    "parent_types": [
+      "Substance"
+    ]
   },
   {
     "name": "Liquid",
     "description": "A state of matter with fixed volume but no fixed shape",
-    "parent_types": ["Substance"]
+    "parent_types": [
+      "Substance"
+    ]
   },
   {
     "name": "Solid",
     "description": "A state of matter with fixed shape and volume",
-    "parent_types": ["Substance"]
+    "parent_types": [
+      "Substance"
+    ]
   },
   {
     "name": "Organism",
     "description": "A living being",
-    "parent_types": ["Object"]
+    "parent_types": [
+      "Object"
+    ]
   },
   {
     "name": "Planet",
     "description": "A celestial body orbiting a star",
-    "parent_types": ["Object"]
+    "parent_types": [
+      "Object"
+    ]
   },
   {
     "name": "Reaction",
     "description": "A chemical or physical reaction",
-    "parent_types": ["Event"]
+    "parent_types": [
+      "Event"
+    ]
   }
 ]

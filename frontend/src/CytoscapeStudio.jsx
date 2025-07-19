@@ -285,13 +285,17 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [graphData, setGraphData] = useState(graph);
+  const [inMemoryGraph, setInMemoryGraph] = useState(graph);
   const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [graphReady, setGraphReady] = useState(false);
 
   // Update graphData when graph prop changes (but preserve in-memory changes during simulation)
   useEffect(() => {
     if (!isSimulationMode) {
       setGraphData(graph);
-    } else {
+      setInMemoryGraph(graph);
+      setGraphReady(false); // Reset graph ready state when graph changes
     }
   }, [graph, isSimulationMode]);
 
@@ -330,6 +334,7 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
       if (cyRef.current) {
         cyRef.current.destroy();
         cyRef.current = null;
+        setGraphReady(false); // Reset graph ready state when destroying
       }
       const checkAndInit = () => {
         
@@ -529,6 +534,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
               }
             });
             
+            // Set graph as ready after Cytoscape is initialized
+            setGraphReady(true);
+            
           } else {
             cyRef.current = cytoscape({
               container: containerRef.current,
@@ -691,6 +699,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
                 marginY: 50
               }
             });
+            
+            // Set graph as ready after Cytoscape is initialized
+            setGraphReady(true);
             
           }
           
@@ -1081,6 +1092,9 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
             }
           });
           
+          // Set graph as ready after Cytoscape is initialized
+          setGraphReady(true);
+          
           // Re-initialize event handlers
           cyRef.current.on("tap", "node", (evt) => {
             setSelectedEdge(null);
@@ -1195,6 +1209,270 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
     }, 3000);
   };
 
+  // Export functions
+  const exportAsPNG = async () => {
+    if (!cyRef.current) return;
+    
+    try {
+      setExportLoading(true);
+      
+      const cy = cyRef.current;
+      
+      // Get current view state
+      const currentView = cy.pan();
+      const currentZoom = cy.zoom();
+      
+      // Get graph bounds
+      const bounds = cy.elements().boundingBox();
+      const padding = 20;
+      
+      // Calculate padded dimensions
+      const paddedWidth = bounds.w + (padding * 2);
+      const paddedHeight = bounds.h + (padding * 2);
+      
+      // Fit view to elements with padding
+      cy.fit(cy.elements(), padding);
+      
+      // Export with specific dimensions including padding
+      const png = cy.png({
+        full: false,
+        quality: 1,
+        output: 'blob',
+        width: paddedWidth,
+        height: paddedHeight
+      });
+      
+      // Restore original view
+      cy.pan(currentView);
+      cy.zoom(currentZoom);
+      
+      // Create download link
+      const url = URL.createObjectURL(png);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${graphId || 'graph'}_${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export as PNG:', error);
+      alert('Failed to export as PNG');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const exportAsJPG = async () => {
+    if (!cyRef.current) return;
+    
+    try {
+      setExportLoading(true);
+      
+      const cy = cyRef.current;
+      
+      // Get current view state
+      const currentView = cy.pan();
+      const currentZoom = cy.zoom();
+      
+      // Get graph bounds
+      const bounds = cy.elements().boundingBox();
+      const padding = 20;
+      
+      // Calculate padded dimensions
+      const paddedWidth = bounds.w + (padding * 2);
+      const paddedHeight = bounds.h + (padding * 2);
+      
+      // Fit view to elements with padding
+      cy.fit(cy.elements(), padding);
+      
+      // Export with specific dimensions including padding
+      const jpg = cy.jpg({
+        full: false,
+        quality: 1,
+        output: 'blob',
+        width: paddedWidth,
+        height: paddedHeight
+      });
+      
+      // Restore original view
+      cy.pan(currentView);
+      cy.zoom(currentZoom);
+      
+      // Create download link
+      const url = URL.createObjectURL(jpg);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${graphId || 'graph'}_${new Date().toISOString().split('T')[0]}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export as JPG:', error);
+      alert('Failed to export as JPG');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const exportAsSVG = async () => {
+    if (!cyRef.current) return;
+    
+    try {
+      setExportLoading(true);
+      console.log('Starting SVG export...');
+      
+      // Get the Cytoscape instance
+      const cy = cyRef.current;
+      
+      // Get the container dimensions
+      const container = cy.container();
+      const width = container.offsetWidth;
+      const height = container.offsetHeight;
+      
+      // Get the graph bounds and add 20pt padding
+      const bounds = cy.elements().boundingBox();
+      const padding = 20;
+      const paddedBounds = {
+        x1: bounds.x1 - padding,
+        y1: bounds.y1 - padding,
+        x2: bounds.x2 + padding,
+        y2: bounds.y2 + padding,
+        w: bounds.w + (padding * 2),
+        h: bounds.h + (padding * 2)
+      };
+      
+      // Helper function to calculate edge intersection with node rectangle
+      const getEdgeEndpoints = (source, target, sourceData, targetData) => {
+        const sourcePos = source.position();
+        const targetPos = target.position();
+        
+        // Node dimensions (approximate based on label length)
+        const sourceWidth = Math.max(40, (sourceData.label || '').length * 8);
+        const sourceHeight = 20;
+        const targetWidth = Math.max(40, (targetData.label || '').length * 8);
+        const targetHeight = 20;
+        
+        // Calculate direction vector
+        const dx = targetPos.x - sourcePos.x;
+        const dy = targetPos.y - sourcePos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance === 0) return { x1: sourcePos.x, y1: sourcePos.y, x2: targetPos.x, y2: targetPos.y };
+        
+        // Normalize direction vector
+        const nx = dx / distance;
+        const ny = dy / distance;
+        
+        // Calculate intersection points
+        const sourceEndX = sourcePos.x + (nx * sourceWidth / 2);
+        const sourceEndY = sourcePos.y + (ny * sourceHeight / 2);
+        const targetStartX = targetPos.x - (nx * targetWidth / 2);
+        const targetStartY = targetPos.y - (ny * targetHeight / 2);
+        
+        return {
+          x1: sourceEndX,
+          y1: sourceEndY,
+          x2: targetStartX,
+          y2: targetStartY
+        };
+      };
+      
+      // Create SVG content manually
+      const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" 
+             width="${width}" height="${height}" 
+             viewBox="${paddedBounds.x1} ${paddedBounds.y1} ${paddedBounds.w} ${paddedBounds.h}">
+          <defs>
+            <style>
+              .node { fill: #f3f4f6; stroke: #2563eb; stroke-width: 0.5; }
+              .node-attribute { fill: #fef3c7; stroke: #92400e; }
+              .node-transition { fill: #dbeafe; stroke: #1e40af; stroke-width: 2; }
+              .edge { stroke: #ccc; stroke-width: 1; fill: none; marker-end: url(#arrowhead); }
+              .edge-attribute { stroke: #92400e; stroke-width: 2; marker-end: url(#arrowhead-attribute); }
+              .edge-transition { stroke: #1e40af; stroke-width: 3; marker-end: url(#arrowhead-transition); }
+              .label { font-family: Arial, sans-serif; font-size: 12px; fill: #2563eb; text-anchor: middle; }
+              .label-attribute { fill: #92400e; font-size: 10px; }
+              .label-transition { fill: #1e40af; font-size: 11px; }
+            </style>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                    refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#ccc" />
+            </marker>
+            <marker id="arrowhead-attribute" markerWidth="10" markerHeight="7" 
+                    refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#92400e" />
+            </marker>
+            <marker id="arrowhead-transition" markerWidth="10" markerHeight="7" 
+                    refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#1e40af" />
+            </marker>
+          </defs>
+          ${cy.elements().map(ele => {
+            if (ele.isNode()) {
+              const pos = ele.position();
+              const data = ele.data();
+              const nodeClass = data.type === 'attribute_value' ? 'node-attribute' : 
+                               data.type === 'transition' ? 'node-transition' : 'node';
+              const labelClass = data.type === 'attribute_value' ? 'label-attribute' : 
+                                data.type === 'transition' ? 'label-transition' : 'label';
+              
+              // Calculate node dimensions based on label
+              const labelWidth = (data.label || '').length * 8;
+              const nodeWidth = Math.max(40, labelWidth);
+              const nodeHeight = 20;
+              
+              return `
+                <g>
+                  <rect x="${pos.x - nodeWidth/2}" y="${pos.y - nodeHeight/2}" 
+                        width="${nodeWidth}" height="${nodeHeight}" 
+                        rx="5" class="${nodeClass}" />
+                  <text x="${pos.x}" y="${pos.y + 4}" class="${labelClass}">${data.label || ''}</text>
+                </g>
+              `;
+            } else {
+              const source = ele.source();
+              const target = ele.target();
+              const sourceData = source.data();
+              const targetData = target.data();
+              const data = ele.data();
+              const edgeClass = data.type === 'attribute' ? 'edge-attribute' : 
+                               data.type === 'transition_input' || data.type === 'transition_output' ? 'edge-transition' : 'edge';
+              
+              // Calculate proper edge endpoints
+              const endpoints = getEdgeEndpoints(source, target, sourceData, targetData);
+              
+              return `
+                <line x1="${endpoints.x1}" y1="${endpoints.y1}" 
+                      x2="${endpoints.x2}" y2="${endpoints.y2}" 
+                      class="${edgeClass}" />
+              `;
+            }
+          }).join('')}
+        </svg>
+      `;
+      
+      // Convert to blob and download
+      const svgBlob = new Blob([svgContent], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(svgBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${graphId || 'graph'}_${new Date().toISOString().split('T')[0]}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('SVG export completed successfully');
+    } catch (error) {
+      console.error('Failed to export as SVG:', error);
+      alert('Failed to export as SVG. Please try PNG or JPG instead.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <>
       <style>
@@ -1224,6 +1502,35 @@ const CytoscapeStudio = ({ graph, prefs, graphId, onSummaryQueued, graphRelation
           </button>
         </div>
       )}
+
+      {/* Export Buttons */}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">Export Graph:</span>
+        <button
+          onClick={exportAsPNG}
+          disabled={exportLoading || !graphReady}
+          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Export as PNG"
+        >
+          {exportLoading ? 'Exporting...' : 'PNG'}
+        </button>
+        <button
+          onClick={exportAsJPG}
+          disabled={exportLoading || !graphReady}
+          className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Export as JPG"
+        >
+          {exportLoading ? 'Exporting...' : 'JPG'}
+        </button>
+        <button
+          onClick={exportAsSVG}
+          disabled={exportLoading || !graphReady}
+          className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Export as SVG (vector format)"
+        >
+          {exportLoading ? 'Exporting...' : 'SVG'}
+        </button>
+      </div>
       
       <div ref={containerRef} className="w-full h-full min-h-[400px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-4" />
       {selectedNode && (

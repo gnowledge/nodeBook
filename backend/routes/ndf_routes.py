@@ -85,7 +85,7 @@ def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text
     try:
         with graph_transaction(user_id, graph_id, "save_cnl") as backup_dir:
             cleaned = clean_cnl_payload(body)
-            cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
+            cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
             
             # Atomically save CNL file
             cnl_path.write_text(cleaned, encoding="utf-8")
@@ -152,17 +152,17 @@ def list_graphs(user_id: str):
 
 @router.get("/users/{user_id}/graphs/{graph_id}/cnl")
 def get_cnl_block(user_id: str, graph_id: str):
-    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
+    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
     if not cnl_path.exists():
-        raise HTTPException(status_code=404, detail="cnl.md not found")
+        raise HTTPException(status_code=404, detail="CNL.md not found")
     return cnl_path.read_text()
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/raw")
 async def get_graph_raw(user_id: str, graph_id: str):
-    graph_file = get_data_root() / "users" / user_id / "graphs" / graph_id / "cnl.md"
+    graph_file = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
     if not graph_file.exists():
-        raise HTTPException(status_code=404, detail="cnl.md not found")
+        raise HTTPException(status_code=404, detail="CNL.md not found")
     return graph_file.read_text()
 
 
@@ -209,7 +209,7 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user:
             graph_dir.mkdir(parents=True)
 
             # Copy template files atomically
-            for fname in ["cnl.md", "composed.json", "composed.yaml", "metadata.yaml"]:
+            for fname in ["CNL.md", "composed.json", "composed.yaml", "metadata.yaml"]:
                 src = template_dir / fname
                 dest = graph_dir / fname
                 if not src.exists():
