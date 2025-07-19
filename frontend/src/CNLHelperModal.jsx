@@ -117,17 +117,6 @@ export default function CNLHelperModal({
       showUsers: true,
       showIssues: true,
       showOperators: true,
-      showUnits: true,
-      showColors: true,
-      showEnums: true,
-      showEnumsMembers: true,
-      showFiles: true,
-      showFolders: true,
-      showTypeParameters: true,
-      showWords: true,
-      showUsers: true,
-      showIssues: true,
-      showOperators: true,
       showUnits: true
     }
   };

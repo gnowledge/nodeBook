@@ -18,9 +18,25 @@
     "test:all": "npm run test && npm run test:e2e",
     "test:ci": "npm run test:coverage && npm run test:e2e -- --reporter=html",
     "type-check": "tsc --noEmit",
-    "lint:fix": "eslint . --ext js,jsx --fix"
+    "lint:fix": "eslint . --ext js,jsx --fix",
+    "android:build": "npm run build && npx cap sync",
+    "android:open": "npx cap open android",
+    "android:run": "npx cap run android",
+    "android:build-apk": "cd android && ./gradlew assembleDebug",
+    "android:build-release": "cd android && ./gradlew assembleRelease",
+    "android:sync": "npx cap sync",
+    "android:init": "npx cap init NodeBook com.nodebook.app --web-dir=dist",
+    "ios:build": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:run": "npx cap run ios",
+    "ios:sync": "npx cap sync ios",
+    "ios:add": "npx cap add ios"
   },
   "dependencies": {
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/splash-screen": "^5.0.0",
+    "@capacitor/status-bar": "^5.0.0",
     "@monaco-editor/react": "^4.6.0",
     "blockly": "^12.1.0",
     "cytoscape": "^3.28.1",
@@ -38,6 +54,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.0.0",
     "@eslint/js": "^8.55.0",
     "@playwright/test": "^1.40.0",
     "@testing-library/jest-dom": "^6.1.5",
@@ -54,6 +71,7 @@
     "eslint-plugin-react-refresh": "^0.4.5",
     "globals": "^13.24.0",
     "jsdom": "^23.0.1",
+    "terser": "^5.43.1",
     "typescript": "^5.2.2",
     "unocss": "^0.58.5",
     "vite": "^5.0.8",
