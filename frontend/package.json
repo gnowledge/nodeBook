@@ -51,7 +51,8 @@
     "react-monaco-editor": "^0.58.0",
     "react-router-dom": "^6.20.1",
     "react-simplemde-editor": "^5.2.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "vite-plugin-pwa": "^1.0.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^5.0.0",

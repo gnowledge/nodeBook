@@ -7,6 +7,8 @@ import { DifficultyProvider } from "./DifficultyContext";
 import { getAuthBase } from "./config";
 import UserBar from "./UserBar";
 import AuthStatus from "./components/AuthStatus";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import UpdateNotification from "./components/UpdateNotification";
 
 const MAIN_TABS = ['display', 'graph', 'cnl', 'kb'];
 const DEV_TABS = ['json', 'yaml'];
@@ -86,6 +88,8 @@ function App() {
             <Route path="/logout" element={<Logout />} />
             <Route path="/" element={<Navigate to="/app" replace />} />
           </Routes>
+          <PWAInstallPrompt />
+          <UpdateNotification />
         </Router>
       </DifficultyProvider>
     </UserIdContext.Provider>
