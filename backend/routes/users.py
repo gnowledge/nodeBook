@@ -40,6 +40,7 @@ class User(SQLModel, table=True):
     approved_by: Optional[UUID] = Field(default=None, nullable=True)  # Admin who approved
     approved_at: Optional[datetime] = Field(default=None, nullable=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    must_change_password: bool = Field(default=False, nullable=False)  # New field
 
 class UserCreate(schemas.BaseUserCreate):
     username: str

@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { getAuthBase } from './config';
 import { authenticatedFetch, safeJsonParse } from './utils/authUtils';
 
+// Utility to check if email features are enabled (from backend config)
+async function fetchEmailFeaturesEnabled() {
+  try {
+    const res = await fetch(`${getAuthBase()}/config`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.email_features_enabled;
+  } catch {
+    return false;
+  }
+}
+
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
@@ -19,6 +31,13 @@ const AdminPanel = () => {
     is_superuser: false,
     is_active: true
   });
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState(null);
+  const [emailFeaturesEnabled, setEmailFeaturesEnabled] = useState(true);
+
+  useEffect(() => {
+    fetchEmailFeaturesEnabled().then(setEmailFeaturesEnabled);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'users') {
@@ -328,6 +347,31 @@ const AdminPanel = () => {
     </div>
   );
 
+  // Admin password reset
+  const handleResetPassword = async (user) => {
+    if (!window.confirm(`Reset password for '${user.username}'?`)) return;
+    setLoading(true);
+    setResetPasswordResult(null);
+    try {
+      const response = await authenticatedFetch(`${getAuthBase()}/admin/reset-user-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      });
+      const data = await safeJsonParse(response);
+      if (response.ok && data.temp_password) {
+        setResetPasswordResult({ username: user.username, tempPassword: data.temp_password });
+        setShowResetPasswordModal(true);
+      } else {
+        setError(data.detail || 'Failed to reset password');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex items-center justify-between mb-6">
@@ -444,6 +488,15 @@ const AdminPanel = () => {
                         >
                           Delete
                         </button>
+                        {!emailFeaturesEnabled && !user.is_superuser && (
+                          <button
+                            onClick={() => handleResetPassword(user)}
+                            className="text-yellow-600 hover:text-yellow-900"
+                            disabled={loading}
+                          >
+                            Reset Password
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -572,6 +625,27 @@ const AdminPanel = () => {
           title="Edit User"
           submitText="Update User"
         />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && resetPasswordResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">Temporary Password for {resetPasswordResult.username}</h2>
+            <div className="mb-4">
+              <p className="mb-2">Share this password with the user. They will be required to change it on next login.</p>
+              <div className="bg-gray-100 p-3 rounded text-lg font-mono select-all text-center border border-gray-300">
+                {resetPasswordResult.tempPassword}
+              </div>
+            </div>
+            <button
+              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              onClick={() => setShowResetPasswordModal(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

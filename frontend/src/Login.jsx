@@ -1,12 +1,14 @@
 // Login.jsx
 import React, { useState } from 'react';
 import { getServerAddress } from "./config";
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function Login({ onLogin, onAuth }) {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [serverAddress, setServerAddress] = useState(() => localStorage.getItem('serverAddress') || 'https://api.nodeBook.in');
   const [errorMsg, setErrorMsg] = useState(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,7 +41,8 @@ export default function Login({ onLogin, onAuth }) {
   };
 
   return (
-    <div className="max-w-sm mx-auto mt-10 p-4 bg-white border shadow rounded">
+    <>
+      <div className="max-w-sm mx-auto mt-10 p-4 bg-white border shadow rounded">
       <h2 className="text-xl font-bold mb-4 text-center">Login to Node Book</h2>
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
@@ -83,7 +86,21 @@ export default function Login({ onLogin, onAuth }) {
         >
           Login
         </button>
-      </form>
-    </div>
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-blue-600 hover:text-blue-800 underline text-sm"
+          >
+            Forgot Password?
+          </button>
+        </div>
+              </form>
+      </div>
+      
+      {showForgotPassword && (
+        <ForgotPasswordForm onClose={() => setShowForgotPassword(false)} />
+      )}
+    </>
   );
 }
