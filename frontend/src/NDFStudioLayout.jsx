@@ -262,8 +262,10 @@ const NDFStudioLayout = () => {
 
       if (response.ok) {
         const newGraph = await response.json();
-        setAllGraphs((prev) => [...prev, newGraph]);
-        await openGraphInTab(newGraph.id);
+        // Create a proper graph object with id and title properties
+        const graphObject = { id: newGraph.graph, title: newGraphName.trim() };
+        setAllGraphs((prev) => [...prev, graphObject]);
+        await openGraphInTab(newGraph.graph);
         setShowNewGraphModal(false);
         setNewGraphName("");
       } else {
