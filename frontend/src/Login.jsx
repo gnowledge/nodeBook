@@ -1,6 +1,6 @@
 // Login.jsx
 import React, { useState } from 'react';
-import { getServerAddress } from "./config";
+import { getServerAddress, isLocalBackend } from "./config";
 import ForgotPasswordForm from './ForgotPasswordForm';
 
 export default function Login({ onLogin, onAuth }) {
@@ -14,8 +14,10 @@ export default function Login({ onLogin, onAuth }) {
     e.preventDefault();
     setErrorMsg(null);
     try {
-      // Save server address to localStorage
-      localStorage.setItem('serverAddress', serverAddress);
+      // Save server address to localStorage only if LOCAL_BACKEND is not enabled
+      if (!isLocalBackend()) {
+        localStorage.setItem('serverAddress', serverAddress);
+      }
       const loginPayload = {
         username_or_email: usernameOrEmail,
         password: password
@@ -45,19 +47,22 @@ export default function Login({ onLogin, onAuth }) {
       <div className="max-w-sm mx-auto mt-10 p-4 bg-white border shadow rounded">
       <h2 className="text-xl font-bold mb-4 text-center">Login to Node Book</h2>
       <form onSubmit={handleLogin} className="space-y-4">
-        <div>
-          <input
-            type="text"
-            placeholder="Server Address"
-            className="w-full p-2 border rounded mb-2"
-            value={serverAddress}
-            onChange={e => setServerAddress(e.target.value)}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Enter the backend server address (e.g., https://api.nodeBook.in)
-          </p>
-        </div>
+        {/* Only show server address field if LOCAL_BACKEND is not enabled */}
+        {!isLocalBackend() && (
+          <div>
+            <input
+              type="text"
+              placeholder="Server Address"
+              className="w-full p-2 border rounded mb-2"
+              value={serverAddress}
+              onChange={e => setServerAddress(e.target.value)}
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter the backend server address (e.g., https://api.nodeBook.in)
+            </p>
+          </div>
+        )}
         <div>
           <input
             type="text"

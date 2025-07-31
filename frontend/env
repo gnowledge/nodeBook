@@ -1,0 +1,12 @@
+# Environment variables for NodeBook Frontend
+# Rename this file to .env to use these settings
+
+# Set to 'true' to enable local backend mode
+# When enabled:
+# - Server address field is hidden on login page
+# - Backend address is automatically set to window.location.origin
+# - Users cannot see or modify the backend address
+# - Useful for standalone installations where frontend and backend are on same machine
+VITE_LOCAL_BACKEND=false
+
+# Other environment variables can be added here as needed 
