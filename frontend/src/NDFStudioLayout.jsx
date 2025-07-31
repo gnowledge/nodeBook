@@ -249,14 +249,14 @@ const NDFStudioLayout = () => {
     if (!newGraphName.trim()) return;
     
     try {
-      const response = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs`, {
+      const response = await authenticatedApiCall(`${getApiBase()}/api/ndf/users/${userInfo?.userId}/graphs/${newGraphName.trim()}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          graph_id: newGraphName.trim(),
-          user_id: userInfo?.userId,
+          title: newGraphName.trim(),
+          description: "",
         }),
       });
 

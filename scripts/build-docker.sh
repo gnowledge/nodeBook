@@ -5,13 +5,13 @@ set -e
 
 echo "🐳 Building NodeBook Docker images..."
 
-# Build backend image
+# Build backend image (using root context like docker-compose)
 echo "📦 Building backend image..."
-docker build -t nodebook-backend:latest ./backend
+docker build -t nodebook-backend:latest -f ./backend/Dockerfile .
 
-# Build frontend image
+# Build frontend image (using root context like docker-compose)
 echo "📦 Building frontend image..."
-docker build -t nodebook-frontend:latest ./frontend
+docker build -t nodebook-frontend:latest -f ./frontend/Dockerfile .
 
 # # Build development images
 # echo "📦 Building development images..."

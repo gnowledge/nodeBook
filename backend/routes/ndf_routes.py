@@ -81,7 +81,14 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
 
 
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
-def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain")):
+def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text/plain"), user: User = Depends(current_active_user)):
+    # Authorization check: user can only access their own data unless superuser
+    if not user.is_superuser and str(user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot access graph: Access denied. You can only access your own data."
+        )
+    
     try:
         with graph_transaction(user_id, graph_id, "save_cnl") as backup_dir:
             cleaned = clean_cnl_payload(body)
