@@ -49,24 +49,24 @@ def normalize_id(name: str) -> str:
     
     This function converts a string to a valid identifier by:
     - Trimming whitespace
-    - Preserving case (to avoid conflicts between 'Water' and 'water')
+    - Converting to lowercase (to ensure consistent IDs)
     - Replacing spaces with underscores
     
     Args:
         name (str): The string to normalize
         
     Returns:
-        str: Normalized identifier string
+        str: Normalized identifier string in lowercase
         
     Example:
         >>> normalize_id("  My Node Name  ")
-        'My_Node_Name'
+        'my_node_name'
         >>> normalize_id("  Water  ")
-        'Water'
+        'water'
         >>> normalize_id("  water  ")
         'water'
     """
-    return name.strip().replace(" ", "_")
+    return name.strip().lower().replace(" ", "_")
 
 def save_json_file(path: Path, data: Dict[str, Any]) -> None:
     """

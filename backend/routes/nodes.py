@@ -596,7 +596,7 @@ def submit_all_nodes_to_summary_queue(user_id: str, graph_id: str):
                     node_data = load_node(user_id, graph_id, node_id)
                 except Exception:
                     continue
-                sq.submit(user_id, graph_id, node_id, node_data)
+                sq.submit(user_id, graph_id, node_id)
                 count += 1
     return {"status": "submitted", "count": count}
 
@@ -607,12 +607,31 @@ def submit_node_to_summary_queue(user_id: str, graph_id: str, node_id: str):
         node = load_node(user_id, graph_id, node_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Node not found")
-    # Only submit if description is missing or empty
-    if node.get("description"):
+    # Only submit if description is missing, empty, or contains an error
+    description = node.get("description", "")
+    if description and not description.startswith("Error:"):
         return {"status": "already processed", "id": node_id}
     sq = init_summary_queue()
-    sq.submit(user_id, graph_id, node_id, node)
+    sq.submit(user_id, graph_id, node_id)
     return {"status": "submitted", "id": node_id}
+
+@router.get("/summary_queue/status")
+def get_summary_queue_status():
+    """Get the current status of the summary queue"""
+    try:
+        sq = init_summary_queue()
+        queue_size = sq.queue_size()
+        return {
+            "queue_size": queue_size,
+            "status": "active" if queue_size > 0 else "idle",
+            "message": f"Queue has {queue_size} pending requests" if queue_size > 0 else "No pending requests"
+        }
+    except Exception as e:
+        return {
+            "queue_size": 0,
+            "status": "error",
+            "message": f"Error accessing queue: {str(e)}"
+        }
 
 @router.get("/users/{user_id}/node_registry")
 def get_node_registry(user_id: str):

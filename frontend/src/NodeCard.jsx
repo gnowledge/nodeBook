@@ -1818,7 +1818,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
             onClick={handleQueueSummary}
             disabled={loading}
           >
-            {loading ? "Submitting..." : "Generate Summary"}
+            {loading ? "Submitting..." : "Get Description"}
           </button>
         </div>
       )}
@@ -1958,7 +1958,7 @@ function NodeCard({ node, graphId, onSummaryQueued, onGraphUpdate, graphRelation
       {/* Highlighted success message */}
       {showSuccess && (
         <div className="mb-2 px-3 py-2 bg-green-500 text-white rounded shadow animate-fade-in-out font-semibold text-center text-xs">
-          Summary request submitted! The summary will appear soon.
+          Description request submitted to OpenAI! The description will appear soon.
         </div>
       )}
 

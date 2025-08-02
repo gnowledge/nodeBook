@@ -1,108 +1,155 @@
+#!/usr/bin/env python3
+"""
+Summary Queue for OpenAI API integration
+"""
+import os
+import sys
+import json
+import time
 import threading
 import queue
-import time
-import networkx as nx
 import requests
-import sys
-import os
+from dotenv import load_dotenv
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Load environment variables
+load_dotenv()
+
+# Add the parent directory to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from backend.core.node_ops import load_node, save_node
-from backend.core.id_utils import get_user_id
+from backend.config import get_openai_api_key
 
-# === CONFIG ===
-HF_API = "https://gnowgi-controllednl.hf.space/gradio_api/call/predict"
-
-class NodeSummaryJob:
-    def __init__(self, user_id, graph_id, node_id, node_data):
-        self.user_id = user_id
-        self.graph_id = graph_id
-        self.node_id = node_id
-        self.node_data = node_data
+# OpenAI API configuration
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 class SummaryQueue:
-    def __init__(self, graph: nx.Graph, on_complete=None):
-        self.graph = graph
+    def __init__(self):
         self.job_queue = queue.Queue()
-        self.on_complete = on_complete  # callback for UI/report
-        self.worker = threading.Thread(target=self.worker_loop, daemon=True)
-        self.worker.start()
-
-    def submit(self, user_id, graph_id, node_id, node_data):
-        self.job_queue.put(NodeSummaryJob(user_id, graph_id, node_id, node_data))
-
-    def worker_loop(self):
-        while True:
-            job = self.job_queue.get()
-            if job is None:
-                break  # for clean shutdown
-            print(f"[SummaryQueue] Processing node: {job.node_id}")
-            summary = self.get_summary(job.node_data)
-            print(f"[SummaryQueue] Summary for {job.node_id}: {summary}")
-            # Update the graph in memory only if node exists
-            if job.node_id in self.graph.nodes:
-                self.graph.nodes[job.node_id]['description'] = summary
-            # Persist the summary to the node JSON file
-            try:
-                node = load_node(job.user_id, job.graph_id, job.node_id)
-                node["description"] = summary
-                save_node(job.user_id, job.graph_id, job.node_id, node)
-                print(f"[SummaryQueue] Saved summary for {job.node_id} to disk.")
-            except Exception as e:
-                print(f"[SummaryQueue] Failed to persist summary for {job.node_id}: {e}")
-            if self.on_complete:
-                self.on_complete(job.node_id, summary)
-            self.job_queue.task_done()
-
-    def get_summary(self, node_data):
-        # Use HuggingFace Space API for phi-2 summarization
-        node_name = node_data.get("name", "")
-        paragraph = node_data.get("description", "")
-        payload = {
-            "data": [
-                "summarize",
-                node_name,
-                paragraph
-            ]
+        self.worker_thread = None
+        self.running = False
+        self.start_worker()
+    
+    def start_worker(self):
+        """Start the worker thread"""
+        if self.worker_thread is None or not self.worker_thread.is_alive():
+            self.running = True
+            self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
+            self.worker_thread.start()
+            print("[SummaryQueue] Worker thread started")
+    
+    def submit(self, user_id, graph_id, node_id):
+        """Submit a node for description generation"""
+        job = {
+            'user_id': user_id,
+            'graph_id': graph_id,
+            'node_id': node_id,
+            'timestamp': time.time()
         }
+        self.job_queue.put(job)
+        print(f"[SummaryQueue] Submitted node {node_id} for description generation")
+    
+    def get_description(self, node_name):
+        """Get a brief description/definition of the node from OpenAI"""
+        api_key = get_openai_api_key()
+        if not api_key or api_key == "your_openai_api_key_here":
+            return f"Error: OpenAI API key not configured"
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Updated prompt to ask for a brief description/definition
+        prompt = f"""Please provide a brief, single-sentence description or definition of '{node_name}'. 
+        
+This should be a clear characterization that explains what this concept/entity is, suitable for understanding its role and potential relationships in a knowledge graph.
+
+Keep it concise and informative - no more than one sentence."""
+
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that provides concise, accurate descriptions of concepts and entities."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 100,
+            "temperature": 0.3
+        }
+        
         try:
-            res = requests.post(HF_API, json=payload, timeout=180)
-            res.raise_for_status()
-            # The response is a JSON with a 'data' field containing a list, first element is the summary
-            summary = res.json().get("data", [""])[0]
-            return summary
+            response = requests.post(OPENAI_API_URL, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            if 'choices' in result and len(result['choices']) > 0:
+                description = result['choices'][0]['message']['content'].strip()
+                return description
+            else:
+                return f"Error: Unexpected response format from OpenAI API"
+                
+        except requests.exceptions.RequestException as e:
+            return f"Error: API request failed - {e}"
         except Exception as e:
-            return f"[Summary error: {e}]"
-
-    def shutdown(self):
-        self.job_queue.put(None)
-        self.worker.join()
-
+            return f"Error: {str(e)}"
+    
+    def worker_loop(self):
+        """Worker loop to process description generation jobs"""
+        while self.running:
+            try:
+                # Get job from queue with timeout
+                job = self.job_queue.get(timeout=1)
+                
+                user_id = job['user_id']
+                graph_id = job['graph_id']
+                node_id = job['node_id']
+                
+                print(f"[SummaryQueue] Processing node: {node_id}")
+                
+                try:
+                    # Load the node
+                    node = load_node(user_id, graph_id, node_id)
+                    node_name = node.get('name', node_id)
+                    
+                    # Generate description
+                    description = self.get_description(node_name)
+                    
+                    # Update the node with the description
+                    node['description'] = description
+                    save_node(user_id, graph_id, node_id, node)
+                    
+                    print(f"[SummaryQueue] Saved description for {node_id}: {description[:100]}...")
+                    
+                except Exception as e:
+                    print(f"[SummaryQueue] Failed to persist description for {node_id}: {e}")
+                
+                # Mark job as done
+                self.job_queue.task_done()
+                
+            except queue.Empty:
+                # No jobs in queue, continue
+                continue
+            except Exception as e:
+                print(f"[SummaryQueue] Error in worker loop: {e}")
+                continue
+    
     def queue_size(self):
+        """Get the current queue size"""
         return self.job_queue.qsize()
+    
+    def stop(self):
+        """Stop the worker thread"""
+        self.running = False
+        if self.worker_thread and self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=5)
+            print("[SummaryQueue] Worker thread stopped")
 
-# === Example usage ===
-if __name__ == "__main__":
-    import json
-    user_id = "user0"
-    graph_id = "testgraph"
-    nodes_dir = os.path.join("..", "graph_data", "users", user_id, "nodes")
-    G = nx.Graph()
-    # Load all node JSON files
-    for fname in os.listdir(nodes_dir):
-        if fname.endswith(".json"):
-            node_id = fname[:-5]
-            with open(os.path.join(nodes_dir, fname)) as f:
-                node_data = json.load(f)
-            G.add_node(node_id, **node_data)
-    # (Optional) Add edges if you want, based on relations in node_data
-    def report(node_id, summary):
-        print(f"Node {node_id} summary completed: {summary}")
-    sq = SummaryQueue(G, on_complete=report)
-    # Submit all nodes for summary
-    for node_id, node_data in G.nodes(data=True):
-        sq.submit(user_id, graph_id, node_id, node_data)
-    print("All jobs submitted. Waiting for completion...")
-    sq.job_queue.join()
-    print("All summaries completed!")
-    sq.shutdown()
+# Global instance
+_summary_queue = None
+
+def init_summary_queue():
+    """Initialize and return the global summary queue instance"""
+    global _summary_queue
+    if _summary_queue is None:
+        _summary_queue = SummaryQueue()
+    return _summary_queue

@@ -9,7 +9,7 @@ from backend.core.schema_ops import ensure_schema_file
 from backend.core.logging_system import get_logger
 from backend.core.activity_middleware import get_activity_middleware
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv("backend/.env")
 # backend/app.py
 
 

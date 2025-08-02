@@ -7,5 +7,11 @@ def get_data_root() -> Path:
     """
     return Path(os.environ.get("NDF_DATA_ROOT", "graph_data"))
 
+def get_openai_api_key() -> str:
+    """
+    Returns the OpenAI API key from environment variable.
+    """
+    return os.environ.get("OPENAI_API_KEY", "")
+
 # For backward compatibility, keep the old variable name (deprecated)
 GRAPH_DATA_PATH = get_data_root()
