@@ -11,33 +11,9 @@ from datetime import datetime
 import zipfile
 from pathlib import Path
 import time
+from backend.core import dal
 
 router = APIRouter()
-
-def get_graph_folder(user_id: str, graph_id: str) -> str:
-    """
-    Returns the absolute path to the graph's folder for the given user and graph.
-    """
-    # Use the data root from config for consistent path resolution
-    from ..config import get_data_root
-    data_root = get_data_root()
-    graph_folder = data_root / 'users' / user_id / 'graphs' / graph_id
-    graph_folder = graph_folder.resolve()
-    
-    if not graph_folder.is_dir():
-        raise FileNotFoundError(f"Graph folder not found: {graph_folder}")
-    return str(graph_folder)
-
-def list_graph_files(graph_folder: str) -> list:
-    """
-    Recursively lists all files in the graph folder.
-    Returns a list of absolute file paths.
-    """
-    file_list = []
-    for root, dirs, files in os.walk(graph_folder):
-        for file in files:
-            file_list.append(os.path.join(root, file))
-    return file_list
 
 def create_manifest(user_id: str, graph_id: str, files: list, temp_folder: str) -> Tuple[dict, str]:
     """
@@ -46,16 +22,12 @@ def create_manifest(user_id: str, graph_id: str, files: list, temp_folder: str) 
     """
     # Try to get graph name/title from metadata.yaml or composed.yaml if available
     graph_name = graph_id
-    metadata_path = os.path.join(temp_folder, "metadata.yaml")
-    if os.path.isfile(metadata_path):
-        try:
-            import yaml
-            with open(metadata_path, "r") as f:
-                meta = yaml.safe_load(f)
-                if isinstance(meta, dict) and "title" in meta:
-                    graph_name = meta["title"]
-        except Exception:
-            pass
+    try:
+        meta = dal.read_metadata(user_id, graph_id)
+        if isinstance(meta, dict) and "title" in meta:
+            graph_name = meta["title"]
+    except Exception:
+        pass
     
     # Get current timestamp
     current_time = datetime.utcnow().isoformat() + "Z"
@@ -241,7 +213,7 @@ def export_ndf(user_id: str, graph_id: str):
     temp_folder = None
     try:
         # 1. Get graph folder and create temp export folder
-        graph_folder = get_graph_folder(user_id, graph_id)
+        graph_folder = dal.get_graph_path(user_id, graph_id)
         temp_folder = create_temp_export_folder()
         
         # 2. Create the main export directory with graph name
@@ -256,7 +228,7 @@ def export_ndf(user_id: str, graph_id: str):
         print(f"Graph data directory created at: {graph_data_dir}")
         
         # 3. Copy all graph files to the graph_data subdirectory
-        graph_files = list_graph_files(graph_folder)
+        graph_files = dal.list_graph_files(user_id, graph_id)
         copied_files = []
         
         print(f"[DEBUG] Found {len(graph_files)} graph files to copy")
@@ -298,19 +270,13 @@ def export_ndf(user_id: str, graph_id: str):
             print(f"[DEBUG] Graph data directory does not exist!")
         
         # 4. Create schema files from polymorphic_composed.json
-        polymorphic_path = graph_data_dir / "polymorphic_composed.json"
-        if polymorphic_path.exists():
-            try:
-                with open(polymorphic_path, 'r') as f:
-                    composed_data = json.load(f)
-                
-                schema_files = create_schema_files(composed_data, graph_data_dir)
-                copied_files.extend(schema_files)
-                print(f"Created {len(schema_files)} schema files in graph_data/schema/")
-            except Exception as e:
-                print(f"Warning: Could not create schema files: {e}")
-        else:
-            print("Warning: polymorphic_composed.json not found, skipping schema creation")
+        try:
+            composed_data = dal.read_composed(user_id, graph_id, "polymorphic")
+            schema_files = create_schema_files(composed_data, graph_data_dir)
+            copied_files.extend(schema_files)
+            print(f"Created {len(schema_files)} schema files in graph_data/schema/")
+        except Exception as e:
+            print(f"Warning: Could not create schema files: {e}")
         
         # 5. Create manifest at the root level
         manifest, manifest_path = create_manifest(user_id, graph_id, copied_files, str(export_dir))
@@ -407,7 +373,7 @@ async def import_ndf(user_id: str, file: UploadFile = File(...)):
         print(f"[DEBUG] Manifest loaded successfully")
         
         # 8. Import the graph
-        result = import_graph_from_ndf(user_id, graph_dir, manifest)
+        result = dal.import_graph_from_ndf(user_id, graph_dir, manifest)
         
         return {
             "status": "success",
@@ -421,332 +387,4 @@ async def import_ndf(user_id: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Import failed: {e}")
     finally:
         if temp_folder:
-            cleanup_temp_folder(temp_folder)
-
-def import_graph_from_ndf(user_id: str, graph_dir: Path, manifest: dict) -> dict:
-    """
-    Import graph from extracted .ndf directory.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    graph_id = graph_dir.name
-    graph_data_dir = graph_dir / "graph_data"
-    
-    if not graph_data_dir.exists():
-        raise ValueError("graph_data directory not found")
-    
-    # 1. Copy graph_data files (except schema)
-    imported_files = []
-    graph_files = []
-    
-    for file_path in graph_data_dir.rglob("*"):
-        if file_path.is_file() and "schema" not in file_path.parts:
-            # Copy to user's graph directory
-            rel_path = file_path.relative_to(graph_data_dir)
-            dest_path = data_root / "users" / user_id / "graphs" / graph_id / rel_path
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(file_path, dest_path)
-            graph_files.append(str(dest_path))
-            imported_files.append(str(rel_path))
-    
-    # 2. Import schema files
-    schema_dir = graph_data_dir / "schema"
-    imported_types = {"nodes": 0, "attributes": 0, "relations": 0}
-    
-    if schema_dir.exists():
-        imported_types = import_schema_files(user_id, schema_dir)
-    
-    # 3. Import graph components (nodes, relations, attributes, transitions)
-    polymorphic_path = data_root / "users" / user_id / "graphs" / graph_id / "polymorphic_composed.json"
-    if polymorphic_path.exists():
-        with open(polymorphic_path, 'r') as f:
-            composed_data = json.load(f)
-        
-        import_graph_components(user_id, graph_id, composed_data)
-    
-    return {
-        "graph_id": graph_id,
-        "imported_files": imported_files,
-        "imported_types": imported_types
-    }
-
-def import_schema_files(user_id: str, schema_dir: Path) -> dict:
-    """
-    Import schema files and merge with existing schemas.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    imported_types = {"nodes": 0, "attributes": 0, "relations": 0}
-    
-    # Import node types
-    node_types_path = schema_dir / "node_types.json"
-    if node_types_path.exists():
-        with open(node_types_path, 'r') as f:
-            new_node_types = json.load(f)
-        
-        # Load existing node types
-        existing_path = data_root / "global" / "node_types.json"
-        existing_types = []
-        if existing_path.exists():
-            with open(existing_path, 'r') as f:
-                existing_types = json.load(f)
-        
-        # Merge types (avoid duplicates)
-        existing_names = {t.get("name") for t in existing_types}
-        for new_type in new_node_types:
-            if new_type.get("name") not in existing_names:
-                existing_types.append(new_type)
-                imported_types["nodes"] += 1
-        
-        # Save merged types
-        with open(existing_path, 'w') as f:
-            json.dump(existing_types, f, indent=2)
-    
-    # Import attribute types
-    attr_types_path = schema_dir / "attribute_types.json"
-    if attr_types_path.exists():
-        with open(attr_types_path, 'r') as f:
-            new_attr_types = json.load(f)
-        
-        existing_path = data_root / "global" / "attribute_types.json"
-        existing_types = []
-        if existing_path.exists():
-            with open(existing_path, 'r') as f:
-                existing_types = json.load(f)
-        
-        existing_names = {t.get("name") for t in existing_types}
-        for new_type in new_attr_types:
-            if new_type.get("name") not in existing_names:
-                existing_types.append(new_type)
-                imported_types["attributes"] += 1
-        
-        with open(existing_path, 'w') as f:
-            json.dump(existing_types, f, indent=2)
-    
-    # Import relation types
-    rel_types_path = schema_dir / "relation_types.json"
-    if rel_types_path.exists():
-        with open(rel_types_path, 'r') as f:
-            new_rel_types = json.load(f)
-        
-        existing_path = data_root / "global" / "relation_types.json"
-        existing_types = []
-        if existing_path.exists():
-            with open(existing_path, 'r') as f:
-                existing_types = json.load(f)
-        
-        existing_names = {t.get("name") for t in existing_types}
-        for new_type in new_rel_types:
-            if new_type.get("name") not in existing_names:
-                existing_types.append(new_type)
-                imported_types["relations"] += 1
-        
-        with open(existing_path, 'w') as f:
-            json.dump(existing_types, f, indent=2)
-    
-    return imported_types
-
-def import_graph_components(user_id: str, graph_id: str, composed_data: dict):
-    """
-    Import graph components and update registries.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    
-    # Import nodes
-    nodes = composed_data.get("nodes", [])
-    for node in nodes:
-        if isinstance(node, dict):
-            node_id = node.get("id")
-            if node_id:
-                # Save node file
-                node_path = data_root / "users" / user_id / "nodes" / f"{node_id}.json"
-                node_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(node_path, 'w') as f:
-                    json.dump(node, f, indent=2)
-                
-                # Update node registry
-                update_node_registry(user_id, node_id, node, graph_id)
-    
-    # Import relations
-    relations = composed_data.get("relations", [])
-    for rel in relations:
-        if isinstance(rel, dict):
-            rel_id = rel.get("id")
-            if rel_id:
-                # Save relation file
-                rel_path = data_root / "users" / user_id / "relationNodes" / f"{rel_id}.json"
-                rel_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(rel_path, 'w') as f:
-                    json.dump(rel, f, indent=2)
-                
-                # Update relation registry
-                update_relation_registry(user_id, rel_id, rel, graph_id)
-    
-    # Import attributes
-    attributes = composed_data.get("attributes", [])
-    for attr in attributes:
-        if isinstance(attr, dict):
-            attr_id = attr.get("id")
-            if attr_id:
-                # Save attribute file
-                attr_path = data_root / "users" / user_id / "attributeNodes" / f"{attr_id}.json"
-                attr_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(attr_path, 'w') as f:
-                    json.dump(attr, f, indent=2)
-                
-                # Update attribute registry
-                update_attribute_registry(user_id, attr_id, attr, graph_id)
-    
-    # Import transitions
-    transitions = composed_data.get("transitions", [])
-    for trans in transitions:
-        if isinstance(trans, dict):
-            trans_id = trans.get("id")
-            if trans_id:
-                # Save transition file
-                trans_path = data_root / "users" / user_id / "transitions" / f"{trans_id}.json"
-                trans_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(trans_path, 'w') as f:
-                    json.dump(trans, f, indent=2)
-                
-                # Update transition registry
-                update_transition_registry(user_id, trans_id, trans, graph_id)
-
-def update_node_registry(user_id: str, node_id: str, node_data: dict, graph_id: str):
-    """
-    Update node registry with imported node.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    registry_path = data_root / "users" / user_id / "node_registry.json"
-    
-    # Load existing registry
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, 'r') as f:
-            registry = json.load(f)
-    
-    # Update or add node
-    if node_id in registry:
-        # Add graph to existing node's graphs list
-        if "graphs" not in registry[node_id]:
-            registry[node_id]["graphs"] = []
-        if graph_id not in registry[node_id]["graphs"]:
-            registry[node_id]["graphs"].append(graph_id)
-    else:
-        # Create new registry entry
-        registry[node_id] = {
-            "name": node_data.get("name", node_id),
-            "role": node_data.get("role", "individual"),
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    
-    # Save registry
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2)
-
-def update_relation_registry(user_id: str, rel_id: str, rel_data: dict, graph_id: str):
-    """
-    Update relation registry with imported relation.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    registry_path = data_root / "users" / user_id / "relation_registry.json"
-    
-    # Load existing registry
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, 'r') as f:
-            registry = json.load(f)
-    
-    # Update or add relation
-    if rel_id in registry:
-        if "graphs" not in registry[rel_id]:
-            registry[rel_id]["graphs"] = []
-        if graph_id not in registry[rel_id]["graphs"]:
-            registry[rel_id]["graphs"].append(graph_id)
-    else:
-        registry[rel_id] = {
-            "name": rel_data.get("name", rel_id),
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    
-    # Save registry
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2)
-
-def update_attribute_registry(user_id: str, attr_id: str, attr_data: dict, graph_id: str):
-    """
-    Update attribute registry with imported attribute.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    registry_path = data_root / "users" / user_id / "attribute_registry.json"
-    
-    # Load existing registry
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, 'r') as f:
-            registry = json.load(f)
-    
-    # Update or add attribute
-    if attr_id in registry:
-        if "graphs" not in registry[attr_id]:
-            registry[attr_id]["graphs"] = []
-        if graph_id not in registry[attr_id]["graphs"]:
-            registry[attr_id]["graphs"].append(graph_id)
-    else:
-        registry[attr_id] = {
-            "name": attr_data.get("name", attr_id),
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    
-    # Save registry
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2)
-
-def update_transition_registry(user_id: str, trans_id: str, trans_data: dict, graph_id: str):
-    """
-    Update transition registry with imported transition.
-    """
-    from ..config import get_data_root
-    
-    data_root = get_data_root()
-    registry_path = data_root / "users" / user_id / "transition_registry.json"
-    
-    # Load existing registry
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, 'r') as f:
-            registry = json.load(f)
-    
-    # Update or add transition
-    if trans_id in registry:
-        if "graphs" not in registry[trans_id]:
-            registry[trans_id]["graphs"] = []
-        if graph_id not in registry[trans_id]["graphs"]:
-            registry[trans_id]["graphs"].append(graph_id)
-    else:
-        registry[trans_id] = {
-            "name": trans_data.get("name", trans_id),
-            "graphs": [graph_id],
-            "created_at": time.time(),
-            "updated_at": time.time()
-        }
-    
-    # Save registry
-    with open(registry_path, 'w') as f:
-        json.dump(registry, f, indent=2) 
+            cleanup_temp_folder(temp_folder) 

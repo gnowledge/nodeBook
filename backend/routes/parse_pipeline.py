@@ -137,16 +137,12 @@ def update_node_list(node_list: list, node: dict) -> None:
             return
     node_list.append(node)
 
-def save_section_node(user_id: str, node: dict, node_registry_path: str, report: list, graph_id: str = None) -> None:
+def save_section_node(user_id: str, node: dict, report: list, graph_id: str = None) -> None:
     """If node_id not in node_registry, save node and update registry. 'graphs' should contain graph_id."""
     node_id = node['node_id']
     # Load or create node_registry
     try:
-        if os.path.exists(node_registry_path):
-            with open(node_registry_path, 'r') as f:
-                node_registry = json.load(f)
-        else:
-            node_registry = {}
+        node_registry = dal.load_registry(user_id, "node")
     except Exception as e:
         report.append({'type': 'error', 'stage': 'load_node_registry', 'message': str(e)})
         node_registry = {}
@@ -163,18 +159,13 @@ def save_section_node(user_id: str, node: dict, node_registry_path: str, report:
         if graph_id and graph_id not in node_registry[node_id].get('graphs', []):
             node_registry[node_id]['graphs'].append(graph_id)
     # Save node file
-    user_dir = os.path.join("graph_data", "users", user_id, "nodes")
-    os.makedirs(user_dir, exist_ok=True)
-    node_path = os.path.join(user_dir, f"{node_id}.json")
     try:
-        with open(node_path, 'w') as f:
-            json.dump(node, f, indent=2)
+        dal.create_node(user_id, node_id, node)
     except Exception as e:
         report.append({'type': 'error', 'stage': 'save_node', 'node_id': node_id, 'message': str(e)})
     # Update registry
     try:
-        with open(node_registry_path, 'w') as f:
-            json.dump(node_registry, f, indent=2)
+        dal.save_registry(user_id, "node", node_registry)
     except Exception as e:
         report.append({'type': 'error', 'stage': 'update_node_registry', 'node_id': node_id, 'message': str(e)})
 
@@ -437,8 +428,8 @@ def parse_pipeline(
     # Convert report list to dict format expected by compose_graph
     report_dict = {"errors": report} if report else {}
     composed = compose_graph(user_id, graph_id, [n['node_id'] for n in node_list], graph_description, report_dict)
-    composed_json_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.json")
-    composed_yaml_path = os.path.join("graph_data", "users", user_id, "graphs", graph_id, "composed.yaml")
+    dal.save_composed(user_id, graph_id, composed["cytoscape"], "json")
+    dal.save_composed(user_id, graph_id, composed["cytoscape"], "yaml")
     result = {
         "success": True,
         "graph_description": graph_description,
@@ -447,8 +438,6 @@ def parse_pipeline(
         "attribute_list": attribute_list,
         "relation_list": relation_list,
         "report": report,
-        'composed_json_path': composed_json_path,
-        'composed_yaml_path': composed_yaml_path,
         'composed': composed["polymorphic"]  # Use polymorphic format for backward compatibility
     }
     return result

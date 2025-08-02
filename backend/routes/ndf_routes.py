@@ -35,6 +35,7 @@ from backend.core.atomic_ops import (
     atomic_composed_save
 )
 from backend.routes.users import current_active_user, User
+from backend.core import dal
 
 
 router = APIRouter()  # All routes prefixed with /api/ndf
@@ -44,7 +45,7 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
     """
     Ensure that all nodes referenced in parsed["relations"] and parsed["attributes"] exist in registry and nodes/<id>.json
     """
-    registry = load_node_registry(user_id)
+    registry = dal.load_registry(user_id, "node")
     known = {node["id"] for node in parsed["nodes"] if isinstance(node, dict)}
     inferred = set()
 
@@ -63,7 +64,7 @@ def ensure_all_nodes_exist(user_id: str, graph_id: str, parsed: dict):
                 pass
 
     # Use get_data_root() for registry path
-    save_json_file(get_data_root() / "users" / user_id / "node_registry.json", registry)
+    dal.save_registry(user_id, "node", registry)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/preview")
@@ -71,13 +72,12 @@ def get_composed_yaml_for_preview(user_id: str, graph_id: str):
     """
     Returns composed.yaml for preview rendering in NDFPreview (readonly).
     """
-    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
-    if not composed_path.exists():
+    try:
+        data = dal.read_composed(user_id, graph_id, "json")
+        yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+        return PlainTextResponse(content=yaml_text, media_type="text/plain")
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="composed.json not found")
-
-    data = load_json_file(composed_path)
-    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
-    return PlainTextResponse(content=yaml_text, media_type="text/plain")
 
 
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl")
@@ -92,10 +92,7 @@ def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text
     try:
         with graph_transaction(user_id, graph_id, "save_cnl") as backup_dir:
             cleaned = clean_cnl_payload(body)
-            cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
-            
-            # Atomically save CNL file
-            cnl_path.write_text(cleaned, encoding="utf-8")
+            dal.save_cnl(user_id, graph_id, cleaned)
             
             return {"status": "ok"}
             
@@ -107,11 +104,10 @@ def save_cnl(user_id: str, graph_id: str, body: str = Body(..., media_type="text
 
 @router.get("/users/{user_id}/graphs/{graph_id}/parsed")
 async def get_parsed_yaml(user_id: str, graph_id: str):
-    parsed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "parsed.yaml"
-    if not parsed_path.exists():
+    try:
+        return dal.read_parsed(user_id, graph_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="parsed.yaml not found")
-
-    return FileResponse(parsed_path, media_type="text/plain")
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed")
@@ -119,11 +115,10 @@ def get_composed_json(user_id: str, graph_id: str):
     """
     Returns the composed.json for use by the frontend as structured graph data.
     """
-    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
-    if not composed_path.exists():
+    try:
+        return dal.read_composed(user_id, graph_id, "json")
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="composed.json not found")
-
-    return load_json_file(composed_path)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/polymorphic_composed")
@@ -131,46 +126,41 @@ def get_polymorphic_composed_json(user_id: str, graph_id: str):
     """
     Returns the polymorphic_composed.json for use by the frontend with rich node data.
     """
-    poly_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "polymorphic_composed.json"
-    if not poly_path.exists():
+    try:
+        return dal.read_composed(user_id, graph_id, "polymorphic")
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="polymorphic_composed.json not found")
-
-    return load_json_file(poly_path)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/composed.yaml")
 async def get_composed_yaml(user_id: str, graph_id: str):
-    composed_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "composed.json"
-    if not composed_path.exists():
+    try:
+        data = dal.read_composed(user_id, graph_id, "json")
+        yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
+        return PlainTextResponse(content=yaml_text, media_type="text/plain")
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="composed.json not found")
-
-    data = load_json_file(composed_path)
-    yaml_text = yaml.dump(data, sort_keys=False, allow_unicode=True)
-    return PlainTextResponse(content=yaml_text, media_type="text/plain")
 
 
 @router.get("/users/{user_id}/graphs")
 def list_graphs(user_id: str):
-    base_dir = get_data_root() / "users" / user_id / "graphs"
-    if not base_dir.exists():
-        return []
-    return [f.name for f in base_dir.iterdir() if f.is_dir()]
+    return dal.list_graphs(user_id)
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/cnl")
 def get_cnl_block(user_id: str, graph_id: str):
-    cnl_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
-    if not cnl_path.exists():
+    try:
+        return dal.read_cnl(user_id, graph_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="CNL.md not found")
-    return cnl_path.read_text()
 
 
 @router.get("/users/{user_id}/graphs/{graph_id}/raw")
 async def get_graph_raw(user_id: str, graph_id: str):
-    graph_file = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
-    if not graph_file.exists():
+    try:
+        return dal.read_cnl(user_id, graph_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="CNL.md not found")
-    return graph_file.read_text()
 
 
 class GraphInitRequest(BaseModel):
@@ -189,60 +179,7 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user:
     
     try:
         with graph_transaction(user_id, graph_id, "create_graph") as backup_dir:
-            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-            
-            # Determine template directory based on environment
-            try:
-                from backend.core.appimage_utils import is_running_from_appimage, get_appimage_resources_path
-                if is_running_from_appimage():
-                    # In AppImage, templates are in resources/graph_data/global/templates/defaultGraphFiles
-                    resources_path = get_appimage_resources_path()
-                    if resources_path:
-                        template_dir = resources_path / "graph_data" / "global" / "templates" / "defaultGraphFiles"
-                    else:
-                        # Fallback to relative path
-                        template_dir = Path("graph_data/global/templates/defaultGraphFiles")
-                else:
-                    # Development mode - use relative path
-                    template_dir = Path("graph_data/global/templates/defaultGraphFiles")
-            except ImportError:
-                # Fallback if appimage_utils is not available
-                template_dir = Path("graph_data/global/templates/defaultGraphFiles")
-
-            if graph_dir.exists():
-                raise HTTPException(status_code=400, detail="Graph already exists")
-
-            # Create graph directory
-            graph_dir.mkdir(parents=True)
-
-            # Copy template files atomically
-            for fname in ["CNL.md", "composed.json", "composed.yaml", "metadata.yaml"]:
-                src = template_dir / fname
-                dest = graph_dir / fname
-                if not src.exists():
-                    raise HTTPException(status_code=500, detail=f"Template file missing: {fname}")
-                copyfile(src, dest)
-
-            # Ensure polymorphic_composed.json exists as an empty array
-            poly_path = graph_dir / "polymorphic_composed.json"
-            if not poly_path.exists():
-                with open(poly_path, "w") as f:
-                    json.dump([], f)
-
-            # Update metadata atomically
-            metadata_path = graph_dir / "metadata.yaml"
-            if metadata_path.exists():
-                metadata = yaml.safe_load(metadata_path.read_text()) or {}
-                metadata["title"] = req.title
-                metadata["description"] = req.description
-                timestamp = datetime.utcnow().isoformat()
-                metadata["created"] = metadata.get("created", timestamp)
-                metadata["modified"] = timestamp
-                
-                # Atomically save metadata
-                with metadata_path.open("w") as f:
-                    yaml.dump(metadata, f, sort_keys=False)
-
+            dal.create_graph(user_id, graph_id, req.title, req.description)
             return {"status": "created", "graph": graph_id}
             
     except AtomicityError as e:
@@ -253,10 +190,10 @@ async def create_graph(user_id: str, graph_id: str, req: GraphInitRequest, user:
 
 @router.get("/users/{user_id}/graphs/{graph_id}/metadata.yaml")
 def get_metadata_yaml(user_id: str, graph_id: str):
-    metadata_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "metadata.yaml"
-    if not metadata_path.exists():
+    try:
+        return dal.read_metadata(user_id, graph_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="metadata.yaml not found")
-    return FileResponse(metadata_path, media_type="text/plain")
 
 
 def migrate_registries_to_include_graphs(user_id: str, graph_id: str):
@@ -265,28 +202,24 @@ def migrate_registries_to_include_graphs(user_id: str, graph_id: str):
     This ensures backward compatibility with existing data.
     """
     # Migrate relation registry atomically
-    relation_registry_path = get_data_root() / "users" / user_id / "relation_registry.json"
-    if relation_registry_path.exists():
-        relation_registry = load_json_file(relation_registry_path)
-        relation_changed = False
-        for rel_id, entry in relation_registry.items():
-            if "graphs" not in entry:
-                entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
-                relation_changed = True
-        if relation_changed:
-            atomic_registry_save(user_id, "relation", relation_registry)
+    relation_registry = dal.load_registry(user_id, "relation")
+    relation_changed = False
+    for rel_id, entry in relation_registry.items():
+        if "graphs" not in entry:
+            entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
+            relation_changed = True
+    if relation_changed:
+        dal.save_registry(user_id, "relation", relation_registry)
     
     # Migrate attribute registry atomically
-    attribute_registry_path = get_data_root() / "users" / user_id / "attribute_registry.json"
-    if attribute_registry_path.exists():
-        attribute_registry = load_json_file(attribute_registry_path)
-        attribute_changed = False
-        for attr_id, entry in attribute_registry.items():
-            if "graphs" not in entry:
-                entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
-                attribute_changed = True
-        if attribute_changed:
-            atomic_registry_save(user_id, "attribute", attribute_registry)
+    attribute_registry = dal.load_registry(user_id, "attribute")
+    attribute_changed = False
+    for attr_id, entry in attribute_registry.items():
+        if "graphs" not in entry:
+            entry["graphs"] = [graph_id]  # Assume it belongs to the current graph
+            attribute_changed = True
+    if attribute_changed:
+        dal.save_registry(user_id, "attribute", attribute_registry)
 
 
 @router.delete("/users/{user_id}/graphs/{graph_id}")
@@ -304,86 +237,7 @@ def delete_graph(user_id: str, graph_id: str, user: User = Depends(current_activ
     """
     try:
         with graph_transaction(user_id, graph_id, "delete_graph") as backup_dir:
-            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-            registry_path = get_data_root() / "users" / user_id / "node_registry.json"
-            node_dir = get_data_root() / "users" / user_id / "nodes"
-            relation_dir = get_data_root() / "users" / user_id / "relationNodes"
-            attribute_dir = get_data_root() / "users" / user_id / "attributeNodes"
-
-            if not graph_dir.exists():
-                raise HTTPException(status_code=404, detail="Graph not found")
-
-            # Migrate existing registries to include graphs field for backward compatibility
-            migrate_registries_to_include_graphs(user_id, graph_id)
-
-            # 1. Remove the graph directory
-            try:
-                shutil.rmtree(graph_dir)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to delete graph directory: {e}")
-
-            # 2. Update node_registry.json to remove references to this graph atomically
-            registry = load_node_registry(user_id)
-            changed = False
-            for node_id, entry in list(registry.items()):
-                if "graphs" in entry and graph_id in entry["graphs"]:
-                    entry["graphs"].remove(graph_id)
-                    changed = True
-                # 3. If node is now orphaned (no graphs), delete node file and remove from registry
-                if not entry.get("graphs"):
-                    try:
-                        node_path = node_dir / f"{node_id}.json"
-                        if node_path.exists():
-                            node_path.unlink()
-                    except Exception:
-                        pass  # Ignore if already deleted
-                    del registry[node_id]
-                    changed = True
-            if changed:
-                atomic_registry_save(user_id, "node", registry)
-
-            # 4. Clean up relationNodes that belong only to this graph atomically
-            relation_registry_path = get_data_root() / "users" / user_id / "relation_registry.json"
-            if relation_registry_path.exists():
-                relation_registry = load_json_file(relation_registry_path)
-                relation_changed = False
-                for rel_id, entry in list(relation_registry.items()):
-                    if "graphs" in entry and graph_id in entry["graphs"]:
-                        entry["graphs"].remove(graph_id)
-                        # If relation is now orphaned (no graphs), delete it
-                        if not entry["graphs"]:
-                            try:
-                                rel_path = relation_dir / f"{rel_id}.json"
-                                if rel_path.exists():
-                                    rel_path.unlink()
-                            except Exception:
-                                pass  # Ignore if already deleted
-                            del relation_registry[rel_id]
-                        relation_changed = True
-                if relation_changed:
-                    atomic_registry_save(user_id, "relation", relation_registry)
-
-            # 5. Clean up attributeNodes that belong only to this graph atomically
-            attribute_registry_path = get_data_root() / "users" / user_id / "attribute_registry.json"
-            if attribute_registry_path.exists():
-                attribute_registry = load_json_file(attribute_registry_path)
-                attribute_changed = False
-                for attr_id, entry in list(attribute_registry.items()):
-                    if "graphs" in entry and graph_id in entry["graphs"]:
-                        entry["graphs"].remove(graph_id)
-                        # If attribute is now orphaned (no graphs), delete it
-                        if not entry["graphs"]:
-                            try:
-                                attr_path = attribute_dir / f"{attr_id}.json"
-                                if attr_path.exists():
-                                    attr_path.unlink()
-                            except Exception:
-                                pass  # Ignore if already deleted
-                            del attribute_registry[attr_id]
-                        attribute_changed = True
-                if attribute_changed:
-                    atomic_registry_save(user_id, "attribute", attribute_registry)
-
+            dal.delete_graph(user_id, graph_id)
             return JSONResponse({"status": "deleted", "graph": graph_id})
             
     except AtomicityError as e:
@@ -419,60 +273,8 @@ def add_nodes_to_graph(user_id: str, graph_id: str, req: AddNodeToGraphRequest):
     """
     try:
         with graph_transaction(user_id, graph_id, "add_nodes_to_graph") as backup_dir:
-            # Check if graph exists
-            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id
-            if not graph_dir.exists():
-                raise HTTPException(status_code=404, detail="Graph not found")
-            
-            # Load current node registry
-            registry = load_node_registry(user_id)
-            
-            # Validate that all nodes exist
-            missing_nodes = []
-            for node_id in req.node_ids:
-                node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
-                if not node_path.exists():
-                    missing_nodes.append(node_id)
-            
-            if missing_nodes:
-                raise HTTPException(status_code=404, detail=f"Nodes not found: {missing_nodes}")
-            
-            # Update registry to add nodes to this graph atomically
-            for node_id in req.node_ids:
-                update_node_registry(registry, node_id, graph_id)
-            
-            # Atomically save updated registry
-            atomic_registry_save(user_id, "node", registry)
-            
-            # Get all nodes that belong to this graph
-            graph_nodes = []
-            for node_id, entry in registry.items():
-                if "graphs" in entry and graph_id in entry["graphs"]:
-                    graph_nodes.append(node_id)
-            
-            # Recompose the graph atomically
-            try:
-                # Load graph description
-                metadata_path = graph_dir / "metadata.yaml"
-                graph_description = ""
-                if metadata_path.exists():
-                    metadata = yaml.safe_load(metadata_path.read_text()) or {}
-                    graph_description = metadata.get("description", "")
-                
-                # Compose the graph with all nodes atomically
-                composed_data = compose_graph(user_id, graph_id, graph_nodes, graph_description)
-                if composed_data:
-                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "json")
-                    atomic_composed_save(user_id, graph_id, composed_data["cytoscape"], "yaml")
-                    atomic_composed_save(user_id, graph_id, composed_data["polymorphic"], "polymorphic")
-                
-                return {
-                    "status": "success",
-                    "message": f"Added {len(req.node_ids)} nodes to graph",
-                    "graph_nodes": graph_nodes
-                }
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to recompose graph: {e}")
+            dal.add_nodes_to_graph(user_id, graph_id, req.node_ids)
+            return {"status": "success", "message": f"Added {len(req.node_ids)} nodes to graph"}
                 
     except AtomicityError as e:
         raise HTTPException(status_code=500, detail=f"Atomic operation failed: {str(e)}")
@@ -484,56 +286,14 @@ def list_user_nodes(user_id: str):
     """
     List all nodes available to a user (from their global node space).
     """
-    registry = load_node_registry(user_id)
-    nodes = []
-    
-    for node_id, entry in registry.items():
-        node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
-        if node_path.exists():
-            try:
-                node_data = load_json_file(node_path)
-                nodes.append({
-                    "id": node_id,
-                    "name": entry.get("name", node_id),
-                    "role": entry.get("role", "individual"),
-                    "graphs": entry.get("graphs", []),
-                    "description": node_data.get("description", ""),
-                    "created_at": entry.get("created_at"),
-                    "updated_at": entry.get("updated_at")
-                })
-            except Exception:
-                # Skip nodes that can't be loaded
-                continue
-    
-    return nodes
+    return dal.list_user_nodes(user_id)
 
 @router.get("/users/{user_id}/graphs/{graph_id}/nodes")
 def list_graph_nodes(user_id: str, graph_id: str):
     """
     List all nodes that belong to a specific graph.
     """
-    registry = load_node_registry(user_id)
-    graph_nodes = []
-    
-    for node_id, entry in registry.items():
-        if "graphs" in entry and graph_id in entry["graphs"]:
-            node_path = get_data_root() / "users" / user_id / "nodes" / f"{node_id}.json"
-            if node_path.exists():
-                try:
-                    node_data = load_json_file(node_path)
-                    graph_nodes.append({
-                        "id": node_id,
-                        "name": entry.get("name", node_id),
-                        "role": entry.get("role", "individual"),
-                        "description": node_data.get("description", ""),
-                        "created_at": entry.get("created_at"),
-                        "updated_at": entry.get("updated_at")
-                    })
-                except Exception:
-                    # Skip nodes that can't be loaded
-                    continue
-    
-    return graph_nodes
+    return dal.list_graph_nodes(user_id, graph_id)
 
 @router.get("/users/{user_id}/graphs/{graph_id}/cnl_md")
 async def get_cnl_md(user_id: str, graph_id: str):
@@ -542,12 +302,10 @@ async def get_cnl_md(user_id: str, graph_id: str):
     This creates a read-only educational file showing CNL examples.
     """
     try:
-        # Load polymorphic_composed.json
-        poly_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "polymorphic_composed.json"
-        
-        if not poly_path.exists():
-            # Return a basic CNL guide if no data exists
-            basic_cnl = """# CNL (Controlled Natural Language) Guide
+        return dal.get_cnl_md(user_id, graph_id)
+    except FileNotFoundError:
+        # Return a basic CNL guide if no data exists
+        basic_cnl = """# CNL (Controlled Natural Language) Guide
 
 This file shows examples of how to write CNL based on your graph structure.
 
@@ -570,25 +328,7 @@ heart has color: red
 ```
 
 *This file will be populated with examples from your graph data.*"""
-            return PlainTextResponse(content=basic_cnl, media_type="text/markdown")
-        
-        # Load polymorphic data
-        with open(poly_path, 'r') as f:
-            polymorphic_data = json.load(f)
-        
-        # Generate CNL.md content
-        from backend.core.cnl_parser import generate_cnl_md_from_polymorphic
-        cnl_content = generate_cnl_md_from_polymorphic(polymorphic_data)
-        
-        # Save the generated CNL.md file (read-only)
-        cnl_md_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
-        with open(cnl_md_path, 'w') as f:
-            f.write(cnl_content)
-        
-        return PlainTextResponse(content=cnl_content, media_type="text/markdown")
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate CNL.md: {str(e)}")
+        return PlainTextResponse(content=basic_cnl, media_type="text/markdown")
 
 @router.put("/users/{user_id}/graphs/{graph_id}/cnl_md")
 async def update_cnl_md(user_id: str, graph_id: str, request: Request):
@@ -598,12 +338,7 @@ async def update_cnl_md(user_id: str, graph_id: str, request: Request):
     """
     try:
         # Check user difficulty level
-        pref_path = get_data_root() / "users" / user_id / "preferences.json"
-        if pref_path.exists():
-            with open(pref_path, 'r') as f:
-                prefs = json.load(f)
-        else:
-            prefs = {"difficulty": "easy"}
+        prefs = dal.read_preferences(user_id)
         difficulty = prefs.get("difficulty", "easy")
         
         # Only allow editing for advanced and expert users
@@ -618,9 +353,7 @@ async def update_cnl_md(user_id: str, graph_id: str, request: Request):
         cnl_text = cnl_content.decode('utf-8')
         
         # Save the updated CNL.md file
-        cnl_md_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "CNL.md"
-        with open(cnl_md_path, 'w') as f:
-            f.write(cnl_text)
+        dal.save_cnl(user_id, graph_id, cnl_text)
         
         return {"message": "CNL.md updated successfully"}
         
@@ -637,12 +370,7 @@ async def update_node_cnl(user_id: str, graph_id: str, node_id: str, request: Re
     """
     try:
         # Check user difficulty level
-        pref_path = get_data_root() / "users" / user_id / "preferences.json"
-        if pref_path.exists():
-            with open(pref_path, 'r') as f:
-                prefs = json.load(f)
-        else:
-            prefs = {"difficulty": "easy"}
+        prefs = dal.read_preferences(user_id)
         difficulty = prefs.get("difficulty", "easy")
         
         # Only allow editing for advanced and expert users
@@ -664,12 +392,7 @@ async def update_node_cnl(user_id: str, graph_id: str, node_id: str, request: Re
             raise HTTPException(status_code=400, detail="No valid CNL statements found")
         
         # Load the node data
-        node_path = get_data_root() / "users" / user_id / "graphs" / graph_id / "nodes" / f"{node_id}.json"
-        if not node_path.exists():
-            raise HTTPException(status_code=404, detail="Node not found")
-        
-        with open(node_path, 'r') as f:
-            node_data = json.load(f)
+        node_data = dal.read_node(user_id, node_id)
         
         # Update node with parsed CNL data
         # This is a simplified implementation - in a full system, you'd want to
@@ -678,18 +401,13 @@ async def update_node_cnl(user_id: str, graph_id: str, node_id: str, request: Re
         node_data["parsed_cnl"] = parsed_facts
         
         # Save the updated node
-        with open(node_path, 'w') as f:
-            json.dump(node_data, f, indent=2)
+        dal.update_node(user_id, node_id, node_data)
         
         # Regenerate composed files
         try:
             from backend.core.compose import compose_graph
             # Get the list of nodes in this graph
-            graph_nodes = []
-            graph_dir = get_data_root() / "users" / user_id / "graphs" / graph_id / "nodes"
-            if graph_dir.exists():
-                for node_file in graph_dir.glob("*.json"):
-                    graph_nodes.append(node_file.stem)
+            graph_nodes = dal.list_graph_nodes(user_id, graph_id)
             
             if graph_nodes:
                 compose_graph(user_id, graph_id, graph_nodes)
