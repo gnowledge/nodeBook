@@ -1,40 +1,24 @@
 #!/bin/bash
 
-# Start the NDF Studio backend server
-# This script sets the correct PYTHONPATH and starts the uvicorn server
+# Start the nodebook-base backend server
+echo "Starting nodebook-base backend..."
 
-echo "Starting NDF Studio Backend..."
-
-# Change to the project root directory (parent of scripts)
-cd "$(dirname "$0")/.."
-
-# Check if we're in the correct virtual environment
-if [[ "$VIRTUAL_ENV" != *"nodeBook"* ]]; then
-    echo "❌ Error: Not running in the correct virtual environment!"
-    echo "Please activate the virtual environment first:"
-    echo "  source venv/bin/activate"
-    echo ""
-    echo "Then run this script again."
-    exit 1
-fi
-
-echo "✅ Virtual environment check passed: $VIRTUAL_ENV"
+# Change to the nodebook-base directory
+cd "$(dirname "$0")/../nodebook-base"
 
 # Check if we're in the correct directory
-if [[ ! -f "backend/main.py" ]]; then
+if [[ ! -f "server.js" ]]; then
     echo "❌ Error: Not in the correct directory!"
-    echo "Please run this script from the ndf-studio root directory."
+    echo "Please run this script from the project root directory."
     exit 1
 fi
 
 echo "✅ Directory check passed"
 
-# Kill any existing uvicorn processes
+# Kill any existing node processes running server.js
 echo "🔄 Stopping any existing backend processes..."
-pkill -f uvicorn
+pkill -f "node server.js"
 
 # Start the backend server
 echo "🚀 Starting backend server..."
-echo "Setting PYTHONPATH to include backend directory..."
-
-PYTHONPATH="$(pwd)/backend" python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000 
+node server.js & 

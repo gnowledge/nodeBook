@@ -1,26 +1,25 @@
 #!/bin/bash
 
-# Start the NDF Studio frontend server
+# Start the nodebook-base frontend server
+echo "Starting nodebook-base frontend..."
 
-echo "Starting NDF Studio Frontend..."
-
-# Change to the project root directory (parent of scripts)
-cd "$(dirname "$0")/.."
+# Change to the frontend directory
+cd "$(dirname "$0")/../nodebook-base/frontend"
 
 # Check if we're in the correct directory
-if [[ ! -f "frontend/package.json" ]]; then
+if [[ ! -f "package.json" ]]; then
     echo "❌ Error: Not in the correct directory!"
-    echo "Please run this script from the ndf-studio root directory."
+    echo "Please run this script from the project root directory."
     exit 1
 fi
 
 echo "✅ Directory check passed"
 
 # Check if node_modules exists
-if [[ ! -d "frontend/node_modules" ]]; then
+if [[ ! -d "node_modules" ]]; then
     echo "⚠️  Warning: node_modules not found!"
     echo "Installing dependencies..."
-    cd frontend && npm install && cd ..
+    npm install
 fi
 
 # Kill any existing vite processes
@@ -28,5 +27,5 @@ echo "🔄 Stopping any existing frontend processes..."
 pkill -f vite
 
 # Start the frontend server
-echo "🚀 Starting frontend server..."
-cd frontend && npm run dev 
+echo "🚀 Starting frontend server with Vite..."
+npm run dev & 

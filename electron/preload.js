@@ -3,6 +3,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+  // P2P Graph API
+  p2p: {
+    listNodes: () => ipcRenderer.invoke('p2p:listNodes'),
+    listEdges: () => ipcRenderer.invoke('p2p:listEdges'),
+    addNode: (id, label) => ipcRenderer.invoke('p2p:addNode', id, label),
+    addEdge: (source, target, label) => ipcRenderer.invoke('p2p:addEdge', source, target, label),
+    getKey: () => ipcRenderer.invoke('p2p:getKey'),
+    listen: () => ipcRenderer.invoke('p2p:listen'),
+    sync: (key) => ipcRenderer.invoke('p2p:sync', key)
+  },
+
   // Backend management
   startBackend: () => ipcRenderer.invoke('start-backend'),
   stopBackend: () => ipcRenderer.invoke('stop-backend'),

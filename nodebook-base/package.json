@@ -1,0 +1,23 @@
+{
+  "name": "p2p-nodebook",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autobase": "^7.17.0",
+    "cytoscape": "^3.33.0",
+    "cytoscape-dagre": "^2.5.0",
+    "express": "^5.1.0",
+    "hyperbee": "^2.24.3",
+    "hypercore": "^11.11.2",
+    "hyperswarm": "^4.12.1",
+    "ws": "^8.18.3"
+  }
+}
