@@ -3,64 +3,104 @@ import './App.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
 import { ViewGraphData } from './ViewGraphData';
+import { GraphSwitcher } from './GraphSwitcher';
+import { Menu } from './Menu';
+import { DataView } from './DataView';
+import { SchemaView } from './SchemaView';
+import { CnlEditor } from './CnlEditor';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 
-type ViewMode = 'visualization' | 'jsonData';
+type ViewMode = 'visualization' | 'jsonData' | 'dataGrid' | 'schema';
 
 function App() {
+  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
+  const [activeGraphKey, setActiveGraphKey] = useState<string | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [relations, setRelations] = useState<Edge[]>([]);
   const [attributes, setAttributes] = useState<AttributeType[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
+  const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [cnlText, setCnlText] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('visualization');
+  const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
+  const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [strictMode, setStrictMode] = useState(false);
+  const [theme, setTheme] = useState('dark');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchGraph = () => {
-    fetch('/api/graph')
+  useEffect(() => {
+    document.body.className = `theme-${theme}`;
+  }, [theme]);
+
+  const fetchGraph = (graphId: string) => {
+    if (!graphId) return;
+    // Fetch graph data
+    fetch(`/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
         setNodes(data.nodes || []);
         setRelations(data.relations || []);
         setAttributes(data.attributes || []);
       });
+    // Fetch graph key
+    fetch(`/api/graphs/${graphId}/key`)
+      .then(res => res.json())
+      .then(data => setActiveGraphKey(data.key || null));
+    // Fetch CNL text
+    fetch(`/api/graphs/${graphId}/cnl`)
+      .then(res => res.json())
+      .then(data => {
+        setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
+      });
+  };
+
+  const fetchSchemas = () => {
+    fetch('/api/schema/relations').then(res => res.json()).then(data => setRelationTypes(data));
+    fetch('/api/schema/attributes').then(res => res.json()).then(data => setAttributeTypes(data));
+    fetch('/api/schema/nodetypes').then(res => res.json()).then(data => setNodeTypes(data));
   };
 
   useEffect(() => {
-    fetch('/api/schema/relations').then(res => res.json()).then(data => setRelationTypes(data));
-    fetch('/api/schema/attributes').then(res => res.json()).then(data => setAttributeTypes(data));
-    fetchGraph();
+    fetchSchemas();
   }, []);
 
   useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'graph') {
-        setNodes(data.payload.nodes || []);
-        setRelations(data.payload.relations || []);
-        setAttributes(data.payload.attributes || []);
-      }
-    };
-    return () => ws.close();
-  }, []);
+    if (activeGraphId) {
+      fetchGraph(activeGraphId);
+      // WebSocket logic will need to be updated here to be graph-specific
+    }
+  }, [activeGraphId]);
+
+  const handleCnlChange = (value: string) => {
+    if (activeGraphId) {
+      setCnlText(prev => ({ ...prev, [activeGraphId]: value }));
+    }
+  };
 
   const handleCnlSubmit = async () => {
-    if (!cnlText.trim()) return;
-    await fetch('/api/cnl', {
+    if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    
+    setIsSubmitting(true);
+    const res = await fetch(`/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cnlText }),
+      body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
     });
-    setCnlText('');
+    setIsSubmitting(false);
+    
+    if (!res.ok) {
+      const { errors } = await res.json();
+      alert(`CNL Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
+    } else {
+      fetchGraph(activeGraphId); // Refetch graph data after update
+    }
   };
   
   const handleDeleteNode = async (nodeId: string) => {
-    if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
-      await fetch(`/api/nodes/${nodeId}`, { method: 'DELETE' });
+    if (window.confirm(`Are you sure you want to delete node ${nodeId}? This will also delete its connected relations and attributes.`)) {
+      await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
+      fetchGraph(activeGraphId!);
     }
   };
 
@@ -68,49 +108,90 @@ function App() {
 
   return (
     <div className="app-container">
+      <div className="top-bar">
+        <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} />
+      </div>
       <header className="header">
         <img src="/logo.png" alt="NodeBook Logo" className="logo" />
-        <div className="workspace">
-          <textarea
-            className="cnl-textarea"
-            value={cnlText}
-            onChange={(e) => setCnlText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                handleCnlSubmit();
-              }
-            }}
-            placeholder={'# A Node...\n  <has relation> Another Node\n  has attribute: some value\n\n(Submit with Ctrl+Enter)'}
-          />
-        </div>
+        <Menu 
+          graphKey={activeGraphKey} 
+          strictMode={strictMode} 
+          onStrictModeChange={setStrictMode} 
+          theme={theme} 
+          onThemeChange={setTheme} 
+        />
       </header>
 
-      <main className="visualization-container">
-        <div className="tabs">
-          <button 
-            className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`}
-            onClick={() => setViewMode('visualization')}
-          >
-            Visualization
-          </button>
-          <button 
-            className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`}
-            onClick={() => setViewMode('jsonData')}
-          >
-            JSON Data
-          </button>
-        </div>
-        <div className="tab-content">
-          {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
-          {viewMode === 'jsonData' && <ViewGraphData nodes={nodes} relations={relations} attributes={attributes} />}
+      <main className="main-content">
+        <div className="visualization-container">
+          <div className="tabs">
+            <button 
+              className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`}
+              onClick={() => setViewMode('editor')}
+            >
+              Editor
+            </button>
+            <button 
+              className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`}
+              onClick={() => setViewMode('visualization')}
+            >
+              Visualization
+            </button>
+            <button 
+              className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`}
+              onClick={() => setViewMode('jsonData')}
+            >
+              JSON Data
+            </button>
+            <button 
+              className={`tab-button ${viewMode === 'dataGrid' ? 'active' : ''}`}
+              onClick={() => setViewMode('dataGrid')}
+            >
+              Data Grid
+            </button>
+            <button 
+              className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`}
+              onClick={() => setViewMode('schema')}
+            >
+              Schema
+            </button>
+          </div>
+          <div className="tab-content">
+            {activeGraphId ? (
+              <>
+                {viewMode === 'editor' && (
+                  <div className="editor-container">
+                    <CnlEditor
+                      value={cnlText[activeGraphId] || ''}
+                      onChange={handleCnlChange}
+                      onSubmit={handleCnlSubmit}
+                      disabled={!activeGraphId}
+                      nodeTypes={nodeTypes}
+                      relationTypes={relationTypes}
+                      attributeTypes={attributeTypes}
+                    />
+                    <button className="submit-cnl-btn" onClick={handleCnlSubmit} disabled={!activeGraphId || isSubmitting}>
+                      {isSubmitting ? 'Submitting...' : 'Submit (Ctrl+Enter)'}
+                    </button>
+                  </div>
+                )}
+                {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
+                {viewMode === 'jsonData' && <ViewGraphData nodes={nodes} relations={relations} attributes={attributes} />}
+                {viewMode === 'dataGrid' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
+                {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
+              </>
+            ) : (
+              <div className="placeholder">Select or create a graph to begin.</div>
+            )}
+          </div>
         </div>
       </main>
 
       {selectedNode && (
         <NodeCard 
           node={selectedNode}
-          edges={relations}
+          relations={relations}
+          attributes={attributes}
           relationTypes={relationTypes}
           attributeTypes={attributeTypes}
           onClose={() => setSelectedNodeId(null)}

@@ -1,6 +1,6 @@
 # NodeBook Development Roadmap
 
-This document outlines the planned features and development phases for the p2p-nodebook application. NDF stands for Neighborhood Description Framework.
+This document outlines the planned features and development phases for the nodebook-base application. NDF stands for Neighborhood Description Framework.
 
 ---
 

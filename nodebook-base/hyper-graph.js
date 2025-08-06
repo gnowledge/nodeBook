@@ -74,12 +74,53 @@ class HyperGraph {
   }
 
   async deleteNode(id) {
-    // This is a simple deletion. A robust implementation would also clean up
-    // associated edges and attributes, which can be complex.
+    // Also delete all relations and attributes connected to this node
+    const relations = await this.listAll('relations');
+    const attributes = await this.listAll('attributes');
+
+    for (const rel of relations) {
+      if (rel.source_id === id || rel.target_id === id) {
+        await this.deleteRelation(rel.id);
+      }
+    }
+    for (const attr of attributes) {
+      if (attr.source_id === id) {
+        await this.deleteAttribute(attr.id);
+      }
+    }
     await this.db.del(`nodes/${id}`);
-    // We should also delete all edges pointing to or from this node.
-    // For now, we'll leave this as a future improvement.
-    console.log(`Deleted node ${id}. Edge cleanup is not yet implemented.`);
+  }
+
+  async deleteRelation(id) {
+    const relation = (await this.db.get(`relations/${id}`))?.value;
+    if (!relation) return;
+
+    // Remove the ID from the source node's morph
+    const sourceNode = await this.getNode(relation.source_id);
+    if (sourceNode) {
+      const activeMorph = sourceNode.morphs.find(m => m.morph_id === sourceNode.nbh);
+      if (activeMorph) {
+        activeMorph.relationNode_ids = activeMorph.relationNode_ids.filter(rid => rid !== id);
+        await this.updateNode(sourceNode.id, sourceNode);
+      }
+    }
+    await this.db.del(`relations/${id}`);
+  }
+
+  async deleteAttribute(id) {
+    const attribute = (await this.db.get(`attributes/${id}`))?.value;
+    if (!attribute) return;
+
+    // Remove the ID from the source node's morph
+    const sourceNode = await this.getNode(attribute.source_id);
+    if (sourceNode) {
+      const activeMorph = sourceNode.morphs.find(m => m.morph_id === sourceNode.nbh);
+      if (activeMorph) {
+        activeMorph.attributeNode_ids = activeMorph.attributeNode_ids.filter(aid => aid !== id);
+        await this.updateNode(sourceNode.id, sourceNode);
+      }
+    }
+    await this.db.del(`attributes/${id}`);
   }
 
   async addRelation(source_id, target_id, name, options = {}) {
@@ -128,4 +169,4 @@ class HyperGraph {
   }
 }
 
-module.exports = { HyperGraph };
+module.exports = HyperGraph;

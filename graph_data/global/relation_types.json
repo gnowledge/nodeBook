@@ -1,6 +1,0 @@
-[
-  { "name": "is_a", "description": "Inheritance relationship" },
-  { "name": "part_of", "description": "Compositional relationship" },
-  { "name": "located_in", "description": "Spatial relationship" },
-  { "name": "has_property", "description": "Connects a node to a property" }
-]

@@ -93,3 +93,6 @@ CNAME
 # Documentation site (generated)
 docs/site/
 docs/site/*
+
+# User-generated graph data
+nodebook-base/graphs/

@@ -1,6 +1,0 @@
-[
-  { "name": "population", "description": "The number of inhabitants", "value_type": "number" },
-  { "name": "color", "description": "The color of an object", "value_type": "string" },
-  { "name": "mass", "description": "The mass of an object", "value_type": "number" },
-  { "name": "description", "description": "A text description", "value_type": "string" }
-]

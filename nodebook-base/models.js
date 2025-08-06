@@ -1,4 +1,4 @@
-// p2p-nodebook/models.js
+// nodebook-base/models.js
 
 /**
  * Represents a variation or context of a PolyNode.
@@ -18,7 +18,7 @@ class Morph {
  * Represents a polymorphic node that can exist in multiple variations (morphs).
  */
 class PolyNode {
-    constructor(base_name, { id = null, adjective = null, quantifier = null, role = "individual", description = null, morphs = [], nbh = null }) {
+    constructor(base_name, { id = null, adjective = null, quantifier = null, role = "individual", description = null, morphs = [], nbh = null, parent_types = [] }) {
         this.id = id || base_name.toLowerCase().replace(/\s+/g, '_');
         this.base_name = base_name;
         this.name = adjective ? `${adjective} ${base_name}` : base_name;
@@ -26,6 +26,7 @@ class PolyNode {
         this.quantifier = quantifier;
         this.role = role;
         this.description = description;
+        this.parent_types = parent_types;
         this.morphs = morphs.map(m => new Morph(this.id, m.name, m.morph_id));
         
         // If no morphs are provided, create a default 'basic' morph.

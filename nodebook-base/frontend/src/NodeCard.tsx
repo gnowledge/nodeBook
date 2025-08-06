@@ -4,18 +4,18 @@ import type { Node, Edge, AttributeType } from './types';
 
 interface NodeCardProps {
   node: Node;
-  edges: Edge[];
-  relationTypes: any[]; // Keep this simple for now
+  relations: Edge[];
+  attributes: AttributeType[];
+  relationTypes: any[];
   attributeTypes: AttributeType[];
   onClose: () => void;
   onDelete: (nodeId: string) => void;
 }
 
-export function NodeCard({ node, edges, relationTypes, attributeTypes, onClose, onDelete }: NodeCardProps) {
+export function NodeCard({ node, relations, attributes, relationTypes, attributeTypes, onClose, onDelete }: NodeCardProps) {
   
-  // This logic is now simplified as the backend provides the correct data structure
-  const relations = edges.filter(edge => edge.source_id === node.id);
-  const attributes = node.attributes || {}; // Assuming attributes are directly on the node object
+  const outgoingRelations = relations.filter(edge => edge.source_id === node.id);
+  const nodeAttributes = attributes.filter(attr => attr.source_id === node.id);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -23,7 +23,14 @@ export function NodeCard({ node, edges, relationTypes, attributeTypes, onClose, 
             <button className="modal-close-btn" onClick={onClose}>&times;</button>
             <div className="node-card" id={`node-${node.id}`}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                    <h2 className="node-title">{node.name || node.id}</h2>
+                    <div>
+                      <h2 className="node-title">{node.name || node.id}</h2>
+                      {node.role && (
+                        <small className="node-role">
+                          Types: {[node.role, ...(node.parent_types || [])].join('; ')}
+                        </small>
+                      )}
+                    </div>
                     <button onClick={() => onDelete(node.id)} style={{background: 'darkred'}}>Delete Node</button>
                 </div>
 
@@ -37,15 +44,15 @@ export function NodeCard({ node, edges, relationTypes, attributeTypes, onClose, 
                 <div className="node-neighborhood">
                     <h3>Relations</h3>
                     <ul className="relations-list">
-                    {relations.map(edge => (
+                    {outgoingRelations.map(edge => (
                         <li key={edge.id}>{`${edge.name || 'related to'} → ${edge.target_id}`}</li>
                     ))}
                     </ul>
 
                     <h3 style={{marginTop: '2rem'}}>Attributes</h3>
                     <ul className="attributes-list">
-                    {Object.entries(attributes).map(([key, value]) => (
-                        <li key={key}>{`${key}: ${value}`}</li>
+                    {nodeAttributes.map(attr => (
+                        <li key={attr.id}>{`${attr.name}: ${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`}</li>
                     ))}
                     </ul>
                 </div>
