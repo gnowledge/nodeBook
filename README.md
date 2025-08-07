@@ -12,7 +12,17 @@ This is a peer-to-peer, collaborative graph authoring environment based on the N
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Environment Setup (Recommended)
+
+To ensure you are using the correct version of Node.js, it is recommended to use [nvm](https://github.com/nvm-sh/nvm).
+
+Once you have `nvm` installed, you can run the following command in the project root to automatically switch to the correct Node.js version:
+
+```bash
+nvm use
+```
+
+### 2. Install Dependencies
 
 You need to install dependencies for both the backend server and the frontend application.
 
@@ -28,7 +38,7 @@ cd nodebook-base/frontend
 npm install
 ```
 
-### 2. Run the Application
+### 3. Run the Application
 
 Use the provided scripts to start the backend and frontend servers. It is recommended to run them in separate terminal windows.
 

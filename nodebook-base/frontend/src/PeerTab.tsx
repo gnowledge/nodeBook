@@ -22,11 +22,12 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
   }, [activeGraphId]);
 
   const handleSync = async () => {
-    if (!remoteKey.trim()) return;
+    const keyToSync = remoteKey.trim();
+    if (!keyToSync) return;
     await fetch(`/api/graphs/${activeGraphId}/peers/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remoteKey }),
+      body: JSON.stringify({ remoteKey: keyToSync }),
     });
     setRemoteKey('');
   };

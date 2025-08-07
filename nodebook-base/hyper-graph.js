@@ -43,15 +43,16 @@ class HyperGraph {
   }
 
   async syncWithPeer(remoteKey) {
-    console.log(`Attempting to sync with remote key: ${remoteKey}`);
+    const keyToSync = remoteKey.trim();
+    console.log(`Attempting to sync with remote key: ${keyToSync}`);
     if (!this.swarm) throw new Error('Swarm not initialized.');
 
-    const remoteKeyBuf = Buffer.from(remoteKey, 'hex');
+    const remoteKeyBuf = Buffer.from(keyToSync, 'hex');
     this.swarm.join(remoteKeyBuf);
     await this.swarm.flush();
 
     // Provide a valid, unique path for the remote core's storage
-    const remoteCorePath = path.join(__dirname, 'remotes', remoteKey.slice(0, 6));
+    const remoteCorePath = path.join(__dirname, 'remotes', keyToSync.slice(0, 6));
     const remoteCore = new Hypercore(remoteCorePath, remoteKeyBuf);
     this.core.replicate(remoteCore);
   }
