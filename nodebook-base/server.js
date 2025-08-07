@@ -218,6 +218,23 @@ async function main() {
     res.status(200).json({ message: 'CNL parsed and executed successfully.' });
   });
 
+  // --- Peer Management API ---
+  app.get('/api/graphs/:graphId/peers', loadGraph, (req, res) => {
+    const status = req.graph.getSwarmStatus();
+    res.json(status);
+  });
+
+  app.post('/api/graphs/:graphId/peers/sync', loadGraph, async (req, res) => {
+    const { remoteKey } = req.body;
+    if (!remoteKey) return res.status(400).json({ error: 'remoteKey is required' });
+    try {
+      await req.graph.syncWithPeer(remoteKey);
+      res.status(200).json({ message: 'Sync initiated.' });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // WebSocket needs to be aware of graphs
   wss.on('connection', (ws, req) => {
     // This is a simplified approach. A robust implementation would

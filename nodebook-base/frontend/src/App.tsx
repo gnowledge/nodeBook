@@ -8,9 +8,10 @@ import { Menu } from './Menu';
 import { DataView } from './DataView';
 import { SchemaView } from './SchemaView';
 import { CnlEditor } from './CnlEditor';
+import { PeerTab } from './PeerTab';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 
-type ViewMode = 'visualization' | 'jsonData' | 'dataGrid' | 'schema';
+type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'dataGrid' | 'schema' | 'peers';
 
 function App() {
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
@@ -34,7 +35,6 @@ function App() {
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
-    // Fetch graph data
     fetch(`/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
@@ -42,11 +42,9 @@ function App() {
         setRelations(data.relations || []);
         setAttributes(data.attributes || []);
       });
-    // Fetch graph key
     fetch(`/api/graphs/${graphId}/key`)
       .then(res => res.json())
       .then(data => setActiveGraphKey(data.key || null));
-    // Fetch CNL text
     fetch(`/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
@@ -68,6 +66,8 @@ function App() {
     if (activeGraphId) {
       fetchGraph(activeGraphId);
       // WebSocket logic will need to be updated here to be graph-specific
+    } else {
+      setActiveGraphKey(null);
     }
   }, [activeGraphId]);
 
@@ -155,6 +155,12 @@ function App() {
             >
               Schema
             </button>
+            <button 
+              className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`}
+              onClick={() => setViewMode('peers')}
+            >
+              Peers
+            </button>
           </div>
           <div className="tab-content">
             {activeGraphId ? (
@@ -179,6 +185,7 @@ function App() {
                 {viewMode === 'jsonData' && <ViewGraphData nodes={nodes} relations={relations} attributes={attributes} />}
                 {viewMode === 'dataGrid' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
                 {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
+                {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
               </>
             ) : (
               <div className="placeholder">Select or create a graph to begin.</div>

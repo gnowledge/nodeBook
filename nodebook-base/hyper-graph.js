@@ -13,8 +13,8 @@ class HyperGraph {
     this.swarm = null;
   }
 
-  static async create(storagePath = DB_PATH, key) {
-    const core = new Hypercore(path.join(__dirname, storagePath), key);
+  static async create(storagePath, key) {
+    const core = new Hypercore(storagePath, key);
     await core.ready();
     const db = new Hyperbee(core, { keyEncoding: 'utf-8', valueEncoding: 'json' });
     await db.ready();
@@ -43,12 +43,26 @@ class HyperGraph {
   }
 
   async syncWithPeer(remoteKey) {
-    console.log(`Replicating with remote key: ${remoteKey.slice(-6)}`);
-    const remoteCore = new Hypercore(path.join(__dirname, `remote-${remoteKey.slice(0, 6)}`), Buffer.from(remoteKey, 'hex'), { sparse: true });
-    await remoteCore.ready();
-    this.swarm.join(remoteCore.discoveryKey, { server: false, client: true });
-    this.swarm.flush();
+    console.log(`Attempting to sync with remote key: ${remoteKey}`);
+    if (!this.swarm) throw new Error('Swarm not initialized.');
+
+    const remoteKeyBuf = Buffer.from(remoteKey, 'hex');
+    this.swarm.join(remoteKeyBuf);
+    await this.swarm.flush();
+
+    // Provide a valid, unique path for the remote core's storage
+    const remoteCorePath = path.join(__dirname, 'remotes', remoteKey.slice(0, 6));
+    const remoteCore = new Hypercore(remoteCorePath, remoteKeyBuf);
     this.core.replicate(remoteCore);
+  }
+
+  getSwarmStatus() {
+    if (!this.swarm) {
+      return { connections: 0 };
+    }
+    return {
+      connections: this.swarm.peers.size,
+    };
   }
 
   // --- CRUD Operations ---

@@ -16,8 +16,13 @@ async function initialize() {
 }
 
 async function getGraphRegistry() {
-    const registryData = await fs.readFile(REGISTRY_FILE, 'utf-8');
-    return JSON.parse(registryData);
+    try {
+        const registryData = await fs.readFile(REGISTRY_FILE, 'utf-8');
+        return JSON.parse(registryData || '[]'); // Return empty array if file is empty
+    } catch (error) {
+        if (error.code === 'ENOENT') return []; // Return empty array if file doesn't exist
+        throw error;
+    }
 }
 
 async function saveGraphRegistry(registry) {
