@@ -1,55 +1,87 @@
+# Guide to Succeed in CNL Parsing (TDD Strategy)
 
-# Guide to succeed in CNL Parsing, this is not a syntax guide for CNL 
+This document outlines the strategy for parsing the NodeBook CNL. We will follow a strict Test-Driven Development (TDD) model. For each function, we will first write a test that defines the expected output, and only then will we write the implementation.
 
-Write utility functions that does one thing and only one thing at a
-time, write a test case for each of them and store the results
-in-memory. the models.js 
+**Core Principle:** Write small, focused utility functions that do one thing and do it well.
 
-## Processing Nodes
-- extractNodes
-- baseName
-- adjective
-- nodeid = adjective_baseName
-- extractDescription if present
-- extractRelations if present
-- extractAttributes if present
-- extractMorphs if present
-- create json dict as defined in models.js
+---
 
-## Processing Relations
+## 1. The Core Data Structure: The Block Tree
 
-- relationName: if the mode is strict, check if the relation exists in schema, raise error
-- targetNode: if target node doesn't exist, create it by same process as above
-- check if the relation belongs to which morph, reference to morph
-- check if adverb is expressed
-- check if modality is expressed
-- calculate id of the relation along with the adjective, quantifier and modality if avialable
-- create json as defined in models.js
+The first step is to parse the raw CNL text into a structured tree that represents the visual hierarchy of the document. This is the most critical step.
 
-## Processing Attributes
+*   **Function:** `buildStructuralTree(cnlText)`
+*   **Input:** The raw CNL string.
+*   **Output:** An array of `NodeBlock` objects. Each `NodeBlock` will have the following structure:
+    ```json
+    {
+      "heading": "# Hydrogen [Element]",
+      "description": "A chemical element...",
+      "content": [ "has number of protons: 1;" ],
+      "morphs": [
+        {
+          "heading": "## Hydrogen ion",
+          "description": null,
+          "content": [ "has charge: 1;", "<part of> Water;" ]
+        }
+      ]
+    }
+    ```
 
-- relationName: if the mode is strict, check if the attribute exists in schema, else raise error
-- check if the attribute belongs to which morph, reference to morph
-- check if adjective is expressed
-- check if modality is expressed
-- check if unit is expressed 
-- calculate id of the attribute along with the adjective and quantifier if available
-- create json as defined in models.js
+---
 
-## Composing Node Neighborhood
+## 2. Processing the Tree to Generate Operations
 
-- Node's nbh cannot be composed without creating relations and attributes
-- Once the template json of a node is created, it needs to be udpated as and when we process more relations and attributes
-- default nbh reference to base morph
+Once we have the `structuralTree`, we will walk it in two passes to generate a flat list of operations.
 
-## Compose final json
-- collect all the nodes in an array
-- collect all the attributes in an array
-- collect all the relations in an array
+### Pass 1: Create All Nodes and Morphs
 
-## Also add graph name and metadata
-- grame name
-- author
-- modified at
-- created at
-- description of the graph 
+This pass ensures that all entities exist before we try to connect them.
+
+*   **Function:** `generateNodeAndMorphOps(structuralTree)`
+*   **Input:** The `structuralTree` from the previous step.
+*   **Output:** An array of `addNode` and `addMorph` operations.
+    *   **`addNode` Payload:** `{ base_name: "Hydrogen", options: { id: "hydrogen", role: "Element", ... } }`
+    *   **`addMorph` Payload:** `{ nodeId: "hydrogen", morphName: "Hydrogen ion" }`
+
+### Pass 2: Create Attributes and Relations
+
+This pass connects the entities created in the first pass.
+
+*   **Function:** `generateNeighborhoodOps(structuralTree)`
+*   **Input:** The `structuralTree`.
+*   **Output:** An array of `addAttribute` and `addRelation` operations.
+    *   **`addAttribute` Payload:** `{ source: "hydrogen", name: "charge", value: "1", options: { morph: "Hydrogen ion" } }`
+    *   **`addRelation` Payload:** `{ source: "hydrogen", target: "water", name: "part of", options: { morph: "Hydrogen ion" } }`
+
+---
+
+## 3. Utility Functions
+
+The main functions above will be supported by a set of small, testable utility functions.
+
+### Node Utilities
+
+*   **Function:** `processNodeHeading(headingLine)`
+*   **Input:** A string, e.g., `# **Red** Car [Vehicle]`
+*   **Output:** `{ id: "red_car", type: "Vehicle", payload: { ... } }`
+
+### Neighborhood Utilities
+
+*   **Function:** `parseAttribute(attributeString)`
+*   **Input:** A string, e.g., `has number of protons: 1;`
+*   **Output:** `{ name: "number of protons", value: "1" }`
+
+*   **Function:** `parseRelation(relationString)`
+*   **Input:** A string, e.g., `<part of> Water;`
+*   **Output:** `{ name: "part of", targets: ["Water"] }`
+
+---
+
+## 4. Graph Metadata
+
+This is a separate concern from parsing the CNL content itself, but it is an important part of the overall file format. We will handle this separately after the core parser is complete.
+
+---
+
+This is our finalized plan. I will now proceed with the first step: writing the test for the `buildStructuralTree` function.

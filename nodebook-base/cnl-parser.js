@@ -51,15 +51,17 @@ function buildStructuralTree(cnlText) {
     const lines = cnlText.split('\n');
 
     for (const line of lines) {
+        if (!line.trim()) continue;
+
         const headingMatch = line.match(HEADING_REGEX);
         if (headingMatch) {
             const level = headingMatch[1].length;
             if (level === 1) {
-                currentNodeBlock = { heading: line, description: null, content: [], morphs: [] };
+                currentNodeBlock = { heading: line.trim(), description: null, content: [], morphs: [] };
                 currentSubBlock = currentNodeBlock;
                 tree.push(currentNodeBlock);
             } else if (level === 2 && currentNodeBlock) {
-                const currentMorphBlock = { heading: line, description: null, content: [] };
+                const currentMorphBlock = { heading: line.trim(), description: null, content: [] };
                 currentNodeBlock.morphs.push(currentMorphBlock);
                 currentSubBlock = currentMorphBlock;
             }
@@ -70,7 +72,7 @@ function buildStructuralTree(cnlText) {
                 currentSubBlock.description = descriptionMatch[1].trim();
                 currentSubBlock.content = [];
             } else {
-                currentSubBlock.content.push(line);
+                currentSubBlock.content.push(line.trim());
             }
         }
     }
@@ -128,4 +130,4 @@ async function validateOperations(operations) {
   return [];
 }
 
-module.exports = { parseCnl, validateOperations };
+module.exports = { parseCnl, buildStructuralTree, generateNodeAndMorphOps, generateNeighborhoodOps };
