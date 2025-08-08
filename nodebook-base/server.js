@@ -199,6 +199,9 @@ async function main() {
               await req.graph.updateNode(options.id, { role: options.role });
             }
             break;
+          case 'addMorph':
+            await req.graph.addMorph(op.payload.nodeId, op.payload.morph);
+            break;
           case 'updateNode':
             await req.graph.updateNode(op.payload.id, op.payload.fields);
             break;

@@ -24,7 +24,14 @@ async function parseCnl(cnlText) {
 
         for (const morphBlock of nodeBlock.morphs) {
             const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
-            operations.push({ type: 'addMorph', payload: { nodeId, morphName } });
+            const morphPayload = {
+                morph_id: `${nodeId}_morph_${Date.now()}`,
+                node_id: nodeId,
+                name: morphName,
+                relationNode_ids: [],
+                attributeNode_ids: []
+            };
+            operations.push({ type: 'addMorph', payload: { nodeId, morph: morphPayload } });
         }
     }
 
@@ -130,4 +137,4 @@ async function validateOperations(operations) {
   return [];
 }
 
-module.exports = { parseCnl, buildStructuralTree, generateNodeAndMorphOps, generateNeighborhoodOps };
+module.exports = { parseCnl, buildStructuralTree, validateOperations };

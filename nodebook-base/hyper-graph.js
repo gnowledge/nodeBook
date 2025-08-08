@@ -102,18 +102,12 @@ class HyperGraph {
     return attribute;
   }
 
-  async addMorph(nodeId, morphName) {
+  async addMorph(nodeId, morph) {
     const node = await this.getNode(nodeId);
     if (!node) return;
-    const morphExists = node.morphs.some(m => m.name === morphName);
+    const morphExists = node.morphs.some(m => m.name === morph.name);
     if (!morphExists) {
-      node.morphs.push({
-        morph_id: `${nodeId}_morph_${Date.now()}`,
-        node_id: nodeId,
-        name: morphName,
-        relationNode_ids: [],
-        attributeNode_ids: []
-      });
+      node.morphs.push(morph);
       await this.updateNode(nodeId, { morphs: node.morphs });
     }
   }
