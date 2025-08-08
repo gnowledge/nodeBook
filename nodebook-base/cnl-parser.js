@@ -1,74 +1,127 @@
 const schemaManager = require('./schema-manager');
 
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
-const RELATION_REGEX = /^\s*<(.+?)>\s*(.*)/;
-const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*(.*)/;
+const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
+const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 
 async function parseCnl(cnlText) {
     const operations = [];
-    const errors = [];
-    const lines = cnlText.split('\n');
+    const structuralTree = buildStructuralTree(cnlText);
+    const definedNodeIds = new Set();
 
-    let currentNodeId = null;
-    let currentNodeType = null;
-    let currentMorphName = null;
+    // Pass 1: Create all nodes and morphs
+    for (const nodeBlock of structuralTree) {
+        const { id: nodeId, payload: nodePayload } = processNodeHeading(nodeBlock.heading);
+        if (!definedNodeIds.has(nodeId)) {
+            operations.push({ type: 'addNode', payload: nodePayload });
+            definedNodeIds.add(nodeId);
+        }
 
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const headingMatch = line.match(HEADING_REGEX);
+        if (nodeBlock.description) {
+            operations.push({ type: 'updateNode', payload: { id: nodeId, fields: { description: nodeBlock.description } } });
+        }
 
-        if (headingMatch) {
-            const level = headingMatch[1].length;
-            const [, , adjective, name, rolesString] = headingMatch;
-            const roles = rolesString ? rolesString.split(';').map(r => r.trim()).filter(Boolean) : ['individual'];
-            const nodeType = roles[0] || 'individual';
-            const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
-            const cleanAdjective = adjective ? adjective.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
-            const id = cleanAdjective ? `${cleanAdjective}_${cleanName}` : cleanName;
-
-            if (level === 1) {
-                currentNodeId = id;
-                currentNodeType = nodeType;
-                currentMorphName = null;
-                operations.push({ type: 'addNode', payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective } } });
-            } else if (level === 2) {
-                currentMorphName = name.trim();
-                operations.push({ type: 'addMorph', payload: { nodeId: currentNodeId, morphName: currentMorphName } });
-            }
-        } else {
-            const attributeMatch = line.match(ATTRIBUTE_REGEX);
-            if (attributeMatch) {
-                let [, name, value] = attributeMatch;
-                while (!value.trim().endsWith(';')) {
-                    i++;
-                    value += `\n${lines[i]}`;
-                }
-                value = value.slice(0, -1).trim();
-                operations.push({ type: 'addAttribute', payload: { source: currentNodeId, name: name.trim(), value: value, options: { morph: currentMorphName } } });
-            }
-
-            const relationMatch = line.match(RELATION_REGEX);
-            if (relationMatch) {
-                let [, name, content] = relationMatch;
-                while (!content.trim().endsWith(';')) {
-                    i++;
-                    content += `\n${lines[i]}`;
-                }
-                content = content.slice(0, -1).trim();
-                
-                const targets = content.split(';').map(t => t.trim()).filter(Boolean);
-                for (const target of targets) {
-                    const [targetName, morphName] = target.split(':');
-                    const targetId = targetName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
-                    operations.push({ type: 'addNode', payload: { base_name: targetName, options: { id: targetId, role: 'individual' } } });
-                    operations.push({ type: 'addRelation', payload: { source: currentNodeId, target: targetId, name: name.trim(), options: { morph: currentMorphName, targetMorph: morphName } } });
-                }
-            }
+        for (const morphBlock of nodeBlock.morphs) {
+            const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
+            operations.push({ type: 'addMorph', payload: { nodeId, morphName } });
         }
     }
 
-    return { operations, errors };
+    // Pass 2: Create relations and attributes
+    for (const nodeBlock of structuralTree) {
+        const { id: nodeId, type: nodeType } = processNodeHeading(nodeBlock.heading);
+        const mainNeighborhoodOps = await processNeighborhood(nodeId, nodeType, nodeBlock.content, 'basic', definedNodeIds, operations);
+        operations.push(...mainNeighborhoodOps);
+
+        for (const morphBlock of nodeBlock.morphs) {
+            const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
+            const morphNeighborhoodOps = await processNeighborhood(nodeId, nodeType, morphBlock.content, morphName, definedNodeIds, operations);
+            operations.push(...morphNeighborhoodOps);
+        }
+    }
+
+    return { operations, errors: [] };
+}
+
+function buildStructuralTree(cnlText) {
+    const tree = [];
+    let currentNodeBlock = null;
+    let currentSubBlock = null;
+    const lines = cnlText.split('\n');
+
+    for (const line of lines) {
+        const headingMatch = line.match(HEADING_REGEX);
+        if (headingMatch) {
+            const level = headingMatch[1].length;
+            if (level === 1) {
+                currentNodeBlock = { heading: line, description: null, content: [], morphs: [] };
+                currentSubBlock = currentNodeBlock;
+                tree.push(currentNodeBlock);
+            } else if (level === 2 && currentNodeBlock) {
+                const currentMorphBlock = { heading: line, description: null, content: [] };
+                currentNodeBlock.morphs.push(currentMorphBlock);
+                currentSubBlock = currentMorphBlock;
+            }
+        } else if (currentSubBlock) {
+            const fullContent = currentSubBlock.content.join('\n') + '\n' + line;
+            const descriptionMatch = fullContent.match(DESCRIPTION_REGEX);
+            if (descriptionMatch) {
+                currentSubBlock.description = descriptionMatch[1].trim();
+                currentSubBlock.content = [];
+            } else {
+                currentSubBlock.content.push(line);
+            }
+        }
+    }
+    return tree;
+}
+
+function processNodeHeading(heading) {
+    const match = heading.match(HEADING_REGEX);
+    const [, , adjective, name, rolesString] = match;
+    const roles = rolesString ? rolesString.split(';').map(r => r.trim()).filter(Boolean) : ['individual'];
+    const nodeType = roles[0] || 'individual';
+    const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+    const cleanAdjective = adjective ? adjective.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
+    const id = cleanAdjective ? `${cleanAdjective}_${cleanName}` : cleanName;
+    return { id, type: nodeType, payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective: adjective ? adjective.trim() : null } } };
+}
+
+async function processNeighborhood(nodeId, nodeType, lines, morphName, definedNodeIds, operations) {
+    const neighborhoodOps = [];
+    const content = lines.join('\n');
+    const relationTypes = await schemaManager.getRelationTypes();
+
+    const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];
+    for (const match of attributeMatches) {
+        const [, name, value] = match;
+        neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim(), options: { morph: morphName } } });
+    }
+
+    const relationMatches = [...content.matchAll(RELATION_REGEX)];
+    for (const match of relationMatches) {
+        await processRelation(neighborhoodOps, nodeId, nodeType, match, relationTypes, morphName, definedNodeIds);
+    }
+    
+    return neighborhoodOps;
+}
+
+async function processRelation(operations, nodeId, nodeType, relationMatch, relationTypes, morphName, definedNodeIds) {
+    const [, relationName, content] = relationMatch;
+    const targets = content.trim().split(';').map(t => t.trim()).filter(Boolean);
+
+    for (const targetFullName of targets) {
+        const [targetName, targetMorphName] = targetFullName.split(':');
+        const targetId = targetName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+        
+        if (!definedNodeIds.has(targetId)) {
+            operations.push({ type: 'addNode', payload: { base_name: targetName, options: { id: targetId, role: 'individual' } } });
+            definedNodeIds.add(targetId);
+        }
+        
+        operations.push({ type: 'addRelation', payload: { source: nodeId, target: targetId, name: relationName.trim(), options: { morph: morphName, targetMorph: targetMorphName } } });
+    }
 }
 
 async function validateOperations(operations) {
