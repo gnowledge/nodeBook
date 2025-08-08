@@ -128,7 +128,8 @@ async function main() {
     const relations = await req.graph.listAll('relations');
     const attributes = await req.graph.listAll('attributes');
     const transitions = await req.graph.listAll('transitions');
-    res.json({ nodes, relations, attributes, transitions, functions: [] });
+    const allNodes = [...nodes, ...transitions];
+    res.json({ nodes: allNodes, relations, attributes, functions: [] });
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {

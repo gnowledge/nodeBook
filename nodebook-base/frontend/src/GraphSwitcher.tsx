@@ -29,13 +29,15 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect }: GraphSwitcherPro
 
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
-    await fetch('/api/graphs', {
+    const res = await fetch('/api/graphs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newGraphName }),
     });
+    const newGraph = await res.json();
     setNewGraphName('');
-    fetchGraphs();
+    await fetchGraphs();
+    onGraphSelect(newGraph.id);
   };
 
   const handleDeleteGraph = async (graphId: string) => {

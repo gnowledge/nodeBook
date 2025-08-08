@@ -61,7 +61,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
 
           // 2. Provide suggestions based on context
 
-          if (/#\s*.*?\[[^]]*\]$/.test(textUntilPosition)) {
+          if (/#\s*.*?\['[^]]*'\]$/.test(textUntilPosition)) {
             nodeTypes.forEach(nt => {
               suggestions.push({
                 label: nt.name,
@@ -108,7 +108,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     <Editor
       height="100%"
       language="cnl"
-      theme="vs-dark"
+      theme="light"
       value={value}
       onChange={(val) => onChange(val || '')}
       onMount={handleEditorDidMount}

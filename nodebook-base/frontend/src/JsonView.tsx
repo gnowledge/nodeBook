@@ -12,7 +12,7 @@ export function JsonView({ data }: JsonViewProps) {
     <Editor
       height="100%"
       language="json"
-      theme="vs-dark"
+      theme="light"
       value={jsonString}
       options={{
         readOnly: true,

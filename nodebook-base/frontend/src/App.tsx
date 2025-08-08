@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
-import { ViewGraphData } from './ViewGraphData';
 import { GraphSwitcher } from './GraphSwitcher';
 import { Menu } from './Menu';
 import { DataView } from './DataView';
@@ -10,9 +9,11 @@ import { SchemaView } from './SchemaView';
 import { CnlEditor } from './CnlEditor';
 import { PeerTab } from './PeerTab';
 import { JsonView } from './JsonView';
+import { PageView } from './PageView';
+import { Preferences } from './Preferences';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 
-type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'dataGrid' | 'schema' | 'peers';
+type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
 
 function App() {
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
@@ -26,20 +27,16 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [activePage, setActivePage] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState(() => {
     const saved = localStorage.getItem('strictMode');
     return saved !== null ? JSON.parse(saved) : true; // Default to true
   });
-  const [theme, setTheme] = useState('dark');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
   }, [strictMode]);
-
-  useEffect(() => {
-    document.body.className = `theme-${theme}`;
-  }, [theme]);
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
@@ -118,29 +115,19 @@ function App() {
       <div className="top-bar">
         <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} />
       </div>
-      <header className="header">
-        <div className="header-left"></div>
-        <div className="header-right">
-          <img src="/logo.png" alt="NodeBook Logo" className="logo" />
-          <Menu 
-            graphKey={activeGraphKey} 
-            strictMode={strictMode} 
-            onStrictModeChange={setStrictMode} 
-            theme={theme} 
-            onThemeChange={setTheme} 
-          />
-        </div>
-      </header>
 
       <main className="main-content">
         <div className="visualization-container">
-          <div className="tabs">
-            <button className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>Editor</button>
-            <button className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`} onClick={() => setViewMode('visualization')}>Visualization</button>
-            <button className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`} onClick={() => setViewMode('jsonData')}>JSON Data</button>
-            <button className={`tab-button ${viewMode === 'dataGrid' ? 'active' : ''}`} onClick={() => setViewMode('dataGrid')}>Data Grid</button>
-            <button className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`} onClick={() => setViewMode('schema')}>Schema</button>
-            <button className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`} onClick={() => setViewMode('peers')}>Peers</button>
+          <div className="tabs-container">
+            <div className="tabs">
+              <button className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>Editor</button>
+              <button className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`} onClick={() => setViewMode('visualization')}>Visualization</button>
+              <button className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`} onClick={() => setViewMode('jsonData')}>JSON Data</button>
+              <button className={`tab-button ${viewMode === 'nodes' ? 'active' : ''}`} onClick={() => setViewMode('nodes')}>Nodes</button>
+              <button className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`} onClick={() => setViewMode('schema')}>Schema</button>
+              <button className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`} onClick={() => setViewMode('peers')}>Peers</button>
+            </div>
+            <Menu onSelectPage={setActivePage} />
           </div>
           <div className="tab-content">
             {activeGraphId ? (
@@ -163,7 +150,7 @@ function App() {
                 )}
                 {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
                 {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
-                {viewMode === 'dataGrid' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
+                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
                 {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                 {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
               </>
@@ -174,16 +161,14 @@ function App() {
         </div>
       </main>
 
-      {selectedNode && (
-        <NodeCard 
-          node={selectedNode}
-          relations={relations}
-          attributes={attributes}
-          relationTypes={relationTypes}
-          attributeTypes={attributeTypes}
-          onClose={() => setSelectedNodeId(null)}
-          onDelete={handleDeleteNode}
+      {activePage === 'Preferences' ? (
+        <Preferences 
+          strictMode={strictMode}
+          onStrictModeChange={setStrictMode}
+          onClose={() => setActivePage(null)} 
         />
+      ) : activePage && (
+        <PageView page={activePage} onClose={() => setActivePage(null)} />
       )}
     </div>
   )
