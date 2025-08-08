@@ -1,0 +1,34 @@
+# Cash [Resource]
+```description
+A standard medium of exchange.
+```
+
+# Inventory [Resource]
+```description
+Goods held for sale.
+```
+
+# Customer [Agent]
+<is a type of> Person
+
+# Sales Clerk [Agent]
+<is a type of> Person
+
+# Sale [Event]
+```description
+A typical sales transaction.
+```
+<outflow> Inventory
+<inflow> Cash
+<provides> Sales Clerk
+<receives> Customer
+<duality> Cash Receipt
+
+# Cash Receipt [Event]
+```description
+The corresponding payment for a sale.
+```
+<inflow> Cash
+<receives> Sales Clerk
+<provides> Customer
+

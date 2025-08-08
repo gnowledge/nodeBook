@@ -1,23 +1,43 @@
-// src/types.ts
-
 export interface Node {
   id: string;
   base_name: string;
   name: string;
-  [key: string]: any;
+  adjective: string | null;
+  quantifier: string | null;
+  role: string;
+  description: string | null;
+  parent_types: string[];
 }
 
 export interface Edge {
-  source: string;
-  target: string;
-  label: string;
+  id: string;
+  source_id: string;
+  target_id: string;
+  name: string;
+}
+
+export interface Attribute {
+  id: string;
+  source_id: string;
+  name: string;
+  value: any;
+}
+
+export interface NodeType {
+  name: string;
+  description: string;
+  parent_types: string[];
 }
 
 export interface RelationType {
   name: string;
+  description: string;
+  domain: string[];
+  range: string[];
 }
 
 export interface AttributeType {
   name: string;
-  data_type: string;
+  description: string;
+  scope: string[];
 }

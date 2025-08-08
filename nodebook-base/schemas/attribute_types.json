@@ -1,94 +1,14 @@
 [
-  {
-    "name": "atomic_number",
-    "description": "The number of protons in the nucleus of an atom.",
-    "value_type": "integer",
-    "scope": [
-      "Element"
-    ]
-  },
-  {
-    "name": "boiling_point",
-    "description": "The temperature at which a liquid boils and turns to vapor.",
-    "value_type": "number",
-    "scope": [
-      "Substance"
-    ]
-  },
-  {
-    "name": "color",
-    "description": "The color of an object.",
-    "value_type": "string",
-    "scope": [
-      "Object"
-    ]
-  },
-  {
-    "name": "date",
-    "description": "A specific date.",
-    "value_type": "date",
-    "scope": [
-      "Event"
-    ]
-  },
-  {
-    "name": "description",
-    "description": "A textual description of the node.",
-    "value_type": "string",
-    "scope": []
-  },
-  {
-    "name": "is_",
-    "description": "A boolean property (e.g., 'is_aquatic', 'is_flammable').",
-    "value_type": "boolean",
-    "scope": []
-  },
-  {
-    "name": "location",
-    "description": "A geographical coordinate.",
-    "value_type": "lat-long",
-    "scope": [
-      "Place"
-    ]
-  },
-  {
-    "name": "mass",
-    "description": "The mass of an object, typically in kilograms.",
-    "value_type": "number",
-    "scope": [
-      "Object"
-    ]
-  },
-  {
-    "name": "melting_point",
-    "description": "The temperature at which a solid becomes a liquid.",
-    "value_type": "number",
-    "scope": [
-      "Substance"
-    ]
-  },
-  {
-    "name": "population",
-    "description": "The number of inhabitants of a place.",
-    "value_type": "number",
-    "scope": [
-      "individual"
-    ]
-  },
-  {
-    "name": "symbol",
-    "description": "A character or sign used to represent something.",
-    "value_type": "string",
-    "scope": [
-      "Element"
-    ]
-  },
-  {
-    "name": "url",
-    "description": "A Uniform Resource Locator.",
-    "value_type": "string",
-    "scope": [
-      "Document"
-    ]
-  }
+    {
+        "name": "description",
+        "description": "A textual description of an entity.",
+        "scope": [],
+        "datatype": "string"
+    },
+    {
+        "name": "operator",
+        "description": "The type of a LogicalOperator (e.g., OR, AND).",
+        "scope": ["LogicalOperator"],
+        "datatype": "string"
+    }
 ]

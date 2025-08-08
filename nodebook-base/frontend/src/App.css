@@ -166,10 +166,16 @@ body {
 .header {
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Push items to the ends */
   padding: 10px;
-  height: 6vh; /* Back to a shorter header */
+  height: 6vh;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-color);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .logo {

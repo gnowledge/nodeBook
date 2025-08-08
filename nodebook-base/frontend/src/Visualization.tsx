@@ -1,14 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-import type { Node, Edge } from './types';
+import type { Node, Edge, Attribute } from './types';
 
 cytoscape.use(dagre);
 
 interface VisualizationProps {
   nodes: Node[];
   relations: Edge[];
-  attributes: AttributeType[];
+  attributes: Attribute[];
   onNodeSelect: (nodeId: string | null) => void;
 }
 
@@ -20,13 +20,13 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
     if (!containerRef.current) return;
 
     const cyNodes = nodes.map(node => ({
-      data: { id: node.id, label: node.name, type: 'polynode' }
+      data: { id: node.id, label: node.name, type: node.role === 'Transition' ? 'transition' : 'polynode' }
     }));
 
     const attributeValueNodes = attributes.map(attr => ({
         data: {
-            id: attr.id, // Use the attribute's own ID for the value node
-            label: `${attr.value}${attr.unit ? ` ${attr.unit}`: ''}`,
+            id: attr.id,
+            label: `${attr.value}`, // Simplified label
             type: 'attribute_value'
         }
     }));
@@ -37,9 +37,9 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
 
     const attributeEdges = attributes.map(attr => ({
         data: {
-            id: `${attr.id}_edge`, // Create a unique ID for the edge
+            id: `${attr.id}_edge`,
             source: attr.source_id,
-            target: attr.id, // Target the value node using its correct ID
+            target: attr.id,
             label: attr.name
         }
     }));
@@ -48,8 +48,6 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
         nodes: [...cyNodes, ...attributeValueNodes], 
         edges: [...cyEdges, ...attributeEdges] 
     };
-
-    console.log('Cytoscape Elements:', JSON.stringify(elements, null, 2));
 
     cyRef.current = cytoscape({
       container: containerRef.current,
@@ -64,6 +62,15 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
                 "border-width": 0.5, "border-color": "#2563eb", "border-style": "solid", "shape": "roundrectangle",
                 'width': (ele) => ele.data('label').length * 8 + 20,
                 'height': 35
+            }
+        },
+        {
+            selector: "node[type = 'transition']",
+            style: {
+                label: "data(label)", "text-valign": "center", "text-halign": "center",
+                "background-color": "#a855f7", "color": "white", "shape": "diamond",
+                'width': 40,
+                'height': 40
             }
         },
         {
@@ -88,13 +95,11 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
       layout: { name: "dagre", rankDir: "LR", fit: true, padding: 30 }
     });
 
-    // Add event listener for node clicks
     cyRef.current.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
         onNodeSelect(nodeId);
     });
     
-    // Add event listener for background clicks
     cyRef.current.on('tap', (event) => {
         if (event.target === cyRef.current) {
             onNodeSelect(null);

@@ -2,7 +2,7 @@ const Hyperbee = require('hyperbee');
 const Hypercore = require('hypercore');
 const Hyperswarm = require('hyperswarm');
 const path = require('path');
-const { PolyNode, RelationNode, AttributeNode } = require('./models');
+const { PolyNode, RelationNode, AttributeNode, TransitionNode } = require('./models');
 
 const DB_PATH = 'hyper-db';
 
@@ -146,11 +146,11 @@ class HyperGraph {
     const relation = new RelationNode(source_id, target_id, name, options);
     await this.db.put(`relations/${relation.id}`, relation);
 
-    // Update the source node's active morph
-    const activeMorph = sourceNode.morphs.find(m => m.morph_id === sourceNode.nbh);
-    if (activeMorph && !activeMorph.relationNode_ids.includes(relation.id)) {
-      activeMorph.relationNode_ids.push(relation.id);
-      await this.updateNode(source_id, sourceNode);
+    const morphNameToUpdate = options.morph || 'basic';
+    const morph = sourceNode.morphs.find(m => m.name === morphNameToUpdate);
+    if (morph && !morph.relationNode_ids.includes(relation.id)) {
+      morph.relationNode_ids.push(relation.id);
+      await this.updateNode(source_id, { morphs: sourceNode.morphs });
     }
 
     return relation;
@@ -165,11 +165,11 @@ class HyperGraph {
     const attribute = new AttributeNode(source_id, attributeName, attributeValue, options);
     await this.db.put(`attributes/${attribute.id}`, attribute);
 
-    // Update the source node's active morph
-    const activeMorph = sourceNode.morphs.find(m => m.morph_id === sourceNode.nbh);
-    if (activeMorph && !activeMorph.attributeNode_ids.includes(attribute.id)) {
-        activeMorph.attributeNode_ids.push(attribute.id);
-        await this.updateNode(source_id, sourceNode);
+    const morphNameToUpdate = options.morph || 'basic';
+    const morph = sourceNode.morphs.find(m => m.name === morphNameToUpdate);
+    if (morph && !morph.attributeNode_ids.includes(attribute.id)) {
+        morph.attributeNode_ids.push(attribute.id);
+        await this.updateNode(source_id, { morphs: sourceNode.morphs });
     }
 
     return attribute;

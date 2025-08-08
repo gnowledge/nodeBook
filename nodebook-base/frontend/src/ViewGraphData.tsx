@@ -1,32 +1,26 @@
 // src/ViewGraphData.tsx
 import React from 'react';
-import type { Node, Edge, AttributeType } from './types';
+import type { Node, Edge, Attribute, Transition } from './types';
 
 interface ViewGraphDataProps {
   nodes: Node[];
   relations: Edge[];
-  attributes: AttributeType[];
+  attributes: Attribute[];
+  transitions: Transition[];
 }
 
-export function ViewGraphData({ nodes, relations, attributes }: ViewGraphDataProps) {
-  const graphData = {
+export function ViewGraphData({ nodes, relations, attributes, transitions }: ViewGraphDataProps) {
+  const data = {
     nodes,
     relations,
     attributes,
+    transitions,
   };
 
   return (
-    <pre style={{ 
-      backgroundColor: '#2d2d2d', 
-      color: '#f8f8f2', 
-      padding: '1rem', 
-      borderRadius: '8px', 
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-all',
-      height: '100%',
-      overflowY: 'auto'
-    }}>
-      {JSON.stringify(graphData, null, 2)}
+    <pre className="json-data-view">
+      {JSON.stringify(data, null, 2)}
     </pre>
   );
 }
+

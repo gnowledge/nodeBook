@@ -9,6 +9,7 @@ import { DataView } from './DataView';
 import { SchemaView } from './SchemaView';
 import { CnlEditor } from './CnlEditor';
 import { PeerTab } from './PeerTab';
+import { JsonView } from './JsonView';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 
 type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'dataGrid' | 'schema' | 'peers';
@@ -25,9 +26,16 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
-  const [strictMode, setStrictMode] = useState(false);
+  const [strictMode, setStrictMode] = useState(() => {
+    const saved = localStorage.getItem('strictMode');
+    return saved !== null ? JSON.parse(saved) : true; // Default to true
+  });
   const [theme, setTheme] = useState('dark');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('strictMode', JSON.stringify(strictMode));
+  }, [strictMode]);
 
   useEffect(() => {
     document.body.className = `theme-${theme}`;
@@ -65,7 +73,6 @@ function App() {
   useEffect(() => {
     if (activeGraphId) {
       fetchGraph(activeGraphId);
-      // WebSocket logic will need to be updated here to be graph-specific
     } else {
       setActiveGraphKey(null);
     }
@@ -92,12 +99,12 @@ function App() {
       const { errors } = await res.json();
       alert(`CNL Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
     } else {
-      fetchGraph(activeGraphId); // Refetch graph data after update
+      fetchGraph(activeGraphId);
     }
   };
   
   const handleDeleteNode = async (nodeId: string) => {
-    if (window.confirm(`Are you sure you want to delete node ${nodeId}? This will also delete its connected relations and attributes.`)) {
+    if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
       await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
       fetchGraph(activeGraphId!);
@@ -112,55 +119,28 @@ function App() {
         <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} />
       </div>
       <header className="header">
-        <img src="/logo.png" alt="NodeBook Logo" className="logo" />
-        <Menu 
-          graphKey={activeGraphKey} 
-          strictMode={strictMode} 
-          onStrictModeChange={setStrictMode} 
-          theme={theme} 
-          onThemeChange={setTheme} 
-        />
+        <div className="header-left"></div>
+        <div className="header-right">
+          <img src="/logo.png" alt="NodeBook Logo" className="logo" />
+          <Menu 
+            graphKey={activeGraphKey} 
+            strictMode={strictMode} 
+            onStrictModeChange={setStrictMode} 
+            theme={theme} 
+            onThemeChange={setTheme} 
+          />
+        </div>
       </header>
 
       <main className="main-content">
         <div className="visualization-container">
           <div className="tabs">
-            <button 
-              className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`}
-              onClick={() => setViewMode('editor')}
-            >
-              Editor
-            </button>
-            <button 
-              className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`}
-              onClick={() => setViewMode('visualization')}
-            >
-              Visualization
-            </button>
-            <button 
-              className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`}
-              onClick={() => setViewMode('jsonData')}
-            >
-              JSON Data
-            </button>
-            <button 
-              className={`tab-button ${viewMode === 'dataGrid' ? 'active' : ''}`}
-              onClick={() => setViewMode('dataGrid')}
-            >
-              Data Grid
-            </button>
-            <button 
-              className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`}
-              onClick={() => setViewMode('schema')}
-            >
-              Schema
-            </button>
-            <button 
-              className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`}
-              onClick={() => setViewMode('peers')}
-            >
-              Peers
-            </button>
+            <button className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>Editor</button>
+            <button className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`} onClick={() => setViewMode('visualization')}>Visualization</button>
+            <button className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`} onClick={() => setViewMode('jsonData')}>JSON Data</button>
+            <button className={`tab-button ${viewMode === 'dataGrid' ? 'active' : ''}`} onClick={() => setViewMode('dataGrid')}>Data Grid</button>
+            <button className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`} onClick={() => setViewMode('schema')}>Schema</button>
+            <button className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`} onClick={() => setViewMode('peers')}>Peers</button>
           </div>
           <div className="tab-content">
             {activeGraphId ? (
@@ -182,7 +162,7 @@ function App() {
                   </div>
                 )}
                 {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
-                {viewMode === 'jsonData' && <ViewGraphData nodes={nodes} relations={relations} attributes={attributes} />}
+                {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
                 {viewMode === 'dataGrid' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
                 {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                 {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}

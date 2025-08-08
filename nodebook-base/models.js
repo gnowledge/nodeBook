@@ -58,16 +58,15 @@ class RelationNode {
  * Note: In our P2P model, the 'value' is represented by the target_id of a separate value-node.
  */
 class AttributeNode {
-    constructor(source_id, name, value, { id = null, unit = null, adverb = null, modality = null }) {
-        // Create a deterministic ID based on content
-        this.id = id || `attr_${source_id}_${name.replace(/\s+/g, '_')}_${String(value).replace(/\s+/g, '_')}`;
-        this.source_id = source_id;
-        this.name = name; // The type of the attribute (e.g., 'color', 'height')
-        this.value = value; // The literal value of the attribute
-        this.unit = unit;
-        this.adverb = adverb;
-        this.modality = modality;
-    }
+  constructor(source_id, name, value, options = {}) {
+    this.id = options.id || `attr_${source_id}_${name.toLowerCase().replace(/\s+/g, '_')}`;
+    this.source_id = source_id;
+    this.name = name;
+    this.value = value;
+    this.adverb = options.adverb || null;
+    this.unit = options.unit || null;
+    this.modality = options.modality || null;
+  }
 }
 
-module.exports = { PolyNode, Morph, RelationNode, AttributeNode };
+module.exports = { PolyNode, RelationNode, AttributeNode };

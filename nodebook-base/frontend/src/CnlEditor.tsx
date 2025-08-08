@@ -17,7 +17,6 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   const monacoRef = useRef<Monaco | null>(null);
   const providerRef = useRef<any>(null);
   
-  // Use a ref to store the latest schema props to avoid stale closures
   const schemaRef = useRef({ nodeTypes, relationTypes, attributeTypes });
   useEffect(() => {
     schemaRef.current = { nodeTypes, relationTypes, attributeTypes };
@@ -29,7 +28,6 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
       onSubmit();
     });
 
-    // Ensure the provider is only registered once
     if (!providerRef.current) {
       if (!monaco.languages.getLanguages().some(lang => lang.id === 'cnl')) {
         monaco.languages.register({ id: 'cnl' });
@@ -46,8 +44,24 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
           });
 
           const suggestions: any[] = [];
+          
+          // --- CONTEXT-AWARE LOGIC ---
 
-          if (/#\s*.*\[[^\]]*$/.test(textUntilPosition)) {
+          // 1. Find the current node block
+          const lines = textUntilPosition.split('\n');
+          let currentNodeType: string | null = null;
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const match = lines[i].match(/^\s*#+\s*.+?\[(.+?)\]/);
+            if (match) {
+              // For simplicity, we'll just use the first type defined
+              currentNodeType = match[1].split(';')[0].trim();
+              break;
+            }
+          }
+
+          // 2. Provide suggestions based on context
+
+          if (/#\s*.*?\[[^]]*\]$/.test(textUntilPosition)) {
             nodeTypes.forEach(nt => {
               suggestions.push({
                 label: nt.name,
@@ -56,10 +70,12 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
                 detail: nt.description,
               });
             });
-          }
-
-          if (/<[^>]*$/.test(textUntilPosition)) {
-            relationTypes.forEach(rt => {
+          } else if (/^<[^>]*>$/.test(textUntilPosition)) {
+            const validRelations = currentNodeType
+              ? relationTypes.filter(rt => rt.domain.length === 0 || rt.domain.includes(currentNodeType))
+              : relationTypes;
+            
+            validRelations.forEach(rt => {
               suggestions.push({
                 label: rt.name,
                 kind: monaco.languages.CompletionItemKind.Interface,
@@ -67,10 +83,12 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
                 detail: rt.description,
               });
             });
-          }
-          
-          if (/has\s+[^:]*$/.test(textUntilPosition)) {
-            attributeTypes.forEach(at => {
+          } else if (/^has\s+[^:]*$/.test(textUntilPosition)) {
+            const validAttributes = currentNodeType
+              ? attributeTypes.filter(at => at.scope.length === 0 || at.scope.includes(currentNodeType))
+              : attributeTypes;
+
+            validAttributes.forEach(at => {
               suggestions.push({
                 label: at.name,
                 kind: monaco.languages.CompletionItemKind.Property,

@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
-const { parseCnl, executeOperations, validateOperations } = require('./cnl-parser');
+const { parseCnl, validateOperations } = require('./cnl-parser');
 
 const app = express();
 const server = http.createServer(app);
@@ -127,7 +127,8 @@ async function main() {
     const nodes = await req.graph.listAll('nodes');
     const relations = await req.graph.listAll('relations');
     const attributes = await req.graph.listAll('attributes');
-    res.json({ nodes, relations, attributes, transitions: [], functions: [] });
+    const transitions = await req.graph.listAll('transitions');
+    res.json({ nodes, relations, attributes, transitions, functions: [] });
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {
@@ -175,7 +176,6 @@ async function main() {
 
   app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
     const { cnlText, strictMode } = req.body;
-    console.log('Strict Mode Flag Received:', strictMode); // DEBUGGING
     const { operations, errors } = await parseCnl(cnlText);
     
     if (strictMode) {
@@ -212,9 +212,7 @@ async function main() {
       }
     }
     
-    // If successful, save the CNL text
     await graphManager.saveCnl(req.params.graphId, cnlText);
-
     res.status(200).json({ message: 'CNL parsed and executed successfully.' });
   });
 
@@ -235,10 +233,20 @@ async function main() {
     }
   });
 
+  // --- Transition Management API ---
+  app.post('/api/graphs/:graphId/transitions', loadGraph, async (req, res) => {
+    const { name, inputs, outputs, options } = req.body;
+    const transition = await req.graph.addTransition(name, inputs, outputs, options);
+    res.status(201).json(transition);
+  });
+
+  app.delete('/api/graphs/:graphId/transitions/:id', loadGraph, async (req, res) => {
+    await req.graph.deleteTransition(req.params.id);
+    res.status(204).send();
+  });
+
   // WebSocket needs to be aware of graphs
   wss.on('connection', (ws, req) => {
-    // This is a simplified approach. A robust implementation would
-    // associate the ws connection with a specific graphId.
     console.log('Frontend connected');
     ws.on('close', () => console.log('Frontend disconnected'));
   });
