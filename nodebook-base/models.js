@@ -10,6 +10,7 @@ class PolyNode {
     this.role = options.role || 'individual';
     this.description = options.description || null;
     this.parent_types = options.parent_types || [];
+    this.isDeleted = false;
     this.morphs = [{
       morph_id: `${this.id}_morph_${Date.now()}`,
       node_id: this.id,
@@ -30,6 +31,7 @@ class RelationNode {
     this.adverb = options.adverb || null;
     this.modality = options.modality || null;
     this.morph_ids = [];
+    this.isDeleted = false;
   }
 }
 
@@ -44,6 +46,7 @@ class AttributeNode {
     this.unit = options.unit || null;
     this.modality = options.modality || null;
     this.morph_ids = [];
+    this.isDeleted = false;
   }
 }
 

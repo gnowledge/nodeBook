@@ -56,7 +56,10 @@ class HyperGraph {
   }
 
   async deleteNode(id) {
-    await this.db.del(`nodes/${id}`);
+    const node = await this.getNode(id);
+    if (node) {
+      await this.updateNode(id, { isDeleted: true });
+    }
   }
 
   async updateNode(id, updatedFields) {
@@ -87,6 +90,14 @@ class HyperGraph {
     }
     return relation;
   }
+
+  async deleteRelation(id) {
+    const relEntry = await this.db.get(`relations/${id}`);
+    if (relEntry) {
+        const updatedRelation = { ...relEntry.value, isDeleted: true };
+        await this.db.put(`relations/${id}`, updatedRelation);
+    }
+  }
   
   async addAttribute(source_id, attributeName, attributeValue, options = {}) {
     const sourceNode = await this.getNode(source_id);
@@ -107,6 +118,14 @@ class HyperGraph {
     return attribute;
   }
 
+  async deleteAttribute(id) {
+    const attrEntry = await this.db.get(`attributes/${id}`);
+    if (attrEntry) {
+        const updatedAttribute = { ...attrEntry.value, isDeleted: true };
+        await this.db.put(`attributes/${id}`, updatedAttribute);
+    }
+  }
+
   async applyFunction(source_id, name, expression, options = {}) {
     const sourceNode = await this.getNode(source_id);
     if (!sourceNode) throw new Error(`Source node ${source_id} not found.`);
@@ -117,12 +136,13 @@ class HyperGraph {
     const scope = {};
     let sanitizedExpression = expression;
 
-    for (const attr of nodeAttributes) {
+    const sortedAttributes = [...nodeAttributes].sort((a, b) => b.name.length - a.name.length);
+
+    for (const attr of sortedAttributes) {
       const numericValue = parseFloat(attr.value);
       const sanitizedName = attr.name.replace(/\s+/g, '_');
       scope[sanitizedName] = isNaN(numericValue) ? attr.value : numericValue;
       
-      // Replace the quoted attribute name in the expression with the sanitized name
       sanitizedExpression = sanitizedExpression.replace(new RegExp(`"${attr.name}"`, 'g'), sanitizedName);
     }
 

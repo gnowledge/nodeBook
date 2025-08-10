@@ -1,52 +1,80 @@
-const { parseCnl } = require('./cnl-parser');
-const assert = require('assert');
+const { diffCnl } = require('./cnl-parser');
 
-async function runTest() {
-    console.log('Running Definitive CNL Parser Test...');
+describe('CNL Parser', () => {
+  describe('Node Parsing', () => {
+    test('should create a simple node', async () => {
+      const { operations } = await diffCnl('', '# My Node');
+      expect(operations).toHaveLength(1);
+      expect(operations[0].type).toBe('addNode');
+      expect(operations[0].payload.base_name).toBe('My Node');
+    });
 
-    const cnl = `
-# Hydrogen [Element]
-has number of protons: 1;
+    test('should create a node with a type', async () => {
+      const { operations } = await diffCnl('', '# My Node [Person]');
+      expect(operations[0].payload.options.role).toBe('Person');
+    });
+  });
 
-## Hydrogen ion
-has charge: 1;
+  describe('Attribute Parsing', () => {
+    test('should create a simple attribute', async () => {
+      const { operations } = await diffCnl('', '# My Node\n  has name: "John Doe";');
+      const addAttributeOp = operations.find(op => op.type === 'addAttribute');
+      expect(addAttributeOp).toBeDefined();
+      expect(addAttributeOp.payload.name).toBe('name');
+      expect(addAttributeOp.payload.value).toBe('"John Doe"');
+    });
 
-# Water [Molecule]
+    test('should create a description attribute', async () => {
+        const { operations } = await diffCnl('', '# My Node\n```description\nThis is a test.\n```');
+        const updateNodeOp = operations.find(op => op.type === 'updateNode');
+        expect(updateNodeOp).toBeDefined();
+        expect(updateNodeOp.payload.fields.description).toBe('This is a test.');
+    });
+  });
 
-# Electrolysis [Transition]
-<has prior_state> Water:basic;
-<has post_state> Hydrogen:ion;
-    `;
+  describe('Relation Parsing', () => {
+    test('should create a simple relation', async () => {
+      const { operations } = await diffCnl('', '# Node A\n<knows> Node B;');
+      const addRelationOp = operations.find(op => op.type === 'addRelation');
+      expect(addRelationOp).toBeDefined();
+      expect(addRelationOp.payload.name).toBe('knows');
+      expect(addRelationOp.payload.target).toBe('node_b');
+    });
+  });
 
-    const { operations } = await parseCnl(cnl);
+  describe('Function Parsing', () => {
+    test('should apply a function to a node', async () => {
+      const { operations } = await diffCnl('', '# My Node\n  has function "atomicMass";');
+      const applyFunctionOp = operations.find(op => op.type === 'applyFunction');
+      expect(applyFunctionOp).toBeDefined();
+      expect(applyFunctionOp.payload.name).toBe('atomicMass');
+    });
+  });
 
-    // --- Expected Operations ---
-    const expected = [
-        // Pass 1
-        { type: 'addNode', payload: { base_name: 'Hydrogen', options: { id: 'hydrogen', role: 'Element', parent_types: [], adjective: null } } },
-        { type: 'addMorph', payload: { nodeId: 'hydrogen', morphName: 'Hydrogen ion' } },
-        { type: 'addNode', payload: { base_name: 'Water', options: { id: 'water', role: 'Molecule', parent_types: [], adjective: null } } },
-        { type: 'addNode', payload: { base_name: 'Electrolysis', options: { id: 'electrolysis', role: 'Transition', parent_types: [], adjective: null } } },
-        
-        // Pass 2
-        { type: 'addAttribute', payload: { source: 'hydrogen', name: 'number of protons', value: '1', options: { morph: 'basic' } } },
-        { type: 'addAttribute', payload: { source: 'hydrogen', name: 'charge', value: '1', options: { morph: 'Hydrogen ion' } } },
-        { type: 'addRelation', payload: { source: 'electrolysis', target: 'water', name: 'has prior_state', options: { morph: 'basic', targetMorph: 'basic' } } },
-        { type: 'addRelation', payload: { source: 'electrolysis', target: 'hydrogen', name: 'has post_state', options: { morph: 'basic', targetMorph: 'ion' } } }
-    ];
+  describe('Diffing and Deletion', () => {
+    test('should generate a delete operation for a removed node', async () => {
+      const oldCnl = '# Node A\n# Node B';
+      const newCnl = '# Node B';
+      const { operations } = await diffCnl(oldCnl, newCnl);
+      const deleteNodeOp = operations.find(op => op.type === 'deleteNode');
+      expect(deleteNodeOp).toBeDefined();
+      expect(deleteNodeOp.payload.id).toBe('node_a');
+    });
 
-    // --- Assertion ---
-    assert.strictEqual(operations.length, expected.length, `Expected ${expected.length} operations, but got ${operations.length}`);
-    
-    for (let i = 0; i < expected.length; i++) {
-        assert.deepStrictEqual(operations[i], expected[i], `Operation ${i} does not match expected output.\nExpected: ${JSON.stringify(expected[i])}\nActual:   ${JSON.stringify(operations[i])}`);
-    }
+    test('should generate a delete operation for a removed attribute', async () => {
+        const oldCnl = '# Node A\n  has name: "John Doe";\n  has age: 30;';
+        const newCnl = '# Node A\n  has name: "John Doe";';
+        const { operations } = await diffCnl(oldCnl, newCnl);
+        const deleteAttributeOp = operations.find(op => op.type === 'deleteAttribute');
+        expect(deleteAttributeOp).toBeDefined();
+    });
 
-    console.log('--- TEST PASSED ---');
-}
-
-runTest().catch(err => {
-    console.error("\n--- TEST FAILED ---");
-    console.error(err.message);
-    process.exit(1);
+    test('should generate a delete operation for a removed relation', async () => {
+        const oldCnl = '# Node A\n<knows> Node B;\n<likes> Node C;';
+        const newCnl = '# Node A\n<knows> Node B;';
+        const { operations } = await diffCnl(oldCnl, newCnl);
+        const deleteRelationOp = operations.find(op => op.type === 'deleteRelation');
+        expect(deleteRelationOp).toBeDefined();
+    });
+  });
 });

@@ -1,91 +1,102 @@
+const crypto = require('crypto');
 const schemaManager = require('./schema-manager');
 
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
-const DELETE_REGEX = /~~(.+?)~~/g;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 
-async function parseCnl(cnlText) {
+/**
+ * Parses a block of CNL text and returns a flat list of all the operations
+ * needed to create the graph elements described in the text.
+ * @param {string} cnlText The CNL text to parse.
+ * @returns {Array} A list of operation objects.
+ */
+function getOperationsFromCnl(cnlText) {
+    if (!cnlText) {
+        return [];
+    }
     const operations = [];
     const structuralTree = buildStructuralTree(cnlText);
-    const definedNodeIds = new Set();
 
-    // Handle deletions first
-    const deleteMatches = [...cnlText.matchAll(DELETE_REGEX)];
-    for (const match of deleteMatches) {
-        const deletedText = match[1];
-        if (deletedText.startsWith('#')) {
-            const { id } = processNodeHeading(deletedText);
-            operations.push({ type: 'deleteNode', payload: { id } });
-        }
-    }
-
-    // Process additions and updates
     for (const nodeBlock of structuralTree) {
         const { id: nodeId, payload: nodePayload } = processNodeHeading(nodeBlock.heading);
-        if (!definedNodeIds.has(nodeId)) {
-            operations.push({ type: 'addNode', payload: nodePayload });
-            definedNodeIds.add(nodeId);
-        }
+        operations.push({ type: 'addNode', payload: nodePayload, id: nodeId });
 
-        for (const morphBlock of nodeBlock.morphs) {
-            const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
-            const morphPayload = {
-                morph_id: `${nodeId}_morph_${Date.now()}`,
-                node_id: nodeId,
-                name: morphName,
-                relationNode_ids: [],
-                attributeNode_ids: []
-            };
-            operations.push({ type: 'addMorph', payload: { nodeId, morph: morphPayload } });
+        const neighborhoodOps = processNeighborhood(nodeId, nodeBlock.content);
+        operations.push(...neighborhoodOps);
+    }
+    return operations;
+}
+
+/**
+ * Compares the old and new CNL and generates a list of operations to
+ * transform the old state into the new state.
+ * @param {string} oldCnl The old CNL text.
+ * @param {string} newCnl The new CNL text.
+ * @returns {object} An object containing the list of operations and any errors.
+ */
+async function diffCnl(oldCnl, newCnl) {
+    const oldOps = getOperationsFromCnl(oldCnl);
+    const newOps = getOperationsFromCnl(newCnl);
+
+    const oldOpsMap = new Map(oldOps.map(op => [op.id, op]));
+    const newOpsMap = new Map(newOps.map(op => [op.id, op]));
+
+    const operations = [];
+
+    // Find deleted operations
+    for (const [id, op] of oldOpsMap.entries()) {
+        if (!newOpsMap.has(id)) {
+            const deleteType = `delete${op.type.slice(3)}`;
+            operations.push({ type: deleteType, payload: { id } });
         }
     }
 
-    for (const nodeBlock of structuralTree) {
-        const { id: nodeId, type: nodeType } = processNodeHeading(nodeBlock.heading);
-        const mainNeighborhoodOps = await processNeighborhood(nodeId, nodeType, nodeBlock.content, 'basic', definedNodeIds);
-        operations.push(...mainNeighborhoodOps);
-
-        for (const morphBlock of nodeBlock.morphs) {
-            const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
-            const morphNeighborhoodOps = await processNeighborhood(nodeId, nodeType, morphBlock.content, morphName, definedNodeIds);
-            operations.push(...morphNeighborhoodOps);
+    // Find added and updated operations
+    for (const [id, op] of newOpsMap.entries()) {
+        if (!oldOpsMap.has(id)) {
+            operations.push(op);
+        } else {
+            if (op.type === 'updateNode') {
+                operations.push(op);
+            }
         }
     }
 
     return { operations, errors: [] };
 }
 
+/**
+ * Builds a simple tree structure from the CNL text, grouping lines of
+ * text under the appropriate node headings.
+ * @param {string} cnlText The CNL text to parse.
+ * @returns {Array} A list of node block objects.
+ */
 function buildStructuralTree(cnlText) {
     const tree = [];
     let currentNodeBlock = null;
-    let currentSubBlock = null;
     const lines = cnlText.split('\n');
 
     for (const line of lines) {
-        if (!line.trim() && !currentSubBlock) continue;
-
+        if (!line.trim()) continue;
         const headingMatch = line.match(HEADING_REGEX);
         if (headingMatch) {
-            const level = headingMatch[1].length;
-            if (level === 1) {
-                currentNodeBlock = { heading: line.trim(), content: [], morphs: [] };
-                currentSubBlock = currentNodeBlock;
-                tree.push(currentNodeBlock);
-            } else if (level === 2 && currentNodeBlock) {
-                const currentMorphBlock = { heading: line.trim(), content: [] };
-                currentNodeBlock.morphs.push(currentMorphBlock);
-                currentSubBlock = currentMorphBlock;
-            }
-        } else if (currentSubBlock) {
-            currentSubBlock.content.push(line);
+            currentNodeBlock = { heading: line.trim(), content: [] };
+            tree.push(currentNodeBlock);
+        } else if (currentNodeBlock) {
+            currentNodeBlock.content.push(line);
         }
     }
     return tree;
 }
 
+/**
+ * Parses a node heading line to extract the node's name, type, and other metadata.
+ * @param {string} heading The heading line to parse.
+ * @returns {object} An object containing the node's ID and payload.
+ */
 function processNodeHeading(heading) {
     const match = heading.match(HEADING_REGEX);
     const [, , adjective, name, rolesString] = match;
@@ -97,58 +108,50 @@ function processNodeHeading(heading) {
     return { id, type: nodeType, payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective: adjective ? adjective.trim() : null } } };
 }
 
-async function processNeighborhood(nodeId, nodeType, lines, morphName, definedNodeIds) {
+/**
+ * Parses the content of a node block to extract its attributes, relations, and functions.
+ * @param {string} nodeId The ID of the node.
+ * @param {Array} lines The lines of text in the node's body.
+ * @returns {Array} A list of operation objects.
+ */
+function processNeighborhood(nodeId, lines) {
     const neighborhoodOps = [];
     let content = lines.join('\n');
     
     const descriptionMatch = content.match(DESCRIPTION_REGEX);
     if (descriptionMatch) {
         const description = descriptionMatch[1].trim();
-        neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } } });
+        const id = `attr_${nodeId}_description_${crypto.createHash('sha1').update(description).digest('hex').slice(0, 6)}`;
+        neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } }, id: `${nodeId}_description` });
         content = content.replace(DESCRIPTION_REGEX, '').trim();
     }
-
-    const relationTypes = await schemaManager.getRelationTypes();
 
     const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];
     for (const match of attributeMatches) {
         const [, name, value] = match;
-        neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim(), options: { morph: morphName } } });
+        const valueHash = crypto.createHash('sha1').update(String(value.trim())).digest('hex').slice(0, 6);
+        const id = `attr_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
+        neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim() }, id });
     }
 
     const functionMatches = [...content.matchAll(FUNCTION_REGEX)];
     for (const match of functionMatches) {
         const [, name] = match;
-        neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim(), options: { morph: morphName } } });
+        const id = `func_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}`;
+        neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim() }, id });
     }
 
     const relationMatches = [...content.matchAll(RELATION_REGEX)];
     for (const match of relationMatches) {
-        await processRelation(neighborhoodOps, nodeId, nodeType, match, relationTypes, morphName, definedNodeIds);
+        const [, relationName, targets] = match;
+        for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
+            const targetId = target.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;
+            neighborhoodOps.push({ type: 'addRelation', payload: { source: nodeId, target: targetId, name: relationName.trim() }, id });
+        }
     }
     
     return neighborhoodOps;
 }
 
-async function processRelation(operations, nodeId, nodeType, relationMatch, relationTypes, morphName, definedNodeIds) {
-    const [, relationName, content] = relationMatch;
-    const targets = content.trim().split(';').map(t => t.trim()).filter(Boolean);
-
-    for (const targetFullName of targets) {
-        const [targetName, targetMorphName] = targetFullName.split(':');
-        const targetId = targetName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
-        
-        if (!definedNodeIds.has(targetId)) {
-            operations.push({ type: 'addNode', payload: { base_name: targetName, options: { id: targetId, role: 'individual' } } });
-            definedNodeIds.add(targetId);
-        }
-        
-        operations.push({ type: 'addRelation', payload: { source: nodeId, target: targetId, name: relationName.trim(), options: { morph: morphName, targetMorph: targetMorphName } } });
-    }
-}
-
-async function validateOperations(operations) {
-  return [];
-}
-
-module.exports = { parseCnl, buildStructuralTree, validateOperations };
+module.exports = { diffCnl };

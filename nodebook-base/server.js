@@ -6,7 +6,8 @@ const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
-const { parseCnl, validateOperations } = require('./cnl-parser');
+const { diffCnl } = require('./cnl-parser');
+const { evaluate } = require('mathjs');
 
 const app = express();
 const server = http.createServer(app);
@@ -154,8 +155,45 @@ async function main() {
     const relations = await req.graph.listAll('relations');
     const attributes = await req.graph.listAll('attributes');
     const transitions = await req.graph.listAll('transitions');
-    const allNodes = [...nodes, ...transitions];
-    res.json({ nodes: allNodes, relations, attributes });
+    const functions = await req.graph.listAll('functions');
+    const functionTypes = await schemaManager.getFunctionTypes();
+    
+    const allNodes = [...nodes, ...transitions].filter(node => !node.isDeleted);
+    const activeRelations = relations.filter(rel => !rel.isDeleted);
+    let activeAttributes = attributes.filter(attr => !attr.isDeleted);
+
+    // Compute derived attributes
+    for (const node of allNodes) {
+      const nodeFunctions = functions.filter(f => f.source_id === node.id);
+      for (const func of nodeFunctions) {
+        const funcType = functionTypes.find(ft => ft.name === func.name);
+        if (!funcType) continue;
+
+        const scope = {};
+        const nodeAttributes = activeAttributes.filter(a => a.source_id === node.id);
+        for (const attr of nodeAttributes) {
+          const numericValue = parseFloat(attr.value);
+          scope[attr.name.replace(/\s+/g, '_')] = isNaN(numericValue) ? attr.value : numericValue;
+        }
+
+        try {
+          const sanitizedExpression = funcType.expression.replace(/"(.*?)"/g, (match, attrName) => attrName.replace(/\s+/g, '_'));
+          const value = evaluate(sanitizedExpression, scope);
+          activeAttributes.push({
+            id: `derived_${func.id}`,
+            source_id: func.source_id,
+            name: func.name,
+            value: String(value),
+            isDerived: true,
+            morph_ids: func.morph_ids,
+          });
+        } catch (error) {
+          // Silently fail for now, or add logging
+        }
+      }
+    }
+
+    res.json({ nodes: allNodes, relations: activeRelations, attributes: activeAttributes });
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {
@@ -167,92 +205,72 @@ async function main() {
     }
   });
 
-  app.post('/api/graphs/:graphId/nodes', loadGraph, async (req, res) => {
-    const { base_name, options } = req.body;
-    const node = await req.graph.addNode(base_name, options);
-    res.status(201).json(node);
-  });
-
-  app.post('/api/graphs/:graphId/relations', loadGraph, async (req, res) => {
-    const { source, target, name, options } = req.body;
-    const relation = await req.graph.addRelation(source, target, name, options);
-    res.status(201).json(relation);
-  });
-
-  app.post('/api/graphs/:graphId/attributes', loadGraph, async (req, res) => {
-    const { source, name, value, options } = req.body;
-    const attribute = await req.graph.addAttribute(source, name, value, options);
-    res.status(201).json(attribute);
-  });
-
-  app.delete('/api/graphs/:graphId/nodes/:id', loadGraph, async (req, res) => {
-    await req.graph.deleteNode(req.params.id);
-    res.status(204).send();
-  });
-
-  app.delete('/api/graphs/:graphId/relations/:id', loadGraph, async (req, res) => {
-    await req.graph.deleteRelation(req.params.id);
-    res.status(204).send();
-  });
-
-  app.delete('/api/graphs/:graphId/attributes/:id', loadGraph, async (req, res) => {
-    await req.graph.deleteAttribute(req.params.id);
-    res.status(204).send();
-  });
-
   app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
-    const { cnlText, strictMode } = req.body;
-    const { operations, errors } = await parseCnl(cnlText);
-    
-    if (strictMode) {
-      const validationErrors = await validateOperations(operations);
-      errors.push(...validationErrors);
-    }
+    const { cnlText } = req.body;
+    const graph = req.graph;
 
+    const { operations, errors } = await diffCnl(await graphManager.getCnl(req.params.graphId), cnlText);
+    
     if (errors.length > 0) {
       return res.status(422).json({ errors });
     }
 
     if (operations.length > 0) {
+      // First pass: deletions
       for (const op of operations) {
-        switch (op.type) {
-          case 'addNode':
-            const { base_name, options } = op.payload;
-            const existingNode = await req.graph.getNode(options.id);
-            if (!existingNode) {
-              await req.graph.addNode(base_name, options);
-            } else if (options.role && existingNode.role !== options.role) {
-              await req.graph.updateNode(options.id, { role: options.role });
-            }
-            break;
-          case 'deleteNode':
-            await req.graph.deleteNode(op.payload.id);
-            break;
-          case 'addMorph':
-            await req.graph.addMorph(op.payload.nodeId, op.payload.morph);
-            break;
-          case 'updateNode':
-            await req.graph.updateNode(op.payload.id, op.payload.fields);
-            break;
-          case 'addRelation':
-            await req.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
-            break;
-          case 'addAttribute':
-            await req.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
-            break;
-          case 'applyFunction':
-            const functionTypes = await schemaManager.getFunctionTypes();
-            const funcType = functionTypes.find(ft => ft.name === op.payload.name);
-            if (funcType) {
-              await req.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
-            }
-            break;
+        if (op.type.startsWith('delete')) {
+          switch (op.type) {
+            case 'deleteNode':
+              await req.graph.deleteNode(op.payload.id);
+              break;
+            case 'deleteRelation':
+              await req.graph.deleteRelation(op.payload.id);
+              break;
+            case 'deleteAttribute':
+              await req.graph.deleteAttribute(op.payload.id);
+              break;
+          }
+        }
+      }
+      // Second pass: additions
+      for (const op of operations) {
+        if (op.type.startsWith('add')) {
+          switch (op.type) {
+            case 'addNode':
+              const existingNode = await graph.getNode(op.payload.options.id);
+              if (!existingNode) {
+                await req.graph.addNode(op.payload.base_name, op.payload.options);
+              }
+              break;
+            case 'addRelation':
+              const targetNode = await graph.getNode(op.payload.target);
+              if (!targetNode) {
+                await graph.addNode(op.payload.target, { id: op.payload.target });
+              }
+              await req.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
+              break;
+            case 'addAttribute':
+              await req.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
+              break;
+          }
+        }
+      }
+      // Third pass: updates and functions
+      for (const op of operations) {
+        if (op.type === 'updateNode') {
+          await req.graph.updateNode(op.payload.id, op.payload.fields);
+        } else if (op.type === 'applyFunction') {
+          const functionTypes = await schemaManager.getFunctionTypes();
+          const funcType = functionTypes.find(ft => ft.name === op.payload.name);
+          if (funcType) {
+            await req.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
+          }
         }
       }
     }
     
     await graphManager.saveCnl(req.params.graphId, cnlText);
-    res.status(200).json({ message: 'CNL parsed and executed successfully.' });
+    res.status(200).json({ message: 'CNL processed successfully.' });
   });
 
   // --- Peer Management API ---
@@ -270,18 +288,6 @@ async function main() {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  });
-
-  // --- Transition Management API ---
-  app.post('/api/graphs/:graphId/transitions', loadGraph, async (req, res) => {
-    const { name, inputs, outputs, options } = req.body;
-    const transition = await req.graph.addTransition(name, inputs, outputs, options);
-    res.status(201).json(transition);
-  });
-
-  app.delete('/api/graphs/:graphId/transitions/:id', loadGraph, async (req, res) => {
-    await req.graph.deleteTransition(req.params.id);
-    res.status(204).send();
   });
 
   // WebSocket needs to be aware of graphs

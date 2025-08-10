@@ -1,86 +1,68 @@
-const { buildStructuralTree, generateNodeAndMorphOps, generateNeighborhoodOps } = require('./cnl-parser');
-const assert = require('assert');
+const { diffCnl } = require('./cnl-parser');
 
-function testBuildStructuralTree() {
-    console.log('Running Test: buildStructuralTree...');
-
-    const cnl = `
+describe('CNL Diff Parser (TDD)', () => {
+  test('should correctly identify a deleted node and its attributes and relations', async () => {
+    const oldCnl = `
 # Hydrogen [Element]
-has number of protons: 1;
+  has number of protons: 1;
+  <is_a> Chemical Element;
 
-## Hydrogen ion
-has charge: 1;
-<part of> Water;
-
-# Water [Molecule]
+# Oxygen [Element]
+  has number of protons: 8;
     `;
 
-    const expected = [
-        {
-            heading: '# Hydrogen [Element]',
-            description: null,
-            content: ['has number of protons: 1;'],
-            morphs: [
-                {
-                    heading: '## Hydrogen ion',
-                    description: null,
-                    content: ['has charge: 1;', '<part of> Water;']
-                }
-            ]
-        },
-        {
-            heading: '# Water [Molecule]',
-            description: null,
-            content: [],
-            morphs: []
-        }
-    ];
+    const newCnl = `
+# Oxygen [Element]
+  has number of protons: 8;
+    `;
 
-    const actual = buildStructuralTree(cnl);
+    const { operations } = await diffCnl(oldCnl, newCnl);
 
-    assert.deepStrictEqual(actual, expected, 'The structural tree was not built correctly.');
+    const deleteNodeOp = operations.find(op => op.type === 'deleteNode');
+    const deleteAttributeOp = operations.find(op => op.type === 'deleteAttribute');
+    const deleteRelationOp = operations.find(op => op.type === 'deleteRelation');
 
-    console.log('--- TEST PASSED: buildStructuralTree ---');
-    return actual; // Return the tree for the next test
-}
+    expect(deleteNodeOp).toBeDefined();
+    expect(deleteNodeOp.payload.id).toBe('hydrogen');
+    expect(deleteAttributeOp).toBeDefined();
+    expect(deleteRelationOp).toBeDefined();
+  });
 
-function testGenerateNodeAndMorphOps(structuralTree) {
-    console.log('Running Test: generateNodeAndMorphOps...');
+  test('should correctly identify a deleted attribute', async () => {
+    const oldCnl = `
+# Hydrogen [Element]
+  has number of protons: 1;
+  has number of neutrons: 0;
+    `;
 
-    const expected = [
-        { type: 'addNode', payload: { base_name: 'Hydrogen', options: { id: 'hydrogen', role: 'Element', parent_types: [], adjective: null } } },
-        { type: 'addMorph', payload: { nodeId: 'hydrogen', morphName: 'Hydrogen ion' } },
-        { type: 'addNode', payload: { base_name: 'Water', options: { id: 'water', role: 'Molecule', parent_types: [], adjective: null } } }
-    ];
+    const newCnl = `
+# Hydrogen [Element]
+  has number of protons: 1;
+    `;
 
-    const { operations } = generateNodeAndMorphOps(structuralTree);
+    const { operations } = await diffCnl(oldCnl, newCnl);
+
+    const deleteAttributeOp = operations.find(op => op.type === 'deleteAttribute');
     
-    assert.deepStrictEqual(operations, expected, 'Node and morph operations were not generated correctly.');
+    expect(deleteAttributeOp).toBeDefined();
+  });
 
-    console.log('--- TEST PASSED: generateNodeAndMorphOps ---');
-}
+  test('should correctly identify a deleted relation', async () => {
+    const oldCnl = `
+# Hydrogen [Element]
+  <is_a> Chemical Element;
+  <is_a> Gas;
+    `;
 
-async function testGenerateNeighborhoodOps(structuralTree) {
-    console.log('Running Test: generateNeighborhoodOps...');
+    const newCnl = `
+# Hydrogen [Element]
+  <is_a> Chemical Element;
+    `;
 
-    const expected = [
-        { type: 'addAttribute', payload: { source: 'hydrogen', name: 'number of protons', value: '1', options: { morph: 'basic' } } },
-        { type: 'addAttribute', payload: { source: 'hydrogen', name: 'charge', value: '1', options: { morph: 'Hydrogen ion' } } },
-        { type: 'addNode', payload: { base_name: 'Water', options: { id: 'water', role: 'individual' } } },
-        { type: 'addRelation', payload: { source: 'hydrogen', target: 'water', name: 'part of', options: { morph: 'Hydrogen ion' } } }
-    ];
+    const { operations } = await diffCnl(oldCnl, newCnl);
 
-    const { operations } = await generateNeighborhoodOps(structuralTree);
+    const deleteRelationOp = operations.find(op => op.type === 'deleteRelation');
 
-    assert.deepStrictEqual(operations, expected, 'Neighborhood operations were not generated correctly.');
-
-    console.log('--- TEST PASSED: generateNeighborhoodOps ---');
-}
-
-async function run() {
-    const tree = testBuildStructuralTree();
-    testGenerateNodeAndMorphOps(tree);
-    await testGenerateNeighborhoodOps(tree);
-}
-
-run();
+    expect(deleteRelationOp).toBeDefined();
+  });
+});

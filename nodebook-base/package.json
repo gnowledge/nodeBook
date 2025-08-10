@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "node server.js"
   },
   "keywords": [],
@@ -20,5 +20,8 @@
     "hyperswarm": "^4.12.1",
     "mathjs": "^13.0.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
