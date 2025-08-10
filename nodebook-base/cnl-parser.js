@@ -7,12 +7,6 @@ const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 
-/**
- * Parses a block of CNL text and returns a flat list of all the operations
- * needed to create the graph elements described in the text.
- * @param {string} cnlText The CNL text to parse.
- * @returns {Array} A list of operation objects.
- */
 function getOperationsFromCnl(cnlText) {
     if (!cnlText) {
         return [];
@@ -30,13 +24,6 @@ function getOperationsFromCnl(cnlText) {
     return operations;
 }
 
-/**
- * Compares the old and new CNL and generates a list of operations to
- * transform the old state into the new state.
- * @param {string} oldCnl The old CNL text.
- * @param {string} newCnl The new CNL text.
- * @returns {object} An object containing the list of operations and any errors.
- */
 async function diffCnl(oldCnl, newCnl) {
     const oldOps = getOperationsFromCnl(oldCnl);
     const newOps = getOperationsFromCnl(newCnl);
@@ -46,7 +33,6 @@ async function diffCnl(oldCnl, newCnl) {
 
     const operations = [];
 
-    // Find deleted operations
     for (const [id, op] of oldOpsMap.entries()) {
         if (!newOpsMap.has(id)) {
             const deleteType = `delete${op.type.slice(3)}`;
@@ -54,7 +40,6 @@ async function diffCnl(oldCnl, newCnl) {
         }
     }
 
-    // Find added and updated operations
     for (const [id, op] of newOpsMap.entries()) {
         if (!oldOpsMap.has(id)) {
             operations.push(op);
@@ -68,12 +53,33 @@ async function diffCnl(oldCnl, newCnl) {
     return { operations, errors: [] };
 }
 
-/**
- * Builds a simple tree structure from the CNL text, grouping lines of
- * text under the appropriate node headings.
- * @param {string} cnlText The CNL text to parse.
- * @returns {Array} A list of node block objects.
- */
+async function validateOperations(operations) {
+    const errors = [];
+    const nodeTypes = await schemaManager.getNodeTypes();
+    const relationTypes = await schemaManager.getRelationTypes();
+    const attributeTypes = await schemaManager.getAttributeTypes();
+
+    for (const op of operations) {
+        if (op.type === 'addNode') {
+            const { role } = op.payload.options;
+            if (role !== 'individual' && !nodeTypes.find(nt => nt.name === role)) {
+                errors.push({ message: `Node type "${role}" is not defined in the schema.` });
+            }
+        } else if (op.type === 'addAttribute') {
+            const { name } = op.payload;
+            if (!attributeTypes.find(at => at.name === name)) {
+                errors.push({ message: `Attribute type "${name}" is not defined in the schema.` });
+            }
+        } else if (op.type === 'addRelation') {
+            const { name } = op.payload;
+            if (!relationTypes.find(rt => rt.name === name)) {
+                errors.push({ message: `Relation type "${name}" is not defined in the schema.` });
+            }
+        }
+    }
+    return errors;
+}
+
 function buildStructuralTree(cnlText) {
     const tree = [];
     let currentNodeBlock = null;
@@ -92,11 +98,6 @@ function buildStructuralTree(cnlText) {
     return tree;
 }
 
-/**
- * Parses a node heading line to extract the node's name, type, and other metadata.
- * @param {string} heading The heading line to parse.
- * @returns {object} An object containing the node's ID and payload.
- */
 function processNodeHeading(heading) {
     const match = heading.match(HEADING_REGEX);
     const [, , adjective, name, rolesString] = match;
@@ -108,12 +109,6 @@ function processNodeHeading(heading) {
     return { id, type: nodeType, payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective: adjective ? adjective.trim() : null } } };
 }
 
-/**
- * Parses the content of a node block to extract its attributes, relations, and functions.
- * @param {string} nodeId The ID of the node.
- * @param {Array} lines The lines of text in the node's body.
- * @returns {Array} A list of operation objects.
- */
 function processNeighborhood(nodeId, lines) {
     const neighborhoodOps = [];
     let content = lines.join('\n');
@@ -154,4 +149,4 @@ function processNeighborhood(nodeId, lines) {
     return neighborhoodOps;
 }
 
-module.exports = { diffCnl };
+module.exports = { diffCnl, validateOperations };

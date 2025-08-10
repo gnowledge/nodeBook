@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
-const { diffCnl } = require('./cnl-parser');
+const { diffCnl, validateOperations } = require('./cnl-parser');
 const { evaluate } = require('mathjs');
 
 const app = express();
@@ -206,11 +206,16 @@ async function main() {
   });
 
   app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
-    const { cnlText } = req.body;
+    const { cnlText, strictMode } = req.body;
     const graph = req.graph;
 
     const { operations, errors } = await diffCnl(await graphManager.getCnl(req.params.graphId), cnlText);
     
+    if (strictMode) {
+      const validationErrors = await validateOperations(operations);
+      errors.push(...validationErrors);
+    }
+
     if (errors.length > 0) {
       return res.status(422).json({ errors });
     }
