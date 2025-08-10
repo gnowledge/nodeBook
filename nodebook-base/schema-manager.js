@@ -1,17 +1,18 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const SCHEMA_DIR = path.join(__dirname, 'schemas'); // Corrected path
+const SCHEMA_DIR = path.join(__dirname, 'schemas');
 const RELATION_TYPES_FILE = path.join(SCHEMA_DIR, 'relation_types.json');
 const ATTRIBUTE_TYPES_FILE = path.join(SCHEMA_DIR, 'attribute_types.json');
 const NODE_TYPES_FILE = path.join(SCHEMA_DIR, 'node_types.json');
+const FUNCTION_TYPES_FILE = path.join(SCHEMA_DIR, 'function_types.json');
 
 async function readSchema(file) {
     try {
         const data = await fs.readFile(file, 'utf-8');
         return JSON.parse(data);
     } catch (error) {
-        if (error.code === 'ENOENT') return []; // Return empty array if file doesn't exist
+        if (error.code === 'ENOENT') return [];
         throw error;
     }
 }
@@ -98,6 +99,42 @@ async function deleteAttributeType(name) {
     await writeSchema(ATTRIBUTE_TYPES_FILE, filteredTypes);
 }
 
+// --- Function Types ---
+
+async function getFunctionTypes() {
+    return await readSchema(FUNCTION_TYPES_FILE);
+}
+
+async function addFunctionType(type) {
+    const types = await getFunctionTypes();
+    if (types.find(t => t.name === type.name)) {
+        throw new Error('Function type with this name already exists.');
+    }
+    types.push(type);
+    await writeSchema(FUNCTION_TYPES_FILE, types);
+    return type;
+}
+
+async function updateFunctionType(name, updatedType) {
+    let types = await getFunctionTypes();
+    const index = types.findIndex(t => t.name === name);
+    if (index === -1) {
+        throw new Error('Function type not found.');
+    }
+    types[index] = updatedType;
+    await writeSchema(FUNCTION_TYPES_FILE, types);
+    return updatedType;
+}
+
+async function deleteFunctionType(name) {
+    let types = await getFunctionTypes();
+    const filteredTypes = types.filter(t => t.name !== name);
+    if (types.length === filteredTypes.length) {
+        throw new Error('Function type not found.');
+    }
+    await writeSchema(FUNCTION_TYPES_FILE, filteredTypes);
+}
+
 module.exports = {
     getNodeTypes,
     getRelationTypes,
@@ -108,4 +145,8 @@ module.exports = {
     addAttributeType,
     updateAttributeType,
     deleteAttributeType,
+    getFunctionTypes,
+    addFunctionType,
+    updateFunctionType,
+    deleteFunctionType,
 };

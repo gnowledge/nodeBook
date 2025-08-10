@@ -35,7 +35,7 @@ class RelationNode {
 
 class AttributeNode {
   constructor(source_id, name, value, options = {}) {
-    const valueHash = crypto.createHash('sha1').update(value).digest('hex').slice(0, 6);
+    const valueHash = crypto.createHash('sha1').update(String(value)).digest('hex').slice(0, 6);
     this.id = `attr_${source_id}_${name.toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
     this.source_id = source_id;
     this.name = name;
@@ -47,4 +47,12 @@ class AttributeNode {
   }
 }
 
-module.exports = { PolyNode, RelationNode, AttributeNode };
+class FunctionNode extends AttributeNode {
+  constructor(source_id, name, value, expression, options = {}) {
+    super(source_id, name, value, options);
+    this.expression = expression;
+    this.isDerived = true;
+  }
+}
+
+module.exports = { PolyNode, RelationNode, AttributeNode, FunctionNode };

@@ -3,6 +3,7 @@ const schemaManager = require('./schema-manager');
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
+const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 
 async function parseCnl(cnlText) {
@@ -106,6 +107,12 @@ async function processNeighborhood(nodeId, nodeType, lines, morphName, definedNo
     for (const match of attributeMatches) {
         const [, name, value] = match;
         neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim(), options: { morph: morphName } } });
+    }
+
+    const functionMatches = [...content.matchAll(FUNCTION_REGEX)];
+    for (const match of functionMatches) {
+        const [, name] = match;
+        neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim(), options: { morph: morphName } } });
     }
 
     const relationMatches = [...content.matchAll(RELATION_REGEX)];

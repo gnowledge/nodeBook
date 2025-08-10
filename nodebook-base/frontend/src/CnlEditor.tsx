@@ -28,11 +28,39 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
       onSubmit();
     });
 
-    if (!providerRef.current) {
-      if (!monaco.languages.getLanguages().some(lang => lang.id === 'cnl')) {
-        monaco.languages.register({ id: 'cnl' });
-      }
+    if (!monaco.languages.getLanguages().some(lang => lang.id === 'cnl')) {
+      monaco.languages.register({ id: 'cnl' });
 
+      monaco.languages.setMonarchTokensProvider('cnl', {
+        tokenizer: {
+          root: [
+            [/^#\s*.+$/, 'entity.name.type'],
+            [/<.+?>/, 'entity.name.tag'],
+            [/has\s+.+:/, 'keyword'],
+            [/```description/, 'comment', '@description'],
+            [/[A-Z][\w\s]*/, 'entity.name.type'],
+          ],
+          description: [
+            [/```/, 'comment', '@pop'],
+            [/.*/, 'comment'],
+          ],
+        },
+      });
+
+      monaco.editor.defineTheme('cnlTheme', {
+        base: 'vs',
+        inherit: true,
+        rules: [
+          { token: 'entity.name.type', foreground: '0000ff' }, // Blue for Nodes and Targets
+          { token: 'entity.name.tag', foreground: '008000' },   // Green for Relations
+          { token: 'keyword', foreground: 'D95F02' },         // Dark Orange for Attributes
+          { token: 'comment', foreground: '808080' },
+        ],
+        colors: {},
+      });
+    }
+
+    if (!providerRef.current) {
       providerRef.current = monaco.languages.registerCompletionItemProvider('cnl', {
         provideCompletionItems: (model, position) => {
           const { nodeTypes, relationTypes, attributeTypes } = schemaRef.current;
@@ -45,23 +73,17 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
 
           const suggestions: any[] = [];
           
-          // --- CONTEXT-AWARE LOGIC ---
-
-          // 1. Find the current node block
           const lines = textUntilPosition.split('\n');
           let currentNodeType: string | null = null;
           for (let i = lines.length - 1; i >= 0; i--) {
             const match = lines[i].match(/^\s*#+\s*.+?\[(.+?)\]/);
             if (match) {
-              // For simplicity, we'll just use the first type defined
               currentNodeType = match[1].split(';')[0].trim();
               break;
             }
           }
 
-          // 2. Provide suggestions based on context
-
-          if (/#\s*.*?\['[^]]*'\]$/.test(textUntilPosition)) {
+          if (/#\s*.*?\\\[[^]]*$/.test(textUntilPosition)) {
             nodeTypes.forEach(nt => {
               suggestions.push({
                 label: nt.name,
@@ -70,7 +92,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
                 detail: nt.description,
               });
             });
-          } else if (/^<[^>]*>$/.test(textUntilPosition)) {
+          } else if (/<[^>]*$/.test(textUntilPosition)) {
             const validRelations = currentNodeType
               ? relationTypes.filter(rt => rt.domain.length === 0 || rt.domain.includes(currentNodeType))
               : relationTypes;
@@ -83,7 +105,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
                 detail: rt.description,
               });
             });
-          } else if (/^has\s+[^:]*$/.test(textUntilPosition)) {
+          } else if (/has\s+[^:]*$/.test(textUntilPosition)) {
             const validAttributes = currentNodeType
               ? attributeTypes.filter(at => at.scope.length === 0 || at.scope.includes(currentNodeType))
               : attributeTypes;
@@ -108,7 +130,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     <Editor
       height="100%"
       language="cnl"
-      theme="light"
+      theme="cnlTheme"
       value={value}
       onChange={(val) => onChange(val || '')}
       onMount={handleEditorDidMount}

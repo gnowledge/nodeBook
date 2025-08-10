@@ -424,7 +424,6 @@ input:checked + .slider:before {
   cursor: pointer;
   padding: 10px 15px;
   margin-top: 1rem;
-  align-self: flex-end;
 }
 
 .checkbox-group {
@@ -436,6 +435,46 @@ input:checked + .slider:before {
 .checkbox-group label {
   flex-direction: row;
   align-items: center;
+}
+
+.expression-helper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.multi-select {
+  position: relative;
+}
+
+.multi-select-header {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.multi-select-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-color-light);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  z-index: 1001;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.multi-select-options label {
+  display: block;
+  padding: 8px;
+}
+
+.multi-select-options label:hover {
+  background-color: var(--bg-color-lighter);
 }
 
 .peer-tab {
@@ -470,6 +509,13 @@ input:checked + .slider:before {
   border-radius: 0 4px 4px 0;
   cursor: pointer;
   padding: 8px 12px;
+}
+
+.derived-indicator {
+  font-style: italic;
+  color: var(--text-color-muted);
+  font-size: 0.8em;
+  margin-left: 0.5em;
 }
 
 /* Other component styles */

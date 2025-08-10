@@ -2,7 +2,7 @@
   {
     "allowed_values": null,
     "data_type": "float",
-    "description": "Measures electric charge. Example: An electron has a charge of -1.602e-19 C.",
+    "description": "Measures electric charge. Example: An electron has a charge of -1.602\u00d710\u207b\u00b9\u2079 C.",
     "domain": [
       "Electron",
       "Ion"
@@ -25,7 +25,7 @@
   {
     "allowed_values": null,
     "data_type": "float",
-    "description": "Measures the amount of matter in an object. Example: Earth's mass is ~5.97e24 kg.",
+    "description": "Measures the amount of matter in an object. Example: Earth's mass is ~5.97 \u00d7 10^24 kg.",
     "domain": [
       "Particle",
       "Planet",
@@ -513,7 +513,7 @@
     "name": "density",
     "data_type": "float",
     "description": "The density of a material",
-    "unit": "kg/m^3",
+    "unit": "kg/m\u00b3",
     "domain": [
       "Object"
     ],

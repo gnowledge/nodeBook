@@ -36,8 +36,11 @@ export function NodeCard({ node, relations, attributes, isActive, onDelete, onSe
           <ul>
             {morphAttributes.map(attr => (
               <li key={attr.id}>
-                <MathJax><strong>{attr.name}:</strong> {attr.value} {attr.unit || ''}</MathJax>
-                <button className="delete-btn-small" onClick={() => onDelete('attributes', attr)}>&times;</button>
+                <MathJax>
+                  <strong>{attr.name}:</strong> {attr.value} {attr.unit || ''}
+                  {attr.isDerived && <span className="derived-indicator"> (fx)</span>}
+                </MathJax>
+                {!attr.isDerived && <button className="delete-btn-small" onClick={() => onDelete('attributes', attr)}>&times;</button>}
               </li>
             ))}
           </ul>

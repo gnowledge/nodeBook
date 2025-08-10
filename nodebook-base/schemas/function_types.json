@@ -1,13 +1,10 @@
 [
   {
-    "name": "calculate",
-    "description": "Perform a calculation",
-    "inputs": [
-      "number",
-      "number"
-    ],
-    "outputs": [
-      "number"
+    "name": "atomicMass",
+    "expression": "\"number of protons\" + \"number of neutrons\"",
+    "scope": [
+      "Element",
+      "class"
     ]
   }
 ]

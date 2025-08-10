@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import type { RelationType, AttributeType, NodeType } from './types';
+import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
 import { SchemaEditModal } from './SchemaEditModal';
 
 interface SchemaViewProps {
   onSchemaChange: () => void;
 }
 
-type SchemaViewMode = 'nodes' | 'relations' | 'attributes';
+type SchemaViewMode = 'nodes' | 'relations' | 'attributes' | 'functions';
 
 export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [mode, setMode] = useState<SchemaViewMode>('nodes');
@@ -14,12 +14,14 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [nodeTypes, setNodeTypes] = useState<NodeType[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
+  const [functionTypes, setFunctionTypes] = useState<FunctionType[]>([]);
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
   const fetchAllSchemas = () => {
     fetch('/api/schema/nodetypes').then(res => res.json()).then(setNodeTypes);
     fetch('/api/schema/relations').then(res => res.json()).then(setRelationTypes);
     fetch('/api/schema/attributes').then(res => res.json()).then(setAttributeTypes);
+    fetch('/api/schema/functions').then(res => res.json()).then(setFunctionTypes);
   };
 
   useEffect(() => {
@@ -33,15 +35,16 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
 
   const handleSave = async (item: any) => {
     const isCreating = !item.originalName;
+    const itemType = editingItem.itemType;
     const url = isCreating
-      ? `/api/schema/${mode}`
-      : `/api/schema/${mode}/${item.originalName}`;
+      ? `/api/schema/${itemType}`
+      : `/api/schema/${itemType}/${item.originalName}`;
     
     const method = isCreating ? 'POST' : 'PUT';
 
-    // Clean up the item before sending
     const payload = { ...item };
     delete payload.originalName;
+    delete payload.itemType;
 
     const res = await fetch(url, {
       method,
@@ -65,12 +68,12 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
     }
   };
 
-  const openModalForEdit = (item: any) => {
-    setEditingItem({ ...item, originalName: item.name });
+  const openModalForEdit = (item: any, itemType: SchemaViewMode) => {
+    setEditingItem({ ...item, originalName: item.name, itemType });
   };
 
   const openModalForCreate = () => {
-    setEditingItem({});
+    setEditingItem({ itemType: mode });
   };
 
   return (
@@ -79,18 +82,19 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         <button className={`tab-button ${mode === 'nodes' ? 'active' : ''}`} onClick={() => setMode('nodes')}>Node Types ({nodeTypes.length})</button>
         <button className={`tab-button ${mode === 'relations' ? 'active' : ''}`} onClick={() => setMode('relations')}>Relation Types ({relationTypes.length})</button>
         <button className={`tab-button ${mode === 'attributes' ? 'active' : ''}`} onClick={() => setMode('attributes')}>Attribute Types ({attributeTypes.length})</button>
+        <button className={`tab-button ${mode === 'functions' ? 'active' : ''}`} onClick={() => setMode('functions')}>Functions ({functionTypes.length})</button>
         <button className="create-new-btn" onClick={openModalForCreate}>+ Create New</button>
       </div>
       <div className="schema-grid">
         {mode === 'nodes' && nodeTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item)}>
+          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'nodes')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             {item.parent_types && item.parent_types.length > 0 && <small>Parents: {item.parent_types.join(', ')}</small>}
           </div>
         ))}
         {mode === 'relations' && relationTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item)}>
+          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'relations')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             <small>Inverse: {item.inverse_name}</small>
@@ -101,10 +105,17 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
           </div>
         ))}
         {mode === 'attributes' && attributeTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item)}>
+          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'attributes')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             <small>Value Type: {item.value_type}</small>
+            {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
+          </div>
+        ))}
+        {mode === 'functions' && functionTypes.map(item => (
+          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'functions')}>
+            <h4>{item.name}</h4>
+            <p>{item.expression}</p>
             {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
           </div>
         ))}
@@ -112,7 +123,9 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
       {editingItem && (
         <SchemaEditModal
           item={editingItem}
-          itemType={mode}
+          itemType={editingItem.itemType}
+          nodeTypes={nodeTypes}
+          attributeTypes={attributeTypes}
           onClose={() => setEditingItem(null)}
           onSave={handleSave}
         />

@@ -2,7 +2,8 @@ const Hyperbee = require('hyperbee');
 const Hypercore = require('hypercore');
 const Hyperswarm = require('hyperswarm');
 const path = require('path');
-const { PolyNode, RelationNode, AttributeNode } = require('./models');
+const { PolyNode, RelationNode, AttributeNode, FunctionNode } = require('./models');
+const { evaluate } = require('mathjs');
 
 class HyperGraph {
   constructor(db, core) {
@@ -100,6 +101,34 @@ class HyperGraph {
         await this.db.put(`attributes/${attribute.id}`, attribute);
     }
     return attribute;
+  }
+
+  async applyFunction(source_id, name, expression, options = {}) {
+    const sourceNode = await this.getNode(source_id);
+    if (!sourceNode) throw new Error(`Source node ${source_id} not found.`);
+
+    const nodeAttributes = await this.listAll('attributes');
+    const scope = {};
+    let sanitizedExpression = expression;
+
+    for (const attr of nodeAttributes) {
+      if (attr.source_id === source_id) {
+        const numericValue = parseFloat(attr.value);
+        const sanitizedName = attr.name.replace(/\s+/g, '_');
+        scope[sanitizedName] = isNaN(numericValue) ? attr.value : numericValue;
+        sanitizedExpression = sanitizedExpression.replace(new RegExp(`"${attr.name}"`, 'g'), sanitizedName);
+      }
+    }
+
+    try {
+      const value = evaluate(sanitizedExpression, scope);
+      const func = new FunctionNode(source_id, name, value, expression, options);
+      await this.addAttribute(source_id, name, value, { ...options, isDerived: true });
+      return func;
+    } catch (error) {
+      console.error(`Error evaluating function "${name}" for node "${source_id}":`, error);
+      return null;
+    }
   }
 
   async addMorph(nodeId, morph) {

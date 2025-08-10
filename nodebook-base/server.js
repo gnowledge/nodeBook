@@ -105,6 +105,32 @@ async function main() {
   });
 
   app.get('/api/schema/nodetypes', async (req, res) => res.json(await schemaManager.getNodeTypes()));
+  app.get('/api/schema/functions', async (req, res) => res.json(await schemaManager.getFunctionTypes()));
+  app.post('/api/schema/functions', async (req, res) => {
+    try {
+      const newType = await schemaManager.addFunctionType(req.body);
+      res.status(201).json(newType);
+    } catch (error) {
+      res.status(409).json({ error: error.message });
+    }
+  });
+  app.put('/api/schema/functions/:name', async (req, res) => {
+    try {
+      const updatedType = await schemaManager.updateFunctionType(req.params.name, req.body);
+      res.json(updatedType);
+    } catch (error) {
+      res.status(404).json({ error: error.message });
+    }
+  });
+  app.delete('/api/schema/functions/:name', async (req, res) => {
+    try {
+      await schemaManager.deleteFunctionType(req.params.name);
+      res.status(204).send();
+    } catch (error) {
+      res.status(404).json({ error: error.message });
+    }
+  });
+
 
   // --- Graph-Specific API ---
 
@@ -129,7 +155,7 @@ async function main() {
     const attributes = await req.graph.listAll('attributes');
     const transitions = await req.graph.listAll('transitions');
     const allNodes = [...nodes, ...transitions];
-    res.json({ nodes: allNodes, relations, attributes, functions: [] });
+    res.json({ nodes: allNodes, relations, attributes });
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {
@@ -145,7 +171,6 @@ async function main() {
     const { base_name, options } = req.body;
     const node = await req.graph.addNode(base_name, options);
     res.status(201).json(node);
-    // broadcastUpdate should be graph-specific now
   });
 
   app.post('/api/graphs/:graphId/relations', loadGraph, async (req, res) => {
@@ -211,6 +236,13 @@ async function main() {
             break;
           case 'addAttribute':
             await req.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
+            break;
+          case 'applyFunction':
+            const functionTypes = await schemaManager.getFunctionTypes();
+            const funcType = functionTypes.find(ft => ft.name === op.payload.name);
+            if (funcType) {
+              await req.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
+            }
             break;
         }
       }
