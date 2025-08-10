@@ -225,6 +225,9 @@ async function main() {
               await req.graph.updateNode(options.id, { role: options.role });
             }
             break;
+          case 'deleteNode':
+            await req.graph.deleteNode(op.payload.id);
+            break;
           case 'addMorph':
             await req.graph.addMorph(op.payload.nodeId, op.payload.morph);
             break;

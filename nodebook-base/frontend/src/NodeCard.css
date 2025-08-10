@@ -51,7 +51,7 @@
 }
 
 .node-card-section {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .node-card-section h4 {
@@ -67,11 +67,11 @@
 
 .node-card-section li {
   font-size: 0.85rem;
-  margin-bottom: 0.1rem;
+  margin-bottom: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 4px;
+  padding: 1px 4px;
   border-radius: 4px;
 }
 

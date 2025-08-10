@@ -4,6 +4,7 @@ const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
+const DELETE_REGEX = /~~(.+?)~~/g;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 
 async function parseCnl(cnlText) {
@@ -11,16 +12,22 @@ async function parseCnl(cnlText) {
     const structuralTree = buildStructuralTree(cnlText);
     const definedNodeIds = new Set();
 
-    // Pass 1: Create all nodes and morphs
+    // Handle deletions first
+    const deleteMatches = [...cnlText.matchAll(DELETE_REGEX)];
+    for (const match of deleteMatches) {
+        const deletedText = match[1];
+        if (deletedText.startsWith('#')) {
+            const { id } = processNodeHeading(deletedText);
+            operations.push({ type: 'deleteNode', payload: { id } });
+        }
+    }
+
+    // Process additions and updates
     for (const nodeBlock of structuralTree) {
         const { id: nodeId, payload: nodePayload } = processNodeHeading(nodeBlock.heading);
         if (!definedNodeIds.has(nodeId)) {
             operations.push({ type: 'addNode', payload: nodePayload });
             definedNodeIds.add(nodeId);
-        }
-
-        if (nodeBlock.description) {
-            operations.push({ type: 'updateNode', payload: { id: nodeId, fields: { description: nodeBlock.description } } });
         }
 
         for (const morphBlock of nodeBlock.morphs) {
@@ -36,15 +43,14 @@ async function parseCnl(cnlText) {
         }
     }
 
-    // Pass 2: Create relations and attributes
     for (const nodeBlock of structuralTree) {
         const { id: nodeId, type: nodeType } = processNodeHeading(nodeBlock.heading);
-        const mainNeighborhoodOps = await processNeighborhood(nodeId, nodeType, nodeBlock.content, 'basic', definedNodeIds, operations);
+        const mainNeighborhoodOps = await processNeighborhood(nodeId, nodeType, nodeBlock.content, 'basic', definedNodeIds);
         operations.push(...mainNeighborhoodOps);
 
         for (const morphBlock of nodeBlock.morphs) {
             const morphName = morphBlock.heading.match(HEADING_REGEX)[3].trim();
-            const morphNeighborhoodOps = await processNeighborhood(nodeId, nodeType, morphBlock.content, morphName, definedNodeIds, operations);
+            const morphNeighborhoodOps = await processNeighborhood(nodeId, nodeType, morphBlock.content, morphName, definedNodeIds);
             operations.push(...morphNeighborhoodOps);
         }
     }
@@ -59,29 +65,22 @@ function buildStructuralTree(cnlText) {
     const lines = cnlText.split('\n');
 
     for (const line of lines) {
-        if (!line.trim()) continue;
+        if (!line.trim() && !currentSubBlock) continue;
 
         const headingMatch = line.match(HEADING_REGEX);
         if (headingMatch) {
             const level = headingMatch[1].length;
             if (level === 1) {
-                currentNodeBlock = { heading: line.trim(), description: null, content: [], morphs: [] };
+                currentNodeBlock = { heading: line.trim(), content: [], morphs: [] };
                 currentSubBlock = currentNodeBlock;
                 tree.push(currentNodeBlock);
             } else if (level === 2 && currentNodeBlock) {
-                const currentMorphBlock = { heading: line.trim(), description: null, content: [] };
+                const currentMorphBlock = { heading: line.trim(), content: [] };
                 currentNodeBlock.morphs.push(currentMorphBlock);
                 currentSubBlock = currentMorphBlock;
             }
         } else if (currentSubBlock) {
-            const fullContent = currentSubBlock.content.join('\n') + '\n' + line;
-            const descriptionMatch = fullContent.match(DESCRIPTION_REGEX);
-            if (descriptionMatch) {
-                currentSubBlock.description = descriptionMatch[1].trim();
-                currentSubBlock.content = [];
-            } else {
-                currentSubBlock.content.push(line.trim());
-            }
+            currentSubBlock.content.push(line);
         }
     }
     return tree;
@@ -98,9 +97,17 @@ function processNodeHeading(heading) {
     return { id, type: nodeType, payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective: adjective ? adjective.trim() : null } } };
 }
 
-async function processNeighborhood(nodeId, nodeType, lines, morphName, definedNodeIds, operations) {
+async function processNeighborhood(nodeId, nodeType, lines, morphName, definedNodeIds) {
     const neighborhoodOps = [];
-    const content = lines.join('\n');
+    let content = lines.join('\n');
+    
+    const descriptionMatch = content.match(DESCRIPTION_REGEX);
+    if (descriptionMatch) {
+        const description = descriptionMatch[1].trim();
+        neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } } });
+        content = content.replace(DESCRIPTION_REGEX, '').trim();
+    }
+
     const relationTypes = await schemaManager.getRelationTypes();
 
     const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];

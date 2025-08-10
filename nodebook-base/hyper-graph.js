@@ -55,6 +55,10 @@ class HyperGraph {
     return entry ? entry.value : null;
   }
 
+  async deleteNode(id) {
+    await this.db.del(`nodes/${id}`);
+  }
+
   async updateNode(id, updatedFields) {
     const node = await this.getNode(id);
     if (!node) throw new Error(`Node with ID ${id} not found.`);
@@ -107,17 +111,19 @@ class HyperGraph {
     const sourceNode = await this.getNode(source_id);
     if (!sourceNode) throw new Error(`Source node ${source_id} not found.`);
 
-    const nodeAttributes = await this.listAll('attributes');
+    const allAttributes = await this.listAll('attributes');
+    const nodeAttributes = allAttributes.filter(attr => attr.source_id === source_id);
+    
     const scope = {};
     let sanitizedExpression = expression;
 
     for (const attr of nodeAttributes) {
-      if (attr.source_id === source_id) {
-        const numericValue = parseFloat(attr.value);
-        const sanitizedName = attr.name.replace(/\s+/g, '_');
-        scope[sanitizedName] = isNaN(numericValue) ? attr.value : numericValue;
-        sanitizedExpression = sanitizedExpression.replace(new RegExp(`"${attr.name}"`, 'g'), sanitizedName);
-      }
+      const numericValue = parseFloat(attr.value);
+      const sanitizedName = attr.name.replace(/\s+/g, '_');
+      scope[sanitizedName] = isNaN(numericValue) ? attr.value : numericValue;
+      
+      // Replace the quoted attribute name in the expression with the sanitized name
+      sanitizedExpression = sanitizedExpression.replace(new RegExp(`"${attr.name}"`, 'g'), sanitizedName);
     }
 
     try {
