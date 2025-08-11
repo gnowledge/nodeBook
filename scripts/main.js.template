@@ -1,0 +1,35 @@
+async function main() {
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  try {
+    const response = await fetch('graphs.json');
+    if (!response.ok) throw new Error('Failed to load graphs.json');
+    const graphs = await response.json();
+
+    renderHomePage(app, graphs);
+  } catch (error) {
+    console.error('Error loading or rendering site:', error);
+    app.innerHTML = `<p class="error">Error loading site. See console for details.</p>`;
+  }
+}
+
+function renderHomePage(app, graphs) {
+  app.innerHTML = `
+    <header>
+      <h1>Published Graphs</h1>
+    </header>
+    <main>
+      <ul class="graph-list">
+        ${graphs.map(graph => `
+          <li>
+            <a href="graphs/${graph.id}/">${graph.name}</a>
+            <p>${graph.description || ''}</p>
+          </li>
+        `).join('')}
+      </ul>
+    </main>
+  `;
+}
+
+main();

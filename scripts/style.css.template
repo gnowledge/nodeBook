@@ -1,0 +1,95 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+header {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  margin: 0;
+}
+
+header h1 a {
+  text-decoration: none;
+  color: #007bff;
+}
+
+.graph-list {
+  list-style: none;
+  padding: 0;
+}
+
+.graph-list li {
+  margin-bottom: 1.5rem;
+}
+
+.graph-list a {
+  text-decoration: none;
+  color: #007bff;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.graph-list p {
+  margin-top: 0.5rem;
+  color: #666;
+}
+
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.node-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.node-card h3 a {
+  text-decoration: none;
+  color: #333;
+}
+
+.node-card .node-subgraph img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-top: 1rem;
+}
+
+.node-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.node-subgraph img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.error {
+  color: #dc3545;
+}

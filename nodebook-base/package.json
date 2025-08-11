@@ -15,9 +15,9 @@
     "cytoscape": "^3.33.0",
     "cytoscape-dagre": "^2.5.0",
     "express": "^5.1.0",
-    "hyperbee": "^2.24.3",
-    "hypercore": "^11.11.2",
-    "hyperswarm": "^4.12.1",
+    "hyperbee": "^2.25.0",
+    "hypercore": "^11.12.0",
+    "hyperswarm": "^4.13.0",
     "mathjs": "^13.0.0",
     "ws": "^8.18.3"
   },

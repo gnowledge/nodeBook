@@ -6,6 +6,7 @@ const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
+const GRAPH_DESCRIPTION_REGEX = /```graph-description\n([\s\S]*?)\n```/;
 
 function getOperationsFromCnl(cnlText) {
     if (!cnlText) {
@@ -13,6 +14,12 @@ function getOperationsFromCnl(cnlText) {
     }
     const operations = [];
     const structuralTree = buildStructuralTree(cnlText);
+
+    const graphDescriptionMatch = cnlText.match(GRAPH_DESCRIPTION_REGEX);
+    if (graphDescriptionMatch) {
+        const description = graphDescriptionMatch[1].trim();
+        operations.push({ type: 'updateGraphDescription', payload: { description }, id: 'graph_description' });
+    }
 
     for (const nodeBlock of structuralTree) {
         const { id: nodeId, payload: nodePayload } = processNodeHeading(nodeBlock.heading);
@@ -44,7 +51,7 @@ async function diffCnl(oldCnl, newCnl) {
         if (!oldOpsMap.has(id)) {
             operations.push(op);
         } else {
-            if (op.type === 'updateNode') {
+            if (op.type === 'updateNode' || op.type === 'updateGraphDescription') {
                 operations.push(op);
             }
         }

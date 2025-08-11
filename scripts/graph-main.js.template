@@ -1,0 +1,80 @@
+async function main() {
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  try {
+    const response = await fetch('data.json');
+    if (!response.ok) throw new Error('Failed to load data.json');
+    const data = await response.json();
+
+    render(app, data);
+  } catch (error) {
+    console.error('Error loading or rendering site:', error);
+    app.innerHTML = `<p class="error">Error loading site. See console for details.</p>`;
+  }
+}
+
+function render(app, data) {
+  const { graph, nodes } = data;
+
+  // Simple hash-based routing
+  const handleRouteChange = () => {
+    const nodeId = window.location.hash.slice(1);
+    const node = nodes.find(n => n.id === nodeId);
+
+    if (node) {
+      renderNodePage(app, graph, node);
+    } else {
+      renderHomePage(app, graph, nodes);
+    }
+  };
+
+  window.addEventListener('hashchange', handleRouteChange);
+  handleRouteChange(); // Initial render
+}
+
+function renderHomePage(app, graph, nodes) {
+  app.innerHTML = `
+    <header>
+      <h1><a href="/">${graph.id}</a></h1>
+      <p>${graph.description || ''}</p>
+    </header>
+    <main>
+      <h2>Public Nodes</h2>
+      <div class="node-grid">
+        ${nodes.map(node => `
+          <div class="node-card">
+            <h3><a href="#${node.id}">${node.name}</a></h3>
+            <div class="node-subgraph">
+              <a href="#${node.id}">
+                <img src="${node.image}" alt="Subgraph for ${node.name}">
+              </a>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </main>
+  `;
+}
+
+function renderNodePage(app, graph, node) {
+  app.innerHTML = `
+    <header>
+      <h1><a href="#">${graph.id}</a> / ${node.name}</h1>
+    </header>
+    <main>
+      <div class="node-content">
+        <div class="node-description">
+          <h3>Description</h3>
+          <p>${node.description || 'No description.'}</p>
+        </div>
+        <div class="node-subgraph">
+          <h3>Subgraph</h3>
+          <img src="${node.image}" alt="Subgraph for ${node.name}">
+        </div>
+      </div>
+    </main>
+  `;
+}
+
+main();

@@ -10,6 +10,7 @@ class PolyNode {
     this.role = options.role || 'individual';
     this.description = options.description || null;
     this.parent_types = options.parent_types || [];
+    this.publication_mode = options.publication_mode || 'Private'; // Add this line
     this.isDeleted = false;
     this.morphs = [{
       morph_id: `${this.id}_morph_${Date.now()}`,
