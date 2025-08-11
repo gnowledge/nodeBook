@@ -130,3 +130,33 @@
   background-color: #ccc;
   cursor: not-allowed;
 }
+
+.graph-selection-list {
+    padding: 20px;
+}
+
+.graph-selection-list ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.graph-selection-list li {
+    margin-bottom: 10px;
+}
+
+.graph-select-btn {
+    width: 100%;
+    padding: 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 1.1rem;
+}
+
+.graph-select-btn:hover {
+    background-color: #0056b3;
+}

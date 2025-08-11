@@ -150,37 +150,28 @@ async function getNodeCnl(graphId, nodeId) {
     const lines = cnl.split('\n');
     const nodeCnlLines = [];
     let inNodeBlock = false;
-    let nodeFound = false;
+
+    const nodeRegistry = await getNodeRegistry();
+    const nodeInfo = nodeRegistry[nodeId];
+    const nodeIdRegex = new RegExp(`\\(id: ${nodeId}\\)`);
 
     for (const line of lines) {
-        if (line.startsWith('#') && line.includes(`id: ${nodeId}`)) {
-            inNodeBlock = true;
-            nodeFound = true;
-        }
+        const isTopLevelHeader = line.startsWith('# ');
 
         if (inNodeBlock) {
-            if (line.startsWith('#') && nodeCnlLines.length > 0 && !line.includes(`id: ${nodeId}`)) {
+            if (isTopLevelHeader) {
                 break;
             }
             nodeCnlLines.push(line);
-        }
-    }
+        } else {
+            if (isTopLevelHeader) {
+                const hasId = nodeIdRegex.test(line);
+                const nameMatch = nodeInfo && (line.startsWith(`# ${nodeInfo.base_name} `) || line === `# ${nodeInfo.base_name}`);
 
-    if (!nodeFound) {
-        const graph = await getGraph(graphId);
-        const nodeData = await graph.getNode(nodeId);
-        if (!nodeData) throw new Error(`Node ${nodeId} not found in graph ${graphId}`);
-
-        for (const line of lines) {
-            if (line.startsWith(`# ${nodeData.base_name}`)) {
-                inNodeBlock = true;
-            }
-    
-            if (inNodeBlock) {
-                if (line.startsWith('#') && nodeCnlLines.length > 0) {
-                    break; 
+                if (hasId || nameMatch) {
+                    inNodeBlock = true;
+                    nodeCnlLines.push(line);
                 }
-                nodeCnlLines.push(line);
             }
         }
     }

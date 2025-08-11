@@ -5,11 +5,13 @@ import './ImportContextModal.css';
 interface ImportContextModalProps {
   sourceCnl: string;
   targetCnl: string;
+  sourceGraphId: string;
+  targetGraphId: string;
   onClose: () => void;
   onMerge: (selectedLines: string) => void;
 }
 
-export function ImportContextModal({ sourceCnl, targetCnl, onClose, onMerge }: ImportContextModalProps) {
+export function ImportContextModal({ sourceCnl, targetCnl, sourceGraphId, targetGraphId, onClose, onMerge }: ImportContextModalProps) {
   const [selectedSourceLines, setSelectedSourceLines] = useState<string[]>([]);
   const [selectedTargetLines, setSelectedTargetLines] = useState<string[]>([]);
 
@@ -29,7 +31,7 @@ export function ImportContextModal({ sourceCnl, targetCnl, onClose, onMerge }: I
     );
   };
 
-  const handleMerge = () => {
+  const handleCopy = () => {
     const mergedLines = [...selectedTargetLines, ...selectedSourceLines].join('\n');
     onMerge(mergedLines);
   };
@@ -60,12 +62,12 @@ export function ImportContextModal({ sourceCnl, targetCnl, onClose, onMerge }: I
           <button className="modal-close-btn" onClick={onClose}>&times;</button>
         </div>
         <div className="cnl-diff-view">
-          {renderCnlPane("From Other Graph (Source)", sourceCnl, selectedSourceLines, handleSourceCheckboxChange)}
-          {renderCnlPane("In This Graph (Target)", targetCnl, selectedTargetLines, handleTargetCheckboxChange)}
+          {renderCnlPane(`From ${sourceGraphId} (Source)`, sourceCnl, selectedSourceLines, handleSourceCheckboxChange)}
+          {renderCnlPane(`In ${targetGraphId} (Target)`, targetCnl, selectedTargetLines, handleTargetCheckboxChange)}
         </div>
         <div className="modal-footer">
-            <button className="merge-btn" onClick={handleMerge} disabled={selectedSourceLines.length === 0 && selectedTargetLines.length === 0}>
-                Merge Selected to This Graph
+            <button className="merge-btn" onClick={handleCopy} disabled={selectedSourceLines.length === 0 && selectedTargetLines.length === 0}>
+                Copy to Target Editor
             </button>
         </div>
       </div>

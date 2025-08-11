@@ -49,6 +49,7 @@ The application is currently in a state of flux. The recent refactoring of the C
 1.  **Function Evaluation:** The `applyFunction` logic is not being correctly triggered, and derived attributes are not being calculated. This is likely due to a flaw in the `diffCnl` function's ability to correctly identify when a function needs to be re-evaluated.
 2.  **Relation Creation:** The application is still throwing a "One or both nodes in the relation do not exist" error. This indicates that the two-pass system in `server.js` is not correctly ensuring that all nodes are created before relations are added.
 3.  **Deletion Logic:** The "diff" parser is not correctly identifying all deleted items, particularly when a block of text containing multiple nodes and relations is removed.
+4.  **Node Context Import:** The "Import Context" feature is not working reliably. It fails to correctly extract the CNL for some nodes, preventing the comparison modal from opening. This is likely due to an issue with the CNL parsing logic in both `graph-manager.js` and `DataView.tsx`. The current string-matching approach is too brittle and needs to be replaced with a more robust parsing strategy.
 
 ### Next Steps:
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
+import { SelectGraphModal } from './SelectGraphModal';
 import type { Node, Edge, AttributeType } from './types';
 
 interface DataViewProps {
@@ -17,7 +18,9 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeRegistry, setNodeRegistry] = useState<any>({});
-  const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string } | null>(null);
+  
+  const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
+  const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/noderegistry')
@@ -57,51 +60,53 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
 
   const getCnlForNode = (nodeId: string, cnl: string) => {
     const lines = cnl.split('\n');
-    const nodeLines = [];
+    const nodeLines: string[] = [];
     let inNodeBlock = false;
-    let nodeFound = false;
+    
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return '';
 
-    // First attempt: Find by ID in a comment
+    const nodeName = node.name;
+    const nodeIdRegex = new RegExp(`\\(id: ${nodeId}\\)`);
+
     for (const line of lines) {
-        if (line.startsWith('#') && line.includes(`id: ${nodeId}`)) {
-            inNodeBlock = true;
-            nodeFound = true;
-        }
+        const isTopLevelHeader = line.startsWith('# ');
+
         if (inNodeBlock) {
-            if (line.startsWith('#') && nodeLines.length > 0 && !line.includes(`id: ${nodeId}`)) {
+            if (isTopLevelHeader) {
                 break;
             }
             nodeLines.push(line);
-        }
-    }
-
-    if (nodeLines.length > 0) return nodeLines.join('\n');
-
-    // Fallback: Find by node name
-    inNodeBlock = false;
-    for (const line of lines) {
-        if (line.startsWith(`# ${node.name}`)) {
-            inNodeBlock = true;
-        }
-        if (inNodeBlock) {
-            if (line.startsWith('#') && nodeLines.length > 0) {
-                break;
+        } else {
+            if (isTopLevelHeader) {
+                const hasId = nodeIdRegex.test(line);
+                const nameMatch = line.startsWith(`# ${nodeName} `) || line === `# ${nodeName}`;
+                if (hasId || nameMatch) {
+                    inNodeBlock = true;
+                    nodeLines.push(line);
+                }
             }
-            nodeLines.push(line);
         }
     }
     return nodeLines.join('\n');
   };
 
-  const handleImportContext = async (nodeId: string) => {
+  const handleImportContext = (nodeId: string) => {
     const registryEntry = nodeRegistry[nodeId];
     if (!registryEntry || registryEntry.graph_ids.length <= 1) return;
 
-    const remoteGraphId = registryEntry.graph_ids.find((id: string) => id !== activeGraphId);
-    if (!remoteGraphId) return;
+    const otherGraphIds = registryEntry.graph_ids.filter((id: string) => id !== activeGraphId);
+    if (otherGraphIds.length === 1) {
+      // If there's only one other graph, open the comparison modal directly
+      handleGraphSelected(nodeId, otherGraphIds[0]);
+    } else {
+      // If there are multiple other graphs, open the selection modal
+      setSelectingGraph({ nodeId, graphIds: otherGraphIds });
+    }
+  };
 
+  const handleGraphSelected = async (nodeId: string, remoteGraphId: string) => {
+    setSelectingGraph(null);
     try {
       const res = await fetch(`/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
       if (!res.ok) throw new Error('Failed to fetch remote CNL');
@@ -109,7 +114,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
       
       const localCnl = getCnlForNode(nodeId, cnlText);
 
-      setImportingNode({ localCnl, remoteCnl });
+      setImportingNode({ localCnl, remoteCnl, localGraphId: activeGraphId, remoteGraphId });
 
     } catch (error) {
       console.error("Failed to import context:", error);
@@ -117,10 +122,11 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     }
   };
 
-  const handleMerge = (selectedLines: string) => {
+  const handleCopy = (selectedLines: string) => {
     const newCnl = cnlText + '\n' + selectedLines;
     onCnlChange(newCnl);
     setImportingNode(null);
+    alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
   };
 
   return (
@@ -149,12 +155,21 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           />
         ))}
       </div>
+      {selectingGraph && (
+        <SelectGraphModal
+          graphIds={selectingGraph.graphIds}
+          onSelect={(graphId) => handleGraphSelected(selectingGraph.nodeId, graphId)}
+          onClose={() => setSelectingGraph(null)}
+        />
+      )}
       {importingNode && (
         <ImportContextModal
           sourceCnl={importingNode.remoteCnl}
           targetCnl={importingNode.localCnl}
+          sourceGraphId={importingNode.remoteGraphId}
+          targetGraphId={importingNode.localGraphId}
           onClose={() => setImportingNode(null)}
-          onMerge={handleMerge}
+          onMerge={handleCopy}
         />
       )}
     </div>
