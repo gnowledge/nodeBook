@@ -1,0 +1,22 @@
+.graph-detail {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1rem;
+}
+
+.graph-detail h2 {
+  margin-top: 0;
+}
+
+.graph-detail .description {
+  font-style: italic;
+  color: #555;
+}
+
+.graph-detail .metadata {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #777;
+}

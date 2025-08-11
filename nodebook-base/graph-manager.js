@@ -44,6 +44,16 @@ async function saveGraphRegistry(registry) {
     await writeJsonFile(REGISTRY_FILE, registry);
 }
 
+async function updateGraphMetadata(graphId, metadata) {
+    const registry = await getGraphRegistry();
+    const graphIndex = registry.findIndex(g => g.id === graphId);
+    if (graphIndex === -1) {
+        throw new Error('Graph not found.');
+    }
+    registry[graphIndex] = { ...registry[graphIndex], ...metadata, updatedAt: new Date().toISOString() };
+    await saveGraphRegistry(registry);
+}
+
 async function getNodeRegistry() {
     const registry = await readJsonFile(NODE_REGISTRY_FILE);
     return registry || {};
@@ -97,7 +107,7 @@ async function unregisterGraphFromRegistry(graphId) {
     }
 }
 
-async function createGraph(name) {
+async function createGraph(name, author = 'anonymous', email = '') {
     const registry = await getGraphRegistry();
     const id = name.toLowerCase().replace(/\s+/g, '-');
     if (registry.find(g => g.id === id)) {
@@ -107,7 +117,17 @@ async function createGraph(name) {
     const graphDir = path.join(GRAPHS_DIR, id);
     await fs.mkdir(graphDir, { recursive: true });
 
-    const newGraphInfo = { id, name, path: graphDir };
+    const now = new Date().toISOString();
+    const newGraphInfo = { 
+        id, 
+        name, 
+        path: graphDir, 
+        description: '',
+        author,
+        email,
+        createdAt: now,
+        updatedAt: now,
+    };
     registry.push(newGraphInfo);
     await saveGraphRegistry(registry);
 
@@ -153,7 +173,10 @@ async function getNodeCnl(graphId, nodeId) {
 
     const nodeRegistry = await getNodeRegistry();
     const nodeInfo = nodeRegistry[nodeId];
-    const nodeIdRegex = new RegExp(`\\(id: ${nodeId}\\)`);
+    if (!nodeInfo) return '';
+
+    const nodeName = nodeInfo.base_name;
+    const nodeNameRegex = new RegExp(`^# ${nodeName}`);
 
     for (const line of lines) {
         const isTopLevelHeader = line.startsWith('# ');
@@ -165,10 +188,7 @@ async function getNodeCnl(graphId, nodeId) {
             nodeCnlLines.push(line);
         } else {
             if (isTopLevelHeader) {
-                const hasId = nodeIdRegex.test(line);
-                const nameMatch = nodeInfo && (line.startsWith(`# ${nodeInfo.base_name} `) || line === `# ${nodeInfo.base_name}`);
-
-                if (hasId || nameMatch) {
+                if (nodeNameRegex.test(line)) {
                     inNodeBlock = true;
                     nodeCnlLines.push(line);
                 }
@@ -186,6 +206,7 @@ async function saveCnl(graphId, cnlText) {
 
     const cnlPath = path.join(graphInfo.path, 'graph.cnl');
     await fs.writeFile(cnlPath, cnlText);
+    await updateGraphMetadata(graphId, {}); // Touch the graph to update the updatedAt timestamp
 }
 
 async function deleteGraph(id) {
@@ -222,4 +243,6 @@ module.exports = {
     getNodeRegistry,
     addNodeToRegistry,
     registerNodeInGraph,
+    unregisterGraphFromRegistry,
+    updateGraphMetadata,
 };

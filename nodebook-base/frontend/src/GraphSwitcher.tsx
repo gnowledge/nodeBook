@@ -8,9 +8,11 @@ interface Graph {
 interface GraphSwitcherProps {
   activeGraphId: string | null;
   onGraphSelect: (graphId: string) => void;
+  author: string;
+  email: string;
 }
 
-export function GraphSwitcher({ activeGraphId, onGraphSelect }: GraphSwitcherProps) {
+export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: GraphSwitcherProps) {
   const [graphs, setGraphs] = useState<Graph[]>([]);
   const [newGraphName, setNewGraphName] = useState('');
 
@@ -32,7 +34,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect }: GraphSwitcherPro
     const res = await fetch('/api/graphs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newGraphName }),
+      body: JSON.stringify({ name: newGraphName, author, email }),
     });
     const newGraph = await res.json();
     setNewGraphName('');

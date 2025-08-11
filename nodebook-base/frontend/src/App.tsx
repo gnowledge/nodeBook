@@ -32,11 +32,21 @@ function App() {
     const saved = localStorage.getItem('strictMode');
     return saved !== null ? JSON.parse(saved) : true; // Default to true
   });
+  const [name, setName] = useState(() => localStorage.getItem('userName') || '');
+  const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
   }, [strictMode]);
+
+  useEffect(() => {
+    localStorage.setItem('userName', name);
+  }, [name]);
+
+  useEffect(() => {
+    localStorage.setItem('userEmail', email);
+  }, [email]);
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
@@ -118,7 +128,7 @@ function App() {
   return (
     <div className="app-container">
       <div className="top-bar">
-        <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} />
+        <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} author={name} email={email} />
       </div>
 
       <main className="main-content">
@@ -170,6 +180,10 @@ function App() {
         <Preferences 
           strictMode={strictMode}
           onStrictModeChange={setStrictMode}
+          name={name}
+          onNameChange={setName}
+          email={email}
+          onEmailChange={setEmail}
           onClose={() => setActivePage(null)} 
         />
       ) : activePage && (

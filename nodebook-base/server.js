@@ -1,4 +1,3 @@
-console.log('--- Loading server.js ---');
 const http = require('http');
 const express = require('express');
 const WebSocket = require('ws');
@@ -9,6 +8,7 @@ const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
 const { diffCnl } = require('./cnl-parser');
 const { evaluate } = require('mathjs');
+const { buildStaticSite } = require('./build-static-site');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,7 +16,7 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Middleware to remove restrictive CSP headers
 app.use((req, res, next) => {
@@ -34,10 +34,10 @@ async function main() {
   });
 
   app.post('/api/graphs', async (req, res) => {
-    const { name } = req.body;
+    const { name, author, email } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
     try {
-      const newGraph = await graphManager.createGraph(name);
+      const newGraph = await graphManager.createGraph(name, author, email);
       res.status(201).json(newGraph);
     } catch (error) {
       res.status(409).json({ error: error.message });
@@ -134,10 +134,7 @@ async function main() {
   });
   
   // --- Node Registry API ---
-  app.get('/api/noderegistry', async (req, res) => {
-    console.log('--- Handling /api/noderegistry request ---');
-    res.json(await graphManager.getNodeRegistry());
-  });
+  app.get('/api/noderegistry', async (req, res) => res.json(await graphManager.getNodeRegistry()));
 
 
   // --- Graph-Specific API ---
@@ -152,6 +149,61 @@ async function main() {
       res.status(404).json({ error: 'Graph not found' });
     }
   };
+
+  app.put('/api/graphs/:graphId/nodes/:nodeId/publication', loadGraph, async (req, res) => {
+    const { publication_mode } = req.body;
+    if (!['Private', 'P2P', 'Public'].includes(publication_mode)) {
+      return res.status(400).json({ error: 'Invalid publication mode' });
+    }
+    try {
+      const updatedNode = await req.graph.updateNode(req.params.nodeId, { publication_mode });
+      res.json(updatedNode);
+    } catch (error) {
+      res.status(404).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/graphs/:graphId/nodes/:nodeId/image', async (req, res) => {
+    const { image } = req.body;
+    const buffer = Buffer.from(image.split(',')[1], 'base64');
+    const imagesDir = path.join(__dirname, '..', 'public_html', 'images');
+    await fs.mkdir(imagesDir, { recursive: true });
+    const imagePath = path.join(imagesDir, `${req.params.nodeId}.png`);
+    try {
+      await fs.writeFile(imagePath, buffer);
+      res.status(200).json({ message: 'Image saved' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error saving image' });
+    }
+  });
+
+  app.put('/api/graphs/:graphId/publish/all', loadGraph, async (req, res) => {
+    const { publication_mode } = req.body;
+    if (!['P2P', 'Public'].includes(publication_mode)) {
+      return res.status(400).json({ error: 'Invalid publication mode' });
+    }
+    try {
+      const allNodes = await req.graph.listAll('nodes');
+      for (const node of allNodes) {
+        if (!node.isDeleted) {
+          await req.graph.updateNode(node.id, { publication_mode });
+        }
+      }
+      res.status(200).json({ message: `All nodes set to ${publication_mode}` });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/publish', async (req, res) => {
+    try {
+      await buildStaticSite();
+      res.status(200).json({ message: 'Static site generated successfully.' });
+    } catch (error) {
+      console.error('Error generating static site:', error);
+      res.status(500).json({ error: 'Failed to generate static site.' });
+    }
+  });
 
   app.get('/api/graphs/:graphId/key', loadGraph, (req, res) => {
     res.json({ key: req.graph.key });
@@ -286,6 +338,8 @@ async function main() {
           if (funcType) {
             await req.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
           }
+        } else if (op.type === 'updateGraphDescription') {
+            await graphManager.updateGraphMetadata(graphId, { description: op.payload.description });
         }
       }
     }

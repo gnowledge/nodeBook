@@ -1,8 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
-import type { Node, Edge, AttributeType } from './types';
+import { GraphDetail } from './GraphDetail';
+import type { Node, Edge, AttributeType, Graph } from './types';
+import './DataView.css';
+import cytoscape from 'cytoscape';
+import dagre from 'cytoscape-dagre';
+
+cytoscape.use(dagre);
 
 interface DataViewProps {
   activeGraphId: string;
@@ -18,15 +24,81 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeRegistry, setNodeRegistry] = useState<any>({});
+  const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
   
   const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
   const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const cyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('/api/noderegistry')
       .then(res => res.json())
       .then(data => setNodeRegistry(data));
   }, []);
+
+  useEffect(() => {
+    if (activeGraphId) {
+      fetch(`/api/graphs`)
+        .then(res => res.json())
+        .then((graphs: Graph[]) => {
+          const currentGraph = graphs.find(g => g.id === activeGraphId);
+          setActiveGraph(currentGraph || null);
+        });
+    }
+  }, [activeGraphId]);
+
+  useEffect(() => {
+    if (nodes.length > 0) {
+      generateAllImages();
+    }
+  }, [nodes, relations]);
+
+  const generateAllImages = async () => {
+    for (const node of nodes) {
+      await generateAndUploadImage(node.id);
+    }
+  };
+
+  const generateAndUploadImage = async (nodeId: string) => {
+    if (!cyRef.current) return;
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const subgraphNodes = [node];
+    const subgraphRelations = relations.filter(r => r.source_id === nodeId || r.target_id === nodeId);
+    for (const rel of subgraphRelations) {
+      if (!subgraphNodes.find(n => n.id === rel.source_id)) {
+        const sourceNode = nodes.find(n => n.id === rel.source_id);
+        if (sourceNode) subgraphNodes.push(sourceNode);
+      }
+      if (!subgraphNodes.find(n => n.id === rel.target_id)) {
+        const targetNode = nodes.find(n => n.id === rel.target_id);
+        if (targetNode) subgraphNodes.push(targetNode);
+      }
+    }
+
+    const cy = cytoscape({
+      container: cyRef.current,
+      elements: {
+        nodes: subgraphNodes.map(n => ({ data: { id: n.id, label: n.name } })),
+        edges: subgraphRelations.map(r => ({ data: { source: r.source_id, target: r.target_id, label: r.name } }))
+      },
+      style: [
+        { selector: 'node', style: { 'label': 'data(label)' } },
+        { selector: 'edge', style: { 'label': 'data(label)', 'curve-style': 'bezier' } }
+      ],
+      layout: { name: 'dagre' },
+    });
+
+    const image = cy.png();
+    await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image }),
+    });
+  };
 
   const filteredNodes = useMemo(() => {
     if (!searchTerm) {
@@ -67,7 +139,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     if (!node) return '';
 
     const nodeName = node.name;
-    const nodeIdRegex = new RegExp(`\\(id: ${nodeId}\\)`);
+    const nodeNameRegex = new RegExp(`^# ${nodeName}`);
 
     for (const line of lines) {
         const isTopLevelHeader = line.startsWith('# ');
@@ -79,9 +151,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
             nodeLines.push(line);
         } else {
             if (isTopLevelHeader) {
-                const hasId = nodeIdRegex.test(line);
-                const nameMatch = line.startsWith(`# ${nodeName} `) || line === `# ${nodeName}`;
-                if (hasId || nameMatch) {
+                if (nodeNameRegex.test(line)) {
                     inNodeBlock = true;
                     nodeLines.push(line);
                 }
@@ -97,10 +167,8 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
 
     const otherGraphIds = registryEntry.graph_ids.filter((id: string) => id !== activeGraphId);
     if (otherGraphIds.length === 1) {
-      // If there's only one other graph, open the comparison modal directly
       handleGraphSelected(nodeId, otherGraphIds[0]);
     } else {
-      // If there are multiple other graphs, open the selection modal
       setSelectingGraph({ nodeId, graphIds: otherGraphIds });
     }
   };
@@ -129,8 +197,41 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
   };
 
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const res = await fetch(`/api/publish`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to publish');
+      alert('Your site has been published! Check the public_html directory.');
+    } catch (error) {
+      console.error("Failed to publish:", error);
+      alert("Error publishing site. See console for details.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleSetAll = async (publication_mode: 'P2P' | 'Public') => {
+    if (window.confirm(`This will set all nodes in this graph to ${publication_mode}. Are you sure?`)) {
+      try {
+        const res = await fetch(`/api/graphs/${activeGraphId}/publish/all`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publication_mode }),
+        });
+        if (!res.ok) throw new Error(`Failed to set all nodes to ${publication_mode}`);
+        onDataChange();
+      } catch (error) {
+        console.error(`Failed to set all nodes to ${publication_mode}:`, error);
+        alert(`Error setting all nodes to ${publication_mode}. See console for details.`);
+      }
+    }
+  };
+
   return (
     <div className="data-view-container">
+      <div ref={cyRef} style={{ display: 'none' }} />
+      <GraphDetail graph={activeGraph} />
       <div className="data-view-header">
         <input
           type="text"
@@ -139,12 +240,20 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        <div className="publish-actions">
+          <button className="publish-btn" onClick={() => handleSetAll('P2P')}>Make All P2P</button>
+          <button className="publish-btn" onClick={() => handleSetAll('Public')}>Make All Public</button>
+          <button className="publish-btn" onClick={handlePublish} disabled={isPublishing}>
+            {isPublishing ? 'Publishing...' : 'Publish'}
+          </button>
+        </div>
       </div>
       <div className="data-view-grid">
         {filteredNodes.map(node => (
           <NodeCard
             key={node.id}
             node={node}
+            graphId={activeGraphId}
             relations={relations}
             attributes={attributes}
             isActive={node.id === activeNodeId}

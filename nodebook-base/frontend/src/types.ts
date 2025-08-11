@@ -41,3 +41,13 @@ export interface AttributeType {
   description: string;
   scope: string[];
 }
+
+export interface Graph {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
