@@ -15,6 +15,7 @@
     "better-react-mathjax": "^2.0.3",
     "cytoscape": "^3.28.1",
     "cytoscape-dagre": "^2.5.0",
+    "cytoscape-svg": "^0.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",

@@ -1,9 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
+import svg from 'cytoscape-svg';
 import type { Node, Edge, Attribute } from './types';
+import './Visualization.css';
 
 cytoscape.use(dagre);
+cytoscape.use(svg);
 
 interface VisualizationProps {
   nodes: Node[];
@@ -112,5 +115,45 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
 
   }, [nodes, relations, attributes, onNodeSelect]);
 
-  return <div id="cy" ref={containerRef} />;
+  const handleExport = (format: 'png' | 'jpg' | 'svg') => {
+    if (!cyRef.current) return;
+
+    let content;
+    let filename = `graph.${format}`;
+
+    switch (format) {
+      case 'png':
+        content = cyRef.current.png();
+        break;
+      case 'jpg':
+        content = cyRef.current.jpg();
+        break;
+      case 'svg':
+        content = (cyRef.current as any).svg({ full: true });
+        break;
+    }
+
+    const link = document.createElement('a');
+    if (format === 'svg') {
+      const blob = new Blob([content], { type: 'image/svg+xml;charset=utf-8' });
+      link.href = URL.createObjectURL(blob);
+    } else {
+      link.href = content;
+    }
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="visualization-wrapper">
+      <div className="export-buttons">
+        <button onClick={() => handleExport('png')}>Export as PNG</button>
+        <button onClick={() => handleExport('jpg')}>Export as JPG</button>
+        <button onClick={() => handleExport('svg')}>Export as SVG</button>
+      </div>
+      <div id="cy" ref={containerRef} />
+    </div>
+  );
 }
