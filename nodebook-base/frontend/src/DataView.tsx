@@ -5,10 +5,6 @@ import { SelectGraphModal } from './SelectGraphModal';
 import { GraphDetail } from './GraphDetail';
 import type { Node, Edge, AttributeType, Graph } from './types';
 import './DataView.css';
-import cytoscape from 'cytoscape';
-import dagre from 'cytoscape-dagre';
-
-cytoscape.use(dagre);
 
 interface DataViewProps {
   activeGraphId: string;
@@ -28,8 +24,44 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   
   const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
   const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
+  
   const [isPublishing, setIsPublishing] = useState(false);
-  const cyRef = useRef<HTMLDivElement>(null);
+  const [publishMessage, setPublishMessage] = useState('Publish');
+  const [wsStatus, setWsStatus] = useState('Connecting...');
+  const ws = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const wsUrl = `${protocol}//${host}:3000`;
+    ws.current = new WebSocket(wsUrl);
+
+    ws.current.onopen = () => setWsStatus('Connected');
+    ws.current.onclose = () => setWsStatus('Disconnected');
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      switch (data.type) {
+        case 'publish-progress':
+          setPublishMessage(data.message);
+          break;
+        case 'publish-complete':
+          setIsPublishing(false);
+          setPublishMessage('Publish');
+          alert(data.message);
+          break;
+        case 'publish-error':
+          setIsPublishing(false);
+          setPublishMessage('Publish');
+          alert(`Error: ${data.message}`);
+          break;
+      }
+    };
+
+    return () => {
+      ws.current?.close();
+    };
+  }, []);
 
   useEffect(() => {
     fetch('/api/noderegistry')
@@ -47,58 +79,6 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
         });
     }
   }, [activeGraphId]);
-
-  useEffect(() => {
-    if (nodes.length > 0) {
-      generateAllImages();
-    }
-  }, [nodes, relations]);
-
-  const generateAllImages = async () => {
-    for (const node of nodes) {
-      await generateAndUploadImage(node.id);
-    }
-  };
-
-  const generateAndUploadImage = async (nodeId: string) => {
-    if (!cyRef.current) return;
-
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    const subgraphNodes = [node];
-    const subgraphRelations = relations.filter(r => r.source_id === nodeId || r.target_id === nodeId);
-    for (const rel of subgraphRelations) {
-      if (!subgraphNodes.find(n => n.id === rel.source_id)) {
-        const sourceNode = nodes.find(n => n.id === rel.source_id);
-        if (sourceNode) subgraphNodes.push(sourceNode);
-      }
-      if (!subgraphNodes.find(n => n.id === rel.target_id)) {
-        const targetNode = nodes.find(n => n.id === rel.target_id);
-        if (targetNode) subgraphNodes.push(targetNode);
-      }
-    }
-
-    const cy = cytoscape({
-      container: cyRef.current,
-      elements: {
-        nodes: subgraphNodes.map(n => ({ data: { id: n.id, label: n.name } })),
-        edges: subgraphRelations.map(r => ({ data: { source: r.source_id, target: r.target_id, label: r.name } }))
-      },
-      style: [
-        { selector: 'node', style: { 'label': 'data(label)' } },
-        { selector: 'edge', style: { 'label': 'data(label)', 'curve-style': 'bezier' } }
-      ],
-      layout: { name: 'dagre' },
-    });
-
-    const image = cy.png();
-    await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/image`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image }),
-    });
-  };
 
   const filteredNodes = useMemo(() => {
     if (!searchTerm) {
@@ -197,17 +177,13 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
   };
 
-  const handlePublish = async () => {
-    setIsPublishing(true);
-    try {
-      const res = await fetch(`/api/publish`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to publish');
-      alert('Your site has been published! Check the public_html directory.');
-    } catch (error) {
-      console.error("Failed to publish:", error);
-      alert("Error publishing site. See console for details.");
-    } finally {
-      setIsPublishing(false);
+  const handlePublish = () => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      setIsPublishing(true);
+      setPublishMessage('Starting publish...');
+      ws.current.send(JSON.stringify({ type: 'start-publish' }));
+    } else {
+      alert('WebSocket is not connected. Please wait and try again.');
     }
   };
 
@@ -230,7 +206,6 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
 
   return (
     <div className="data-view-container">
-      <div ref={cyRef} style={{ display: 'none' }} />
       <GraphDetail graph={activeGraph} />
       <div className="data-view-header">
         <input
@@ -243,9 +218,12 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
         <div className="publish-actions">
           <button className="publish-btn" onClick={() => handleSetAll('P2P')}>Make All P2P</button>
           <button className="publish-btn" onClick={() => handleSetAll('Public')}>Make All Public</button>
-          <button className="publish-btn" onClick={handlePublish} disabled={isPublishing}>
-            {isPublishing ? 'Publishing...' : 'Publish'}
-          </button>
+          <div className="publish-container">
+            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing || wsStatus !== 'Connected'}>
+              {isPublishing ? publishMessage : 'Publish'}
+            </button>
+            <span className={`ws-status ${wsStatus.toLowerCase()}`}>{wsStatus}</span>
+          </div>
         </div>
       </div>
       <div className="data-view-grid">
@@ -253,8 +231,8 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           <NodeCard
             key={node.id}
             node={node}
-            graphId={activeGraphId}
-            relations={relations}
+            allNodes={nodes}
+            allRelations={relations}
             attributes={attributes}
             isActive={node.id === activeNodeId}
             onDelete={handleDelete}

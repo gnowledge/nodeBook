@@ -31,6 +31,19 @@ function getOperationsFromCnl(cnlText) {
     return operations;
 }
 
+function getNodeOrderFromCnl(cnlText) {
+    if (!cnlText) {
+        return [];
+    }
+    const ids = [];
+    const structuralTree = buildStructuralTree(cnlText);
+    for (const nodeBlock of structuralTree) {
+        const { id: nodeId } = processNodeHeading(nodeBlock.heading);
+        ids.push(nodeId);
+    }
+    return ids;
+}
+
 async function diffCnl(oldCnl, newCnl) {
     const oldOps = getOperationsFromCnl(oldCnl);
     const newOps = getOperationsFromCnl(newCnl);
@@ -156,4 +169,4 @@ function processNeighborhood(nodeId, lines) {
     return neighborhoodOps;
 }
 
-module.exports = { diffCnl, validateOperations };
+module.exports = { diffCnl, validateOperations, getNodeOrderFromCnl };

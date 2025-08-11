@@ -6,7 +6,7 @@ const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
-const { diffCnl } = require('./cnl-parser');
+const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
 const { evaluate } = require('mathjs');
 const { buildStaticSite } = require('./build-static-site');
 
@@ -163,20 +163,6 @@ async function main() {
     }
   });
 
-  app.post('/api/graphs/:graphId/nodes/:nodeId/image', async (req, res) => {
-    const { image } = req.body;
-    const buffer = Buffer.from(image.split(',')[1], 'base64');
-    const imagesDir = path.join(__dirname, '..', 'public_html', 'images');
-    await fs.mkdir(imagesDir, { recursive: true });
-    const imagePath = path.join(imagesDir, `${req.params.nodeId}.png`);
-    try {
-      await fs.writeFile(imagePath, buffer);
-      res.status(200).json({ message: 'Image saved' });
-    } catch (error) {
-      res.status(500).json({ error: 'Error saving image' });
-    }
-  });
-
   app.put('/api/graphs/:graphId/publish/all', loadGraph, async (req, res) => {
     const { publication_mode } = req.body;
     if (!['P2P', 'Public'].includes(publication_mode)) {
@@ -195,34 +181,37 @@ async function main() {
     }
   });
 
-  app.post('/api/publish', async (req, res) => {
-    try {
-      await buildStaticSite();
-      res.status(200).json({ message: 'Static site generated successfully.' });
-    } catch (error) {
-      console.error('Error generating static site:', error);
-      res.status(500).json({ error: 'Failed to generate static site.' });
-    }
-  });
-
   app.get('/api/graphs/:graphId/key', loadGraph, (req, res) => {
     res.json({ key: req.graph.key });
   });
 
   app.get('/api/graphs/:graphId/graph', loadGraph, async (req, res) => {
-    const nodes = await req.graph.listAll('nodes');
+    const graphId = req.params.graphId;
+    const nodesFromDb = await req.graph.listAll('nodes');
     const relations = await req.graph.listAll('relations');
     const attributes = await req.graph.listAll('attributes');
     const transitions = await req.graph.listAll('transitions');
     const functions = await req.graph.listAll('functions');
     const functionTypes = await schemaManager.getFunctionTypes();
     
-    const allNodes = [...nodes, ...transitions].filter(node => !node.isDeleted);
+    const allNodesFromDb = [...nodesFromDb, ...transitions].filter(node => !node.isDeleted);
+    
+    // Get node order from CNL
+    const cnl = await graphManager.getCnl(graphId);
+    const orderedNodeIds = getNodeOrderFromCnl(cnl);
+    const nodesMap = new Map(allNodesFromDb.map(node => [node.id, node]));
+    
+    // Sort nodes according to CNL order
+    const sortedNodes = orderedNodeIds.map(id => nodesMap.get(id)).filter(Boolean);
+    const nodesInCnl = new Set(orderedNodeIds);
+    const nodesNotInCnl = allNodesFromDb.filter(node => !nodesInCnl.has(node.id));
+    const finalNodeOrder = [...sortedNodes, ...nodesNotInCnl];
+
     const activeRelations = relations.filter(rel => !rel.isDeleted);
     let activeAttributes = attributes.filter(attr => !attr.isDeleted);
 
     // Compute derived attributes
-    for (const node of allNodes) {
+    for (const node of finalNodeOrder) {
       const nodeFunctions = functions.filter(f => f.source_id === node.id);
       for (const func of nodeFunctions) {
         const funcType = functionTypes.find(ft => ft.name === func.name);
@@ -252,7 +241,7 @@ async function main() {
       }
     }
 
-    res.json({ nodes: allNodes, relations: activeRelations, attributes: activeAttributes });
+    res.json({ nodes: finalNodeOrder, relations: activeRelations, attributes: activeAttributes });
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {
@@ -365,10 +354,32 @@ async function main() {
     }
   });
 
-  // WebSocket needs to be aware of graphs
-  wss.on('connection', (ws, req) => {
-    console.log('Frontend connected');
-    ws.on('close', () => console.log('Frontend disconnected'));
+  // WebSocket for real-time communication
+  wss.on('connection', (ws) => {
+    console.log('Frontend connected via WebSocket');
+
+    ws.on('message', async (message) => {
+      try {
+        const data = JSON.parse(message);
+        if (data.type === 'start-publish') {
+          const progressCallback = (progressMessage) => {
+            ws.send(JSON.stringify({ type: 'publish-progress', message: progressMessage }));
+          };
+
+          try {
+            await buildStaticSite(progressCallback);
+            ws.send(JSON.stringify({ type: 'publish-complete', message: 'Static site generated successfully.' }));
+          } catch (error) {
+            console.error('Error generating static site:', error);
+            ws.send(JSON.stringify({ type: 'publish-error', message: `Failed to generate static site: ${error.message}` }));
+          }
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+
+    ws.on('close', () => console.log('Frontend disconnected from WebSocket'));
   });
 
   // Catch-all middleware for debugging unmatched routes

@@ -2,13 +2,14 @@ import React from 'react';
 import { MathJax } from 'better-react-mathjax';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Subgraph } from './Subgraph';
 import type { Node, Edge, AttributeType, Morph } from './types';
 import './NodeCard.css';
 
 interface NodeCardProps {
   node: Node;
-  graphId: string;
-  relations: Edge[];
+  allNodes: Node[];
+  allRelations: Edge[];
   attributes: AttributeType[];
   isActive: boolean;
   onDelete: (type: 'nodes' | 'relations' | 'attributes', item: any) => void;
@@ -17,7 +18,7 @@ interface NodeCardProps {
   nodeRegistry: any;
 }
 
-export function NodeCard({ node, graphId, relations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const registryEntry = nodeRegistry[node.id];
 
@@ -32,17 +33,10 @@ export function NodeCard({ node, graphId, relations, attributes, isActive, onDel
     const currentModeIndex = modes.indexOf(node.publication_mode || 'Private');
     const nextMode = modes[(currentModeIndex + 1) % modes.length];
 
-    if (nextMode === 'P2P' && !window.confirm('This will make the node available to your peers. Are you sure?')) {
-      return;
-    }
-    if (nextMode === 'Public' && !window.confirm('This will make the node publicly accessible on the web. Are you sure?')) {
-      return;
-    }
-
-    // This is an optimistic update. A more robust solution would handle errors.
+    // Optimistic update
     node.publication_mode = nextMode;
 
-    await fetch(`/api/graphs/${graphId}/nodes/${node.id}/publication`, {
+    await fetch(`/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publication_mode: nextMode }),
@@ -50,7 +44,7 @@ export function NodeCard({ node, graphId, relations, attributes, isActive, onDel
   };
 
   const renderMorphSection = (morph: Morph) => {
-    const morphRelations = relations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
+    const morphRelations = allRelations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
     const morphAttributes = attributes.filter(a => a.source_id === node.id && a.morph_ids.includes(morph.morph_id));
 
     if (morphRelations.length === 0 && morphAttributes.length === 0) {
@@ -92,6 +86,17 @@ export function NodeCard({ node, graphId, relations, attributes, isActive, onDel
     );
   };
 
+  // Calculate subgraph data
+  const subgraphNodes = [node];
+  const subgraphRelations = allRelations.filter(r => r.source_id === node.id || r.target_id === node.id);
+  for (const rel of subgraphRelations) {
+    const otherNodeId = rel.source_id === node.id ? rel.target_id : rel.source_id;
+    if (!subgraphNodes.find(n => n.id === otherNodeId)) {
+      const otherNode = allNodes.find(n => n.id === otherNodeId);
+      if (otherNode) subgraphNodes.push(otherNode);
+    }
+  }
+
   return (
     <div ref={cardRef} className={`node-card ${isActive ? 'active' : ''}`}>
       <div className="node-card-header">
@@ -107,9 +112,11 @@ export function NodeCard({ node, graphId, relations, attributes, isActive, onDel
           <span className="node-role">{node.role}</span>
         </div>
       </div>
+      
       <div className="node-card-image">
-        <img src={`/public_html/images/${node.id}.png?t=${new Date().getTime()}`} alt={`Subgraph for ${node.name}`} />
+        <Subgraph nodes={subgraphNodes} relations={subgraphRelations} />
       </div>
+
       {node.description && (
         <div className="node-description">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{node.description}</ReactMarkdown>
