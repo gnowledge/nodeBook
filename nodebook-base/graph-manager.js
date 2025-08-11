@@ -3,8 +3,23 @@ const path = require('path');
 
 const GRAPHS_DIR = path.join(__dirname, 'graphs');
 const REGISTRY_FILE = path.join(GRAPHS_DIR, 'registry.json');
+const NODE_REGISTRY_FILE = path.join(GRAPHS_DIR, 'node_registry.json');
 
 let activeGraphs = new Map();
+
+async function readJsonFile(file) {
+    try {
+        const data = await fs.readFile(file, 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+    }
+}
+
+async function writeJsonFile(file, data) {
+    await fs.writeFile(file, JSON.stringify(data, null, 2));
+}
 
 async function initialize() {
     await fs.mkdir(GRAPHS_DIR, { recursive: true });
@@ -13,20 +28,73 @@ async function initialize() {
     } catch {
         await fs.writeFile(REGISTRY_FILE, JSON.stringify([]));
     }
-}
-
-async function getGraphRegistry() {
     try {
-        const registryData = await fs.readFile(REGISTRY_FILE, 'utf-8');
-        return JSON.parse(registryData || '[]'); // Return empty array if file is empty
-    } catch (error) {
-        if (error.code === 'ENOENT') return []; // Return empty array if file doesn't exist
-        throw error;
+        await fs.access(NODE_REGISTRY_FILE);
+    } catch {
+        await fs.writeFile(NODE_REGISTRY_FILE, JSON.stringify({}));
     }
 }
 
+async function getGraphRegistry() {
+    const registry = await readJsonFile(REGISTRY_FILE);
+    return registry || [];
+}
+
 async function saveGraphRegistry(registry) {
-    await fs.writeFile(REGISTRY_FILE, JSON.stringify(registry, null, 2));
+    await writeJsonFile(REGISTRY_FILE, registry);
+}
+
+async function getNodeRegistry() {
+    const registry = await readJsonFile(NODE_REGISTRY_FILE);
+    return registry || {};
+}
+
+async function saveNodeRegistry(registry) {
+    await writeJsonFile(NODE_REGISTRY_FILE, registry);
+}
+
+async function addNodeToRegistry(node) {
+    const registry = await getNodeRegistry();
+    if (!registry[node.id]) {
+        registry[node.id] = {
+            base_name: node.base_name,
+            description: node.description,
+            graph_ids: [],
+        };
+    }
+    await saveNodeRegistry(registry);
+    return registry[node.id];
+}
+
+async function registerNodeInGraph(nodeId, graphId) {
+    const registry = await getNodeRegistry();
+    if (registry[nodeId] && !registry[nodeId].graph_ids.includes(graphId)) {
+        registry[nodeId].graph_ids.push(graphId);
+        await saveNodeRegistry(registry);
+    }
+}
+
+async function unregisterGraphFromRegistry(graphId) {
+    const registry = await getNodeRegistry();
+    let modified = false;
+
+    for (const nodeId in registry) {
+        const node = registry[nodeId];
+        const initialLength = node.graph_ids.length;
+        node.graph_ids = node.graph_ids.filter(id => id !== graphId);
+
+        if (node.graph_ids.length < initialLength) {
+            modified = true;
+        }
+
+        if (node.graph_ids.length === 0) {
+            delete registry[nodeId];
+        }
+    }
+
+    if (modified) {
+        await saveNodeRegistry(registry);
+    }
 }
 
 async function createGraph(name) {
@@ -46,7 +114,7 @@ async function createGraph(name) {
     return newGraphInfo;
 }
 
-async function getGraph(id, HyperGraph) { // HyperGraph is now passed as an argument
+async function getGraph(id, HyperGraph) {
     if (activeGraphs.has(id)) {
         return activeGraphs.get(id);
     }
@@ -72,9 +140,52 @@ async function getCnl(graphId) {
     try {
         return await fs.readFile(cnlPath, 'utf-8');
     } catch (error) {
-        if (error.code === 'ENOENT') return ''; // Return empty string if file doesn't exist
+        if (error.code === 'ENOENT') return '';
         throw error;
     }
+}
+
+async function getNodeCnl(graphId, nodeId) {
+    const cnl = await getCnl(graphId);
+    const lines = cnl.split('\n');
+    const nodeCnlLines = [];
+    let inNodeBlock = false;
+    let nodeFound = false;
+
+    for (const line of lines) {
+        if (line.startsWith('#') && line.includes(`id: ${nodeId}`)) {
+            inNodeBlock = true;
+            nodeFound = true;
+        }
+
+        if (inNodeBlock) {
+            if (line.startsWith('#') && nodeCnlLines.length > 0 && !line.includes(`id: ${nodeId}`)) {
+                break;
+            }
+            nodeCnlLines.push(line);
+        }
+    }
+
+    if (!nodeFound) {
+        const graph = await getGraph(graphId);
+        const nodeData = await graph.getNode(nodeId);
+        if (!nodeData) throw new Error(`Node ${nodeId} not found in graph ${graphId}`);
+
+        for (const line of lines) {
+            if (line.startsWith(`# ${nodeData.base_name}`)) {
+                inNodeBlock = true;
+            }
+    
+            if (inNodeBlock) {
+                if (line.startsWith('#') && nodeCnlLines.length > 0) {
+                    break; 
+                }
+                nodeCnlLines.push(line);
+            }
+        }
+    }
+
+    return nodeCnlLines.join('\n');
 }
 
 async function saveCnl(graphId, cnlText) {
@@ -92,6 +203,8 @@ async function deleteGraph(id) {
     if (graphIndex === -1) {
         throw new Error('Graph not found.');
     }
+
+    await unregisterGraphFromRegistry(id);
 
     const graphInfo = registry[graphIndex];
     await fs.rm(graphInfo.path, { recursive: true, force: true });
@@ -114,4 +227,8 @@ module.exports = {
     deleteGraph,
     getCnl,
     saveCnl,
+    getNodeCnl,
+    getNodeRegistry,
+    addNodeToRegistry,
+    registerNodeInGraph,
 };

@@ -1,3 +1,4 @@
+console.log('--- Loading server.js ---');
 const http = require('http');
 const express = require('express');
 const WebSocket = require('ws');
@@ -6,7 +7,7 @@ const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const graphManager = require('./graph-manager');
 const schemaManager = require('./schema-manager');
-const { diffCnl, validateOperations } = require('./cnl-parser');
+const { diffCnl } = require('./cnl-parser');
 const { evaluate } = require('mathjs');
 
 const app = express();
@@ -131,6 +132,12 @@ async function main() {
       res.status(404).json({ error: error.message });
     }
   });
+  
+  // --- Node Registry API ---
+  app.get('/api/noderegistry', async (req, res) => {
+    console.log('--- Handling /api/noderegistry request ---');
+    res.json(await graphManager.getNodeRegistry());
+  });
 
 
   // --- Graph-Specific API ---
@@ -205,17 +212,22 @@ async function main() {
     }
   });
 
-  app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
-    const { cnlText, strictMode } = req.body;
-    const graph = req.graph;
-
-    const { operations, errors } = await diffCnl(await graphManager.getCnl(req.params.graphId), cnlText);
-    
-    if (strictMode) {
-      const validationErrors = await validateOperations(operations);
-      errors.push(...validationErrors);
+  app.get('/api/graphs/:graphId/nodes/:nodeId/cnl', async (req, res) => {
+    try {
+      const cnl = await graphManager.getNodeCnl(req.params.graphId, req.params.nodeId);
+      res.json({ cnl });
+    } catch (error) {
+      res.status(404).json({ error: error.message });
     }
+  });
 
+  app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
+    const { cnlText } = req.body;
+    const graph = req.graph;
+    const graphId = req.params.graphId;
+
+    const { operations, errors } = await diffCnl(await graphManager.getCnl(graphId), cnlText);
+    
     if (errors.length > 0) {
       return res.status(422).json({ errors });
     }
@@ -245,13 +257,17 @@ async function main() {
               const existingNode = await graph.getNode(op.payload.options.id);
               if (!existingNode) {
                 await req.graph.addNode(op.payload.base_name, op.payload.options);
+                await graphManager.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
               }
+              await graphManager.registerNodeInGraph(op.payload.options.id, graphId);
               break;
             case 'addRelation':
               const targetNode = await graph.getNode(op.payload.target);
               if (!targetNode) {
                 await graph.addNode(op.payload.target, { id: op.payload.target });
+                await graphManager.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
               }
+              await graphManager.registerNodeInGraph(op.payload.target, graphId);
               await req.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
               break;
             case 'addAttribute':

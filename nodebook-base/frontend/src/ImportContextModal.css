@@ -1,0 +1,132 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 80vw;
+  max-width: 1200px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.cnl-diff-view {
+  display: flex;
+  flex-grow: 1;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.cnl-pane {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cnl-pane h3 {
+  margin: 0;
+  padding: 10px;
+  background-color: #f7f7f7;
+  border-bottom: 1px solid #ccc;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.cnl-lines {
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%;
+  background-color: #fdfdfd;
+}
+
+.cnl-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cnl-line:last-child {
+  border-bottom: none;
+}
+
+.cnl-line input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.cnl-line pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.modal-footer {
+  padding-top: 15px;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  text-align: right;
+}
+
+.merge-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.merge-btn:hover {
+  background-color: #218838;
+}
+
+.merge-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

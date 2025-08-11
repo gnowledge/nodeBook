@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
@@ -108,6 +108,11 @@ function App() {
     }
   };
 
+  const handleSwitchGraph = (graphId: string) => {
+    setActiveGraphId(graphId);
+    setViewMode('nodes');
+  };
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
@@ -150,7 +155,7 @@ function App() {
                 )}
                 {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
                 {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
-                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
+                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} cnlText={cnlText[activeGraphId] || ''} onCnlChange={handleCnlChange} onSwitchGraph={handleSwitchGraph} />}
                 {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                 {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
               </>

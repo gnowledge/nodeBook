@@ -10,10 +10,13 @@ interface NodeCardProps {
   isActive: boolean;
   onDelete: (type: 'nodes' | 'relations' | 'attributes', item: any) => void;
   onSelectNode: (nodeId: string) => void;
+  onImportContext: (nodeId: string) => void;
+  nodeRegistry: any;
 }
 
-export function NodeCard({ node, relations, attributes, isActive, onDelete, onSelectNode }: NodeCardProps) {
+export function NodeCard({ node, relations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
+  const registryEntry = nodeRegistry[node.id];
 
   React.useEffect(() => {
     if (isActive) {
@@ -73,6 +76,13 @@ export function NodeCard({ node, relations, attributes, isActive, onDelete, onSe
       {node.description && <p className="node-description">{node.description}</p>}
       
       {node.morphs.map(morph => renderMorphSection(morph))}
+
+      {registryEntry && registryEntry.graph_ids.length > 1 && (
+        <div className="node-card-footer">
+          <small>In graphs: {registryEntry.graph_ids.join(', ')}</small>
+          <button className="import-btn" onClick={() => onImportContext(node.id)}>Import Context</button>
+        </div>
+      )}
     </div>
   );
 }
