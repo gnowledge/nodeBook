@@ -16,7 +16,7 @@ application built with Vite and TypeScript. It provides the user
 interface for interacting with the application.  3.  **Peer-to-Peer
 Stack:** The backend uses a suite of technologies from the Hyperstack
 (`Hypercore`, `Hyperbee`, `Hyperswarm`) to manage the peer-to-peer
-data replication.
+data replication. Hyperdrive use for pushing files is TBD. 
 
 ## 2. Data Flow
 
@@ -93,7 +93,8 @@ reflect the changes.
 
 The application is currently in a state of flux. The recent
 refactoring of the CNL parser to use a "diff" strategy has introduced
-several regressions that have not yet been fully resolved.
+several regressions that have not yet been fully resolved. While
+deleting CNL blocks, the data 
 
 ### Key Issues:
 

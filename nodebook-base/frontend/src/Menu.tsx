@@ -28,6 +28,12 @@ export function Menu({ onSelectPage }: MenuProps) {
           <a href="#" onClick={() => handleSelect('Preferences')}>Preferences</a>
           <a href="#" onClick={() => handleSelect('Help')}>Help</a>
           <a href="#" onClick={() => handleSelect('SourceCode')}>Source Code</a>
+          <div className="menu-divider"></div>
+          <div className="menu-header">Examples</div>
+          <a href="#" onClick={() => handleSelect('introduction.cnl')}>Introduction</a>
+          <a href="#" onClick={() => handleSelect('example.cnl')}>Simple Example</a>
+          <a href="#" onClick={() => handleSelect('rea_example.cnl')}>REA Example</a>
+          <a href="#" onClick={() => handleSelect('transition_example.cnl')}>Transition Example</a>
         </div>
       )}
     </div>
