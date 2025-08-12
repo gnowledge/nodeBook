@@ -14,6 +14,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sync: (key) => ipcRenderer.invoke('p2p:sync', key)
   },
 
+  // Settings
+  settings: {
+    getDataPath: () => ipcRenderer.invoke('settings:get-data-path'),
+    setDataPath: () => ipcRenderer.invoke('settings:set-data-path'),
+  },
+
+  // App management
+  app: {
+    relaunch: () => ipcRenderer.invoke('app:relaunch'),
+  },
+
   // Backend management
   startBackend: () => ipcRenderer.invoke('start-backend'),
   stopBackend: () => ipcRenderer.invoke('stop-backend'),
@@ -43,4 +54,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
 // Remove all listeners when the window is closed
 window.addEventListener('beforeunload', () => {
   ipcRenderer.removeAllListeners();
-}); 
+});

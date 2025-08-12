@@ -1,14 +1,42 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const Store = require('electron-store');
 const { HyperGraph } = require('./hyper-graph.js');
+const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
+
+// Initialize electron-store
+const store = new Store();
 
 // Global reference to the graph instance
 let graph;
 
+// Configure logging
+log.transports.file.level = 'info';
+log.info('App starting...');
+
+// Configure auto-updater
+autoUpdater.logger = log;
+try {
+  autoUpdater.checkForUpdatesAndNotify();
+} catch (error) {
+  log.error('Error in auto-updater. ' + error);
+}
+
+
+function getDefaultDataPath() {
+  return path.join(app.getPath('userData'), 'hyper-db');
+}
+
 async function initializeP2PEngine() {
-  const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'hyper-db');
+  const customDataPath = store.get('dataPath');
+  const dbPath = customDataPath || getDefaultDataPath();
+
+  if (!fs.existsSync(dbPath)) {
+    fs.mkdirSync(dbPath, { recursive: true });
+  }
+
   console.log(`Initializing P2P database at: ${dbPath}`);
   graph = await HyperGraph.create(dbPath);
   console.log('P2P Engine Initialized. Graph key:', graph.key);
@@ -51,6 +79,30 @@ app.on('activate', function () {
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
+
+// --- IPC Handlers for Settings ---
+
+ipcMain.handle('settings:get-data-path', () => {
+  return store.get('dataPath') || getDefaultDataPath();
+});
+
+ipcMain.handle('settings:set-data-path', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  });
+  if (canceled || filePaths.length === 0) {
+    return;
+  }
+  const newPath = filePaths[0];
+  store.set('dataPath', newPath);
+  return newPath;
+});
+
+ipcMain.handle('app:relaunch', () => {
+  app.relaunch();
+  app.quit();
+});
+
 
 // --- IPC Handlers for P2P Graph Engine ---
 
@@ -95,4 +147,21 @@ ipcMain.handle('p2p:sync', async (event, key) => {
   const remoteCore = new Hypercore(remoteDbPath, key);
   await graph.core.session.replicate(remoteCore);
   console.log('Replication session started.');
+});
+
+// --- Auto-update Event Handlers ---
+
+autoUpdater.on('update-available', () => {
+  log.info('update_available');
+  // Optionally, send a message to the renderer process to notify the user.
+});
+
+autoUpdater.on('update-downloaded', () => {
+  log.info('update_downloaded');
+  // Optionally, send a message to the renderer process to prompt the user to restart.
+  autoUpdater.quitAndInstall();
+});
+
+autoUpdater.on('error', (err) => {
+  log.error('Error in auto-updater. ' + err);
 });

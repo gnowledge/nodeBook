@@ -8,20 +8,17 @@
     "name": "NodeBook Team",
     "email": "nagarjun@gnowledge.org"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/gnowledge/nodebook.git"
-  },
+  "repository": "gnowledge/nodebook",
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
-    "build-and-run": "cd ../frontend && npm run build && cd ../electron && npm run start",
-    "build": "cd ../frontend && npm run build && cd ../electron && electron-builder",
-    "pack": "cd ../frontend && npm run build && cd ../electron && electron-builder --dir",
-    "dist": "cd ../frontend && npm run build && cd ../electron && electron-builder",
-    "dist:win": "cd ../frontend && npm run build && cd ../electron && electron-builder --win",
-    "dist:mac": "cd ../frontend && npm run build && cd ../electron && electron-builder --mac",
-    "dist:linux": "cd ../frontend && npm run build && cd ../electron && electron-builder --linux",
+    "build-and-run": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && npm run start",
+    "build": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder",
+    "pack": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder --dir",
+    "dist": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder",
+    "dist:win": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder --win",
+    "dist:mac": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder --mac",
+    "dist:linux": "cd ../nodebook-base/frontend && npm run build && cd ../../electron && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps",
     "postbuild": "cd ../backend && python scripts/post_install.py"
   },
@@ -34,14 +31,18 @@
     "files": [
       "main.js",
       "preload.js",
+      "hyper-graph.js",
       "node_modules/**/*"
     ],
     "extraResources": [
       {
-        "from": "../frontend/dist",
+        "from": "../nodebook-base/frontend/dist",
         "to": "frontend/dist"
       }
     ],
+    "publish": {
+      "provider": "github"
+    },
     "win": {
       "target": [
         {
@@ -57,7 +58,7 @@
           ]
         }
       ],
-      "icon": "../frontend/public/nodebook.ico"
+      "icon": "../nodebook-base/frontend/public/nodebook.ico"
     },
     "mac": {
       "target": [
@@ -69,7 +70,7 @@
           ]
         }
       ],
-      "icon": "../frontend/public/nodebook.icns",
+      "icon": "../nodebook-base/frontend/public/nodebook.icns",
       "category": "public.app-category.developer-tools"
     },
     "linux": {
@@ -87,7 +88,7 @@
           ]
         }
       ],
-      "icon": "../frontend/public/nodebook.png",
+      "icon": "../nodebook-base/frontend/public/nodebook.png",
       "category": "Development",
       "executableName": "nodebook"
     },
@@ -103,8 +104,12 @@
     "electron-builder": "^24.6.4"
   },
   "dependencies": {
+    "electron-log": "^4.4.8",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.1",
     "hyperbee": "^2.24.3",
     "hypercore": "^11.11.2",
+    "hyperdrive": "^11.3.2",
     "hyperswarm": "^4.12.1"
   }
 }
