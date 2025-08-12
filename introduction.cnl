@@ -1,0 +1,15 @@
+Introduction
+============
+```graph-description
+This graph introduces nodeBook to the users. 
+```
+# nodeBook
+
+```description
+
+	You can build knowledge graphs expressed in a *controlled natural
+	language*. 
+
+```
+<is a> Note Book;
+<is a> p2p App;

@@ -9,34 +9,31 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
   const [connections, setConnections] = useState(0);
   const [remoteKey, setRemoteKey] = useState('');
 
-  const fetchPeerStatus = async () => {
-    if (!activeGraphId) return;
-    const res = await fetch(`/api/graphs/${activeGraphId}/peers`);
-    const data = await res.json();
-    setConnections(data.connections || 0);
-  };
+  // The concept of polling for peer status needs to be re-implemented.
+  // A better approach would be for the main process to emit events.
+  // For now, we will disable the polling.
 
-  useEffect(() => {
-    const interval = setInterval(fetchPeerStatus, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, [activeGraphId]);
+  const handleListen = async () => {
+    if (activeGraphId) {
+      await window.electronAPI.p2p.listen(activeGraphId);
+      alert('Now listening for P2P connections.');
+    }
+  };
 
   const handleSync = async () => {
     const keyToSync = remoteKey.trim();
     if (!keyToSync) return;
-    await fetch(`/api/graphs/${activeGraphId}/peers/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remoteKey: keyToSync }),
-    });
+    await window.electronAPI.p2p.sync(keyToSync);
     setRemoteKey('');
+    alert(`Started syncing with key: ${keyToSync.slice(0, 10)}...`);
   };
 
   return (
     <div className="peer-tab">
       <div className="peer-status">
         <h3>Connectivity</h3>
-        <p>Connected Peers: <strong>{connections}</strong></p>
+        <p>Connected Peers: <strong>{connections}</strong> (real-time status not implemented)</p>
+        <button onClick={handleListen}>Start Listening for Peers</button>
       </div>
       <div className="share-graph">
         <h3>Share Your Graph</h3>

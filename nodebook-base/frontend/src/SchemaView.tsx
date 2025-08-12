@@ -6,10 +6,10 @@ interface SchemaViewProps {
   onSchemaChange: () => void;
 }
 
-type SchemaViewMode = 'nodes' | 'relations' | 'attributes' | 'functions';
+type SchemaViewMode = 'nodetypes' | 'relations' | 'attributes' | 'functions';
 
 export function SchemaView({ onSchemaChange }: SchemaViewProps) {
-  const [mode, setMode] = useState<SchemaViewMode>('nodes');
+  const [mode, setMode] = useState<SchemaViewMode>('nodetypes');
   
   const [nodeTypes, setNodeTypes] = useState<NodeType[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
@@ -17,11 +17,17 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [functionTypes, setFunctionTypes] = useState<FunctionType[]>([]);
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
-  const fetchAllSchemas = () => {
-    fetch('/api/schema/nodetypes').then(res => res.json()).then(setNodeTypes);
-    fetch('/api/schema/relations').then(res => res.json()).then(setRelationTypes);
-    fetch('/api/schema/attributes').then(res => res.json()).then(setAttributeTypes);
-    fetch('/api/schema/functions').then(res => res.json()).then(setFunctionTypes);
+  const fetchAllSchemas = async () => {
+    const [nodes, rels, attrs, funcs] = await Promise.all([
+      window.electronAPI.schema.get('nodetypes'),
+      window.electronAPI.schema.get('relations'),
+      window.electronAPI.schema.get('attributes'),
+      window.electronAPI.schema.get('functions'),
+    ]);
+    setNodeTypes(nodes);
+    setRelationTypes(rels);
+    setAttributeTypes(attrs);
+    setFunctionTypes(funcs);
   };
 
   useEffect(() => {
@@ -34,36 +40,24 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   };
 
   const handleSave = async (item: any) => {
-    const isCreating = !item.originalName;
     const itemType = editingItem.itemType;
-    const url = isCreating
-      ? `/api/schema/${itemType}`
-      : `/api/schema/${itemType}/${item.originalName}`;
+    let currentSchema = await window.electronAPI.schema.get(itemType);
     
-    const method = isCreating ? 'POST' : 'PUT';
-
-    const payload = { ...item };
-    delete payload.originalName;
-    delete payload.itemType;
-
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const { error } = await res.json();
-      alert(`Error: ${error}`);
-    } else {
-      setEditingItem(null);
-      handleSchemaChange();
+    if (item.originalName) { // Editing existing
+      currentSchema = currentSchema.map((i: any) => i.name === item.originalName ? item : i);
+    } else { // Creating new
+      currentSchema.push(item);
     }
+    
+    await window.electronAPI.schema.update(itemType, currentSchema);
+    
+    setEditingItem(null);
+    handleSchemaChange();
   };
 
   const handleDelete = async (type: SchemaViewMode, name: string) => {
     if (window.confirm(`Are you sure you want to delete the type "${name}"?`)) {
-      await fetch(`/api/schema/${type}/${name}`, { method: 'DELETE' });
+      await window.electronAPI.schema.deleteItem(type, name);
       handleSchemaChange();
     }
   };
@@ -79,15 +73,15 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   return (
     <div className="schema-view">
       <div className="tabs">
-        <button className={`tab-button ${mode === 'nodes' ? 'active' : ''}`} onClick={() => setMode('nodes')}>Node Types ({nodeTypes.length})</button>
+        <button className={`tab-button ${mode === 'nodetypes' ? 'active' : ''}`} onClick={() => setMode('nodetypes')}>Node Types ({nodeTypes.length})</button>
         <button className={`tab-button ${mode === 'relations' ? 'active' : ''}`} onClick={() => setMode('relations')}>Relation Types ({relationTypes.length})</button>
         <button className={`tab-button ${mode === 'attributes' ? 'active' : ''}`} onClick={() => setMode('attributes')}>Attribute Types ({attributeTypes.length})</button>
         <button className={`tab-button ${mode === 'functions' ? 'active' : ''}`} onClick={() => setMode('functions')}>Functions ({functionTypes.length})</button>
         <button className="create-new-btn" onClick={openModalForCreate}>+ Create New</button>
       </div>
       <div className="schema-grid">
-        {mode === 'nodes' && nodeTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'nodes')}>
+        {mode === 'nodetypes' && nodeTypes.map(item => (
+          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'nodetypes')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             {item.parent_types && item.parent_types.length > 0 && <small>Parents: {item.parent_types.join(', ')}</small>}

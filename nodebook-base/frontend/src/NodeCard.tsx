@@ -28,24 +28,9 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     }
   }, [isActive]);
 
-  const handlePublicationToggle = async () => {
-    const modes = ['Private', 'P2P', 'Public'];
-    const currentModeIndex = modes.indexOf(node.publication_mode || 'Private');
-    const nextMode = modes[(currentModeIndex + 1) % modes.length];
-
-    // Optimistic update
-    node.publication_mode = nextMode;
-
-    await fetch(`/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publication_mode: nextMode }),
-    });
-  };
-
   const renderMorphSection = (morph: Morph) => {
-    const morphRelations = allRelations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
-    const morphAttributes = attributes.filter(a => a.source_id === node.id && a.morph_ids.includes(morph.morph_id));
+    const morphRelations = allRelations.filter(r => r.source === node.id); // Simplified
+    const morphAttributes = attributes.filter(a => a.source_id === node.id); // Simplified
 
     if (morphRelations.length === 0 && morphAttributes.length === 0) {
       return null;
@@ -72,9 +57,9 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
             {morphRelations.map(rel => (
               <li key={rel.id}>
                 <span>
-                  <strong>{rel.name}</strong> &rarr; 
-                  <a href="#" className="relation-target" onClick={(e) => { e.preventDefault(); onSelectNode(rel.target_id); }}>
-                    {rel.target_id}
+                  <strong>{rel.label}</strong> &rarr; 
+                  <a href="#" className="relation-target" onClick={(e) => { e.preventDefault(); onSelectNode(rel.target); }}>
+                    {rel.target}
                   </a>
                 </span>
                 <button className="delete-btn-small" onClick={() => onDelete('relations', rel)}>&times;</button>
@@ -88,9 +73,9 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
 
   // Calculate subgraph data
   const subgraphNodes = [node];
-  const subgraphRelations = allRelations.filter(r => r.source_id === node.id || r.target_id === node.id);
+  const subgraphRelations = allRelations.filter(r => r.source === node.id || r.target === node.id);
   for (const rel of subgraphRelations) {
-    const otherNodeId = rel.source_id === node.id ? rel.target_id : rel.source_id;
+    const otherNodeId = rel.source === node.id ? rel.target : rel.source;
     if (!subgraphNodes.find(n => n.id === otherNodeId)) {
       const otherNode = allNodes.find(n => n.id === otherNodeId);
       if (otherNode) subgraphNodes.push(otherNode);
@@ -102,13 +87,6 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       <div className="node-card-header">
         <h3>{node.name}</h3>
         <div className="node-card-header-actions">
-          <button 
-            className={`publication-toggle ${node.publication_mode?.toLowerCase()}`}
-            onClick={handlePublicationToggle}
-            title={`Publication Mode: ${node.publication_mode || 'Private'}`}
-          >
-            <span>{node.publication_mode || 'Private'}</span>
-          </button>
           <span className="node-role">{node.role}</span>
         </div>
       </div>
@@ -123,7 +101,8 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
         </div>
       )}
       
-      {node.morphs.map(morph => renderMorphSection(morph))}
+      {/* Morph rendering needs to be adapted to the new data structure */}
+      {/* {node.morphs.map(morph => renderMorphSection(morph))} */}
 
       {registryEntry && registryEntry.graph_ids.length > 1 && (
         <div className="node-card-footer">

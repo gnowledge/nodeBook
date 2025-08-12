@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
@@ -12,71 +12,25 @@ interface DataViewProps {
   relations: Edge[];
   attributes: AttributeType[];
   onDataChange: () => void;
-  cnlText: string;
-  onCnlChange: (cnl: string) => void;
 }
 
-export function DataView({ activeGraphId, nodes, relations, attributes, onDataChange, cnlText, onCnlChange }: DataViewProps) {
+export function DataView({ activeGraphId, nodes, relations, attributes, onDataChange }: DataViewProps) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [nodeRegistry, setNodeRegistry] = useState<any>({});
   const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
   
-  const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
-  const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
+  // This functionality needs to be re-evaluated in a P2P context
+  // const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
+  // const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
   
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishMessage, setPublishMessage] = useState('Publish');
-  const [wsStatus, setWsStatus] = useState('Connecting...');
-  const ws = useRef<WebSocket | null>(null);
-
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const wsUrl = `${protocol}//${host}:3000`;
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => setWsStatus('Connected');
-    ws.current.onclose = () => setWsStatus('Disconnected');
-
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      switch (data.type) {
-        case 'publish-progress':
-          setPublishMessage(data.message);
-          break;
-        case 'publish-complete':
-          setIsPublishing(false);
-          setPublishMessage('Publish');
-          alert(data.message);
-          break;
-        case 'publish-error':
-          setIsPublishing(false);
-          setPublishMessage('Publish');
-          alert(`Error: ${data.message}`);
-          break;
-      }
-    };
-
-    return () => {
-      ws.current?.close();
-    };
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/noderegistry')
-      .then(res => res.json())
-      .then(data => setNodeRegistry(data));
-  }, []);
-
   useEffect(() => {
     if (activeGraphId) {
-      fetch(`/api/graphs`)
-        .then(res => res.json())
-        .then((graphs: Graph[]) => {
-          const currentGraph = graphs.find(g => g.id === activeGraphId);
-          setActiveGraph(currentGraph || null);
-        });
+      // This assumes a function that can get graph details by ID
+      // We'll mock it for now.
+      window.electronAPI.graphs.list().then((graphs: Graph[]) => {
+        const currentGraph = graphs.find(g => g.id === activeGraphId);
+        setActiveGraph(currentGraph || null);
+      });
     }
   }, [activeGraphId]);
 
@@ -87,120 +41,23 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     const lowercasedFilter = searchTerm.toLowerCase();
     return nodes.filter(node =>
       node.name.toLowerCase().includes(lowercasedFilter) ||
-      node.role.toLowerCase().includes(lowercasedFilter) ||
+      (node.role && node.role.toLowerCase().includes(lowercasedFilter)) ||
       (node.description && node.description.toLowerCase().includes(lowercasedFilter))
     );
   }, [nodes, searchTerm]);
 
   const handleDelete = async (type: 'nodes' | 'relations' | 'attributes', item: any) => {
     let confirmMessage = `Are you sure you want to delete this ${type.slice(0, -1)}?`;
-    let url = '';
     if (type === 'nodes') {
       confirmMessage += ' This will also delete all connected relations and attributes.';
-      url = `/api/graphs/${activeGraphId}/nodes/${item.id}`;
-    } else if (type === 'relations') {
-      url = `/api/graphs/${activeGraphId}/relations/${item.id}`;
-    } else if (type === 'attributes') {
-      url = `/api/graphs/${activeGraphId}/attributes/${item.id}`;
     }
 
     if (window.confirm(confirmMessage)) {
-      await fetch(url, { method: 'DELETE' });
-      onDataChange();
-    }
-  };
-
-  const getCnlForNode = (nodeId: string, cnl: string) => {
-    const lines = cnl.split('\n');
-    const nodeLines: string[] = [];
-    let inNodeBlock = false;
-    
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return '';
-
-    const nodeName = node.name;
-    const nodeNameRegex = new RegExp(`^# ${nodeName}`);
-
-    for (const line of lines) {
-        const isTopLevelHeader = line.startsWith('# ');
-
-        if (inNodeBlock) {
-            if (isTopLevelHeader) {
-                break;
-            }
-            nodeLines.push(line);
-        } else {
-            if (isTopLevelHeader) {
-                if (nodeNameRegex.test(line)) {
-                    inNodeBlock = true;
-                    nodeLines.push(line);
-                }
-            }
-        }
-    }
-    return nodeLines.join('\n');
-  };
-
-  const handleImportContext = (nodeId: string) => {
-    const registryEntry = nodeRegistry[nodeId];
-    if (!registryEntry || registryEntry.graph_ids.length <= 1) return;
-
-    const otherGraphIds = registryEntry.graph_ids.filter((id: string) => id !== activeGraphId);
-    if (otherGraphIds.length === 1) {
-      handleGraphSelected(nodeId, otherGraphIds[0]);
-    } else {
-      setSelectingGraph({ nodeId, graphIds: otherGraphIds });
-    }
-  };
-
-  const handleGraphSelected = async (nodeId: string, remoteGraphId: string) => {
-    setSelectingGraph(null);
-    try {
-      const res = await fetch(`/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
-      if (!res.ok) throw new Error('Failed to fetch remote CNL');
-      const { cnl: remoteCnl } = await res.json();
-      
-      const localCnl = getCnlForNode(nodeId, cnlText);
-
-      setImportingNode({ localCnl, remoteCnl, localGraphId: activeGraphId, remoteGraphId });
-
-    } catch (error) {
-      console.error("Failed to import context:", error);
-      alert("Error importing context. See console for details.");
-    }
-  };
-
-  const handleCopy = (selectedLines: string) => {
-    const newCnl = cnlText + '\n' + selectedLines;
-    onCnlChange(newCnl);
-    setImportingNode(null);
-    alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
-  };
-
-  const handlePublish = () => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      setIsPublishing(true);
-      setPublishMessage('Starting publish...');
-      ws.current.send(JSON.stringify({ type: 'start-publish' }));
-    } else {
-      alert('WebSocket is not connected. Please wait and try again.');
-    }
-  };
-
-  const handleSetAll = async (publication_mode: 'P2P' | 'Public') => {
-    if (window.confirm(`This will set all nodes in this graph to ${publication_mode}. Are you sure?`)) {
-      try {
-        const res = await fetch(`/api/graphs/${activeGraphId}/publish/all`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publication_mode }),
-        });
-        if (!res.ok) throw new Error(`Failed to set all nodes to ${publication_mode}`);
-        onDataChange();
-      } catch (error) {
-        console.error(`Failed to set all nodes to ${publication_mode}:`, error);
-        alert(`Error setting all nodes to ${publication_mode}. See console for details.`);
+      if (type === 'nodes') {
+        await window.electronAPI.nodes.delete(activeGraphId, item.id);
       }
+      // Deleting relations and attributes needs specific IPC handlers
+      onDataChange();
     }
   };
 
@@ -215,16 +72,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="publish-actions">
-          <button className="publish-btn" onClick={() => handleSetAll('P2P')}>Make All P2P</button>
-          <button className="publish-btn" onClick={() => handleSetAll('Public')}>Make All Public</button>
-          <div className="publish-container">
-            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing || wsStatus !== 'Connected'}>
-              {isPublishing ? publishMessage : 'Publish'}
-            </button>
-            <span className={`ws-status ${wsStatus.toLowerCase()}`}>{wsStatus}</span>
-          </div>
-        </div>
+        {/* Publishing functionality removed for now */}
       </div>
       <div className="data-view-grid">
         {filteredNodes.map(node => (
@@ -237,28 +85,12 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
             isActive={node.id === activeNodeId}
             onDelete={handleDelete}
             onSelectNode={setActiveNodeId}
-            onImportContext={handleImportContext}
-            nodeRegistry={nodeRegistry}
+            onImportContext={() => {}} // Placeholder
+            nodeRegistry={{}} // Placeholder
           />
         ))}
       </div>
-      {selectingGraph && (
-        <SelectGraphModal
-          graphIds={selectingGraph.graphIds}
-          onSelect={(graphId) => handleGraphSelected(selectingGraph.nodeId, graphId)}
-          onClose={() => setSelectingGraph(null)}
-        />
-      )}
-      {importingNode && (
-        <ImportContextModal
-          sourceCnl={importingNode.remoteCnl}
-          targetCnl={importingNode.localCnl}
-          sourceGraphId={importingNode.remoteGraphId}
-          targetGraphId={importingNode.localGraphId}
-          onClose={() => setImportingNode(null)}
-          onMerge={handleCopy}
-        />
-      )}
+      {/* Modals for import/select are disabled for now */}
     </div>
   );
 }

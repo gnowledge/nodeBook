@@ -10,9 +10,7 @@ export function PageView({ page, onClose }: PageViewProps) {
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    fetch(`/${page}.md`)
-      .then(res => res.text())
-      .then(text => setContent(text));
+    window.electronAPI.pages.getContent(page).then(setContent);
   }, [page]);
 
   return (

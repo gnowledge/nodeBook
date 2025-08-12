@@ -17,8 +17,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const [newGraphName, setNewGraphName] = useState('');
 
   const fetchGraphs = async () => {
-    const res = await fetch('/api/graphs');
-    const data = await res.json();
+    const data = await window.electronAPI.graphs.list();
     setGraphs(data);
     if (!activeGraphId && data.length > 0) {
       onGraphSelect(data[0].id);
@@ -31,20 +30,16 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
-    const res = await fetch('/api/graphs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newGraphName, author, email }),
-    });
-    const newGraph = await res.json();
+    const newGraph = await window.electronAPI.graphs.create(newGraphName);
     setNewGraphName('');
     await fetchGraphs();
     onGraphSelect(newGraph.id);
   };
 
   const handleDeleteGraph = async (graphId: string) => {
-    if (window.confirm(`Are you sure you want to delete graph "${graphId}"?`)) {
-      await fetch(`/api/graphs/${graphId}`, { method: 'DELETE' });
+    const graphToDelete = graphs.find(g => g.id === graphId);
+    if (graphToDelete && window.confirm(`Are you sure you want to delete graph "${graphToDelete.name}"?`)) {
+      await window.electronAPI.graphs.delete(graphId);
       fetchGraphs();
     }
   };

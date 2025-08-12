@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
 import { GraphSwitcher } from './GraphSwitcher';
 import { Menu } from './Menu';
@@ -16,7 +15,7 @@ import type { Node, Edge, RelationType, AttributeType } from './types';
 type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
 
 function App() {
-  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
+  const [activeGraphId, setActiveGraphId] = useState<string | null>('default'); // Start with default
   const [activeGraphKey, setActiveGraphKey] = useState<string | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [relations, setRelations] = useState<Edge[]>([]);
@@ -24,53 +23,40 @@ function App() {
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [activePage, setActivePage] = useState<string | null>(null);
-  const [strictMode, setStrictMode] = useState(() => {
-    const saved = localStorage.getItem('strictMode');
-    return saved !== null ? JSON.parse(saved) : true; // Default to true
-  });
-  const [name, setName] = useState(() => localStorage.getItem('userName') || '');
-  const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('strictMode', JSON.stringify(strictMode));
-  }, [strictMode]);
+  // User and Editor Preferences
+  const [strictMode, setStrictMode] = useState(() => JSON.parse(localStorage.getItem('strictMode') || 'true'));
+  const [name, setName] = useState(() => localStorage.getItem('userName') || '');
+  const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
 
-  useEffect(() => {
-    localStorage.setItem('userName', name);
-  }, [name]);
+  useEffect(() => { localStorage.setItem('strictMode', JSON.stringify(strictMode)); }, [strictMode]);
+  useEffect(() => { localStorage.setItem('userName', name); }, [name]);
+  useEffect(() => { localStorage.setItem('userEmail', email); }, [email]);
 
-  useEffect(() => {
-    localStorage.setItem('userEmail', email);
-  }, [email]);
-
-  const fetchGraph = (graphId: string) => {
+  const fetchGraph = async (graphId: string) => {
     if (!graphId) return;
-    fetch(`/api/graphs/${graphId}/graph`)
-      .then(res => res.json())
-      .then(data => {
-        setNodes(data.nodes || []);
-        setRelations(data.relations || []);
-        setAttributes(data.attributes || []);
-      });
-    fetch(`/api/graphs/${graphId}/key`)
-      .then(res => res.json())
-      .then(data => setActiveGraphKey(data.key || null));
-    fetch(`/api/graphs/${graphId}/cnl`)
-      .then(res => res.json())
-      .then(data => {
-        setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
-      });
+    const graphData = await window.electronAPI.graphs.getGraph(graphId);
+    setNodes(graphData.nodes || []);
+    setRelations(graphData.relations || []);
+    setAttributes(graphData.attributes || []);
+    const key = await window.electronAPI.graphs.getKey(graphId);
+    setActiveGraphKey(key || null);
+    // CNL text is managed locally for now
   };
 
-  const fetchSchemas = () => {
-    fetch('/api/schema/relations').then(res => res.json()).then(data => setRelationTypes(data));
-    fetch('/api/schema/attributes').then(res => res.json()).then(data => setAttributeTypes(data));
-    fetch('/api/schema/nodetypes').then(res => res.json()).then(data => setNodeTypes(data));
+  const fetchSchemas = async () => {
+    const [rels, attrs, nodeTs] = await Promise.all([
+      window.electronAPI.schema.get('relations'),
+      window.electronAPI.schema.get('attributes'),
+      window.electronAPI.schema.get('nodetypes'),
+    ]);
+    setRelationTypes(rels);
+    setAttributeTypes(attrs);
+    setNodeTypes(nodeTs);
   };
 
   useEffect(() => {
@@ -81,6 +67,9 @@ function App() {
     if (activeGraphId) {
       fetchGraph(activeGraphId);
     } else {
+      setNodes([]);
+      setRelations([]);
+      setAttributes([]);
       setActiveGraphKey(null);
     }
   }, [activeGraphId]);
@@ -92,38 +81,25 @@ function App() {
   };
 
   const handleCnlSubmit = async () => {
-    if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    if (!activeGraphId || !cnlText[activeGraphId]?.trim()) return;
     
     setIsSubmitting(true);
-    const res = await fetch(`/api/graphs/${activeGraphId}/cnl`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
-    });
+    const result = await window.electronAPI.cnl.submit(activeGraphId, cnlText[activeGraphId], strictMode);
     setIsSubmitting(false);
     
-    if (!res.ok) {
-      const { errors } = await res.json();
-      alert(`CNL Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
+    if (!result.success) {
+      alert(`CNL Error:\n${result.errors.map((e: any) => `- ${e.message}`).join('\n')}`);
     } else {
-      fetchGraph(activeGraphId);
+      fetchGraph(activeGraphId); // Refresh graph data after successful submit
     }
   };
   
   const handleDeleteNode = async (nodeId: string) => {
-    if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
-      await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
-      setSelectedNodeId(null);
-      fetchGraph(activeGraphId!);
+    if (activeGraphId && window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
+      await window.electronAPI.nodes.delete(activeGraphId, nodeId);
+      fetchGraph(activeGraphId);
     }
   };
-
-  const handleSwitchGraph = (graphId: string) => {
-    setActiveGraphId(graphId);
-    setViewMode('nodes');
-  };
-
-  const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
     <div className="app-container">
@@ -163,9 +139,9 @@ function App() {
                     </button>
                   </div>
                 )}
-                {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
+                {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={() => {}} />}
                 {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
-                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} cnlText={cnlText[activeGraphId] || ''} onCnlChange={handleCnlChange} onSwitchGraph={handleSwitchGraph} />}
+                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} />}
                 {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                 {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
               </>
@@ -193,4 +169,4 @@ function App() {
   )
 }
 
-export default App
+export default App;
