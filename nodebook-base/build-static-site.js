@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { createCanvas, Image } = require('canvas');
+// const { createCanvas, Image } = require('canvas');
 const cytoscape = require('cytoscape');
 const dagre = require('cytoscape-dagre');
 const graphManager = require('./graph-manager');
