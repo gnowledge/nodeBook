@@ -4,6 +4,7 @@ import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
 import { GraphDetail } from './GraphDetail';
 import type { Node, Edge, AttributeType, Graph } from './types';
+import { API_BASE_URL } from './api-config';
 import './DataView.css';
 
 interface DataViewProps {
@@ -31,9 +32,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const wsUrl = `${protocol}//${host}:3000`;
+    const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => setWsStatus('Connected');
@@ -64,14 +63,14 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   }, []);
 
   useEffect(() => {
-    fetch('/api/noderegistry')
+    fetch(`${API_BASE_URL}/api/noderegistry`)
       .then(res => res.json())
       .then(data => setNodeRegistry(data));
   }, []);
 
   useEffect(() => {
     if (activeGraphId) {
-      fetch(`/api/graphs`)
+      fetch(`${API_BASE_URL}/api/graphs`)
         .then(res => res.json())
         .then((graphs: Graph[]) => {
           const currentGraph = graphs.find(g => g.id === activeGraphId);
@@ -97,11 +96,11 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     let url = '';
     if (type === 'nodes') {
       confirmMessage += ' This will also delete all connected relations and attributes.';
-      url = `/api/graphs/${activeGraphId}/nodes/${item.id}`;
+      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${item.id}`;
     } else if (type === 'relations') {
-      url = `/api/graphs/${activeGraphId}/relations/${item.id}`;
+      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/relations/${item.id}`;
     } else if (type === 'attributes') {
-      url = `/api/graphs/${activeGraphId}/attributes/${item.id}`;
+      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/attributes/${item.id}`;
     }
 
     if (window.confirm(confirmMessage)) {
@@ -156,7 +155,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const handleGraphSelected = async (nodeId: string, remoteGraphId: string) => {
     setSelectingGraph(null);
     try {
-      const res = await fetch(`/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
+      const res = await fetch(`${API_BASE_URL}/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
       if (!res.ok) throw new Error('Failed to fetch remote CNL');
       const { cnl: remoteCnl } = await res.json();
       
@@ -190,7 +189,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const handleSetAll = async (publication_mode: 'P2P' | 'Public') => {
     if (window.confirm(`This will set all nodes in this graph to ${publication_mode}. Are you sure?`)) {
       try {
-        const res = await fetch(`/api/graphs/${activeGraphId}/publish/all`, {
+        const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish/all`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ publication_mode }),

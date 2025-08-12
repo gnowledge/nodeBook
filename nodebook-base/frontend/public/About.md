@@ -1,4 +1,4 @@
-![NodeBook Logo](/logo.png)
+![NodeBook Logo](logo.png)
 
 # About NodeBook
 

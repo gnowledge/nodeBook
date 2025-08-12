@@ -1,9 +1,10 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const GRAPHS_DIR = path.join(__dirname, 'graphs');
-const REGISTRY_FILE = path.join(GRAPHS_DIR, 'registry.json');
-const NODE_REGISTRY_FILE = path.join(GRAPHS_DIR, 'node_registry.json');
+// Use the provided data path, otherwise default to a local 'graphs' directory.
+const DATA_DIR = process.env.NODEBOOK_DATA_PATH || path.join(__dirname, 'graphs');
+const REGISTRY_FILE = path.join(DATA_DIR, 'registry.json');
+const NODE_REGISTRY_FILE = path.join(DATA_DIR, 'node_registry.json');
 
 let activeGraphs = new Map();
 
@@ -22,7 +23,7 @@ async function writeJsonFile(file, data) {
 }
 
 async function initialize() {
-    await fs.mkdir(GRAPHS_DIR, { recursive: true });
+    await fs.mkdir(DATA_DIR, { recursive: true });
     try {
         await fs.access(REGISTRY_FILE);
     } catch {
@@ -114,14 +115,14 @@ async function createGraph(name, author = 'anonymous', email = '') {
         throw new Error('Graph with this name already exists.');
     }
 
-    const graphDir = path.join(GRAPHS_DIR, id);
+    const graphDir = path.join(DATA_DIR, id);
     await fs.mkdir(graphDir, { recursive: true });
 
     const now = new Date().toISOString();
     const newGraphInfo = { 
-        id, 
-        name, 
-        path: graphDir, 
+        id,
+        name,
+        path: graphDir,
         description: '',
         author,
         email,

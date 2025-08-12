@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from './api-config';
 
 interface Graph {
   id: string;
@@ -17,7 +18,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const [newGraphName, setNewGraphName] = useState('');
 
   const fetchGraphs = async () => {
-    const res = await fetch('/api/graphs');
+    const res = await fetch(`${API_BASE_URL}/api/graphs`);
     const data = await res.json();
     setGraphs(data);
     if (!activeGraphId && data.length > 0) {
@@ -31,7 +32,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
-    const res = await fetch('/api/graphs', {
+    const res = await fetch(`${API_BASE_URL}/api/graphs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newGraphName, author, email }),
@@ -44,7 +45,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   const handleDeleteGraph = async (graphId: string) => {
     if (window.confirm(`Are you sure you want to delete graph "${graphId}"?`)) {
-      await fetch(`/api/graphs/${graphId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/graphs/${graphId}`, { method: 'DELETE' });
       fetchGraphs();
     }
   };

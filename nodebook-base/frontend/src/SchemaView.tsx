@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
 import { SchemaEditModal } from './SchemaEditModal';
+import { API_BASE_URL } from './api-config';
 
 interface SchemaViewProps {
   onSchemaChange: () => void;
@@ -18,10 +19,10 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
   const fetchAllSchemas = () => {
-    fetch('/api/schema/nodetypes').then(res => res.json()).then(setNodeTypes);
-    fetch('/api/schema/relations').then(res => res.json()).then(setRelationTypes);
-    fetch('/api/schema/attributes').then(res => res.json()).then(setAttributeTypes);
-    fetch('/api/schema/functions').then(res => res.json()).then(setFunctionTypes);
+    fetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(setNodeTypes);
+    fetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(setRelationTypes);
+    fetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(setAttributeTypes);
+    fetch(`${API_BASE_URL}/api/schema/functions`).then(res => res.json()).then(setFunctionTypes);
   };
 
   useEffect(() => {
@@ -37,8 +38,8 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
     const isCreating = !item.originalName;
     const itemType = editingItem.itemType;
     const url = isCreating
-      ? `/api/schema/${itemType}`
-      : `/api/schema/${itemType}/${item.originalName}`;
+      ? `${API_BASE_URL}/api/schema/${itemType}`
+      : `${API_BASE_URL}/api/schema/${itemType}/${item.originalName}`;
     
     const method = isCreating ? 'POST' : 'PUT';
 
@@ -63,7 +64,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
 
   const handleDelete = async (type: SchemaViewMode, name: string) => {
     if (window.confirm(`Are you sure you want to delete the type "${name}"?`)) {
-      await fetch(`/api/schema/${type}/${name}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/schema/${type}/${name}`, { method: 'DELETE' });
       handleSchemaChange();
     }
   };

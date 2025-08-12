@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // This needs to be at the top level to work correctly
+  base: './', 
   plugins: [react()],
   server: {
     proxy: {

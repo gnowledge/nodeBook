@@ -12,6 +12,7 @@ import { JsonView } from './JsonView';
 import { PageView } from './PageView';
 import { Preferences } from './Preferences';
 import type { Node, Edge, RelationType, AttributeType } from './types';
+import { API_BASE_URL } from './api-config';
 
 type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
 
@@ -50,17 +51,17 @@ function App() {
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
-    fetch(`/api/graphs/${graphId}/graph`)
+    fetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
         setNodes(data.nodes || []);
         setRelations(data.relations || []);
         setAttributes(data.attributes || []);
       });
-    fetch(`/api/graphs/${graphId}/key`)
+    fetch(`${API_BASE_URL}/api/graphs/${graphId}/key`)
       .then(res => res.json())
       .then(data => setActiveGraphKey(data.key || null));
-    fetch(`/api/graphs/${graphId}/cnl`)
+    fetch(`${API_BASE_URL}/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
         setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
@@ -68,9 +69,9 @@ function App() {
   };
 
   const fetchSchemas = () => {
-    fetch('/api/schema/relations').then(res => res.json()).then(data => setRelationTypes(data));
-    fetch('/api/schema/attributes').then(res => res.json()).then(data => setAttributeTypes(data));
-    fetch('/api/schema/nodetypes').then(res => res.json()).then(data => setNodeTypes(data));
+    fetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(data => setRelationTypes(data));
+    fetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(data => setAttributeTypes(data));
+    fetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(data => setNodeTypes(data));
   };
 
   useEffect(() => {
@@ -95,7 +96,7 @@ function App() {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
     
     setIsSubmitting(true);
-    const res = await fetch(`/api/graphs/${activeGraphId}/cnl`, {
+    const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
@@ -112,7 +113,7 @@ function App() {
   
   const handleDeleteNode = async (nodeId: string) => {
     if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
-      await fetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
       fetchGraph(activeGraphId!);
     }

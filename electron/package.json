@@ -1,0 +1,58 @@
+{
+  "name": "nodebook-electron",
+  "version": "1.0.0",
+  "description": "NodeBook Desktop Application",
+  "main": "main.js",
+  "homepage": "https://docs.nodebook.in",
+  "author": {
+    "name": "Nagarjun",
+    "email": "nagarjun@gnowledge.org"
+  },
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "autobase": "^7.17.0",
+    "cytoscape": "^3.33.0",
+    "cytoscape-dagre": "^2.5.0",
+    "express": "^5.1.0",
+    "hyperbee": "^2.25.0",
+    "hypercore": "^11.12.0",
+    "hyperswarm": "^4.13.0",
+    "mathjs": "^13.0.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron": "^28.2.3",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.nodebook.app",
+    "productName": "NodeBook",
+    "files": [
+      "main.js",
+      {
+        "from": "../nodebook-base",
+        "to": "nodebook-base"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "maintainer": "nagarjun@gnowledge.org"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}

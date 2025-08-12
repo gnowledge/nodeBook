@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Subgraph } from './Subgraph';
 import type { Node, Edge, AttributeType, Morph } from './types';
+import { API_BASE_URL } from './api-config';
 import './NodeCard.css';
 
 interface NodeCardProps {
@@ -36,7 +37,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     // Optimistic update
     node.publication_mode = nextMode;
 
-    await fetch(`/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
+    await fetch(`${API_BASE_URL}/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publication_mode: nextMode }),

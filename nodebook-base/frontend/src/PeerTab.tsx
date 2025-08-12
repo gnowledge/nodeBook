@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from './api-config';
 
 interface PeerTabProps {
   activeGraphId: string;
@@ -11,7 +12,7 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
 
   const fetchPeerStatus = async () => {
     if (!activeGraphId) return;
-    const res = await fetch(`/api/graphs/${activeGraphId}/peers`);
+    const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers`);
     const data = await res.json();
     setConnections(data.connections || 0);
   };
@@ -24,7 +25,7 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
   const handleSync = async () => {
     const keyToSync = remoteKey.trim();
     if (!keyToSync) return;
-    await fetch(`/api/graphs/${activeGraphId}/peers/sync`, {
+    await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ remoteKey: keyToSync }),

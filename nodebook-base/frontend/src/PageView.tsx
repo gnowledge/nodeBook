@@ -10,7 +10,8 @@ export function PageView({ page, onClose }: PageViewProps) {
   const [content, setContent] = useState('');
 
   useEffect(() => {
-    fetch(`/${page}.md`)
+    // Use a relative path to ensure it works in both dev and packaged app
+    fetch(`${page}.md`)
       .then(res => res.text())
       .then(text => setContent(text));
   }, [page]);
