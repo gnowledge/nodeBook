@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
-const graphManager = require('./graph-manager');
+const GraphManager = require('./graph-manager'); // Import the class
 const schemaManager = require('./schema-manager');
 const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
 const { evaluate } = require('mathjs');
@@ -25,19 +25,30 @@ app.use((req, res, next) => {
 });
 
 async function main() {
-  await graphManager.initialize();
+  // Create a single instance of the GraphManager
+  const graphManager = new GraphManager();
+  
+  // The first command-line argument (index 2) is our data path.
+  const dataPath = process.argv[2] || null;
+  // Initialize the instance with the correct path.
+  await graphManager.initialize(dataPath);
+
+  // Attach the initialized instance to the app object
+  app.set('graphManager', graphManager);
 
   // --- Graph Management API ---
   app.get('/api/graphs', async (req, res) => {
-    const graphs = await graphManager.getGraphRegistry();
+    const gm = req.app.get('graphManager'); // Get instance from app
+    const graphs = await gm.getGraphRegistry();
     res.json(graphs);
   });
 
   app.post('/api/graphs', async (req, res) => {
+    const gm = req.app.get('graphManager'); // Get instance from app
     const { name, author, email } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
     try {
-      const newGraph = await graphManager.createGraph(name, author, email);
+      const newGraph = await gm.createGraph(name, author, email);
       res.status(201).json(newGraph);
     } catch (error) {
       res.status(409).json({ error: error.message });
@@ -45,8 +56,9 @@ async function main() {
   });
 
   app.delete('/api/graphs/:graphId', async (req, res) => {
+    const gm = req.app.get('graphManager'); // Get instance from app
     try {
-      await graphManager.deleteGraph(req.params.graphId);
+      await gm.deleteGraph(req.params.graphId);
       res.status(204).send();
     } catch (error) {
       res.status(404).json({ error: error.message });
@@ -132,18 +144,22 @@ async function main() {
       res.status(404).json({ error: error.message });
     }
   });
-  
+
   // --- Node Registry API ---
-  app.get('/api/noderegistry', async (req, res) => res.json(await graphManager.getNodeRegistry()));
+  app.get('/api/noderegistry', async (req, res) => {
+      const gm = req.app.get('graphManager');
+      res.json(await gm.getNodeRegistry())
+    });
 
 
   // --- Graph-Specific API ---
 
   // Middleware to load the correct graph
   const loadGraph = async (req, res, next) => {
+    const gm = req.app.get('graphManager');
     try {
       // Inject the HyperGraph dependency here
-      req.graph = await graphManager.getGraph(req.params.graphId, HyperGraph);
+      req.graph = await gm.getGraph(req.params.graphId, HyperGraph);
       next();
     } catch (error) {
       res.status(404).json({ error: 'Graph not found' });
@@ -186,6 +202,7 @@ async function main() {
   });
 
   app.get('/api/graphs/:graphId/graph', loadGraph, async (req, res) => {
+    const gm = req.app.get('graphManager');
     const graphId = req.params.graphId;
     const nodesFromDb = await req.graph.listAll('nodes');
     const relations = await req.graph.listAll('relations');
@@ -193,14 +210,14 @@ async function main() {
     const transitions = await req.graph.listAll('transitions');
     const functions = await req.graph.listAll('functions');
     const functionTypes = await schemaManager.getFunctionTypes();
-    
+
     const allNodesFromDb = [...nodesFromDb, ...transitions].filter(node => !node.isDeleted);
-    
+
     // Get node order from CNL
-    const cnl = await graphManager.getCnl(graphId);
+    const cnl = await gm.getCnl(graphId);
     const orderedNodeIds = getNodeOrderFromCnl(cnl);
     const nodesMap = new Map(allNodesFromDb.map(node => [node.id, node]));
-    
+
     // Sort nodes according to CNL order
     const sortedNodes = orderedNodeIds.map(id => nodesMap.get(id)).filter(Boolean);
     const nodesInCnl = new Set(orderedNodeIds);
@@ -245,8 +262,9 @@ async function main() {
   });
 
   app.get('/api/graphs/:graphId/cnl', async (req, res) => {
+    const gm = req.app.get('graphManager');
     try {
-      const cnl = await graphManager.getCnl(req.params.graphId);
+      const cnl = await gm.getCnl(req.params.graphId);
       res.json({ cnl });
     } catch (error) {
       res.status(404).json({ error: error.message });
@@ -254,8 +272,9 @@ async function main() {
   });
 
   app.get('/api/graphs/:graphId/nodes/:nodeId/cnl', async (req, res) => {
+    const gm = req.app.get('graphManager');
     try {
-      const cnl = await graphManager.getNodeCnl(req.params.graphId, req.params.nodeId);
+      const cnl = await gm.getNodeCnl(req.params.graphId, req.params.nodeId);
       res.json({ cnl });
     } catch (error) {
       res.status(404).json({ error: error.message });
@@ -263,12 +282,13 @@ async function main() {
   });
 
   app.post('/api/graphs/:graphId/cnl', loadGraph, async (req, res) => {
+    const gm = req.app.get('graphManager');
     const { cnlText } = req.body;
     const graph = req.graph;
     const graphId = req.params.graphId;
 
-    const { operations, errors } = await diffCnl(await graphManager.getCnl(graphId), cnlText);
-    
+    const { operations, errors } = await diffCnl(await gm.getCnl(graphId), cnlText);
+
     if (errors.length > 0) {
       return res.status(422).json({ errors });
     }
@@ -298,17 +318,17 @@ async function main() {
               const existingNode = await graph.getNode(op.payload.options.id);
               if (!existingNode) {
                 await req.graph.addNode(op.payload.base_name, op.payload.options);
-                await graphManager.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
+                await gm.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
               }
-              await graphManager.registerNodeInGraph(op.payload.options.id, graphId);
+              await gm.registerNodeInGraph(op.payload.options.id, graphId);
               break;
             case 'addRelation':
               const targetNode = await graph.getNode(op.payload.target);
               if (!targetNode) {
                 await graph.addNode(op.payload.target, { id: op.payload.target });
-                await graphManager.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
+                await gm.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
               }
-              await graphManager.registerNodeInGraph(op.payload.target, graphId);
+              await gm.registerNodeInGraph(op.payload.target, graphId);
               await req.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
               break;
             case 'addAttribute':
@@ -328,12 +348,12 @@ async function main() {
             await req.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
           }
         } else if (op.type === 'updateGraphDescription') {
-            await graphManager.updateGraphMetadata(graphId, { description: op.payload.description });
+            await gm.updateGraphMetadata(graphId, { description: op.payload.description });
         }
       }
     }
-    
-    await graphManager.saveCnl(req.params.graphId, cnlText);
+
+    await gm.saveCnl(req.params.graphId, cnlText);
     res.status(200).json({ message: 'CNL processed successfully.' });
   });
 

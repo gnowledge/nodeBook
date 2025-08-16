@@ -5,37 +5,52 @@ const { fork } = require('child_process');
 let backendProcess;
 
 function createWindow() {
-  const backendEnv = { ...process.env };
+  const forkArgs = [];
+  const backendEnv = { ...process.env }; // Pass parent env by default
 
   if (app.isPackaged) {
-    backendEnv.PORT = 0;
-    backendEnv.NODEBOOK_DATA_PATH = path.join(app.getPath('userData'), 'graph_data');
+    // When packaged, we set the PORT and pass the data path as an argument.
+    backendEnv.PORT = 3001;
+    const dataPath = path.join(app.getPath('userData'), 'graph_data');
+    forkArgs.push(dataPath);
   }
 
   const backendPath = app.isPackaged
     ? path.join(__dirname, 'nodebook-base', 'server.js')
     : path.join(__dirname, '../nodebook-base/server.js');
 
-  backendProcess = fork(backendPath, [], { env: backendEnv, silent: true });
-
-  backendProcess.stdout.on('data', (data) => {
-    const output = data.toString();
-    console.log('Backend STDOUT:', output);
-
-    const match = output.match(/Backend server is running on http:\/\/localhost:(\d+)/);
-    if (match) {
-      const port = match[1];
-      console.log(`Backend started on port: ${port}`);
-      createBrowserWindow(port);
-    }
+  // Pass the data path argument to the backend process.
+  backendProcess = fork(backendPath, forkArgs, {
+    env: backendEnv,
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
   });
-  
-  backendProcess.stderr.on('data', (data) => {
-    console.error('Backend STDERR:', data.toString());
-  });
+
+  if (backendProcess.stdout) {
+    backendProcess.stdout.on('data', (data) => {
+      const output = data.toString();
+      console.log('Backend STDOUT:', output);
+
+      const match = output.match(/Backend server is running on http:\/\/localhost:(\d+)/);
+      if (match) {
+        const port = match[1];
+        console.log(`Backend started on port: ${port}`);
+        createBrowserWindow(port);
+      }
+    });
+  }
+
+  if (backendProcess.stderr) {
+    backendProcess.stderr.on('data', (data) => {
+      console.error('Backend STDERR:', data.toString());
+    });
+  }
 
   backendProcess.on('exit', (code) => {
     console.log(`Backend process exited with code ${code}`);
+  });
+
+  backendProcess.on('error', (err) => {
+    console.error('Failed to start backend process.', err);
   });
 }
 
@@ -68,9 +83,13 @@ app.on('activate', function () {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
-    if (backendProcess) {
-      backendProcess.kill();
-    }
     app.quit();
+  }
+});
+
+app.on('will-quit', () => {
+  if (backendProcess) {
+    console.log('Killing backend process...');
+    backendProcess.kill();
   }
 });

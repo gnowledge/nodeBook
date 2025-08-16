@@ -6,9 +6,10 @@ const { PolyNode, RelationNode, AttributeNode, FunctionNode } = require('./model
 const { evaluate } = require('mathjs');
 
 class HyperGraph {
-  constructor(db, core) {
+  constructor(db, core, storagePath) {
     this.db = db;
     this.core = core;
+    this.storagePath = storagePath; // Store the storage path
     this.swarm = null;
   }
 
@@ -17,7 +18,7 @@ class HyperGraph {
     await core.ready();
     const db = new Hyperbee(core, { keyEncoding: 'utf-8', valueEncoding: 'json' });
     await db.ready();
-    return new HyperGraph(db, core);
+    return new HyperGraph(db, core, storagePath); // Pass storagePath to constructor
   }
 
   get key() {
@@ -36,7 +37,8 @@ class HyperGraph {
     const remoteKeyBuf = Buffer.from(keyToSync, 'hex');
     this.swarm.join(remoteKeyBuf);
     await this.swarm.flush();
-    const remoteCore = new Hypercore(path.join(__dirname, 'remotes', keyToSync.slice(0, 6)), remoteKeyBuf);
+    // Use the stored storagePath to create the remote core
+    const remoteCore = new Hypercore(path.join(this.storagePath, 'remotes', keyToSync.slice(0, 6)), remoteKeyBuf);
     this.core.replicate(remoteCore);
   }
 

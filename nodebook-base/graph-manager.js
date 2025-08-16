@@ -1,13 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-// Use the provided data path, otherwise default to a local 'graphs' directory.
-const DATA_DIR = process.env.NODEBOOK_DATA_PATH || path.join(__dirname, 'graphs');
-const REGISTRY_FILE = path.join(DATA_DIR, 'registry.json');
-const NODE_REGISTRY_FILE = path.join(DATA_DIR, 'node_registry.json');
-
-let activeGraphs = new Map();
-
+// Helper functions remain outside the class
 async function readJsonFile(file) {
     try {
         const data = await fs.readFile(file, 'utf-8');
@@ -22,228 +16,228 @@ async function writeJsonFile(file, data) {
     await fs.writeFile(file, JSON.stringify(data, null, 2));
 }
 
-async function initialize() {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-        await fs.access(REGISTRY_FILE);
-    } catch {
-        await fs.writeFile(REGISTRY_FILE, JSON.stringify([]));
+class GraphManager {
+    constructor() {
+        this.DATA_DIR = null;
+        this.REGISTRY_FILE = null;
+        this.NODE_REGISTRY_FILE = null;
+        this.activeGraphs = new Map();
     }
-    try {
-        await fs.access(NODE_REGISTRY_FILE);
-    } catch {
-        await fs.writeFile(NODE_REGISTRY_FILE, JSON.stringify({}));
-    }
-}
 
-async function getGraphRegistry() {
-    const registry = await readJsonFile(REGISTRY_FILE);
-    return registry || [];
-}
+    async initialize(dataPath) {
+        this.DATA_DIR = dataPath || path.join(__dirname, 'graphs');
+        this.REGISTRY_FILE = path.join(this.DATA_DIR, 'registry.json');
+        this.NODE_REGISTRY_FILE = path.join(this.DATA_DIR, 'node_registry.json');
 
-async function saveGraphRegistry(registry) {
-    await writeJsonFile(REGISTRY_FILE, registry);
-}
-
-async function updateGraphMetadata(graphId, metadata) {
-    const registry = await getGraphRegistry();
-    const graphIndex = registry.findIndex(g => g.id === graphId);
-    if (graphIndex === -1) {
-        throw new Error('Graph not found.');
-    }
-    registry[graphIndex] = { ...registry[graphIndex], ...metadata, updatedAt: new Date().toISOString() };
-    await saveGraphRegistry(registry);
-}
-
-async function getNodeRegistry() {
-    const registry = await readJsonFile(NODE_REGISTRY_FILE);
-    return registry || {};
-}
-
-async function saveNodeRegistry(registry) {
-    await writeJsonFile(NODE_REGISTRY_FILE, registry);
-}
-
-async function addNodeToRegistry(node) {
-    const registry = await getNodeRegistry();
-    if (!registry[node.id]) {
-        registry[node.id] = {
-            base_name: node.base_name,
-            description: node.description,
-            graph_ids: [],
-        };
-    }
-    await saveNodeRegistry(registry);
-    return registry[node.id];
-}
-
-async function registerNodeInGraph(nodeId, graphId) {
-    const registry = await getNodeRegistry();
-    if (registry[nodeId] && !registry[nodeId].graph_ids.includes(graphId)) {
-        registry[nodeId].graph_ids.push(graphId);
-        await saveNodeRegistry(registry);
-    }
-}
-
-async function unregisterGraphFromRegistry(graphId) {
-    const registry = await getNodeRegistry();
-    let modified = false;
-
-    for (const nodeId in registry) {
-        const node = registry[nodeId];
-        const initialLength = node.graph_ids.length;
-        node.graph_ids = node.graph_ids.filter(id => id !== graphId);
-
-        if (node.graph_ids.length < initialLength) {
-            modified = true;
+        await fs.mkdir(this.DATA_DIR, { recursive: true });
+        try {
+            await fs.access(this.REGISTRY_FILE);
+        } catch {
+            await fs.writeFile(this.REGISTRY_FILE, JSON.stringify([]));
         }
-
-        if (node.graph_ids.length === 0) {
-            delete registry[nodeId];
+        try {
+            await fs.access(this.NODE_REGISTRY_FILE);
+        } catch {
+            await fs.writeFile(this.NODE_REGISTRY_FILE, JSON.stringify({}));
         }
     }
 
-    if (modified) {
-        await saveNodeRegistry(registry);
-    }
-}
-
-async function createGraph(name, author = 'anonymous', email = '') {
-    const registry = await getGraphRegistry();
-    const id = name.toLowerCase().replace(/\s+/g, '-');
-    if (registry.find(g => g.id === id)) {
-        throw new Error('Graph with this name already exists.');
+    async getGraphRegistry() {
+        const registry = await readJsonFile(this.REGISTRY_FILE);
+        return registry || [];
     }
 
-    const graphDir = path.join(DATA_DIR, id);
-    await fs.mkdir(graphDir, { recursive: true });
-
-    const now = new Date().toISOString();
-    const newGraphInfo = { 
-        id,
-        name,
-        path: graphDir,
-        description: '',
-        author,
-        email,
-        createdAt: now,
-        updatedAt: now,
-    };
-    registry.push(newGraphInfo);
-    await saveGraphRegistry(registry);
-
-    return newGraphInfo;
-}
-
-async function getGraph(id, HyperGraph) {
-    if (activeGraphs.has(id)) {
-        return activeGraphs.get(id);
+    async saveGraphRegistry(registry) {
+        await writeJsonFile(this.REGISTRY_FILE, registry);
     }
 
-    const registry = await getGraphRegistry();
-    const graphInfo = registry.find(g => g.id === id);
-    if (!graphInfo) {
-        throw new Error('Graph not found.');
+    async updateGraphMetadata(graphId, metadata) {
+        const registry = await this.getGraphRegistry();
+        const graphIndex = registry.findIndex(g => g.id === graphId);
+        if (graphIndex === -1) {
+            throw new Error('Graph not found.');
+        }
+        registry[graphIndex] = { ...registry[graphIndex], ...metadata, updatedAt: new Date().toISOString() };
+        await this.saveGraphRegistry(registry);
     }
 
-    const graph = await HyperGraph.create(graphInfo.path);
-    await graph.joinSwarm();
-    activeGraphs.set(id, graph);
-    return graph;
-}
-
-async function getCnl(graphId) {
-    const registry = await getGraphRegistry();
-    const graphInfo = registry.find(g => g.id === graphId);
-    if (!graphInfo) throw new Error('Graph not found.');
-
-    const cnlPath = path.join(graphInfo.path, 'graph.cnl');
-    try {
-        return await fs.readFile(cnlPath, 'utf-8');
-    } catch (error) {
-        if (error.code === 'ENOENT') return '';
-        throw error;
+    async getNodeRegistry() {
+        const registry = await readJsonFile(this.NODE_REGISTRY_FILE);
+        return registry || {};
     }
-}
 
-async function getNodeCnl(graphId, nodeId) {
-    const cnl = await getCnl(graphId);
-    const lines = cnl.split('\n');
-    const nodeCnlLines = [];
-    let inNodeBlock = false;
+    async saveNodeRegistry(registry) {
+        await writeJsonFile(this.NODE_REGISTRY_FILE, registry);
+    }
 
-    const nodeRegistry = await getNodeRegistry();
-    const nodeInfo = nodeRegistry[nodeId];
-    if (!nodeInfo) return '';
+    async addNodeToRegistry(node) {
+        const registry = await this.getNodeRegistry();
+        if (!registry[node.id]) {
+            registry[node.id] = {
+                base_name: node.base_name,
+                description: node.description,
+                graph_ids: [],
+            };
+        }
+        await this.saveNodeRegistry(registry);
+        return registry[node.id];
+    }
 
-    const nodeName = nodeInfo.base_name;
-    const nodeNameRegex = new RegExp(`^# ${nodeName}`);
+    async registerNodeInGraph(nodeId, graphId) {
+        const registry = await this.getNodeRegistry();
+        if (registry[nodeId] && !registry[nodeId].graph_ids.includes(graphId)) {
+            registry[nodeId].graph_ids.push(graphId);
+            await this.saveNodeRegistry(registry);
+        }
+    }
 
-    for (const line of lines) {
-        const isTopLevelHeader = line.startsWith('# ');
+    async unregisterGraphFromRegistry(graphId) {
+        const registry = await this.getNodeRegistry();
+        let modified = false;
 
-        if (inNodeBlock) {
-            if (isTopLevelHeader) {
-                break;
+        for (const nodeId in registry) {
+            const node = registry[nodeId];
+            const initialLength = node.graph_ids.length;
+            node.graph_ids = node.graph_ids.filter(id => id !== graphId);
+
+            if (node.graph_ids.length < initialLength) {
+                modified = true;
             }
-            nodeCnlLines.push(line);
-        } else {
-            if (isTopLevelHeader) {
-                if (nodeNameRegex.test(line)) {
-                    inNodeBlock = true;
-                    nodeCnlLines.push(line);
+
+            if (node.graph_ids.length === 0) {
+                delete registry[nodeId];
+            }
+        }
+
+        if (modified) {
+            await this.saveNodeRegistry(registry);
+        }
+    }
+
+    async createGraph(name, author = 'anonymous', email = '') {
+        const registry = await this.getGraphRegistry();
+        const id = name.toLowerCase().replace(/\s+/g, '-');
+        if (registry.find(g => g.id === id)) {
+            throw new Error('Graph with this name already exists.');
+        }
+
+        const graphDir = path.join(this.DATA_DIR, id);
+        await fs.mkdir(graphDir, { recursive: true });
+
+        const now = new Date().toISOString();
+        const newGraphInfo = {
+            id,
+            name,
+            path: graphDir,
+            description: '',
+            author,
+            email,
+            createdAt: now,
+            updatedAt: now,
+        };
+        registry.push(newGraphInfo);
+        await this.saveGraphRegistry(registry);
+
+        return newGraphInfo;
+    }
+
+    async getGraph(id, HyperGraph) {
+        if (this.activeGraphs.has(id)) {
+            return this.activeGraphs.get(id);
+        }
+
+        const registry = await this.getGraphRegistry();
+        const graphInfo = registry.find(g => g.id === id);
+        if (!graphInfo) {
+            throw new Error('Graph not found.');
+        }
+
+        const graph = await HyperGraph.create(graphInfo.path);
+        await graph.joinSwarm();
+        this.activeGraphs.set(id, graph);
+        return graph;
+    }
+
+    async getCnl(graphId) {
+        const registry = await this.getGraphRegistry();
+        const graphInfo = registry.find(g => g.id === graphId);
+        if (!graphInfo) throw new Error('Graph not found.');
+
+        const cnlPath = path.join(graphInfo.path, 'graph.cnl');
+        try {
+            return await fs.readFile(cnlPath, 'utf-8');
+        } catch (error) {
+            if (error.code === 'ENOENT') return '';
+            throw error;
+        }
+    }
+
+    async getNodeCnl(graphId, nodeId) {
+        const cnl = await this.getCnl(graphId);
+        const lines = cnl.split('\n');
+        const nodeCnlLines = [];
+        let inNodeBlock = false;
+
+        const nodeRegistry = await this.getNodeRegistry();
+        const nodeInfo = nodeRegistry[nodeId];
+        if (!nodeInfo) return '';
+
+        const nodeName = nodeInfo.base_name;
+        const nodeNameRegex = new RegExp(`^# ${nodeName}`);
+
+        for (const line of lines) {
+            const isTopLevelHeader = line.startsWith('# ');
+
+            if (inNodeBlock) {
+                if (isTopLevelHeader) {
+                    break;
+                }
+                nodeCnlLines.push(line);
+            } else {
+                if (isTopLevelHeader) {
+                    if (nodeNameRegex.test(line)) {
+                        inNodeBlock = true;
+                        nodeCnlLines.push(line);
+                    }
                 }
             }
         }
+
+        return nodeCnlLines.join('\n');
     }
 
-    return nodeCnlLines.join('\n');
-}
+    async saveCnl(graphId, cnlText) {
+        const registry = await this.getGraphRegistry();
+        const graphInfo = registry.find(g => g.id === graphId);
+        if (!graphInfo) throw new Error('Graph not found.');
 
-async function saveCnl(graphId, cnlText) {
-    const registry = await getGraphRegistry();
-    const graphInfo = registry.find(g => g.id === graphId);
-    if (!graphInfo) throw new Error('Graph not found.');
-
-    const cnlPath = path.join(graphInfo.path, 'graph.cnl');
-    await fs.writeFile(cnlPath, cnlText);
-    await updateGraphMetadata(graphId, {}); // Touch the graph to update the updatedAt timestamp
-}
-
-async function deleteGraph(id) {
-    const registry = await getGraphRegistry();
-    const graphIndex = registry.findIndex(g => g.id === id);
-    if (graphIndex === -1) {
-        throw new Error('Graph not found.');
+        const cnlPath = path.join(graphInfo.path, 'graph.cnl');
+        await fs.writeFile(cnlPath, cnlText);
+        await this.updateGraphMetadata(graphId, {}); // Touch the graph to update the updatedAt timestamp
     }
 
-    await unregisterGraphFromRegistry(id);
+    async deleteGraph(id) {
+        const registry = await this.getGraphRegistry();
+        const graphIndex = registry.findIndex(g => g.id === id);
+        if (graphIndex === -1) {
+            throw new Error('Graph not found.');
+        }
 
-    const graphInfo = registry[graphIndex];
-    await fs.rm(graphInfo.path, { recursive: true, force: true });
+        await this.unregisterGraphFromRegistry(id);
 
-    registry.splice(graphIndex, 1);
-    await saveGraphRegistry(registry);
+        const graphInfo = registry[graphIndex];
+        await fs.rm(graphInfo.path, { recursive: true, force: true });
 
-    if (activeGraphs.has(id)) {
-        const graph = activeGraphs.get(id);
-        await graph.leaveSwarm();
-        activeGraphs.delete(id);
+        registry.splice(graphIndex, 1);
+        await this.saveGraphRegistry(registry);
+
+        if (this.activeGraphs.has(id)) {
+            const graph = this.activeGraphs.get(id);
+            await graph.leaveSwarm();
+            this.activeGraphs.delete(id);
+        }
     }
 }
 
-module.exports = {
-    initialize,
-    getGraphRegistry,
-    createGraph,
-    getGraph,
-    deleteGraph,
-    getCnl,
-    saveCnl,
-    getNodeCnl,
-    getNodeRegistry,
-    addNodeToRegistry,
-    registerNodeInGraph,
-    unregisterGraphFromRegistry,
-    updateGraphMetadata,
-};
+// Export the class itself, not an instance.
+module.exports = GraphManager;
