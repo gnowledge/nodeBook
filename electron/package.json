@@ -33,6 +33,7 @@
     "productName": "NodeBook",
     "files": [
       "main.js",
+      "preload.js",
       {
         "from": "../nodebook-base",
         "to": "nodebook-base"
