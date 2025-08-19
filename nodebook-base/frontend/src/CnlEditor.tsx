@@ -56,7 +56,14 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
           { token: 'keyword', foreground: 'D95F02' },         // Dark Orange for Attributes
           { token: 'comment', foreground: '808080' },
         ],
-        colors: {},
+        colors: {
+          'editor.background': '#ffffff',
+          'editor.foreground': '#212529',
+          'editorLineNumber.foreground': '#6c757d',
+          'editorCursor.foreground': '#007bff',
+          'editor.selectionBackground': '#e9ecef',
+          'editor.inactiveSelectionBackground': '#f0f2f5',
+        },
       });
     }
 
@@ -128,7 +135,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
 
   return (
     <Editor
-      height="100%"
+      height="calc(80vh - 48px)"
       language="cnl"
       theme="cnlTheme"
       value={value}

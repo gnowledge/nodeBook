@@ -1,4 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import p2pIcon from './assets/p2p.svg';
+import publicIcon from './assets/public.svg';
+import publishIcon from './assets/publish.svg';
+import connectedIcon from './assets/connected.svg';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
@@ -215,13 +219,19 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <div className="publish-actions">
-          <button className="publish-btn" onClick={() => handleSetAll('P2P')}>Make All P2P</button>
-          <button className="publish-btn" onClick={() => handleSetAll('Public')}>Make All Public</button>
+          <button className="publish-btn" onClick={() => handleSetAll('P2P')} title="Make All P2P">
+            <img src={p2pIcon} alt="Make All P2P" style={{width: 24, height: 24}} />
+          </button>
+          <button className="publish-btn" onClick={() => handleSetAll('Public')} title="Make All Public">
+            <img src={publicIcon} alt="Make All Public" style={{width: 24, height: 24}} />
+          </button>
           <div className="publish-container">
-            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing || wsStatus !== 'Connected'}>
-              {isPublishing ? publishMessage : 'Publish'}
+            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing || wsStatus !== 'Connected'} title="Publish">
+              <img src={publishIcon} alt="Publish" style={{width: 24, height: 24}} />
             </button>
-            <span className={`ws-status ${wsStatus.toLowerCase()}`}>{wsStatus}</span>
+            <span className={`ws-status ${wsStatus.toLowerCase()}`} title={wsStatus}>
+              <img src={connectedIcon} alt={wsStatus} style={{width: 24, height: 24, opacity: wsStatus === 'Connected' ? 1 : 0.3}} />
+            </span>
           </div>
         </div>
       </div>

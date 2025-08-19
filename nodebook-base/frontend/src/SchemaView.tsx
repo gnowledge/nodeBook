@@ -79,11 +79,11 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
 
   return (
     <div className="schema-view">
-      <div className="tabs">
-        <button className={`tab-button ${mode === 'nodes' ? 'active' : ''}`} onClick={() => setMode('nodes')}>Node Types ({nodeTypes.length})</button>
-        <button className={`tab-button ${mode === 'relations' ? 'active' : ''}`} onClick={() => setMode('relations')}>Relation Types ({relationTypes.length})</button>
-        <button className={`tab-button ${mode === 'attributes' ? 'active' : ''}`} onClick={() => setMode('attributes')}>Attribute Types ({attributeTypes.length})</button>
-        <button className={`tab-button ${mode === 'functions' ? 'active' : ''}`} onClick={() => setMode('functions')}>Functions ({functionTypes.length})</button>
+      <div className="schema-tabs">
+        <button className={`schema-tab-btn ${mode === 'nodes' ? 'active' : ''}`} onClick={() => setMode('nodes')} title="Node Types">NT</button>
+        <button className={`schema-tab-btn ${mode === 'relations' ? 'active' : ''}`} onClick={() => setMode('relations')} title="Relation Types">RT</button>
+        <button className={`schema-tab-btn ${mode === 'attributes' ? 'active' : ''}`} onClick={() => setMode('attributes')} title="Attribute Types">AT</button>
+        <button className={`schema-tab-btn ${mode === 'functions' ? 'active' : ''}`} onClick={() => setMode('functions')} title="Function Types">FT</button>
         <button className="create-new-btn" onClick={openModalForCreate}>+ Create New</button>
       </div>
       <div className="schema-grid">

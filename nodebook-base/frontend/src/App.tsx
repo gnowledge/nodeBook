@@ -1,4 +1,11 @@
+import p2pIcon from './assets/p2p.svg';
 import React, { useState, useEffect } from 'react';
+import editorIcon from './assets/editor.svg';
+import visualizationIcon from './assets/visualization.svg';
+import jsonDataIcon from './assets/jsonData.svg';
+import nodesIcon from './assets/nodes.svg';
+import schemaIcon from './assets/schema.svg';
+import peersIcon from './assets/peers.svg';
 import './App.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
@@ -17,6 +24,13 @@ import { API_BASE_URL } from './api-config';
 type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
 
 function App() {
+  const handleDeleteGraph = async () => {
+    if (!activeGraphId) return;
+    if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
+      await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
+      setActiveGraphId(null);
+    }
+  };
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
   const [activeGraphKey, setActiveGraphKey] = useState<string | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -135,44 +149,70 @@ function App() {
       <main className="main-content">
         <div className="visualization-container">
           <div className="tabs-container">
-            <div className="tabs">
-              <button className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>Editor</button>
-              <button className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`} onClick={() => setViewMode('visualization')}>Visualization</button>
-              <button className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`} onClick={() => setViewMode('jsonData')}>JSON Data</button>
-              <button className={`tab-button ${viewMode === 'nodes' ? 'active' : ''}`} onClick={() => setViewMode('nodes')}>Nodes</button>
-              <button className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`} onClick={() => setViewMode('schema')}>Schema</button>
-              <button className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`} onClick={() => setViewMode('peers')}>Peers</button>
-            </div>
-            <Menu onSelectPage={setActivePage} />
-          </div>
-          <div className="tab-content">
-            {activeGraphId ? (
-              <>
-                {viewMode === 'editor' && (
-                  <div className="editor-container">
-                    <CnlEditor
-                      value={cnlText[activeGraphId] || ''}
-                      onChange={handleCnlChange}
-                      onSubmit={handleCnlSubmit}
-                      disabled={!activeGraphId}
-                      nodeTypes={nodeTypes}
-                      relationTypes={relationTypes}
-                      attributeTypes={attributeTypes}
-                    />
-                    <button className="submit-cnl-btn" onClick={handleCnlSubmit} disabled={!activeGraphId || isSubmitting}>
-                      {isSubmitting ? 'Submitting...' : 'Submit (Ctrl+Enter)'}
-                    </button>
-                  </div>
+            <div className="vertical-nav">
+              <div className="vertical-tabs">
+                <Menu onSelectPage={setActivePage} />
+                  <button className={`tab-button ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')} title="Editor">
+                    <img src={editorIcon} alt="Editor" style={{margin:'auto'}} />
+                  </button>
+                  <button className={`tab-button ${viewMode === 'nodes' ? 'active' : ''}`} onClick={() => setViewMode('nodes')} title="Nodes">
+                    <img src={nodesIcon} alt="Nodes" style={{margin:'auto'}} />
+                  </button>
+                  <button className={`tab-button ${viewMode === 'visualization' ? 'active' : ''}`} onClick={() => setViewMode('visualization')} title="Graph">
+                    <img src={visualizationIcon} alt="Graph" style={{margin:'auto'}} />
+                  </button>
+                  <button className={`tab-button ${viewMode === 'schema' ? 'active' : ''}`} onClick={() => setViewMode('schema')} title="Schema">
+                    <span style={{display:'flex',justifyContent:'center',alignItems:'center',width:'32px',height:'32px',borderRadius:'50%',background:'#e0e0e0',margin:'auto'}}>
+                      <img src={schemaIcon} alt="Schema" style={{width:'20px',height:'20px'}} />
+                    </span>
+                  </button>
+                  <button className={`tab-button ${viewMode === 'peers' ? 'active' : ''}`} onClick={() => setViewMode('peers')} title="Peer-to-Peer">
+                    <img src={p2pIcon} alt="Peer-to-Peer" style={{margin:'auto', width:'24px', height:'24px'}} />
+                  </button>
+                  <button className={`tab-button ${viewMode === 'jsonData' ? 'active' : ''}`} onClick={() => setViewMode('jsonData')} title="JSON Data">
+                    <span style={{fontWeight:600, fontSize:'1.3em', letterSpacing:'-2px', color:'#333', margin:'auto'}}>{'{-}'}</span>
+                  </button>
+                {activeGraphId && (
+                  <button className="tab-button delete-graph-btn" onClick={handleDeleteGraph} title="Delete this graph">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m5 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
                 )}
-                {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
-                {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
-                {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} cnlText={cnlText[activeGraphId] || ''} onCnlChange={handleCnlChange} onSwitchGraph={handleSwitchGraph} />}
-                {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
-                {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
-              </>
-            ) : (
-              <div className="placeholder">Select or create a graph to begin.</div>
-            )}
+              </div>
+            </div>
+            <div className="tab-content">
+              {activeGraphId ? (
+                <>
+                  {viewMode === 'editor' && (
+                    <div className="editor-container">
+                      <CnlEditor
+                        value={cnlText[activeGraphId] || ''}
+                        onChange={handleCnlChange}
+                        onSubmit={handleCnlSubmit}
+                        disabled={!activeGraphId}
+                        nodeTypes={nodeTypes}
+                        relationTypes={relationTypes}
+                        attributeTypes={attributeTypes}
+                      />
+                      <button className="submit-cnl-btn" onClick={handleCnlSubmit} disabled={!activeGraphId || isSubmitting}>
+                        {isSubmitting ? 'Submitting...' : 'Submit (Ctrl+Enter)'}
+                      </button>
+                    </div>
+                  )}
+                  {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
+                  {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
+                  {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} cnlText={cnlText[activeGraphId] || ''} onCnlChange={handleCnlChange} onSwitchGraph={handleSwitchGraph} />}
+                  {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
+                  {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
+                </>
+              ) : (
+                <div className="placeholder">Select or create a graph to begin. For examples of how to create graphs, check Menu-Examples/Help.</div>
+              )}
+            </div>
           </div>
         </div>
       </main>

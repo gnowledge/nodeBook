@@ -1,3 +1,24 @@
+/* Ensure GraphSwitcher dropdown is light */
+.graph-switcher select, .graph-switcher .dropdown {
+  background-color: var(--bg-color-light);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1em;
+  padding: 6px 12px;
+}
+
+/* Preferences textarea and text inputs use light background */
+.preferences-section textarea,
+.preferences-section input[type="text"],
+.preferences-section input[type="email"] {
+  background-color: var(--bg-color-light);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1em;
+  padding: 8px;
+}
 :root {
   --bg-color: #f0f2f5;
   --bg-color-light: #ffffff;
@@ -107,6 +128,24 @@ body {
   color: var(--danger-color);
 }
 
+.delete-graph-btn.delete-graph-bottom {
+  display: block;
+  width: 100%;
+  margin: 16px 0 0 0;
+  background-color: var(--danger-color);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1em;
+  padding: 10px 0;
+  cursor: pointer;
+  text-align: center;
+}
+
+.delete-graph-btn.delete-graph-bottom:hover {
+  background-color: #b71c1c;
+}
+
 .main-content {
   display: flex;
   flex-grow: 1;
@@ -114,54 +153,81 @@ body {
 }
 
 .visualization-container {
+  display: flex;
+  flex-direction: row;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
+  min-width: 0;
+  flex: 1 1 0;
   box-sizing: border-box;
 }
 
 .tabs-container {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.tabs {
-  display: flex;
-}
-
-.tab-button {
-  padding: 10px 15px;
-  cursor: pointer;
-  background-color: var(--bg-color-lighter);
-  border: 1px solid var(--border-color);
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  margin-right: 5px;
-  color: var(--text-color-muted);
-}
-
-.tab-button.active {
-  background-color: var(--bg-color-light);
-  color: var(--text-color);
+  flex-direction: row;
+  align-items: flex-start;
+  height: 100%;
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .tab-content {
   flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 0;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
   border: 1px solid var(--border-color);
   border-radius: 0 8px 8px 8px;
   padding: 10px;
   overflow-y: auto;
   background-color: var(--bg-color-light);
+  margin-left: 12px;
+  box-sizing: border-box;
 }
 
-#cy {
-  height: 100%;
-  width: 100%;
-  display: block;
+@media (min-width: 900px) {
+  .tab-content {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .editor-container {
+    max-width: none;
+    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .editor-container > div,
+  .editor-container .monaco-editor {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .visualization-container {
+    flex-direction: column;
+  }
+  .tabs-container {
+    flex-direction: row;
+  }
+  .vertical-nav {
+    flex-direction: row;
+    min-width: 0;
+    padding: 6px 0;
+    border-radius: 8px 8px 0 0;
+    height: auto;
+  }
+  .tab-content {
+    margin-left: 0;
+    margin-top: 8px;
+    border-radius: 8px;
+  }
 }
 
 .menu-container {
@@ -182,14 +248,15 @@ body {
 
 .menu-dropdown {
   position: absolute;
-  top: 100%;
-  right: 0;
+  top: 0;
+  left: 100%;
   background-color: var(--bg-color-light);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 0.5rem 0;
   z-index: 1000;
-  min-width: 150px;
+  min-width: 180px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .menu-dropdown a {
@@ -201,6 +268,18 @@ body {
 
 .menu-dropdown a:hover {
   background-color: var(--bg-color-lighter);
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0.5rem 0;
+}
+
+.menu-header {
+  font-weight: bold;
+  color: var(--text-color-muted);
+  padding: 0.5rem 1rem 0.25rem 1rem;
 }
 
 .page-view-overlay, .modal-overlay {
@@ -317,41 +396,72 @@ input:checked + .slider:before {
 
 .data-view-grid, .schema-grid {
   background-color: var(--bg-color);
-}
-
-.schema-view {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.schema-view .tabs {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-}
-
-.schema-grid {
-  flex-grow: 1;
-  overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+}
+
+/* SchemaView compact tab styles */
+.schema-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+  align-items: center;
+  overflow-x: auto;
+}
+.schema-tab-btn {
+  padding: 4px 10px;
+  border: none;
+  background: #e0e0e0;
+  color: #333;
+  border-radius: 5px 5px 0 0;
+  font-weight: 600;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  min-width: 36px;
+  letter-spacing: 1px;
+}
+.schema-tab-btn.active {
+  background: #1976d2;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.08);
+}
+.schema-tab-btn:focus {
+  outline: 2px solid #1976d2;
+}
+@media (max-width: 600px) {
+  .schema-tabs {
+    gap: 2px;
+    margin-bottom: 8px;
+  }
+  .schema-tab-btn {
+    font-size: 0.85em;
+    min-width: 28px;
+    padding: 3px 6px;
+  }
+}
   gap: 1rem;
   padding: 1rem;
 }
 
 .schema-card {
-  background-color: var(--bg-color-light);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background-color: #ffffff !important;
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   cursor: pointer;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .schema-card:hover {
@@ -518,28 +628,109 @@ input:checked + .slider:before {
   margin-left: 0.5em;
 }
 
-/* Other component styles */
-.placeholder {
+/* Vertical Tabs Styles */
+.vertical-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  background: var(--bg-color-lighter);
+  border-radius: 8px;
+  min-width: 56px;
+}
+
+.vertical-tabs .tab-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  margin: 0;
+  border-radius: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: var(--text-color-muted);
+  width: 40px;
+  height: 40px;
+  transition: background 0.2s;
+}
+
+.vertical-tabs .tab-button.active,
+.vertical-tabs .tab-button:hover {
+  background: var(--bg-color-light);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.vertical-tabs .tab-button img {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .vertical-tabs {
+    min-width: 48px;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .vertical-tabs .tab-button {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+  }
+  .vertical-tabs .tab-button img {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .editor-container {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 0;
+}
+
+.editor-container > div,
+.editor-container .monaco-editor {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .submit-cnl-btn {
-  margin-top: 10px;
-  padding: 10px 15px;
+  margin-top: 12px;
+  align-self: flex-end;
   background-color: var(--accent-color);
   color: white;
   border: none;
   border-radius: 4px;
+  padding: 8px 16px;
   cursor: pointer;
-  align-self: flex-end;
+  font-size: 1em;
+  position: static;
+  display: block;
+}
+
+.tab-button.delete-graph-btn {
+  background-color: var(--danger-color);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.4em;
+  padding: 8px;
+  margin-top: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 40px;
+  height: 40px;
+}
+.tab-button.delete-graph-btn:hover {
+  background-color: #b71c1c;
 }

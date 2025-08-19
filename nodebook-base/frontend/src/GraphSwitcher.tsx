@@ -52,13 +52,16 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   return (
     <div className="graph-switcher">
-      <div className="tabs">
-        {graphs.map(graph => (
-          <div key={graph.id} className={`tab-button ${graph.id === activeGraphId ? 'active' : ''}`}>
-            <span onClick={() => onGraphSelect(graph.id)}>{graph.name}</span>
-            <button className="delete-graph-btn" onClick={() => handleDeleteGraph(graph.id)}>&times;</button>
-          </div>
-        ))}
+      <div className="graph-dropdown-container">
+        <select
+          className="graph-dropdown"
+          value={activeGraphId || ''}
+          onChange={e => onGraphSelect(e.target.value)}
+        >
+          {graphs.map(graph => (
+            <option key={graph.id} value={graph.id}>{graph.name}</option>
+          ))}
+        </select>
       </div>
       <div className="graph-creator">
         <input
@@ -67,7 +70,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
           onChange={(e) => setNewGraphName(e.target.value)}
           placeholder="New graph name..."
         />
-        <button onClick={handleCreateGraph}>+</button>
+        <button onClick={handleCreateGraph} title="Create new graph">+</button>
       </div>
     </div>
   );
