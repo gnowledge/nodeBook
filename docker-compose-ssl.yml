@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  nodebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - nodebook-data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    depends_on:
+      - nodebook
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  certbot:
+    image: certbot/certbot:v2.10.0
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    # This command runs every 12 hours to check for certificate renewal
+    command: renew --quiet --no-random-sleep-on-renew
+
+volumes:
+  nodebook-data:
+  certbot-etc:
+  certbot-var:
+
+networks:
+  app-network:
+    driver: bridge

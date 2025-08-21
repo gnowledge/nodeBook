@@ -1,0 +1,38 @@
+{
+  "india": {
+    "base_name": "India",
+    "graph_ids": [
+      "g1"
+    ]
+  },
+  "country": {
+    "base_name": "country",
+    "graph_ids": [
+      "g1"
+    ]
+  },
+  "nodebook": {
+    "base_name": "nodeBook",
+    "graph_ids": [
+      "g1"
+    ]
+  },
+  "note_book": {
+    "base_name": "note_book",
+    "graph_ids": [
+      "g1"
+    ]
+  },
+  "p2p_app": {
+    "base_name": "p2p_app",
+    "graph_ids": [
+      "g1"
+    ]
+  },
+  "asia": {
+    "base_name": "Asia",
+    "graph_ids": [
+      "g1"
+    ]
+  }
+}

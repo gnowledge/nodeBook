@@ -1,0 +1,42 @@
+# Development Dockerfile for NodeBook Federated Architecture
+FROM node:20
+
+# Install development tools
+RUN npm install -g nodemon node-gyp
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for root and backend
+COPY package*.json ./
+COPY nodebook-base/package*.json ./nodebook-base/
+
+# Install root dependencies
+RUN npm install
+
+# Install backend dependencies
+WORKDIR /app/nodebook-base
+RUN npm install
+
+# Install frontend dependencies
+WORKDIR /app/nodebook-base/frontend
+COPY nodebook-base/frontend/package*.json ./
+RUN npm install
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p nodebook-base/user_data
+RUN mkdir -p nodebook-base/logs
+
+# Set development environment
+ENV NODE_ENV=development
+ENV PORT=3000
+
+# Expose ports
+EXPOSE 3000 5173
+
+# Default command (can be overridden in docker-compose)
+CMD ["sh", "-c", "cd nodebook-base && npm run dev"]

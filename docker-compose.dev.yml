@@ -1,35 +1,77 @@
+version: '3.8'
+
 services:
+  # Backend service with authentication and data management
   backend:
     image: node:20
     container_name: nodebook-backend-dev
-    command: sh -c "npm install -g node-gyp nodemon && npm install && npm run dev"
-    working_dir: /app/nodebook-base
+    command: sh -c "
+      npm install -g node-gyp nodemon &&
+      cd nodebook-base &&
+      npm install &&
+      npm run dev
+    "
+    working_dir: /app
     volumes:
       - .:/app
+      - nodebook-dev-data:/app/nodebook-base/user_data
+      - nodebook-dev-db:/app/nodebook-base
     ports:
       - "3000:3000"
     environment:
       - PORT=3000
       - NODE_ENV=development
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - JWT_EXPIRES_IN=7d
+      - SESSION_SECRET=dev-session-secret-change-in-production
+      - HYPERSWARM_PORT=49737
     networks:
       - nodebook-dev-net
+    depends_on:
+      - frontend
 
+  # Frontend service with PWA development
   frontend:
     image: node:20-slim
     container_name: nodebook-frontend-dev
-    command: sh -c "npm install && npm run dev -- --host"
+    command: sh -c "
+      cd nodebook-base/frontend &&
+      npm install &&
+      npm run dev -- --host 0.0.0.0 --port 5173
+    "
     working_dir: /app
     volumes:
-      - ./nodebook-base/frontend:/app
+      - .:/app
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_TARGET=http://backend:3000
-    depends_on:
-      - backend
+      - VITE_API_TARGET=http://localhost:3000
+      - VITE_DEV_MODE=true
     networks:
       - nodebook-dev-net
+
+  # Optional: Redis for session storage (if you want to use Redis instead of SQLite)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: nodebook-redis-dev
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-dev-data:/data
+  #   networks:
+  #     - nodebook-dev-net
 
 networks:
   nodebook-dev-net:
     driver: bridge
+
+volumes:
+  # Persistent storage for user data
+  nodebook-dev-data:
+    driver: local
+  # Persistent storage for authentication database and sessions
+  nodebook-dev-db:
+    driver: local
+  # Optional: Redis data
+  # redis-dev-data:
+  #   driver: local

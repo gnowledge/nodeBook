@@ -1,0 +1,28 @@
+
+# India
+<is a> Country;
+has population: 1.4 *billion*;
+
+
+Submit (Ctrl+Enter)
+×
+# India
+<is a> Country
+<located in> Asia
+has population: 1.4 *billion*
+
+```description
+India, officially the Republic of India, is a country in South Asia.
+
+- It is the **seventh-largest country** by area.
+- It is the **second-most populous country**.
+- It is the **most populous democracy** in the world.
+
+For more information, see the [official government website](https://www.india.gov.in/).
+```
+
+# Asia
+<is a> Continent
+```description
+Asia is Earth's largest and most populous continent, located primarily in the Eastern and Northern Hemispheres.
+```

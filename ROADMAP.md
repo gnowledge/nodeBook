@@ -194,7 +194,3 @@ This document outlines the planned features and development phases for the nodeb
 This roadmap provides a high-level overview. The next step is to break
 down the features in **Phase 1** into more detailed user stories and
 technical tasks.
-
-Please review this roadmap. We can adjust the priorities and phases
-based on your feedback. Which feature from Phase 1 would you like to
-begin with?

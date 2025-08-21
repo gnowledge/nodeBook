@@ -1,0 +1,91 @@
+{
+  "hash": "e190eea2",
+  "configHash": "755b7fb9",
+  "lockfileHash": "abc13f34",
+  "browserHash": "7ec05d1d",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "a2dd611f",
+      "needsInterop": true
+    },
+    "react-dom": {
+      "src": "../../node_modules/react-dom/index.js",
+      "file": "react-dom.js",
+      "fileHash": "79c038f8",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "299d362a",
+      "needsInterop": true
+    },
+    "react/jsx-runtime": {
+      "src": "../../node_modules/react/jsx-runtime.js",
+      "file": "react_jsx-runtime.js",
+      "fileHash": "3aa0a0b7",
+      "needsInterop": true
+    },
+    "better-react-mathjax": {
+      "src": "../../node_modules/better-react-mathjax/esm/index.js",
+      "file": "better-react-mathjax.js",
+      "fileHash": "9a656a91",
+      "needsInterop": false
+    },
+    "cytoscape": {
+      "src": "../../node_modules/cytoscape/dist/cytoscape.esm.mjs",
+      "file": "cytoscape.js",
+      "fileHash": "a46f9f31",
+      "needsInterop": false
+    },
+    "cytoscape-dagre": {
+      "src": "../../node_modules/cytoscape-dagre/cytoscape-dagre.js",
+      "file": "cytoscape-dagre.js",
+      "fileHash": "84e77962",
+      "needsInterop": true
+    },
+    "cytoscape-svg": {
+      "src": "../../node_modules/cytoscape-svg/cytoscape-svg.js",
+      "file": "cytoscape-svg.js",
+      "fileHash": "c6a26bb7",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "0c59da82",
+      "needsInterop": true
+    },
+    "react-markdown": {
+      "src": "../../node_modules/react-markdown/index.js",
+      "file": "react-markdown.js",
+      "fileHash": "8b44fc54",
+      "needsInterop": false
+    },
+    "remark-gfm": {
+      "src": "../../node_modules/remark-gfm/index.js",
+      "file": "remark-gfm.js",
+      "fileHash": "664c6f16",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-K4CKYAEP": {
+      "file": "chunk-K4CKYAEP.js"
+    },
+    "chunk-Y64DX5DL": {
+      "file": "chunk-Y64DX5DL.js"
+    },
+    "chunk-Q7AOECBT": {
+      "file": "chunk-Q7AOECBT.js"
+    },
+    "chunk-7JZAKNLV": {
+      "file": "chunk-7JZAKNLV.js"
+    },
+    "chunk-2TUXWMP5": {
+      "file": "chunk-2TUXWMP5.js"
+    }
+  }
+}
