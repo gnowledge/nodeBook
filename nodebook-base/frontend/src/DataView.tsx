@@ -36,7 +36,18 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
+    // In development, use Vite's WebSocket proxy at /ws
+    // In production, construct the WebSocket URL from API_BASE_URL
+    let wsUrl;
+    if (import.meta.env.DEV) {
+      // Use the current host and port with /ws endpoint for Vite's proxy
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    } else {
+      // In production, convert HTTP URL to WebSocket URL
+      wsUrl = API_BASE_URL.replace(/^http/, 'ws');
+    }
+    
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => setWsStatus('Connected');
