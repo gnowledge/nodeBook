@@ -6,7 +6,10 @@ let backendProcess;
 
 function createWindow() {
   const forkArgs = [];
-  const backendEnv = { ...process.env }; // Pass parent env by default
+  const backendEnv = { 
+    ...process.env,
+    NODE_ENV: 'desktop' // Set desktop environment for auto-login
+  };
 
   if (app.isPackaged) {
     // When packaged, we set the PORT and pass the data path as an argument.
@@ -62,8 +65,12 @@ function createBrowserWindow(port) {
       // Use a preload script to securely expose the port to the renderer
       preload: path.join(__dirname, 'preload.js'),
       // Pass the port to the preload script
-      additionalArguments: [`--port=${port}`]
-    }
+      additionalArguments: [`--port=${port}`],
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    title: 'NodeBook - Desktop Edition',
+    icon: path.join(__dirname, 'assets', 'icon.png') // Add icon if available
   });
 
   if (app.isPackaged) {
@@ -73,6 +80,15 @@ function createBrowserWindow(port) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   }
+
+  // Handle window closed
+  mainWindow.on('closed', () => {
+    // Clean up backend process when window is closed
+    if (backendProcess) {
+      console.log('Killing backend process...');
+      backendProcess.kill();
+    }
+  });
 }
 
 app.whenReady().then(createWindow);
@@ -91,5 +107,20 @@ app.on('will-quit', () => {
   if (backendProcess) {
     console.log('Killing backend process...');
     backendProcess.kill();
+  }
+});
+
+// Handle app quit
+app.on('before-quit', () => {
+  if (backendProcess) {
+    console.log('Gracefully shutting down backend...');
+    backendProcess.kill('SIGTERM');
+    
+    // Give the backend a moment to clean up
+    setTimeout(() => {
+      if (backendProcess) {
+        backendProcess.kill('SIGKILL');
+      }
+    }, 2000);
   }
 });

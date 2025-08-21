@@ -1,4 +1,24 @@
 {
+  "name": "nodebook",
+  "version": "1.0.0",
+  "description": "A federated, cross-platform knowledge graph application supporting both centralized server deployments and decentralized desktop use",
+  "main": "index.js",
+  "scripts": {
+    "build:frontend": "cd nodebook-base/frontend && npm run build",
+    "build:docker": "docker build -t nodebook:latest .",
+    "build:electron": "cd electron && npm run build",
+    "build:all": "npm run build:frontend && npm run build:docker && npm run build:electron",
+    "dev:frontend": "cd nodebook-base/frontend && npm run dev",
+    "dev:backend": "cd nodebook-base && npm run dev",
+    "dev:electron": "cd electron && npm run dev",
+    "start:backend": "cd nodebook-base && npm start",
+    "test": "cd nodebook-base && npm test",
+    "clean": "rm -rf nodebook-base/frontend/dist electron/dist",
+    "install:all": "npm install && cd nodebook-base && npm install && cd frontend && npm install && cd ../../electron && npm install"
+  },
+  "keywords": ["knowledge-graph", "p2p", "federated", "electron", "docker"],
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.8",
     "autoprefixer": "^10.4.21",

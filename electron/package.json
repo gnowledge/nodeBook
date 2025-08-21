@@ -10,20 +10,12 @@
   },
   "scripts": {
     "start": "electron .",
+    "dev": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "build": "npm run dist"
   },
-  "dependencies": {
-    "autobase": "^7.17.0",
-    "cytoscape": "^3.33.0",
-    "cytoscape-dagre": "^2.5.0",
-    "express": "^5.1.0",
-    "hyperbee": "^2.25.0",
-    "hypercore": "^11.12.0",
-    "hyperswarm": "^4.13.0",
-    "mathjs": "^13.0.0",
-    "ws": "^8.18.3"
-  },
+  "dependencies": {},
   "devDependencies": {
     "electron": "^28.2.3",
     "electron-builder": "^24.9.1"
