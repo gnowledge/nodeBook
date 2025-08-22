@@ -19,10 +19,81 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
   const fetchAllSchemas = () => {
-    fetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(setNodeTypes);
-    fetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(setRelationTypes);
-    fetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(setAttributeTypes);
-    fetch(`${API_BASE_URL}/api/schema/functions`).then(res => res.json()).then(setFunctionTypes);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No authentication token found');
+      return;
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+
+    fetch(`${API_BASE_URL}/api/schema/nodetypes`, { headers })
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Authentication failed, redirecting to login');
+            // You might want to redirect to login or show an error
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(setNodeTypes)
+      .catch(error => {
+        console.error('Error fetching node types:', error);
+        setNodeTypes([]);
+      });
+
+    fetch(`${API_BASE_URL}/api/schema/relations`, { headers })
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Authentication failed, redirecting to login');
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(setRelationTypes)
+      .catch(error => {
+        console.error('Error fetching relation types:', error);
+        setRelationTypes([]);
+      });
+
+    fetch(`${API_BASE_URL}/api/schema/attributes`, { headers })
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Authentication failed, redirecting to login');
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(setAttributeTypes)
+      .catch(error => {
+        console.error('Error fetching attribute types:', error);
+        setAttributeTypes([]);
+      });
+
+    fetch(`${API_BASE_URL}/api/schema/functions`, { headers })
+      .then(res => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.error('Authentication failed, redirecting to login');
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(setFunctionTypes)
+      .catch(error => {
+        console.error('Error fetching function types:', error);
+        setFunctionTypes([]);
+      });
   };
 
   useEffect(() => {
@@ -35,6 +106,12 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   };
 
   const handleSave = async (item: any) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No authentication token found. Please log in again.');
+      return;
+    }
+
     const isCreating = !item.originalName;
     const itemType = editingItem.itemType;
     const url = isCreating
@@ -49,11 +126,18 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
 
     const res = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      },
       body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
+      if (res.status === 401) {
+        alert('Authentication failed. Please log in again.');
+        return;
+      }
       const { error } = await res.json();
       alert(`Error: ${error}`);
     } else {
@@ -63,8 +147,31 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   };
 
   const handleDelete = async (type: SchemaViewMode, name: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No authentication token found. Please log in again.');
+      return;
+    }
+
     if (window.confirm(`Are you sure you want to delete the type "${name}"?`)) {
-      await fetch(`${API_BASE_URL}/api/schema/${type}/${name}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/schema/${type}/${name}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert('Authentication failed. Please log in again.');
+          return;
+        }
+        const { error } = await res.json();
+        alert(`Error: ${error}`);
+        return;
+      }
+      
       handleSchemaChange();
     }
   };
