@@ -22,6 +22,25 @@ interface NodeCardProps {
 export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const registryEntry = nodeRegistry[node.id];
+  
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  };
 
   React.useEffect(() => {
     if (isActive) {
@@ -37,9 +56,8 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     // Optimistic update
     node.publication_mode = nextMode;
 
-    await fetch(`${API_BASE_URL}/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
+    await authenticatedFetch(`${API_BASE_URL}/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publication_mode: nextMode }),
     });
   };

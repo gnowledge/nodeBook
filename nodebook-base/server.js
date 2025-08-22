@@ -43,10 +43,11 @@ fastify.register(require('@fastify/cors'), {
   async function loadGraph(request, reply) {
     const gm = fastify.graphManager;
     const graphId = request.params.graphId;
+    const userId = request.user.id;
     
     try {
-      console.log(`[loadGraph] Loading graph: ${graphId}`);
-      const graph = await gm.getGraph(graphId, HyperGraph);
+      console.log(`[loadGraph] Loading graph: ${graphId} for user: ${userId}`);
+      const graph = await gm.getGraph(userId, graphId, HyperGraph);
       if (!graph) {
         console.log(`[loadGraph] Graph not found: ${graphId}`);
         reply.code(404).send({ error: 'Graph not found' });
@@ -181,8 +182,16 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     const gm = fastify.graphManager; // Get instance from fastify
-    const graphs = await gm.getGraphRegistry();
-    return graphs;
+    const userId = request.user.id;
+    console.log(`[GET /api/graphs] User ID: ${userId}, Type: ${typeof userId}`);
+    try {
+      const graphs = await gm.getGraphRegistry(userId);
+      return graphs;
+    } catch (error) {
+      console.error(`[GET /api/graphs] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
   });
 
   fastify.post('/api/graphs', {
@@ -200,22 +209,40 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     const gm = fastify.graphManager; // Get instance from fastify
+    const userId = request.user.id;
     const { name, author, email } = request.body;
+    console.log(`[POST /api/graphs] User ID: ${userId}, Type: ${typeof userId}, Name: ${name}`);
     if (!name) {
       reply.code(400).send({ error: 'name is required' });
       return;
     }
     try {
-      const newGraph = await gm.createGraph(name, author, email);
+      const newGraph = await gm.createGraph(userId, name, author, email);
       reply.code(201);
       return newGraph;
     } catch (error) {
+      console.error(`[POST /api/graphs] Error:`, error);
       reply.code(409).send({ error: error.message });
       return;
     }
   });
 
 
+
+  // --- Node Registry API ---
+  fastify.get('/api/noderegistry', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const gm = fastify.graphManager;
+    const userId = request.user.id;
+    try {
+      const nodeRegistry = await gm.getNodeRegistry(userId);
+      return nodeRegistry;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
 
   // --- Schema CRUD API ---
   fastify.get('/api/schema/relations', {
@@ -479,10 +506,11 @@ async function main() {
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
+    const userId = request.user.id;
     const graphId = request.params.graphId;
     try {
-      console.log(`[getCnl] Getting CNL for graph: ${graphId}`);
-      const cnl = await gm.getCnl(graphId);
+      console.log(`[getCnl] Getting CNL for graph: ${graphId}, user: ${userId}`);
+      const cnl = await gm.getCnl(userId, graphId);
       console.log(`[getCnl] Successfully got CNL for graph: ${graphId}, length: ${cnl.length}`);
       return { cnl };
     } catch (error) {
@@ -512,12 +540,13 @@ async function main() {
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
+    const userId = request.user.id;
     const graphId = request.params.graphId;
     const { cnlText, strictMode = true } = request.body;
     
     try {
       // Get the current CNL text from the graph
-      const currentCnl = await gm.getCnl(graphId);
+      const currentCnl = await gm.getCnl(userId, graphId);
       const result = await diffCnl(currentCnl, cnlText);
       const operations = result.operations || [];
       
@@ -546,17 +575,17 @@ async function main() {
                 const existingNode = await request.graph.getNode(op.payload.options.id);
                 if (!existingNode) {
                   await request.graph.addNode(op.payload.base_name, op.payload.options);
-                  await gm.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
+                  await gm.addNodeToRegistry(userId, { id: op.payload.options.id, ...op.payload });
                 }
-                await gm.registerNodeInGraph(op.payload.options.id, graphId);
+                await gm.registerNodeInGraph(userId, op.payload.options.id, graphId);
                 break;
               case 'addRelation':
                 const targetNode = await request.graph.getNode(op.payload.target);
                 if (!targetNode) {
                   await request.graph.addNode(op.payload.target, { id: op.payload.target });
-                  await gm.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
+                  await gm.addNodeToRegistry(userId, { id: op.payload.target, base_name: op.payload.target });
                 }
-                await gm.registerNodeInGraph(op.payload.target, graphId);
+                await gm.registerNodeInGraph(userId, op.payload.target, graphId);
                 await request.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
                 break;
               case 'addAttribute':
@@ -576,18 +605,20 @@ async function main() {
               await request.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
             }
           } else if (op.type === 'updateGraphDescription') {
-            await gm.updateGraphMetadata(graphId, { description: op.payload.description });
+            await gm.updateGraphMetadata(userId, graphId, { description: op.payload.description });
           }
         }
       }
-
+      
       // Check for validation errors
       if (result.errors && result.errors.length > 0) {
         reply.code(422).send({ errors: result.errors });
         return;
       }
       
-      await gm.saveCnl(request.params.graphId, cnlText);
+      console.log(`[CNL Processing] Saving CNL for graph ${graphId}, user ${userId}`);
+      await gm.saveCnl(userId, request.params.graphId, cnlText);
+      console.log(`[CNL Processing] CNL saved successfully for graph ${graphId}`);
       return { message: 'CNL processed successfully.' };
     } catch (error) {
       console.error(`[CNL Processing] Error for graph ${graphId}:`, error);
@@ -657,8 +688,9 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     const gm = fastify.graphManager; // Get instance from fastify
+    const userId = request.user.id;
     try {
-      await gm.deleteGraph(request.params.graphId);
+      await gm.deleteGraph(userId, request.params.graphId);
       reply.code(204).send();
       return;
     } catch (error) {

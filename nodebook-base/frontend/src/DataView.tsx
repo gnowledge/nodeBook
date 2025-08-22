@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import p2pIcon from './assets/p2p.svg';
 import publicIcon from './assets/public.svg';
 import publishIcon from './assets/publish.svg';
-import connectedIcon from './assets/connected.svg';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
@@ -27,69 +26,56 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const [nodeRegistry, setNodeRegistry] = useState<any>({});
   const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
   
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  };
+  
   const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
   const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
   
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState('Publish');
-  const [wsStatus, setWsStatus] = useState('Connecting...');
-  const ws = useRef<WebSocket | null>(null);
+
+
+
+ 
 
   useEffect(() => {
-    // In development, use Vite's WebSocket proxy at /ws
-    // In production, construct the WebSocket URL from API_BASE_URL
-    let wsUrl;
-    if (import.meta.env.DEV) {
-      // Use the current host and port with /ws endpoint for Vite's proxy
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.host}/ws`;
-    } else {
-      // In production, convert HTTP URL to WebSocket URL
-      wsUrl = API_BASE_URL.replace(/^http/, 'ws');
-    }
-    
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => setWsStatus('Connected');
-    ws.current.onclose = () => setWsStatus('Disconnected');
-
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      switch (data.type) {
-        case 'publish-progress':
-          setPublishMessage(data.message);
-          break;
-        case 'publish-complete':
-          setIsPublishing(false);
-          setPublishMessage('Publish');
-          alert(data.message);
-          break;
-        case 'publish-error':
-          setIsPublishing(false);
-          setPublishMessage('Publish');
-          alert(`Error: ${data.message}`);
-          break;
-      }
-    };
-
-    return () => {
-      ws.current?.close();
-    };
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/noderegistry`)
+    authenticatedFetch(`${API_BASE_URL}/api/noderegistry`)
       .then(res => res.json())
-      .then(data => setNodeRegistry(data));
+      .then(data => setNodeRegistry(data))
+      .catch(error => {
+        console.error('Failed to fetch node registry:', error);
+        setNodeRegistry({});
+      });
   }, []);
 
   useEffect(() => {
     if (activeGraphId) {
-      fetch(`${API_BASE_URL}/api/graphs`)
+      authenticatedFetch(`${API_BASE_URL}/api/graphs`)
         .then(res => res.json())
         .then((graphs: Graph[]) => {
           const currentGraph = graphs.find(g => g.id === activeGraphId);
           setActiveGraph(currentGraph || null);
+        })
+        .catch(error => {
+          console.error('Failed to fetch graphs:', error);
+          setActiveGraph(null);
         });
     }
   }, [activeGraphId]);
@@ -119,7 +105,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     }
 
     if (window.confirm(confirmMessage)) {
-      await fetch(url, { method: 'DELETE' });
+      await authenticatedFetch(url, { method: 'DELETE' });
       onDataChange();
     }
   };
@@ -170,7 +156,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const handleGraphSelected = async (nodeId: string, remoteGraphId: string) => {
     setSelectingGraph(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${remoteGraphId}/nodes/${nodeId}/cnl`);
       if (!res.ok) throw new Error('Failed to fetch remote CNL');
       const { cnl: remoteCnl } = await res.json();
       
@@ -192,21 +178,16 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   };
 
   const handlePublish = () => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      setIsPublishing(true);
-      setPublishMessage('Starting publish...');
-      ws.current.send(JSON.stringify({ type: 'start-publish' }));
-    } else {
-      alert('WebSocket is not connected. Please wait and try again.');
-    }
+    // TODO: Implement publish functionality for federated architecture
+    // This will change graph state to "Published" and make it available without authentication
+    alert('Publish feature coming soon in federated architecture!');
   };
 
   const handleSetAll = async (publication_mode: 'P2P' | 'Public') => {
     if (window.confirm(`This will set all nodes in this graph to ${publication_mode}. Are you sure?`)) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish/all`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish/all`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ publication_mode }),
         });
         if (!res.ok) throw new Error(`Failed to set all nodes to ${publication_mode}`);
@@ -237,12 +218,9 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
             <img src={publicIcon} alt="Make All Public" style={{width: 24, height: 24}} />
           </button>
           <div className="publish-container">
-            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing || wsStatus !== 'Connected'} title="Publish">
+            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing} title="Publish">
               <img src={publishIcon} alt="Publish" style={{width: 24, height: 24}} />
             </button>
-            <span className={`ws-status ${wsStatus.toLowerCase()}`} title={wsStatus}>
-              <img src={connectedIcon} alt={wsStatus} style={{width: 24, height: 24, opacity: wsStatus === 'Connected' ? 1 : 0.3}} />
-            </span>
           </div>
         </div>
       </div>

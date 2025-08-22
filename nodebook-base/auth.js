@@ -140,13 +140,18 @@ passport.use(new JwtStrategy({
   secretOrKey: JWT_SECRET
 }, async (payload, done) => {
   try {
+    console.log('[JWT Strategy] Payload received:', payload);
+    // Use username from payload for user lookup
     const user = await findUser(payload.username);
     if (user) {
+      console.log('[JWT Strategy] User found:', user.username);
       return done(null, user);
     } else {
+      console.log('[JWT Strategy] User not found for username:', payload.username);
       return done(null, false);
     }
   } catch (error) {
+    console.error('[JWT Strategy] Error:', error);
     return done(error);
   }
 }));
@@ -166,11 +171,19 @@ passport.deserializeUser(async (id, done) => {
 
 // Middleware functions
 function authenticateJWT(req, res, next) {
+  console.log('[authenticateJWT] Headers:', req.headers);
+  console.log('[authenticateJWT] Authorization header:', req.headers.authorization);
+  
   passport.authenticate('jwt', { session: false }, (err, user, info) => {
-    if (err) return next(err);
+    if (err) {
+      console.error('[authenticateJWT] Passport error:', err);
+      return next(err);
+    }
     if (!user) {
+      console.log('[authenticateJWT] No user found, authentication failed');
       return res.status(401).json({ error: 'Authentication required' });
     }
+    console.log('[authenticateJWT] User authenticated:', user.username);
     req.user = user;
     next();
   })(req, res, next);
