@@ -17,12 +17,35 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const [graphs, setGraphs] = useState<Graph[]>([]);
   const [newGraphName, setNewGraphName] = useState('');
 
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  };
+
   const fetchGraphs = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/graphs`);
-    const data = await res.json();
-    setGraphs(data);
-    if (!activeGraphId && data.length > 0) {
-      onGraphSelect(data[0].id);
+    try {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs`);
+      if (res.ok) {
+        const data = await res.json();
+        setGraphs(Array.isArray(data) ? data : []);
+        if (!activeGraphId && Array.isArray(data) && data.length > 0) {
+          onGraphSelect(data[0].id);
+        }
+      } else {
+        console.error('Failed to fetch graphs:', res.status);
+        setGraphs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching graphs:', error);
+      setGraphs([]);
     }
   };
 
@@ -32,21 +55,36 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
-    const res = await fetch(`${API_BASE_URL}/api/graphs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newGraphName, author, email }),
-    });
-    const newGraph = await res.json();
-    setNewGraphName('');
-    await fetchGraphs();
-    onGraphSelect(newGraph.id);
+    try {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs`, {
+        method: 'POST',
+        body: JSON.stringify({ name: newGraphName, author, email }),
+      });
+      if (res.ok) {
+        const newGraph = await res.json();
+        setNewGraphName('');
+        await fetchGraphs();
+        onGraphSelect(newGraph.id);
+      } else {
+        console.error('Failed to create graph:', res.status);
+      }
+    } catch (error) {
+      console.error('Error creating graph:', error);
+    }
   };
 
   const handleDeleteGraph = async (graphId: string) => {
     if (window.confirm(`Are you sure you want to delete graph "${graphId}"?`)) {
-      await fetch(`${API_BASE_URL}/api/graphs/${graphId}`, { method: 'DELETE' });
-      fetchGraphs();
+      try {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}`, { method: 'DELETE' });
+        if (res.ok) {
+          await fetchGraphs();
+        } else {
+          console.error('Failed to delete graph:', res.status);
+        }
+      } catch (error) {
+        console.error('Error deleting graph:', error);
+      }
     }
   };
 

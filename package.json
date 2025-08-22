@@ -18,9 +18,9 @@
     "dev:docker": "./scripts/dev-start.sh",
     "dev:docker:clean": "./scripts/dev-start.sh --clean",
     "test:api": "./scripts/test-api.sh",
-    "dev:logs": "docker-compose -f docker-compose.dev.yml logs -f",
-    "dev:stop": "docker-compose -f docker-compose.dev.yml down",
-    "dev:restart": "docker-compose -f docker-compose.dev.yml restart"
+    "dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "dev:stop": "docker compose -f docker-compose.dev.yml down",
+    "dev:restart": "docker compose -f docker-compose.dev.yml restart"
   },
   "keywords": ["knowledge-graph", "p2p", "federated", "electron", "docker"],
   "author": "",

@@ -2,7 +2,7 @@
 FROM node:20
 
 # Install development tools
-RUN npm install -g nodemon node-gyp
+RUN npm install -g nodemon
 
 # Set working directory
 WORKDIR /app

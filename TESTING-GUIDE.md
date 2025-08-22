@@ -182,8 +182,8 @@ npm run test:api
 npm run dev:logs
 
 # View specific service logs
-docker-compose -f docker-compose.dev.yml logs -f backend
-docker-compose -f docker-compose.dev.yml logs -f frontend
+docker compose -f docker-compose.dev.yml logs -f backend
+docker compose -f docker-compose.dev.yml logs -f frontend
 ```
 
 ## 🐛 **Troubleshooting**

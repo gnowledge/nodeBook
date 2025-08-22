@@ -38,12 +38,12 @@ echo "   HYPERSWARM_PORT: $HYPERSWARM_PORT"
 
 # Stop any existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 
 # Remove old volumes if requested
 if [ "$1" = "--clean" ]; then
     echo "🧹 Cleaning old development data..."
-    docker-compose -f docker-compose.dev.yml down -v
+    docker compose -f docker-compose.dev.yml down -v
     rm -rf nodebook-base/user_data/*
     rm -rf nodebook-base/logs/*
     echo "✅ Development data cleaned."
@@ -51,10 +51,10 @@ fi
 
 # Build and start services
 echo "🔨 Building development containers..."
-docker-compose -f docker-compose.dev.yml build
+docker compose -f docker-compose.dev.yml build
 
 echo "🚀 Starting development services..."
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
@@ -62,7 +62,7 @@ sleep 10
 
 # Check service status
 echo "📊 Service Status:"
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 
 echo ""
 echo "🎉 Development environment is ready!"

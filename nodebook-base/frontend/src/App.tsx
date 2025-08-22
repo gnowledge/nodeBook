@@ -23,11 +23,15 @@ import { API_BASE_URL } from './api-config';
 
 type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
 
-function App() {
+interface AppProps {
+  onLogout?: () => void;
+}
+
+function App({ onLogout }: AppProps) {
   const handleDeleteGraph = async () => {
     if (!activeGraphId) return;
     if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
-      await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
+      await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
       setActiveGraphId(null);
     }
   };
@@ -51,6 +55,19 @@ function App() {
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  };
+
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
   }, [strictMode]);
@@ -65,17 +82,17 @@ function App() {
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
-    fetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
+    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
         setNodes(data.nodes || []);
         setRelations(data.relations || []);
         setAttributes(data.attributes || []);
       });
-    fetch(`${API_BASE_URL}/api/graphs/${graphId}/key`)
+    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/key`)
       .then(res => res.json())
       .then(data => setActiveGraphKey(data.key || null));
-    fetch(`${API_BASE_URL}/api/graphs/${graphId}/cnl`)
+    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
         setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
@@ -83,9 +100,9 @@ function App() {
   };
 
   const fetchSchemas = () => {
-    fetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(data => setRelationTypes(data));
-    fetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(data => setAttributeTypes(data));
-    fetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(data => setNodeTypes(data));
+    authenticatedFetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(data => setRelationTypes(data));
+    authenticatedFetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(data => setAttributeTypes(data));
+    authenticatedFetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(data => setNodeTypes(data));
   };
 
   useEffect(() => {
@@ -110,9 +127,8 @@ function App() {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
     
     setIsSubmitting(true);
-    const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/cnl`, {
+    const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
     });
     setIsSubmitting(false);
@@ -127,7 +143,7 @@ function App() {
   
   const handleDeleteNode = async (nodeId: string) => {
     if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
-      await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
+      await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
       fetchGraph(activeGraphId!);
     }
@@ -144,6 +160,23 @@ function App() {
     <div className="app-container">
       <div className="top-bar">
         <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} author={name} email={email} />
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="logout-btn"
+            style={{
+              background: '#dc2626',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginLeft: 'auto'
+            }}
+          >
+            Logout
+          </button>
+        )}
       </div>
 
       <main className="main-content">
