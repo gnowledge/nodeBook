@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LoginPage } from './LoginPage';
-import { App } from './App';
+import App from './App';
 
 interface User {
   id: number;
