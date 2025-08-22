@@ -99,3 +99,16 @@ nodebook-base/graphs/
 GEMINI.md
 .github/
 public_html/
+
+# Vite build cache
+nodebook-base/frontend/.vite-cache/
+.vite-cache/
+
+# Build and cache directories
+nodebook-base/frontend/dist/
+nodebook-base/frontend/build/
+nodebook-base/frontend/.cache/
+nodebook-base/frontend/.parcel-cache/
+
+# Temporary test files
+test-server.js
