@@ -28,6 +28,19 @@ interface AppProps {
 }
 
 function App({ onLogout }: AppProps) {
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  };
+
   const handleDeleteGraph = async () => {
     if (!activeGraphId) return;
     if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
@@ -42,7 +55,7 @@ function App({ onLogout }: AppProps) {
   const [attributes, setAttributes] = useState<AttributeType[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
-  const [nodeTypes, setNodeTypes] = useState<any[]>([]);
+  const [nodeTypes, setNodeTypes] = useState<any[]>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
@@ -54,19 +67,6 @@ function App({ onLogout }: AppProps) {
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Helper function for authenticated API calls
-  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('token');
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-  };
 
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
