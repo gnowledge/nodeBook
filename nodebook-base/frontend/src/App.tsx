@@ -25,9 +25,11 @@ type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | '
 
 interface AppProps {
   onLogout?: () => void;
+  onGoToDashboard?: () => void;
+  user?: any;
 }
 
-function App({ onLogout }: AppProps) {
+function App({ onLogout, onGoToDashboard, user }: AppProps) {
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
@@ -97,6 +99,7 @@ function App({ onLogout }: AppProps) {
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [publicationState, setPublicationState] = useState<'Private' | 'P2P' | 'Public'>('Private');
 
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
@@ -112,6 +115,8 @@ function App({ onLogout }: AppProps) {
 
   const fetchGraph = (graphId: string) => {
     if (!graphId) return;
+    
+    // Fetch graph data (nodes, relations, attributes)
     authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
@@ -119,13 +124,31 @@ function App({ onLogout }: AppProps) {
         setRelations(data.relations || []);
         setAttributes(data.attributes || []);
       });
+    
+    // Fetch graph key
     authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/key`)
       .then(res => res.json())
       .then(data => setActiveGraphKey(data.key || null));
+    
+    // Fetch CNL text
     authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
         setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
+      });
+    
+    // Fetch graph metadata including publication state
+    authenticatedFetch(`${API_BASE_URL}/api/graphs`)
+      .then(res => res.json())
+      .then(graphs => {
+        const currentGraph = graphs.find((g: any) => g.id === graphId);
+        if (currentGraph) {
+          setPublicationState(currentGraph.publication_state || 'Private');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching graph metadata:', error);
+        // Keep current publication state if fetch fails
       });
   };
 
@@ -184,35 +207,84 @@ function App({ onLogout }: AppProps) {
     setViewMode('nodes');
   };
 
+  const handlePublicationStateChange = (newState: 'Private' | 'P2P' | 'Public') => {
+    setPublicationState(newState);
+    // The publication state change is handled transparently by the backend
+    // After a successful change, refresh the publication state from the backend
+    if (activeGraphId) {
+      // Small delay to ensure backend has processed the change
+      setTimeout(() => {
+        authenticatedFetch(`${API_BASE_URL}/api/graphs`)
+          .then(res => res.json())
+          .then(graphs => {
+            const currentGraph = graphs.find((g: any) => g.id === activeGraphId);
+            if (currentGraph) {
+              setPublicationState(currentGraph.publication_state || 'Private');
+            }
+          })
+          .catch(error => {
+            console.error('Error refreshing publication state:', error);
+          });
+      }, 100);
+    }
+  };
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
     <div className="app-container">
       <div className="top-bar">
-        <GraphSwitcher 
-        key={refreshKey}
-        activeGraphId={activeGraphId} 
-        onGraphSelect={setActiveGraphId} 
-        author={name} 
-        email={email}
-      />
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            className="logout-btn"
-            style={{
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginLeft: 'auto'
-            }}
-          >
-            Logout
-          </button>
-        )}
+        <div className="top-bar-left">
+          {onGoToDashboard && (
+            <button
+              onClick={onGoToDashboard}
+              className="home-button"
+              title="Go to Dashboard"
+              style={{
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                marginRight: '12px'
+              }}
+            >
+              🏠 Dashboard
+            </button>
+          )}
+          <GraphSwitcher 
+            key={refreshKey}
+            activeGraphId={activeGraphId} 
+            onGraphSelect={setActiveGraphId} 
+            author={name} 
+            email={email}
+          />
+        </div>
+        <div className="top-bar-right">
+          {user && (
+            <span className="user-info" style={{ marginRight: '12px', color: '#6b7280' }}>
+              Welcome, {user.username}!
+            </span>
+          )}
+          {onLogout && user && (
+            <button
+              onClick={onLogout}
+              className="logout-btn"
+              style={{
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
+          )}
+        </div>
       </div>
 
       <main className="main-content">
@@ -274,7 +346,18 @@ function App({ onLogout }: AppProps) {
                   )}
                   {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}
                   {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
-                  {viewMode === 'nodes' && <DataView activeGraphId={activeGraphId} nodes={nodes} relations={relations} attributes={attributes} onDataChange={() => fetchGraph(activeGraphId)} cnlText={cnlText[activeGraphId] || ''} onCnlChange={handleCnlChange} onSwitchGraph={handleSwitchGraph} />}
+                  {viewMode === 'nodes' && <DataView 
+                    activeGraphId={activeGraphId} 
+                    nodes={nodes} 
+                    relations={relations} 
+                    attributes={attributes} 
+                    onDataChange={() => fetchGraph(activeGraphId)} 
+                    cnlText={cnlText[activeGraphId] || ''} 
+                    onCnlChange={handleCnlChange} 
+                    onSwitchGraph={handleSwitchGraph}
+                    publication_state={publicationState}
+                    onPublicationStateChange={handlePublicationStateChange}
+                  />}
                   {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                   {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
                 </>

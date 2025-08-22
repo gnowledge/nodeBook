@@ -241,6 +241,7 @@ class GraphManager {
             description: '',
             author,
             email,
+            publication_state: 'Private', // Default to Private
             createdAt: now,
             updatedAt: now,
         };
@@ -354,6 +355,236 @@ class GraphManager {
             const graph = this.activeGraphs.get(graphKey);
             await graph.leaveSwarm();
             this.activeGraphs.delete(graphKey);
+        }
+    }
+
+    // Update graph publication state
+    async updatePublicationState(userId, graphId, publicationState) {
+        if (!userId) {
+            throw new Error('User ID is required for data segregation');
+        }
+        
+        if (!['Private', 'P2P', 'Public'].includes(publicationState)) {
+            throw new Error('Invalid publication state. Must be Private, P2P, or Public.');
+        }
+        
+        const registry = await this.getGraphRegistry(userId);
+        const graphIndex = registry.findIndex(g => g.id === graphId);
+        if (graphIndex === -1) {
+            throw new Error('Graph not found.');
+        }
+        
+        registry[graphIndex].publication_state = publicationState;
+        registry[graphIndex].updatedAt = new Date().toISOString();
+        
+        await this.saveGraphRegistry(userId, registry);
+        logDebug(`[updatePublicationState] Updated graph ${graphId} to ${publicationState} for user ${userId}`);
+        
+        return registry[graphIndex];
+    }
+
+    // Get all public graphs (for unauthenticated access)
+    async getPublicGraphs() {
+        const publicGraphs = [];
+        
+        // First, try to read from the public folder (published graphs)
+        const publicDir = path.join(this.BASE_DATA_DIR, 'public', 'graphs');
+        try {
+            if (await fsp.access(publicDir).then(() => true).catch(() => false)) {
+                const graphDirs = await fsp.readdir(publicDir);
+                
+                for (const graphDir of graphDirs) {
+                    const metadataPath = path.join(publicDir, graphDir, 'metadata.json');
+                    try {
+                        const metadata = await readJsonFile(metadataPath);
+                        publicGraphs.push({
+                            ...metadata,
+                            isPublic: true,
+                            isPublished: true
+                        });
+                    } catch (error) {
+                        logDebug(`[getPublicGraphs] Could not read metadata for ${graphDir}: ${error.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            logDebug(`[getPublicGraphs] Error reading public directory: ${error.message}`);
+        }
+        
+        // Fallback: also check user directories for graphs marked as Public but not yet published
+        const usersDir = path.join(this.BASE_DATA_DIR, 'users');
+        try {
+            const userDirs = await fsp.readdir(usersDir);
+            
+            for (const userDir of userDirs) {
+                const userDataDir = path.join(usersDir, userDir);
+                const userStats = await fsp.stat(userDataDir);
+                
+                // Skip if not a directory
+                if (!userStats.isDirectory()) continue;
+                
+                const userRegistryPath = path.join(userDataDir, 'registry.json');
+                try {
+                    const userRegistry = await readJsonFile(userRegistryPath);
+                    const publicGraphsInUser = userRegistry.filter(g => g.publication_state === 'Public');
+                    
+                    // Add user context to public graphs (only if not already in public folder)
+                    publicGraphsInUser.forEach(graph => {
+                        if (!publicGraphs.find(pg => pg.id === graph.id)) {
+                            publicGraphs.push({
+                                ...graph,
+                                owner: userDir, // User ID of the owner
+                                isPublic: true,
+                                isPublished: false
+                            });
+                        }
+                    });
+                } catch (error) {
+                    // Skip if user registry can't be read
+                    logDebug(`[getPublicGraphs] Could not read registry for user ${userDir}: ${error.message}`);
+                }
+            }
+        } catch (error) {
+            logDebug(`[getPublicGraphs] Error reading users directory: ${error.message}`);
+        }
+        
+        return publicGraphs;
+    }
+
+    // Get graph by ID for public access (no authentication required)
+    async getPublicGraph(graphId) {
+        const publicGraphs = await this.getPublicGraphs();
+        const publicGraph = publicGraphs.find(g => g.id === graphId);
+        
+        if (!publicGraph) {
+            throw new Error('Public graph not found.');
+        }
+        
+        try {
+            let graphData;
+            
+            if (publicGraph.isPublished) {
+                // Read from public folder - this contains the actual parsed data
+                const publicDir = path.join(this.BASE_DATA_DIR, 'public', 'graphs', graphId);
+                const publicJsonPath = path.join(publicDir, 'graph.json');
+                const publicCnlPath = path.join(publicDir, 'graph.cnl');
+                
+                // Read the published graph data (already parsed, no re-parsing needed)
+                const [jsonData, cnl] = await Promise.all([
+                    fsp.readFile(publicJsonPath, 'utf-8').then(JSON.parse),
+                    fsp.readFile(publicCnlPath, 'utf-8')
+                ]);
+                
+                graphData = {
+                    ...publicGraph,
+                    ...jsonData,
+                    cnl: cnl
+                };
+            } else {
+                // Fallback: read from user's private folder (for graphs marked Public but not published)
+                // This should rarely happen since we now require publishing to make data accessible
+                const userDir = path.join(this.BASE_DATA_DIR, 'users', publicGraph.owner);
+                const cnlPath = path.join(userDir, graphId, 'graph.cnl');
+                const cnl = await fsp.readFile(cnlPath, 'utf-8');
+                
+                // For unpublished public graphs, we can't provide the full data
+                // since it requires authentication to access the parsed data
+                graphData = {
+                    ...publicGraph,
+                    cnl: cnl,
+                    nodes: [],
+                    relations: [],
+                    attributes: []
+                };
+            }
+            
+            return graphData;
+            
+        } catch (error) {
+            logDebug(`[getPublicGraph] Error reading graph data for ${graphId}: ${error.message}`);
+            // Return basic info if parsing fails
+            return publicGraph;
+        }
+    }
+
+    // Publish graph to public folder
+    async publishGraph(userId, graphId) {
+        if (!userId) {
+            throw new Error('User ID is required for data segregation');
+        }
+        
+        // Get the graph registry to verify ownership
+        const registry = await this.getGraphRegistry(userId);
+        const graphInfo = registry.find(g => g.id === graphId);
+        if (!graphInfo) {
+            throw new Error('Graph not found.');
+        }
+        
+        // Verify the graph is set to Public
+        if (graphInfo.publication_state !== 'Public') {
+            throw new Error('Graph must be set to Public before publishing.');
+        }
+        
+        try {
+            // Create public folder structure
+            const publicDir = path.join(this.BASE_DATA_DIR, 'public', 'graphs', graphId);
+            await fsp.mkdir(publicDir, { recursive: true });
+            
+            // Get the graph instance to access its data
+            const graph = await this.getGraph(userId, graphId);
+            if (!graph) {
+                throw new Error('Failed to load graph for publishing.');
+            }
+            
+            // Get the parsed data directly from the graph (no re-parsing)
+            const nodes = await graph.listAll('nodes');
+            const relations = await graph.listAll('relations');
+            const attributes = await graph.listAll('attributes');
+            
+            // Get the CNL text
+            const cnl = await this.getCnl(userId, graphId);
+            
+            // Create public graph data using the actual parsed data
+            const publicGraphData = {
+                id: graphId,
+                name: graphInfo.name,
+                description: graphInfo.description,
+                author: graphInfo.author,
+                email: graphInfo.email,
+                owner: userId,
+                publication_state: 'Public',
+                publishedAt: new Date().toISOString(),
+                nodes: nodes.filter(node => !node.isDeleted),
+                relations: relations.filter(rel => !rel.isDeleted),
+                attributes: attributes.filter(attr => !attr.isDeleted)
+            };
+            
+            // Write public files
+            const publicJsonPath = path.join(publicDir, 'graph.json');
+            const publicCnlPath = path.join(publicDir, 'graph.cnl');
+            const metadataPath = path.join(publicDir, 'metadata.json');
+            
+            await fsp.writeFile(publicJsonPath, JSON.stringify(publicGraphData, null, 2), 'utf-8');
+            await fsp.writeFile(publicCnlPath, cnl, 'utf-8');
+            await fsp.writeFile(metadataPath, JSON.stringify({
+                id: graphId,
+                name: graphInfo.name,
+                description: graphInfo.description,
+                author: graphInfo.author,
+                owner: userId,
+                publishedAt: publicGraphData.publishedAt
+            }, null, 2), 'utf-8');
+            
+            logDebug(`[publishGraph] Successfully published graph ${graphId} to public folder`);
+            
+            return {
+                publishedAt: publicGraphData.publishedAt,
+                publicPath: publicDir
+            };
+            
+        } catch (error) {
+            logDebug(`[publishGraph] Error publishing graph ${graphId}: ${error.message}`);
+            throw new Error(`Failed to publish graph: ${error.message}`);
         }
     }
 }

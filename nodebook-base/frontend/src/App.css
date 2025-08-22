@@ -62,6 +62,30 @@ body {
   justify-content: space-between;
 }
 
+.top-bar-left {
+  display: flex;
+  align-items: center;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+.home-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.home-button:hover {
+  background: #2563eb !important;
+  transform: translateY(-1px);
+}
+
+.user-info {
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .graph-switcher {
   display: flex;
   align-items: flex-end;

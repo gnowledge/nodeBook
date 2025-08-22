@@ -26,16 +26,28 @@ fastify.register(require('@fastify/cors'), {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       reply.code(401).send({ error: 'No token provided' });
-      return;
+      return reply;
     }
     
     const token = authHeader.substring(7);
     try {
-      const user = auth.verifyToken(token);
+      const payload = auth.verifyToken(token);
+      if (!payload || !payload.username) {
+        reply.code(401).send({ error: 'Invalid token payload' });
+        return reply;
+      }
+      
+      // Get the full user object from the database using the username
+      const user = await auth.findUser(payload.username);
+      if (!user) {
+        reply.code(401).send({ error: 'User not found' });
+        return reply;
+      }
+      
       request.user = user;
     } catch (error) {
       reply.code(401).send({ error: 'Invalid token' });
-      return;
+      return reply;
     }
   }
   
@@ -186,7 +198,12 @@ async function main() {
     console.log(`[GET /api/graphs] User ID: ${userId}, Type: ${typeof userId}`);
     try {
       const graphs = await gm.getGraphRegistry(userId);
-      return graphs;
+      // Add publication state if not present (for backward compatibility)
+      const graphsWithPublicationState = graphs.map(graph => ({
+        ...graph,
+        publication_state: graph.publication_state || 'Private'
+      }));
+      return graphsWithPublicationState;
     } catch (error) {
       console.error(`[GET /api/graphs] Error:`, error);
       reply.code(500).send({ error: error.message });
@@ -240,6 +257,47 @@ async function main() {
       return nodeRegistry;
     } catch (error) {
       reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  // --- Public Graph API (No Authentication Required) ---
+  fastify.get('/api/public/graphs', async (request, reply) => {
+    const gm = fastify.graphManager;
+    try {
+      const publicGraphs = await gm.getPublicGraphs();
+      return publicGraphs;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/public/graphs/:graphId', async (request, reply) => {
+    const gm = fastify.graphManager;
+    const graphId = request.params.graphId;
+    try {
+      const publicGraph = await gm.getPublicGraph(graphId);
+      return publicGraph;
+    } catch (error) {
+      reply.code(404).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/public/graphs/:graphId/cnl', async (request, reply) => {
+    const gm = fastify.graphManager;
+    const graphId = request.params.graphId;
+    try {
+      const publicGraph = await gm.getPublicGraph(graphId);
+      return {
+        cnl: publicGraph.cnl,
+        nodes: publicGraph.nodes || [],
+        relations: publicGraph.relations || [],
+        attributes: publicGraph.attributes || []
+      };
+    } catch (error) {
+      reply.code(404).send({ error: error.message });
       return;
     }
   });
@@ -671,6 +729,67 @@ async function main() {
       return { message: 'Sync initiated.' };
     } catch (error) {
       reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  // Update graph publication state
+  fastify.put('/api/graphs/:graphId/publication', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['publication_state'],
+        properties: {
+          publication_state: { 
+            type: 'string', 
+            enum: ['Private', 'P2P', 'Public'] 
+          }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const gm = fastify.graphManager;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { publication_state } = request.body;
+    
+    try {
+      const updatedGraph = await gm.updatePublicationState(userId, graphId, publication_state);
+      return updatedGraph;
+    } catch (error) {
+      reply.code(400).send({ error: error.message });
+      return;
+    }
+  });
+
+  // Publish graph (export to public folder)
+  fastify.post('/api/graphs/:graphId/publish', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const gm = fastify.graphManager;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
+    try {
+      const result = await gm.publishGraph(userId, graphId);
+      return { message: 'Graph published successfully', publishedAt: result.publishedAt };
+    } catch (error) {
+      reply.code(400).send({ error: error.message });
       return;
     }
   });

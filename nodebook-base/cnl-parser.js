@@ -169,4 +169,6 @@ function processNeighborhood(nodeId, lines) {
     return neighborhoodOps;
 }
 
+
+
 module.exports = { diffCnl, validateOperations, getNodeOrderFromCnl };

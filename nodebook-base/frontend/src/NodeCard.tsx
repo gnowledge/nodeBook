@@ -17,9 +17,10 @@ interface NodeCardProps {
   onSelectNode: (nodeId: string) => void;
   onImportContext: (nodeId: string) => void;
   nodeRegistry: any;
+  isPublic?: boolean; // Optional prop for public view mode
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry, isPublic = false }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const registryEntry = nodeRegistry[node.id];
   
@@ -81,7 +82,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
                   <strong>{attr.name}:</strong> {attr.value} {attr.unit || ''}
                   {attr.isDerived && <span className="derived-indicator"> (fx)</span>}
                 </MathJax>
-                {!attr.isDerived && <button className="delete-btn-small" onClick={() => onDelete('attributes', attr)}>&times;</button>}
+                {!attr.isDerived && !isPublic && <button className="delete-btn-small" onClick={() => onDelete('attributes', attr)}>&times;</button>}
               </li>
             ))}
           </ul>
@@ -96,7 +97,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
                     {rel.target_id}
                   </a>
                 </span>
-                <button className="delete-btn-small" onClick={() => onDelete('relations', rel)}>&times;</button>
+                {!isPublic && <button className="delete-btn-small" onClick={() => onDelete('relations', rel)}>&times;</button>}
               </li>
             ))}
           </ul>
@@ -142,12 +143,12 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
         </div>
       )}
       
-      {node.morphs.map(morph => renderMorphSection(morph))}
+      {node.morphs && node.morphs.map(morph => renderMorphSection(morph))}
 
       {registryEntry && registryEntry.graph_ids.length > 1 && (
         <div className="node-card-footer">
           <small>In graphs: {registryEntry.graph_ids.join(', ')}</small>
-          <button className="import-btn" onClick={() => onImportContext(node.id)}>Import Context</button>
+          {!isPublic && <button className="import-btn" onClick={() => onImportContext(node.id)}>Import Context</button>}
         </div>
       )}
     </div>

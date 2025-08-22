@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import LoginPage from './LoginPage';
+import Dashboard from './Dashboard';
 import App from './App';
+import AuthModal from './AuthModal';
+import { PublicGraphViewer } from './PublicGraphViewer';
 
 interface User {
   id: number;
@@ -14,6 +16,9 @@ function TestApp() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'app' | 'public-graph'>('dashboard');
+  const [publicGraphId, setPublicGraphId] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -57,6 +62,21 @@ function TestApp() {
     setIsAuthenticated(true);
     setToken(newToken);
     setUser(userData);
+    setShowAuthModal(false);
+  };
+
+  const handleGoToApp = () => {
+    setCurrentView('app');
+  };
+
+  const handleGoToDashboard = () => {
+    setCurrentView('dashboard');
+    setPublicGraphId(null);
+  };
+
+  const handleViewPublicGraph = (graphId: string) => {
+    setPublicGraphId(graphId);
+    setCurrentView('public-graph');
   };
 
   const handleLogout = () => {
@@ -78,11 +98,69 @@ function TestApp() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+  // Always show Dashboard as the main component
+  if (currentView === 'dashboard') {
+    return (
+      <>
+        <Dashboard 
+          token={token} 
+          user={user} 
+          onLogout={handleLogout}
+          onGoToApp={handleGoToApp}
+          onShowAuth={() => setShowAuthModal(true)}
+          onViewPublicGraph={handleViewPublicGraph}
+          isAuthenticated={isAuthenticated}
+        />
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)} 
+          onLogin={handleLogin} 
+        />
+      </>
+    );
   }
 
-  return <App onLogout={handleLogout} />;
+  // Show App when navigating from Dashboard
+  if (currentView === 'app') {
+    return (
+      <App 
+        onLogout={handleLogout} 
+        onGoToDashboard={handleGoToDashboard}
+        user={user}
+      />
+    );
+  }
+
+  // Show Public Graph Viewer for anonymous users
+  if (currentView === 'public-graph' && publicGraphId) {
+    return (
+      <PublicGraphViewer
+        graphId={publicGraphId}
+        onGoToDashboard={handleGoToDashboard}
+        onShowAuth={() => setShowAuthModal(true)}
+      />
+    );
+  }
+
+  // Default to Dashboard
+  return (
+    <>
+      <Dashboard 
+        token={token} 
+        user={user} 
+        onLogout={handleLogout}
+        onGoToApp={handleGoToApp}
+        onShowAuth={() => setShowAuthModal(true)}
+        onViewPublicGraph={handleViewPublicGraph}
+        isAuthenticated={isAuthenticated}
+      />
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onLogin={handleLogin} 
+      />
+    </>
+  );
 }
 
 export default TestApp;

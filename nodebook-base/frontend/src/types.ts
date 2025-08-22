@@ -48,6 +48,13 @@ export interface Graph {
   description: string;
   author: string;
   email: string;
+  publication_state: 'Private' | 'P2P' | 'Public';
   createdAt: string;
   updatedAt: string;
+}
+
+// Extended interface for public graphs (includes owner information)
+export interface PublicGraph extends Graph {
+  owner: string;
+  isPublic: true;
 }

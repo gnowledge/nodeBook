@@ -1,7 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import p2pIcon from './assets/p2p.svg';
-import publicIcon from './assets/public.svg';
-import publishIcon from './assets/publish.svg';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
@@ -18,25 +15,42 @@ interface DataViewProps {
   onDataChange: () => void;
   cnlText: string;
   onCnlChange: (cnl: string) => void;
+  publication_state?: 'Private' | 'P2P' | 'Public';
+  onPublicationStateChange?: (newState: 'Private' | 'P2P' | 'Public') => void;
 }
 
-export function DataView({ activeGraphId, nodes, relations, attributes, onDataChange, cnlText, onCnlChange }: DataViewProps) {
+export function DataView({ 
+  activeGraphId, 
+  nodes, 
+  relations, 
+  attributes, 
+  onDataChange, 
+  cnlText, 
+  onCnlChange,
+  publication_state = 'Private',
+  onPublicationStateChange 
+}: DataViewProps) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeRegistry, setNodeRegistry] = useState<any>({});
   const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {
-      ...options.headers,
       'Authorization': `Bearer ${token}`,
     };
     
     // Only set Content-Type for requests that have a body
     if (options.body) {
       headers['Content-Type'] = 'application/json';
+    }
+    
+    // Merge with existing headers if any
+    if (options.headers) {
+      Object.assign(headers, options.headers);
     }
     
     return fetch(url, {
@@ -48,8 +62,7 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
   const [selectingGraph, setSelectingGraph] = useState<{ nodeId: string, graphIds: string[] } | null>(null);
   const [importingNode, setImportingNode] = useState<{ localCnl: string, remoteCnl: string, localGraphId: string, remoteGraphId: string } | null>(null);
   
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishMessage, setPublishMessage] = useState('Publish');
+
 
 
 
@@ -177,27 +190,55 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
     alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
   };
 
-  const handlePublish = () => {
-    // TODO: Implement publish functionality for federated architecture
-    // This will change graph state to "Published" and make it available without authentication
-    alert('Publish feature coming soon in federated architecture!');
-  };
-
-  const handleSetAll = async (publication_mode: 'P2P' | 'Public') => {
-    if (window.confirm(`This will set all nodes in this graph to ${publication_mode}. Are you sure?`)) {
-      try {
-        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish/all`, {
-          method: 'PUT',
-          body: JSON.stringify({ publication_mode }),
-        });
-        if (!res.ok) throw new Error(`Failed to set all nodes to ${publication_mode}`);
+  const handlePublicationStateChange = async (newState: 'Private' | 'P2P' | 'Public') => {
+    if (!onPublicationStateChange) return;
+    
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publication`, {
+        method: 'PUT',
+        body: JSON.stringify({ publication_state: newState }),
+      });
+      
+      if (response.ok) {
+        onPublicationStateChange(newState);
+        // Refresh the graph data to show updated state
         onDataChange();
-      } catch (error) {
-        console.error(`Failed to set all nodes to ${publication_mode}:`, error);
-        alert(`Error setting all nodes to ${publication_mode}. See console for details.`);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Failed to update publication state: ${errorData.error || 'Unknown error'}`);
       }
+    } catch (error) {
+      console.error('Error updating publication state:', error);
+      alert('Failed to update publication state. Please try again.');
     }
   };
+
+  const handlePublish = async () => {
+    if (!activeGraphId) return;
+    
+    setIsPublishing(true);
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        alert('Graph published successfully! It is now accessible to anonymous users.');
+        // Refresh the graph data
+        onDataChange();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Failed to publish graph: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error publishing graph:', error);
+      alert('Failed to publish graph. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+
 
   return (
     <div className="data-view-container">
@@ -210,18 +251,67 @@ export function DataView({ activeGraphId, nodes, relations, attributes, onDataCh
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="publish-actions">
-          <button className="publish-btn" onClick={() => handleSetAll('P2P')} title="Make All P2P">
-            <img src={p2pIcon} alt="Make All P2P" style={{width: 24, height: 24}} />
-          </button>
-          <button className="publish-btn" onClick={() => handleSetAll('Public')} title="Make All Public">
-            <img src={publicIcon} alt="Make All Public" style={{width: 24, height: 24}} />
-          </button>
-          <div className="publish-container">
-            <button className="publish-btn" onClick={handlePublish} disabled={isPublishing} title="Publish">
-              <img src={publishIcon} alt="Publish" style={{width: 24, height: 24}} />
-            </button>
+        <div className="publication-controls">
+          <div className="publication-status-widget">
+            <label className="publication-status-label">Publication Status:</label>
+            <div className="publication-status-options">
+              <label className="publication-option">
+                <input
+                  type="radio"
+                  name="publication-status"
+                  value="Private"
+                  checked={publication_state === 'Private'}
+                  onChange={() => handlePublicationStateChange('Private')}
+                  disabled={!onPublicationStateChange}
+                />
+                <span className="publication-option-label private">
+                  🔒 Private
+                </span>
+              </label>
+              <label className="publication-option">
+                <input
+                  type="radio"
+                  name="publication-status"
+                  value="P2P"
+                  checked={publication_state === 'P2P'}
+                  onChange={() => handlePublicationStateChange('P2P')}
+                  disabled={!onPublicationStateChange}
+                />
+                <span className="publication-option-label p2p">
+                  🔗 P2P
+                </span>
+              </label>
+              <label className="publication-option">
+                <input
+                  type="radio"
+                  name="publication-status"
+                  value="Public"
+                  checked={publication_state === 'Public'}
+                  onChange={() => handlePublicationStateChange('Public')}
+                  disabled={!onPublicationStateChange}
+                />
+                <span className="publication-option-label public">
+                  🌐 Public
+                </span>
+              </label>
+            </div>
           </div>
+          
+          {publication_state === 'Public' && (
+            <div className="publish-section">
+              <button 
+                className="publish-button"
+                onClick={handlePublish}
+                disabled={isPublishing}
+                title="Publish this graph to make it accessible to anonymous users"
+              >
+                {isPublishing ? 'Publishing...' : '📢 Publish Graph'}
+              </button>
+              <small className="publish-hint">
+                Publishing exports graph data for public viewing
+              </small>
+            </div>
+          )}
         </div>
       </div>
       <div className="data-view-grid">
