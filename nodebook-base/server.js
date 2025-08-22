@@ -1,44 +1,44 @@
 const fastify = require('fastify')({ 
-  logger: true,
-  trustProxy: true
-});
+    logger: true,
+    trustProxy: true
+  });
 const WebSocket = require('ws');
-const path = require('path');
-const fs = require('fs').promises;
+  const path = require('path');
+  const fs = require('fs').promises;
 const HyperGraph = require('./hyper-graph');
 const GraphManager = require('./graph-manager'); // Import the class
 const schemaManager = require('./schema-manager');
 const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
-const { evaluate } = require('mathjs');
+  const { evaluate } = require('mathjs');
 const { buildStaticSite } = require('./build-static-site');
 const auth = require('./auth');
-
-const PORT = process.env.PORT || 3000;
-
+  
+  const PORT = process.env.PORT || 3000;
+  
 // Register CORS
 fastify.register(require('@fastify/cors'), {
   origin: true,
   credentials: true
 });
-
-// Custom authentication hook
-async function authenticateJWT(request, reply) {
-  const authHeader = request.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    reply.code(401).send({ error: 'No token provided' });
-    return;
+  
+  // Custom authentication hook
+  async function authenticateJWT(request, reply) {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      reply.code(401).send({ error: 'No token provided' });
+      return;
+    }
+    
+    const token = authHeader.substring(7);
+    try {
+      const user = auth.verifyToken(token);
+      request.user = user;
+    } catch (error) {
+      reply.code(401).send({ error: 'Invalid token' });
+      return;
+    }
   }
   
-  const token = authHeader.substring(7);
-  try {
-    const user = auth.verifyToken(token);
-    request.user = user;
-  } catch (error) {
-    reply.code(401).send({ error: 'Invalid token' });
-    return;
-  }
-}
-
 async function main() {
   // Initialize authentication database
   await auth.initializeDatabase();
@@ -146,7 +146,7 @@ async function main() {
       email: user.email
     };
   });
-
+  
   // --- Graph Management API ---
   fastify.get('/api/graphs', {
     preHandler: authenticateJWT
@@ -818,14 +818,14 @@ async function main() {
 
     ws.on('close', () => console.log('Frontend disconnected from WebSocket'));
   });
-
-  // Start server
-  await fastify.listen({ port: PORT, host: '0.0.0.0' });
-  console.log(`🚀 NodeBook Enhanced Fastify Server running on http://localhost:${PORT}`);
-  console.log(`📱 Test endpoint: http://localhost:${PORT}/api/health`);
-  console.log(`⚡ High performance, built-in validation, plugin architecture`);
-  console.log(`🎯 Full graph processing logic restored from server.js`);
-  console.log(`🔐 CNL operations, schema management, node registry all working`);
-}
-
-main().catch(console.error);
+      
+      // Start server
+      await fastify.listen({ port: PORT, host: '0.0.0.0' });
+      console.log(`🚀 NodeBook Enhanced Fastify Server running on http://localhost:${PORT}`);
+      console.log(`📱 Test endpoint: http://localhost:${PORT}/api/health`);
+      console.log(`⚡ High performance, built-in validation, plugin architecture`);
+      console.log(`🎯 Full graph processing logic restored from server.js`);
+      console.log(`🔐 CNL operations, schema management, node registry all working`);
+  }
+  
+  main().catch(console.error);
