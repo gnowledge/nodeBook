@@ -1,0 +1,208 @@
+/* Public Graph Viewer Container */
+.publicGraphViewerContainer {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  margin-top: 64px; /* Push the entire container below the fixed top bar */
+}
+
+.publicGraphContentWrapper {
+  padding-top: 0; /* No extra padding needed since container is already positioned */
+  min-height: calc(100vh - 64px);
+  background-color: #f9fafb;
+  width: 100%; /* Ensure full width usage */
+}
+
+/* Public Graph Header */
+.publicGraphHeader {
+  background: white;
+  padding: 24px;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.graphInfo h1 {
+  margin: 0 0 16px 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.graphMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.publicBadge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ownerInfo {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.graphDescription {
+  margin: 12px 0 0 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-width: 600px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.signInButton {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.signInButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Public Graph Content */
+.publicGraphContent {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Loading Container */
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loadingContainer p {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Error Container */
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.errorMessage {
+  color: #dc2626;
+  font-size: 1rem;
+  margin-bottom: 24px;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.errorBackButton {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.errorBackButton:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .publicGraphViewerContainer {
+    margin-top: 56px; /* Account for smaller top bar on mobile */
+  }
+  
+  .publicGraphContentWrapper {
+    min-height: calc(100vh - 56px);
+  }
+  
+  .publicGraphHeader {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .graphInfo h1 {
+    font-size: 1.5rem;
+  }
+  
+  .headerActions {
+    justify-content: center;
+  }
+  
+  .graphMeta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .publicGraphContentWrapper {
+    padding: 0 12px 0 12px; /* Remove top padding, keep horizontal padding */
+  }
+  
+  .publicGraphHeader {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .graphInfo h1 {
+    font-size: 1.25rem;
+  }
+}

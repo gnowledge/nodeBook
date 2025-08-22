@@ -1,0 +1,93 @@
+/* Graph Detail Container */
+.graphDetail {
+  padding: 1rem;
+  background-color: var(--bg-color-light, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.graphDetail h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color, #111827);
+}
+
+.description {
+  margin-bottom: 1rem;
+  color: var(--text-color, #374151);
+  line-height: 1.6;
+}
+
+.description p {
+  margin: 0 0 0.5rem 0;
+}
+
+.description p:last-child {
+  margin-bottom: 0;
+}
+
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-color-muted, #6b7280);
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.metadata span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.metadata strong {
+  color: var(--text-color, #374151);
+  font-weight: 600;
+}
+
+/* CSS Variables for consistent light theming */
+:root {
+  --bg-color: #f9fafb;
+  --bg-color-light: #ffffff;
+  --text-color: #111827;
+  --text-color-muted: #6b7280;
+  --border-color: #e5e7eb;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .graphDetail {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .graphDetail h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .metadata {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .graphDetail {
+    padding: 0.5rem;
+  }
+  
+  .graphDetail h2 {
+    font-size: 1.125rem;
+  }
+  
+  .metadata {
+    font-size: 0.8rem;
+  }
+}

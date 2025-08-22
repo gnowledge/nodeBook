@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './AuthModal.css';
+import styles from './AuthModal.module.css';
 
 interface User {
   id: number;
@@ -67,17 +67,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="auth-modal-header">
+    <div className={styles.authModalOverlay} onClick={onClose}>
+      <div className={styles.authModal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.authModalHeader}>
           <h2>{isLogin ? 'Sign In' : 'Create Account'}</h2>
-          <button className="auth-modal-close" onClick={onClose}>
+          <button className={styles.authModalClose} onClick={onClose}>
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className={styles.authForm}>
+          <div className={styles.formGroup}>
             <label htmlFor="username">Username</label>
             <input
               id="username"
@@ -89,7 +89,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
             />
           </div>
 
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -102,7 +102,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
           </div>
 
           {!isLogin && (
-            <div className="form-group">
+            <div className={styles.formGroup}>
               <label htmlFor="email">Email</label>
               <input
                 id="email"
@@ -116,24 +116,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
           )}
 
           {error && (
-            <div className="auth-error">
+            <div className={styles.authError}>
               {error}
             </div>
           )}
 
           <button 
             type="submit" 
-            className="auth-submit-btn"
+            className={styles.authSubmitBtn}
             disabled={loading}
           >
             {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
         </form>
 
-        <div className="auth-modal-footer">
+        <div className={styles.authModalFooter}>
           <button 
             type="button" 
-            className="auth-toggle-btn"
+            className={styles.authToggleBtn}
             onClick={toggleMode}
             disabled={loading}
           >

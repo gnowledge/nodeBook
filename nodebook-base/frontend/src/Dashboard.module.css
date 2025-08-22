@@ -1,0 +1,200 @@
+/* Dashboard Container */
+.container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding-top: 64px; /* Account for fixed top bar */
+  width: 100%;
+}
+
+.content {
+  padding-top: 0;
+  min-height: calc(100vh - 64px);
+  background-color: #f9fafb;
+  width: 100%;
+}
+
+/* Content Sections */
+.section {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 32px;
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.sectionSubtitle {
+  color: #6b7280;
+  margin-top: 8px;
+  font-size: 1rem;
+}
+
+.sectionActions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.grid1Col {
+  grid-template-columns: 1fr;
+}
+
+.grid2Col {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid3Col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid4Col {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive Grid */
+@media (min-width: 768px) {
+  .grid1Col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid1Col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid1Col {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Loading and Error States */
+.centerContent {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.loadingText {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.errorText {
+  color: #dc2626;
+  font-size: 1rem;
+}
+
+.emptyText {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.emptySubtext {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin-top: 8px;
+}
+
+/* Buttons */
+.button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.buttonPrimary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.buttonPrimary:hover {
+  background-color: #2563eb;
+}
+
+.buttonGreen {
+  background-color: #10b981;
+  color: white;
+}
+
+.buttonGreen:hover {
+  background-color: #059669;
+}
+
+.buttonPurple {
+  background-color: #8b5cf6;
+  color: white;
+}
+
+.buttonPurple:hover {
+  background-color: #7c3aed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding-top: 56px;
+  }
+  
+  .content {
+    min-height: calc(100vh - 56px);
+  }
+  
+  .section {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 16px;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+  
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .sectionActions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .section {
+    margin-left: 8px;
+    margin-right: 8px;
+    padding: 12px;
+  }
+}

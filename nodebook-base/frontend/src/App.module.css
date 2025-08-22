@@ -1,0 +1,263 @@
+/* App Container */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-color);
+  margin-top: 64px; /* Push the entire container below the fixed top bar */
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0; /* No extra padding needed since container is already positioned */
+  height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+/* Top Bar */
+.topBar {
+  width: 100%;
+  background-color: var(--bg-color-light);
+  padding: 5px 10px 0 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+}
+
+/* Main Content */
+.mainContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.visualizationContainer {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.tabsContainer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Vertical Navigation */
+.verticalNav {
+  width: 60px;
+  background-color: var(--bg-color-light);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  flex-shrink: 0;
+}
+
+.verticalTabs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.tabButton {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tabButton:hover {
+  background-color: var(--bg-color-lighter);
+}
+
+.tabButton.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.tabButton.active img {
+  filter: brightness(0) invert(1);
+}
+
+.tabButtonIcon {
+  margin: auto;
+}
+
+.schemaIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  margin: auto;
+}
+
+.schemaIconImg {
+  width: 20px;
+  height: 20px;
+}
+
+.p2pIcon {
+  margin: auto;
+  width: 24px;
+  height: 24px;
+}
+
+.jsonIcon {
+  font-weight: 600;
+  font-size: 1.3em;
+  letter-spacing: -2px;
+  color: #333;
+  margin: auto;
+}
+
+.deleteGraphBtn {
+  background-color: #dc3545 !important; /* Explicit red color */
+  color: white !important;
+  margin-top: auto;
+  position: relative; /* Ensure proper layering */
+  z-index: 10; /* Ensure button is above other elements */
+}
+
+.deleteGraphBtn:hover {
+  background-color: #b91c1c !important;
+}
+
+.deleteGraphBtn svg {
+  stroke: white !important; /* Force white stroke with !important */
+  stroke-width: 2 !important;
+  position: relative; /* Ensure icon is above background */
+  z-index: 11; /* Ensure icon is above button background */
+}
+
+/* Tab Content */
+.tabContent {
+  flex: 1;
+  background-color: var(--bg-color);
+  overflow: auto;
+}
+
+.editorContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.submitCnlBtn {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: all 0.2s ease;
+}
+
+.submitCnlBtn:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.submitCnlBtn:disabled {
+  background-color: var(--text-color-muted);
+  cursor: not-allowed;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-color-muted);
+  font-size: 1.1rem;
+  text-align: center;
+  padding: 20px;
+}
+
+/* CSS Variables */
+:root {
+  --bg-color: #f0f2f5;
+  --bg-color-light: #ffffff;
+  --bg-color-lighter: #e9ecef;
+  --text-color: #212529;
+  --text-color-muted: #6c757d;
+  --border-color: #dee2e6;
+  --accent-color: #007bff;
+  --danger-color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    margin-top: 56px; /* Account for smaller top bar on mobile */
+  }
+  
+  .content {
+    height: calc(100vh - 56px);
+  }
+  
+  .verticalNav {
+    width: 50px;
+  }
+  
+  .tabButton {
+    width: 35px;
+    height: 35px;
+  }
+}
+
+@media (max-width: 640px) {
+  .verticalNav {
+    width: 45px;
+  }
+  
+  .tabButton {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .schemaIcon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .schemaIconImg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .p2pIcon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .jsonIcon {
+    font-size: 1.1em;
+  }
+}

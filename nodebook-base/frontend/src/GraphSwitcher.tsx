@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from './api-config';
+import styles from './GraphSwitcher.module.css';
 
 interface Graph {
   id: string;
@@ -96,10 +97,10 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   };
 
   return (
-    <div className="graph-switcher">
-      <div className="graph-dropdown-container">
+    <div className={styles.graphSwitcher}>
+      <div className={styles.graphDropdownContainer}>
         <select
-          className="graph-dropdown"
+          className={styles.graphDropdown}
           value={activeGraphId || ''}
           onChange={e => onGraphSelect(e.target.value)}
         >
@@ -108,7 +109,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
           ))}
         </select>
       </div>
-      <div className="graph-creator">
+      <div className={styles.graphCreator}>
         <input
           type="text"
           value={newGraphName}

@@ -1,4 +1,5 @@
-.auth-modal-overlay {
+/* Auth Modal Overlay */
+.authModalOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -12,7 +13,7 @@
   backdrop-filter: blur(4px);
 }
 
-.auth-modal {
+.authModal {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -33,21 +34,22 @@
   }
 }
 
-.auth-modal-header {
+/* Auth Modal Header */
+.authModalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.auth-modal-header h2 {
+.authModalHeader h2 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
   color: #111827;
 }
 
-.auth-modal-close {
+.authModalClose {
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -58,30 +60,31 @@
   transition: all 0.2s ease-in-out;
 }
 
-.auth-modal-close:hover {
+.authModalClose:hover {
   background-color: #f3f4f6;
   color: #374151;
 }
 
-.auth-form {
+/* Auth Form */
+.authForm {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.form-group {
+.formGroup {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.form-group label {
+.formGroup label {
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
 }
 
-.form-group input {
+.formGroup input {
   padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -89,19 +92,20 @@
   transition: border-color 0.2s ease-in-out;
 }
 
-.form-group input:focus {
+.formGroup input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-group input:disabled {
+.formGroup input:disabled {
   background-color: #f9fafb;
   color: #6b7280;
   cursor: not-allowed;
 }
 
-.auth-error {
+/* Auth Error */
+.authError {
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   color: #dc2626;
@@ -111,7 +115,8 @@
   text-align: center;
 }
 
-.auth-submit-btn {
+/* Auth Submit Button */
+.authSubmitBtn {
   background-color: #3b82f6;
   color: white;
   border: none;
@@ -124,21 +129,22 @@
   margin-top: 8px;
 }
 
-.auth-submit-btn:hover:not(:disabled) {
+.authSubmitBtn:hover:not(:disabled) {
   background-color: #2563eb;
 }
 
-.auth-submit-btn:disabled {
+.authSubmitBtn:disabled {
   background-color: #9ca3af;
   cursor: not-allowed;
 }
 
-.auth-modal-footer {
+/* Auth Modal Footer */
+.authModalFooter {
   margin-top: 20px;
   text-align: center;
 }
 
-.auth-toggle-btn {
+.authToggleBtn {
   background: none;
   border: none;
   color: #3b82f6;
@@ -148,24 +154,24 @@
   transition: color 0.2s ease-in-out;
 }
 
-.auth-toggle-btn:hover:not(:disabled) {
+.authToggleBtn:hover:not(:disabled) {
   color: #2563eb;
 }
 
-.auth-toggle-btn:disabled {
+.authToggleBtn:disabled {
   color: #9ca3af;
   cursor: not-allowed;
 }
 
 /* Responsive design */
 @media (max-width: 480px) {
-  .auth-modal {
+  .authModal {
     width: 95%;
     padding: 20px;
     margin: 16px;
   }
   
-  .auth-modal-header h2 {
+  .authModalHeader h2 {
     font-size: 1.25rem;
   }
 }

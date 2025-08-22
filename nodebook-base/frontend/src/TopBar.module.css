@@ -1,0 +1,240 @@
+/* TopBar Persistent */
+.topBarPersistent {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.homeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.homeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.appTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.appTitle:hover {
+  transform: translateY(-1px);
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.topBarCenter {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  margin: 0 48px;
+}
+
+.navigationMenu {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 4px;
+  backdrop-filter: blur(10px);
+}
+
+.navItem {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.navItem.active {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.topBarRight {
+  display: flex;
+  align-items: center;
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.userIcon {
+  font-size: 18px;
+}
+
+.username {
+  font-weight: 500;
+  color: white;
+}
+
+.adminBadge {
+  background: #f59e0b;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logoutButton {
+  background: rgba(239, 68, 68, 0.8);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  background: rgba(239, 68, 68, 1);
+  transform: translateY(-1px);
+}
+
+.loginButton {
+  background: rgba(59, 130, 246, 0.8);
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.loginButton:hover {
+  background: rgba(59, 130, 246, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .topBarPersistent {
+    padding: 0 16px;
+  }
+  
+  .topBarCenter {
+    margin: 0 24px;
+  }
+  
+  .navigationMenu {
+    gap: 4px;
+  }
+  
+  .navItem {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topBarPersistent {
+    height: 56px;
+    padding: 0 12px;
+  }
+  
+  .appTitle {
+    font-size: 20px;
+  }
+  
+  .topBarCenter {
+    margin: 0 12px;
+  }
+  
+  .navigationMenu {
+    padding: 2px;
+  }
+  
+  .navItem {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .userInfo {
+    padding: 6px 8px;
+  }
+  
+  .username {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .topBarCenter {
+    display: none; /* Hide navigation menu on very small screens */
+  }
+  
+  .topBarLeft {
+    gap: 12px;
+  }
+  
+  .appTitle {
+    font-size: 18px;
+  }
+  
+  .topBarPersistent {
+    padding: 0 8px;
+  }
+}

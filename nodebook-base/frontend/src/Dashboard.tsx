@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { GraphCard } from './GraphCard';
+import { TopBar } from './TopBar';
 import type { Graph, PublicGraph } from './types';
+import styles from './Dashboard.module.css';
 
 interface DashboardProps {
   token: string | null;
@@ -123,195 +125,199 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
   }, [token, isAuthenticated]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                NodeBook Dashboard
-              </h1>
-              {isAuthenticated && user ? (
-                <p className="text-gray-600 mt-2">
-                  Welcome back, {user.username}! (Admin: {user.isAdmin ? 'Yes' : 'No'})
-                </p>
-              ) : (
-                <p className="text-gray-600 mt-2">
-                  Discover and explore graphs. Sign in to create your own.
-                </p>
-              )}
-            </div>
-            <div className="flex space-x-3">
-              {isAuthenticated ? (
-                <>
+    <div className={styles.container}>
+      <TopBar
+        isAuthenticated={isAuthenticated}
+        user={user}
+        onGoToDashboard={() => {}} // Already on dashboard
+        onGoToApp={onGoToApp}
+        onShowAuth={onShowAuth}
+        onLogout={onLogout}
+        currentView="dashboard"
+      />
+      
+      <div className={styles.content}>
+        <div>
+          {/* Header */}
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h1 className={styles.sectionTitle}>
+                  NodeBook Dashboard
+                </h1>
+                {isAuthenticated && user ? (
+                  <p className={styles.sectionSubtitle}>
+                    Welcome back, {user.username}! (Admin: {user.isAdmin ? 'Yes' : 'No'})
+                  </p>
+                ) : (
+                  <p className={styles.sectionSubtitle}>
+                    Discover and explore graphs. Sign in to create your own.
+                  </p>
+                )}
+              </div>
+              <div className={styles.sectionActions}>
+                {isAuthenticated ? (
                   <button
                     onClick={onGoToApp}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                    className={`${styles.button} ${styles.buttonPrimary}`}
                   >
                     Go to NodeBook
                   </button>
+                ) : (
                   <button
-                    onClick={onLogout}
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                    onClick={onShowAuth}
+                    className={`${styles.button} ${styles.buttonPrimary}`}
                   >
-                    Logout
+                    Sign In
                   </button>
-                </>
-              ) : (
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* API Testing Section - Only show when authenticated */}
+          {isAuthenticated && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>
+                API Testing
+              </h2>
+              <div className={styles.sectionActions}>
                 <button
-                  onClick={onShowAuth}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                  onClick={testProtectedEndpoint}
+                  className={`${styles.button} ${styles.buttonPrimary}`}
                 >
-                  Sign In
+                  Test /api/auth/me
                 </button>
+                <button
+                  onClick={fetchGraphs}
+                  className={`${styles.button} ${styles.buttonGreen}`}
+                >
+                  Refresh User Graphs
+                </button>
+                <button
+                  onClick={fetchPublicGraphs}
+                  className={`${styles.button} ${styles.buttonPurple}`}
+                >
+                  Refresh Public Graphs
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* User Graphs Section - Only show when authenticated */}
+          {isAuthenticated && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>
+                Your Graphs
+              </h2>
+              
+              {loading && (
+                <div className={styles.centerContent}>
+                  <div className={styles.loadingText}>Loading graphs...</div>
+                </div>
+              )}
+              
+              {error && (
+                <div className={styles.centerContent}>
+                  <div className={styles.errorText}>Error: {error}</div>
+                </div>
+              )}
+              
+              {!loading && !error && graphs.length === 0 && (
+                <div className={styles.centerContent}>
+                  <div className={styles.emptyText}>No graphs found</div>
+                  <p className={styles.emptySubtext}>
+                    This is expected for a new user. The backend is working correctly!
+                  </p>
+                </div>
+              )}
+              
+              {!loading && !error && graphs.length > 0 && (
+                <div className={`${styles.grid} ${styles.grid1Col}`}>
+                  {graphs.map((graph) => (
+                    <GraphCard
+                      key={graph.id}
+                      graph={graph}
+                      onClick={(graphId) => {
+                        // Navigate to the graph in the app
+                        onGoToApp();
+                      }}
+                      showPublicationControls={true}
+                      onPublicationStateChange={updatePublicationState}
+                    />
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* API Testing Section - Only show when authenticated */}
-        {isAuthenticated && (
-          <div className="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              API Testing
-            </h2>
-            <div className="space-y-4">
-              <button
-                onClick={testProtectedEndpoint}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-              >
-                Test /api/auth/me
-              </button>
-              <button
-                onClick={fetchGraphs}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md ml-4"
-              >
-                Refresh User Graphs
-              </button>
-              <button
-                onClick={fetchPublicGraphs}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md ml-4"
-              >
-                Refresh Public Graphs
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* User Graphs Section - Only show when authenticated */}
-        {isAuthenticated && (
-          <div className="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Your Graphs
+          {/* Public Graphs Section */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>
+              Public Graphs
             </h2>
             
-            {loading && (
-              <div className="text-center py-8">
-                <div className="text-gray-600">Loading graphs...</div>
+            {publicLoading && (
+              <div className={styles.centerContent}>
+                <div className={styles.loadingText}>Loading public graphs...</div>
               </div>
             )}
             
-            {error && (
-              <div className="text-center py-8">
-                <div className="text-red-600">Error: {error}</div>
+            {publicError && (
+              <div className={styles.centerContent}>
+                <div className={styles.centerContent}>
+                  <div className={styles.errorText}>Error: {publicError}</div>
+                </div>
               </div>
             )}
             
-            {!loading && !error && graphs.length === 0 && (
-              <div className="text-center py-8">
-                <div className="text-gray-600">No graphs found</div>
-                <p className="text-sm text-gray-500 mt-2">
-                  This is expected for a new user. The backend is working correctly!
+            {!publicLoading && !publicError && publicGraphs.length === 0 && (
+              <div className={styles.centerContent}>
+                <div className={styles.emptyText}>No public graphs available</div>
+                <p className={styles.emptySubtext}>
+                  Public graphs from other users will appear here.
                 </p>
               </div>
             )}
             
-            {!loading && !error && graphs.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {graphs.map((graph) => (
+            {!publicLoading && !publicError && publicGraphs.length > 0 && (
+              <div className={`${styles.grid} ${styles.grid1Col}`}>
+                {publicGraphs.map((graph) => (
                   <GraphCard
                     key={graph.id}
                     graph={graph}
                     onClick={(graphId) => {
-                      // Navigate to the graph in the app
-                      onGoToApp();
+                      if (isAuthenticated) {
+                        // Navigate to the graph in the app for authenticated users
+                        onGoToApp();
+                      } else {
+                        // For anonymous users, navigate to the public graph viewer
+                        onViewPublicGraph(graphId);
+                      }
                     }}
-                    showPublicationControls={true}
-                    onPublicationStateChange={updatePublicationState}
+                    isPublic={true}
+                    showPublicationControls={false}
                   />
                 ))}
               </div>
             )}
           </div>
-        )}
 
-        {/* Public Graphs Section */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Public Graphs
-          </h2>
-          
-          {publicLoading && (
-            <div className="text-center py-8">
-              <div className="text-gray-600">Loading public graphs...</div>
-            </div>
-          )}
-          
-          {publicError && (
-            <div className="text-center py-8">
-              <div className="text-center py-8">
-                <div className="text-red-600">Error: {publicError}</div>
+          {/* Token Info (for debugging) - Only show when authenticated */}
+          {isAuthenticated && token && user && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>
+                Debug Info
+              </h2>
+              <div className="text-sm text-gray-600">
+                <p><strong>JWT Token:</strong> {token.substring(0, 50)}...</p>
+                <p><strong>User ID:</strong> {user.id}</p>
+                <p><strong>Username:</strong> {user.username}</p>
+                <p><strong>Is Admin:</strong> {user.isAdmin ? 'Yes' : 'No'}</p>
               </div>
             </div>
           )}
-          
-          {!publicLoading && !publicError && publicGraphs.length === 0 && (
-            <div className="text-center py-8">
-              <div className="text-gray-600">No public graphs available</div>
-              <p className="text-sm text-gray-500 mt-2">
-                Public graphs from other users will appear here.
-              </p>
-            </div>
-          )}
-          
-          {!publicLoading && !publicError && publicGraphs.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {publicGraphs.map((graph) => (
-                <GraphCard
-                  key={graph.id}
-                  graph={graph}
-                  onClick={(graphId) => {
-                    if (isAuthenticated) {
-                      // Navigate to the graph in the app for authenticated users
-                      onGoToApp();
-                    } else {
-                      // For anonymous users, navigate to the public graph viewer
-                      onViewPublicGraph(graphId);
-                    }
-                  }}
-                  isPublic={true}
-                  showPublicationControls={false}
-                />
-              ))}
-            </div>
-          )}
         </div>
-
-        {/* Token Info (for debugging) - Only show when authenticated */}
-        {isAuthenticated && token && user && (
-          <div className="bg-white shadow rounded-lg p-6 mt-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Debug Info
-            </h2>
-            <div className="text-sm text-gray-600">
-              <p><strong>JWT Token:</strong> {token.substring(0, 50)}...</p>
-              <p><strong>User ID:</strong> {user.id}</p>
-              <p><strong>Username:</strong> {user.username}</p>
-              <p><strong>Is Admin:</strong> {user.isAdmin ? 'Yes' : 'No'}</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

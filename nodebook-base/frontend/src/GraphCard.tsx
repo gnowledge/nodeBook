@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Graph, PublicGraph } from './types';
-import './GraphCard.css';
+import styles from './GraphCard.module.css';
 
 interface GraphCardProps {
   graph: Graph | PublicGraph;
@@ -55,12 +55,12 @@ export function GraphCard({
   };
 
   return (
-    <div className="graph-card" onClick={() => onClick(graph.id)}>
-      <div className="graph-card-header">
-        <h3 className="graph-title">{graph.name}</h3>
-        <div className="graph-publication-state">
+    <div className={styles.graphCard} onClick={() => onClick(graph.id)}>
+      <div className={styles.graphCardHeader}>
+        <h3 className={styles.graphTitle}>{graph.name}</h3>
+        <div className={styles.graphPublicationState}>
           <span 
-            className="publication-badge"
+            className={styles.publicationBadge}
             style={{ backgroundColor: getPublicationStateColor(graph.publication_state) }}
           >
             {getPublicationStateIcon(graph.publication_state)} {graph.publication_state}
@@ -68,30 +68,30 @@ export function GraphCard({
         </div>
       </div>
       
-      <div className="graph-card-content">
+      <div className={styles.graphCardContent}>
         {graph.description && (
-          <p className="graph-description">{graph.description}</p>
+          <p className={styles.graphDescription}>{graph.description}</p>
         )}
         
-        <div className="graph-metadata">
-          <div className="metadata-item">
+        <div className={styles.graphMetadata}>
+          <div className={styles.metadataItem}>
             <span className="label">Author:</span>
             <span className="value">{graph.author}</span>
           </div>
           
           {isPublic && 'owner' in graph && (
-            <div className="metadata-item">
+            <div className={styles.metadataItem}>
               <span className="label">Owner:</span>
               <span className="value">{graph.owner}</span>
             </div>
           )}
           
-          <div className="metadata-item">
+          <div className={styles.metadataItem}>
             <span className="label">Created:</span>
             <span className="value">{new Date(graph.createdAt).toLocaleDateString()}</span>
           </div>
           
-          <div className="metadata-item">
+          <div className={styles.metadataItem}>
             <span className="label">Updated:</span>
             <span className="value">{new Date(graph.updatedAt).toLocaleDateString()}</span>
           </div>
@@ -99,9 +99,9 @@ export function GraphCard({
       </div>
       
       {showPublicationControls && onPublicationStateChange && (
-        <div className="graph-card-actions">
+        <div className={styles.graphCardActions}>
           <button 
-            className="publication-toggle-btn"
+            className={styles.publicationToggleBtn}
             onClick={(e) => {
               e.stopPropagation();
               handlePublicationToggle();
@@ -113,11 +113,11 @@ export function GraphCard({
         </div>
       )}
       
-      <div className="graph-card-footer">
-        <span className="view-mode">
+      <div className={styles.graphCardFooter}>
+        <span className={styles.viewMode}>
           {isPublic ? '📖 Read-only' : '✏️ Editable'}
         </span>
-        <span className="click-hint">Click to view</span>
+        <span className={styles.clickHint}>Click to view</span>
       </div>
     </div>
   );

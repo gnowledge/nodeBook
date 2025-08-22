@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
 import { SchemaEditModal } from './SchemaEditModal';
 import { API_BASE_URL } from './api-config';
+import styles from './SchemaView.module.css';
 
 interface SchemaViewProps {
   onSchemaChange: () => void;
@@ -184,24 +185,24 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   };
 
   return (
-    <div className="schema-view">
-      <div className="schema-tabs">
-        <button className={`schema-tab-btn ${mode === 'nodes' ? 'active' : ''}`} onClick={() => setMode('nodes')} title="Node Types">NT</button>
-        <button className={`schema-tab-btn ${mode === 'relations' ? 'active' : ''}`} onClick={() => setMode('relations')} title="Relation Types">RT</button>
-        <button className={`schema-tab-btn ${mode === 'attributes' ? 'active' : ''}`} onClick={() => setMode('attributes')} title="Attribute Types">AT</button>
-        <button className={`schema-tab-btn ${mode === 'functions' ? 'active' : ''}`} onClick={() => setMode('functions')} title="Function Types">FT</button>
-        <button className="create-new-btn" onClick={openModalForCreate}>+ Create New</button>
+    <div className={styles.schemaView}>
+      <div className={styles.schemaTabs}>
+        <button className={`${styles.schemaTabBtn} ${mode === 'nodes' ? styles.active : ''}`} onClick={() => setMode('nodes')} title="Node Types">NT</button>
+        <button className={`${styles.schemaTabBtn} ${mode === 'relations' ? styles.active : ''}`} onClick={() => setMode('relations')} title="Relation Types">RT</button>
+        <button className={`${styles.schemaTabBtn} ${mode === 'attributes' ? styles.active : ''}`} onClick={() => setMode('attributes')} title="Attribute Types">AT</button>
+        <button className={`${styles.schemaTabBtn} ${mode === 'functions' ? styles.active : ''}`} onClick={() => setMode('functions')} title="Function Types">FT</button>
+        <button className={styles.createNewBtn} onClick={openModalForCreate}>+ Create New</button>
       </div>
-      <div className="schema-grid">
+      <div className={styles.schemaGrid}>
         {mode === 'nodes' && nodeTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'nodes')}>
+          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'nodes')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             {item.parent_types && item.parent_types.length > 0 && <small>Parents: {item.parent_types.join(', ')}</small>}
           </div>
         ))}
         {mode === 'relations' && relationTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'relations')}>
+          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'relations')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             <small>Inverse: {item.inverse_name}</small>
@@ -212,7 +213,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
           </div>
         ))}
         {mode === 'attributes' && attributeTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'attributes')}>
+          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'attributes')}>
             <h4>{item.name}</h4>
             <p>{item.description}</p>
             <small>Value Type: {item.value_type}</small>
@@ -220,7 +221,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
           </div>
         ))}
         {mode === 'functions' && functionTypes.map(item => (
-          <div key={item.name} className="schema-card" onClick={() => openModalForEdit(item, 'functions')}>
+          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'functions')}>
             <h4>{item.name}</h4>
             <p>{item.expression}</p>
             {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
