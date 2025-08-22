@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LoginPage } from './LoginPage';
+import LoginPage from './LoginPage';
 import App from './App';
 
 interface User {
