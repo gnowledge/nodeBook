@@ -23,7 +23,7 @@
 .node-card-header h3 {
   margin: 0;
   font-size: 1.5rem;
-  color: #333;
+  color: var(--text-color);
 }
 
 .node-card-header-actions {
@@ -34,8 +34,8 @@
 
 .node-role {
   font-size: 0.9rem;
-  color: #666;
-  background-color: #f0f0f0;
+  color: var(--text-color-muted);
+  background-color: var(--bg-color-lighter);
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
 }
@@ -52,7 +52,7 @@
 }
 
 .node-description {
-  color: #555;
+  color: var(--text-color);
   margin-bottom: 1.5rem;
 }
 
@@ -66,7 +66,7 @@
   margin-top: 0;
   margin-bottom: 1rem;
   font-size: 1.2rem;
-  color: #444;
+  color: var(--text-color);
 }
 
 .node-card ul {
