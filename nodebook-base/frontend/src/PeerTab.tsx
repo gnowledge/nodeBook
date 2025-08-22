@@ -10,27 +10,57 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
   const [connections, setConnections] = useState(0);
   const [remoteKey, setRemoteKey] = useState('');
 
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   const fetchPeerStatus = async () => {
     if (!activeGraphId) return;
-    const res = await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers`);
-    const data = await res.json();
-    setConnections(data.connections || 0);
+    try {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers`);
+      if (res.ok) {
+        const data = await res.json();
+        setConnections(data.connections || 0);
+      } else {
+        console.warn('Failed to fetch peer status:', res.status);
+        setConnections(0);
+      }
+    } catch (error) {
+      console.error('Error fetching peer status:', error);
+      setConnections(0);
+    }
   };
 
   useEffect(() => {
-    const interval = setInterval(fetchPeerStatus, 5000); // Poll every 5 seconds
+    const interval = setInterval(fetchPeerStatus, 10000); // Poll every 10 seconds
     return () => clearInterval(interval);
   }, [activeGraphId]);
 
   const handleSync = async () => {
     const keyToSync = remoteKey.trim();
     if (!keyToSync) return;
-    await fetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ remoteKey: keyToSync }),
-    });
-    setRemoteKey('');
+    try {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/peers/sync`, {
+        method: 'POST',
+        body: JSON.stringify({ remoteKey: keyToSync }),
+      });
+      if (res.ok) {
+        setRemoteKey('');
+        console.log('Sync initiated successfully');
+      } else {
+        console.error('Failed to initiate sync:', res.status);
+      }
+    } catch (error) {
+      console.error('Error initiating sync:', error);
+    }
   };
 
   return (
@@ -43,8 +73,16 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
         <h3>Share Your Graph</h3>
         <p>Share this key with a peer to let them sync with your graph:</p>
         <div className="share-key">
-          <input type="text" readOnly value={graphKey || 'Loading...'} />
-          <button onClick={() => navigator.clipboard.writeText(graphKey || '')}>Copy Key</button>
+          {graphKey ? (
+            <>
+              <input type="text" readOnly value={graphKey} />
+              <button onClick={() => navigator.clipboard.writeText(graphKey)}>Copy Key</button>
+            </>
+          ) : (
+            <div className="key-generating">
+              <span>🔄 Generating key for graph...</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="sync-graph">

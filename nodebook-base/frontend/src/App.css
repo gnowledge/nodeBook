@@ -624,6 +624,18 @@ input:checked + .slider:before {
   padding: 8px 12px;
 }
 
+.key-generating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 8px;
+  background-color: var(--bg-color-light);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color-muted);
+  font-style: italic;
+}
+
 .derived-indicator {
   font-style: italic;
   color: var(--text-color-muted);

@@ -46,6 +46,13 @@ class HyperGraph {
     return { connections: this.swarm ? this.swarm.peers.size : 0 };
   }
 
+  async leaveSwarm() {
+    if (this.swarm) {
+      await this.swarm.destroy();
+      this.swarm = null;
+    }
+  }
+
   async addNode(base_name, options = {}) {
     const node = new PolyNode(base_name, options);
     await this.db.put(`nodes/${node.id}`, node);

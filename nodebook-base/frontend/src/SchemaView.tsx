@@ -157,8 +157,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
       const res = await fetch(`${API_BASE_URL}/api/schema/${type}/${name}`, { 
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
       

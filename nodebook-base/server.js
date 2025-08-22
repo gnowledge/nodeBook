@@ -39,6 +39,35 @@ fastify.register(require('@fastify/cors'), {
     }
   }
   
+  // Load graph middleware
+  async function loadGraph(request, reply) {
+    const gm = fastify.graphManager;
+    const graphId = request.params.graphId;
+    
+    try {
+      console.log(`[loadGraph] Loading graph: ${graphId}`);
+      const graph = await gm.getGraph(graphId, HyperGraph);
+      if (!graph) {
+        console.log(`[loadGraph] Graph not found: ${graphId}`);
+        reply.code(404).send({ error: 'Graph not found' });
+        return;
+      }
+      
+      // Wait for Hypercore to be ready (fixes race condition)
+      if (graph.core && typeof graph.core.ready === 'function') {
+        await graph.core.ready();
+        console.log(`[loadGraph] Hypercore ready for graph: ${graphId}`);
+      }
+      
+      console.log(`[loadGraph] Successfully loaded graph: ${graphId}`);
+      request.graph = graph;
+    } catch (error) {
+      console.error(`[loadGraph] Error loading graph ${graphId}:`, error);
+      reply.code(500).send({ error: 'Failed to load graph', details: error.message });
+      return;
+    }
+  }
+  
 async function main() {
   // Initialize authentication database
   await auth.initializeDatabase();
@@ -99,7 +128,7 @@ async function main() {
     schema: {
       body: {
         type: 'object',
-        required: ['username', 'password'],
+        required: ['username', 'email', 'password'],
         properties: {
           username: { type: 'string' },
           email: { type: 'string' },
@@ -186,27 +215,7 @@ async function main() {
     }
   });
 
-  fastify.delete('/api/graphs/:graphId', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    const gm = fastify.graphManager; // Get instance from fastify
-    try {
-      await gm.deleteGraph(request.params.graphId);
-      reply.code(204).send();
-      return;
-    } catch (error) {
-      reply.code(404).send({ error: error.message });
-      return;
-    }
-  });
+
 
   // --- Schema CRUD API ---
   fastify.get('/api/schema/relations', {
@@ -355,20 +364,13 @@ async function main() {
     return await schemaManager.getNodeTypes();
   });
   
-  fastify.get('/api/schema/functions', {
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    return await schemaManager.getFunctionTypes();
-  });
-  
-  fastify.post('/api/schema/functions', {
+  fastify.post('/api/schema/nodetypes', {
     schema: {
       body: {
         type: 'object',
-        required: ['name', 'expression'],
+        required: ['name'],
         properties: {
           name: { type: 'string' },
-          expression: { type: 'string' },
           description: { type: 'string' }
         }
       }
@@ -376,7 +378,7 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     try {
-      const newType = await schemaManager.addFunctionType(request.body);
+      const newType = await schemaManager.addNodeType(request.body);
       reply.code(201);
       return newType;
     } catch (error) {
@@ -385,7 +387,7 @@ async function main() {
     }
   });
   
-  fastify.put('/api/schema/functions/:name', {
+  fastify.put('/api/schema/nodetypes/:name', {
     schema: {
       params: {
         type: 'object',
@@ -397,7 +399,7 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     try {
-      const updatedType = await schemaManager.updateFunctionType(request.params.name, request.body);
+      const updatedType = await schemaManager.updateNodeType(request.params.name, request.body);
       return updatedType;
     } catch (error) {
       reply.code(404).send({ error: error.message });
@@ -405,7 +407,7 @@ async function main() {
     }
   });
   
-  fastify.delete('/api/schema/functions/:name', {
+  fastify.delete('/api/schema/nodetypes/:name', {
     schema: {
       params: {
         type: 'object',
@@ -417,7 +419,7 @@ async function main() {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     try {
-      await schemaManager.deleteFunctionType(request.params.name);
+      await schemaManager.deleteNodeType(request.params.name);
       reply.code(204).send();
       return;
     } catch (error) {
@@ -426,98 +428,28 @@ async function main() {
     }
   });
 
-  // --- Node Registry API ---
-  fastify.get('/api/noderegistry', {
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    const gm = fastify.graphManager;
-    return await gm.getNodeRegistry();
-  });
-
-
-  // --- Graph-Specific API ---
-
-  // Middleware to load the correct graph
-  const loadGraph = async (request, reply) => {
-    const gm = fastify.graphManager;
-    try {
-      // Inject the HyperGraph dependency here
-      request.graph = await gm.getGraph(request.params.graphId, HyperGraph);
-      // Continue to the route handler
-    } catch (error) {
-      reply.code(404).send({ error: 'Graph not found' });
-      return;
-    }
-  };
-
-  fastify.put('/api/graphs/:graphId/nodes/:nodeId/publication', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' },
-          nodeId: { type: 'string' }
-        }
-      },
-      body: {
-        type: 'object',
-        required: ['publication_mode'],
-        properties: {
-          publication_mode: { type: 'string' }
-        }
-      }
-    },
-    preHandler: [authenticateJWT, loadGraph]
-  }, async (request, reply) => {
-    const { publication_mode } = request.body;
-    if (!['Private', 'P2P', 'Public'].includes(publication_mode)) {
-      reply.code(400).send({ error: 'Invalid publication mode' });
-      return;
-    }
-    try {
-      const updatedNode = await request.graph.updateNode(request.params.nodeId, { publication_mode });
-      return updatedNode;
-    } catch (error) {
-      reply.code(404).send({ error: error.message });
-      return;
-    }
-  });
-
-  fastify.put('/api/graphs/:graphId/publish/all', {
+  // --- Graph Operations API ---
+  fastify.get('/api/graphs/:graphId/graph', {
     schema: {
       params: {
         type: 'object',
         properties: {
           graphId: { type: 'string' }
         }
-      },
-      body: {
-        type: 'object',
-        required: ['publication_mode'],
-        properties: {
-          publication_mode: { type: 'string' }
-        }
       }
     },
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
-    const { publication_mode } = request.body;
-    if (!['P2P', 'Public'].includes(publication_mode)) {
-      reply.code(400).send({ error: 'Invalid publication mode' });
-      return;
-    }
-    try {
-      const allNodes = await request.graph.listAll('nodes');
-      for (const node of allNodes) {
-        if (!node.isDeleted) {
-          await request.graph.updateNode(node.id, { publication_mode });
-        }
-      }
-      return { message: `All nodes set to ${publication_mode}` };
-    } catch (error) {
-      reply.code(500).send({ error: error.message });
-      return;
-    }
+    const graph = request.graph;
+    const nodes = await graph.listAll('nodes');
+    const relations = await graph.listAll('relations');
+    const attributes = await graph.listAll('attributes');
+    
+    return {
+      nodes: nodes.filter(node => !node.isDeleted),
+      relations: relations.filter(rel => !rel.isDeleted),
+      attributes: attributes.filter(attr => !attr.isDeleted)
+    };
   });
 
   fastify.get('/api/graphs/:graphId/key', {
@@ -531,10 +463,11 @@ async function main() {
     },
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
-    return { key: request.graph.key };
+    const graph = request.graph;
+    return { key: graph.key };
   });
 
-  fastify.get('/api/graphs/:graphId/graph', {
+  fastify.get('/api/graphs/:graphId/cnl', {
     schema: {
       params: {
         type: 'object',
@@ -547,102 +480,14 @@ async function main() {
   }, async (request, reply) => {
     const gm = fastify.graphManager;
     const graphId = request.params.graphId;
-    const nodesFromDb = await request.graph.listAll('nodes');
-    const relations = await request.graph.listAll('relations');
-    const attributes = await request.graph.listAll('attributes');
-    const transitions = await request.graph.listAll('transitions');
-    const functions = await request.graph.listAll('functions');
-    const functionTypes = await schemaManager.getFunctionTypes();
-
-    const allNodesFromDb = [...nodesFromDb, ...transitions].filter(node => !node.isDeleted);
-
-    // Get node order from CNL
-    const cnl = await gm.getCnl(graphId);
-    const orderedNodeIds = getNodeOrderFromCnl(cnl);
-    const nodesMap = new Map(allNodesFromDb.map(node => [node.id, node]));
-
-    // Sort nodes according to CNL order
-    const sortedNodes = orderedNodeIds.map(id => nodesMap.get(id)).filter(Boolean);
-    const nodesInCnl = new Set(orderedNodeIds);
-    const nodesNotInCnl = allNodesFromDb.filter(node => !nodesInCnl.has(node.id));
-    const finalNodeOrder = [...sortedNodes, ...nodesNotInCnl];
-
-    const activeRelations = relations.filter(rel => !rel.isDeleted);
-    let activeAttributes = attributes.filter(attr => !attr.isDeleted);
-
-    // Compute derived attributes
-    for (const node of finalNodeOrder) {
-      const nodeFunctions = functions.filter(f => f.source_id === node.id);
-      for (const func of nodeFunctions) {
-        const funcType = functionTypes.find(ft => ft.name === func.name);
-        if (!funcType) continue;
-
-        const scope = {};
-        const nodeAttributes = activeAttributes.filter(a => a.source_id === node.id);
-        for (const attr of nodeAttributes) {
-          const numericValue = parseFloat(attr.value);
-          scope[attr.name.replace(/\s+/g, '_')] = isNaN(numericValue) ? attr.value : numericValue;
-        }
-
-        try {
-          const sanitizedExpression = funcType.expression.replace(/"(.*?)"/g, (match, attrName) => attrName.replace(/\s+/g, '_'));
-          const value = evaluate(sanitizedExpression, scope);
-          activeAttributes.push({
-            id: `derived_${func.id}`,
-            source_id: func.source_id,
-            name: func.name,
-            value: String(value),
-            isDerived: true,
-            morph_ids: func.morph_ids,
-          });
-        } catch (error) {
-          // Silently fail for now, or add logging
-        }
-      }
-    }
-
-    return { nodes: finalNodeOrder, relations: activeRelations, attributes: activeAttributes };
-  });
-
-  fastify.get('/api/graphs/:graphId/cnl', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    const gm = fastify.graphManager;
     try {
-      const cnl = await gm.getCnl(request.params.graphId);
+      console.log(`[getCnl] Getting CNL for graph: ${graphId}`);
+      const cnl = await gm.getCnl(graphId);
+      console.log(`[getCnl] Successfully got CNL for graph: ${graphId}, length: ${cnl.length}`);
       return { cnl };
     } catch (error) {
-      reply.code(404).send({ error: error.message });
-      return;
-    }
-  });
-
-  fastify.get('/api/graphs/:graphId/nodes/:nodeId/cnl', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' },
-          nodeId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    const gm = fastify.graphManager;
-    try {
-      const cnl = await gm.getNodeCnl(request.params.graphId, request.params.nodeId);
-      return { cnl };
-    } catch (error) {
-      reply.code(404).send({ error: error.message });
+      console.error(`[getCnl] Error getting CNL for graph ${graphId}:`, error);
+      reply.code(500).send({ error: error.message });
       return;
     }
   });
@@ -659,86 +504,96 @@ async function main() {
         type: 'object',
         required: ['cnlText'],
         properties: {
-          cnlText: { type: 'string' }
+          cnlText: { type: 'string' },
+          strictMode: { type: 'boolean' }
         }
       }
     },
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
-    const { cnlText } = request.body;
-    const graph = request.graph;
     const graphId = request.params.graphId;
+    const { cnlText, strictMode = true } = request.body;
+    
+    try {
+      // Get the current CNL text from the graph
+      const currentCnl = await gm.getCnl(graphId);
+      const result = await diffCnl(currentCnl, cnlText);
+      const operations = result.operations || [];
+      
+      if (operations.length > 0) {
+        // First pass: deletions
+        for (const op of operations) {
+          if (op.type.startsWith('delete')) {
+            switch (op.type) {
+              case 'deleteNode':
+                await request.graph.deleteNode(op.payload.id);
+                break;
+              case 'deleteRelation':
+                await request.graph.deleteRelation(op.payload.id);
+                break;
+              case 'deleteAttribute':
+                await request.graph.deleteAttribute(op.payload.id);
+                break;
+            }
+          }
+        }
+        // Second pass: additions
+        for (const op of operations) {
+          if (op.type.startsWith('add')) {
+            switch (op.type) {
+              case 'addNode':
+                const existingNode = await request.graph.getNode(op.payload.options.id);
+                if (!existingNode) {
+                  await request.graph.addNode(op.payload.base_name, op.payload.options);
+                  await gm.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
+                }
+                await gm.registerNodeInGraph(op.payload.options.id, graphId);
+                break;
+              case 'addRelation':
+                const targetNode = await request.graph.getNode(op.payload.target);
+                if (!targetNode) {
+                  await request.graph.addNode(op.payload.target, { id: op.payload.target });
+                  await gm.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
+                }
+                await gm.registerNodeInGraph(op.payload.target, graphId);
+                await request.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
+                break;
+              case 'addAttribute':
+                await request.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
+                break;
+            }
+          }
+        }
+        // Third pass: updates and functions
+        for (const op of operations) {
+          if (op.type === 'updateNode') {
+            await request.graph.updateNode(op.payload.id, op.payload.fields);
+          } else if (op.type === 'applyFunction') {
+            const functionTypes = await schemaManager.getFunctionTypes();
+            const funcType = functionTypes.find(ft => ft.name === op.payload.name);
+            if (funcType) {
+              await request.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
+            }
+          } else if (op.type === 'updateGraphDescription') {
+            await gm.updateGraphMetadata(graphId, { description: op.payload.description });
+          }
+        }
+      }
 
-    const { operations, errors } = await diffCnl(await gm.getCnl(graphId), cnlText);
-
-    if (errors.length > 0) {
-      reply.code(422).send({ errors });
+      // Check for validation errors
+      if (result.errors && result.errors.length > 0) {
+        reply.code(422).send({ errors: result.errors });
+        return;
+      }
+      
+      await gm.saveCnl(request.params.graphId, cnlText);
+      return { message: 'CNL processed successfully.' };
+    } catch (error) {
+      console.error(`[CNL Processing] Error for graph ${graphId}:`, error);
+      reply.code(400).send({ errors: [{ message: error.message }] });
       return;
     }
-
-    if (operations.length > 0) {
-      // First pass: deletions
-      for (const op of operations) {
-        if (op.type.startsWith('delete')) {
-          switch (op.type) {
-            case 'deleteNode':
-              await request.graph.deleteNode(op.payload.id);
-              break;
-            case 'deleteRelation':
-              await request.graph.deleteRelation(op.payload.id);
-              break;
-            case 'deleteAttribute':
-              await request.graph.deleteAttribute(op.payload.id);
-              break;
-          }
-        }
-      }
-      // Second pass: additions
-      for (const op of operations) {
-        if (op.type.startsWith('add')) {
-          switch (op.type) {
-            case 'addNode':
-              const existingNode = await graph.getNode(op.payload.options.id);
-              if (!existingNode) {
-                await request.graph.addNode(op.payload.base_name, op.payload.options);
-                await gm.addNodeToRegistry({ id: op.payload.options.id, ...op.payload });
-              }
-              await gm.registerNodeInGraph(op.payload.options.id, graphId);
-              break;
-            case 'addRelation':
-              const targetNode = await graph.getNode(op.payload.target);
-              if (!targetNode) {
-                await graph.addNode(op.payload.target, { id: op.payload.target });
-                await gm.addNodeToRegistry({ id: op.payload.target, base_name: op.payload.target });
-              }
-              await gm.registerNodeInGraph(op.payload.target, graphId);
-              await request.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
-              break;
-            case 'addAttribute':
-              await request.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
-              break;
-          }
-        }
-      }
-      // Third pass: updates and functions
-      for (const op of operations) {
-        if (op.type === 'updateNode') {
-          await request.graph.updateNode(op.payload.id, op.payload.fields);
-        } else if (op.type === 'applyFunction') {
-          const functionTypes = await schemaManager.getFunctionTypes();
-          const funcType = functionTypes.find(ft => ft.name === op.payload.name);
-          if (funcType) {
-            await request.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
-          }
-        } else if (op.type === 'updateGraphDescription') {
-            await gm.updateGraphMetadata(graphId, { description: op.payload.description });
-        }
-      }
-    }
-
-    await gm.saveCnl(request.params.graphId, cnlText);
-    return { message: 'CNL processed successfully.' };
   });
 
   // --- Peer Management API ---
@@ -789,6 +644,29 @@ async function main() {
     }
   });
 
+  // DELETE route for graphs - must come AFTER more specific routes to avoid conflicts
+  fastify.delete('/api/graphs/:graphId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const gm = fastify.graphManager; // Get instance from fastify
+    try {
+      await gm.deleteGraph(request.params.graphId);
+      reply.code(204).send();
+      return;
+    } catch (error) {
+      reply.code(404).send({ error: error.message });
+      return;
+    }
+  });
+
   // WebSocket for real-time communication
   const wss = new WebSocket.Server({ server: fastify.server });
   
@@ -829,3 +707,4 @@ async function main() {
   }
   
   main().catch(console.error);
+  

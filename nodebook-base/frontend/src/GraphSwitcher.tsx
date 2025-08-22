@@ -20,13 +20,19 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
     return fetch(url, {
       ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
   };
 
@@ -39,6 +45,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
         if (!activeGraphId && Array.isArray(data) && data.length > 0) {
           onGraphSelect(data[0].id);
         }
+
       } else {
         console.error('Failed to fetch graphs:', res.status);
         setGraphs([]);

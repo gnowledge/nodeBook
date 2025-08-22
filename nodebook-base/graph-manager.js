@@ -139,6 +139,12 @@ class GraphManager {
         const graphDir = path.join(this.DATA_DIR, id);
         logDebug(`Creating new graph in: ${graphDir}`);
         await fsp.mkdir(graphDir, { recursive: true });
+        
+        // Create an empty graph.cnl file so getCnl() doesn't fail
+        const cnlPath = path.join(graphDir, 'graph.cnl');
+        await fsp.writeFile(cnlPath, '', 'utf-8');
+        logDebug(`Created empty graph.cnl file at: ${cnlPath}`);
+        
         const now = new Date().toISOString();
         const newGraphInfo = {
             id,

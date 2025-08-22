@@ -31,21 +31,50 @@ function App({ onLogout }: AppProps) {
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
     return fetch(url, {
       ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
   };
 
   const handleDeleteGraph = async () => {
     if (!activeGraphId) return;
     if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
-      await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
-      setActiveGraphId(null);
+      try {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
+        if (res.ok) {
+          setActiveGraphId(null);
+          setActiveGraphKey(null);
+          setNodes([]);
+          setRelations([]);
+          setAttributes([]);
+          setCnlText(prev => {
+            const newCnlText = { ...prev };
+            delete newCnlText[activeGraphId];
+            return newCnlText;
+          });
+          
+          // Trigger a refresh of the graph list
+          setRefreshKey(prev => prev + 1);
+        } else {
+          console.error('Failed to delete graph:', res.status);
+          const errorData = await res.json().catch(() => ({}));
+          alert(`Failed to delete graph: ${errorData.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Error deleting graph:', error);
+        alert('Failed to delete graph. Please try again.');
+      }
     }
   };
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
@@ -67,6 +96,7 @@ function App({ onLogout }: AppProps) {
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     localStorage.setItem('strictMode', JSON.stringify(strictMode));
@@ -159,7 +189,13 @@ function App({ onLogout }: AppProps) {
   return (
     <div className="app-container">
       <div className="top-bar">
-        <GraphSwitcher activeGraphId={activeGraphId} onGraphSelect={setActiveGraphId} author={name} email={email} />
+        <GraphSwitcher 
+        key={refreshKey}
+        activeGraphId={activeGraphId} 
+        onGraphSelect={setActiveGraphId} 
+        author={name} 
+        email={email}
+      />
         {onLogout && (
           <button
             onClick={onLogout}
