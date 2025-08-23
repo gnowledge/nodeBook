@@ -117,13 +117,30 @@
 .toggleSwitch {
   display: flex;
   align-items: center;
-  cursor: pointer;
+  justify-content: space-between;
   margin-bottom: 16px;
-  gap: 12px; /* Add consistent gap between elements */
+  padding: 8px 0;
 }
 
-.toggleSwitch input[type="checkbox"] {
-  display: none;
+.toggleLabel {
+  color: #495057;
+  font-weight: 500;
+  font-size: 14px;
+  user-select: none; /* Prevent text selection when clicking */
+  margin-right: 16px;
+}
+
+.toggleContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toggleInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
 .slider {
@@ -133,15 +150,7 @@
   background-color: #dee2e6;
   border-radius: 12px;
   transition: all 0.3s ease;
-  flex-shrink: 0; /* Prevent the slider from shrinking */
-}
-
-.toggleLabel {
-  color: #495057;
-  font-weight: 500;
-  font-size: 14px;
-  flex: 1; /* Allow the label to take remaining space */
-  user-select: none; /* Prevent text selection when clicking */
+  cursor: pointer;
 }
 
 .slider:before {

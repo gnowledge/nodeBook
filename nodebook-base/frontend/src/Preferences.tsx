@@ -58,15 +58,20 @@ export function Preferences({
 
         <div className={styles.preferencesSection}>
           <h3>Editor Settings</h3>
-          <label className={styles.toggleSwitch}>
-            <input
-              type="checkbox"
-              checked={strictMode}
-              onChange={(e) => onStrictModeChange(e.target.checked)}
-            />
-            <span className={styles.slider}></span>
-            <span className={styles.toggleLabel}>Strict Schema Mode</span>
-          </label>
+          <div className={styles.toggleSwitch}>
+            <label className={styles.toggleLabel}>
+              Strict Schema Mode
+            </label>
+            <div className={styles.toggleContainer}>
+              <input
+                type="checkbox"
+                checked={strictMode}
+                onChange={(e) => onStrictModeChange(e.target.checked)}
+                className={styles.toggleInput}
+              />
+              <span className={styles.slider}></span>
+            </div>
+          </div>
           <p className={styles.settingDescription}>
             When enabled, you can only create relations and attributes that are defined in the Schema.
           </p>
