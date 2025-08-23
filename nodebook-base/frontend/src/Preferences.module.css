@@ -176,6 +176,14 @@
   transform: translateX(26px);
 }
 
+/* Make the entire toggle container clickable */
+.toggleContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
 /* Hover effects */
 .toggleContainer:hover .slider {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);

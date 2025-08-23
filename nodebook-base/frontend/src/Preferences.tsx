@@ -62,7 +62,7 @@ export function Preferences({
             <label className={styles.toggleLabel}>
               Strict Schema Mode
             </label>
-            <div className={styles.toggleContainer}>
+            <label className={styles.toggleContainer}>
               <input
                 type="checkbox"
                 checked={strictMode}
@@ -70,7 +70,7 @@ export function Preferences({
                 className={styles.toggleInput}
               />
               <span className={styles.slider}></span>
-            </div>
+            </label>
           </div>
           <p className={styles.settingDescription}>
             When enabled, you can only create relations and attributes that are defined in the Schema.
