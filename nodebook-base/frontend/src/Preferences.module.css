@@ -153,6 +153,7 @@
   cursor: pointer;
 }
 
+/* Slider knob */
 .slider:before {
   content: '';
   position: absolute;
@@ -166,15 +167,17 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.toggleSwitch input[type="checkbox"]:checked + .slider {
+/* Active state when checkbox is checked */
+.toggleInput:checked + .slider {
   background-color: #007bff;
 }
 
-.toggleSwitch input[type="checkbox"]:checked + .slider:before {
+.toggleInput:checked + .slider:before {
   transform: translateX(26px);
 }
 
-.toggleSwitch:hover .slider {
+/* Hover effects */
+.toggleContainer:hover .slider {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
