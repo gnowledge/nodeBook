@@ -21,13 +21,16 @@
   z-index: 10; /* Ensure button is above other elements */
 }
 
-.menuButton svg {
+.menuIcon {
   width: 20px;
   height: 20px;
-  stroke: white !important; /* Force white stroke with !important */
-  stroke-width: 2 !important;
-  position: relative; /* Ensure icon is above background */
-  z-index: 11; /* Ensure icon is above button background */
+  transition: all 0.2s ease;
+  /* PNG should display correctly without any filters */
+}
+
+.menuButton:hover .menuIcon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); /* Add subtle shadow on hover */
+  transform: scale(1.05); /* Slight scale effect on hover */
 }
 
 .menuButton:hover {

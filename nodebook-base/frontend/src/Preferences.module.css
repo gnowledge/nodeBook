@@ -1,0 +1,191 @@
+/* Preferences Overlay */
+.preferencesOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.preferencesContent {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  max-height: 80vh;
+  width: 100%;
+  overflow: auto;
+  position: relative;
+  padding: 0;
+}
+
+.preferencesCloseBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #6c757d;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.preferencesCloseBtn:hover {
+  background: #e9ecef;
+  color: #495057;
+  transform: scale(1.1);
+}
+
+/* Preferences Header */
+.preferencesHeader {
+  padding: 32px 32px 24px 32px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.preferencesHeader h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+/* Preferences Sections */
+.preferencesSection {
+  padding: 24px 32px;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.preferencesSection:last-child {
+  border-bottom: none;
+}
+
+.preferencesSection h3 {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Form Labels and Inputs */
+.preferencesSection label {
+  display: block;
+  margin-bottom: 16px;
+  color: #495057;
+  font-weight: 500;
+}
+
+.preferencesSection label:last-child {
+  margin-bottom: 0;
+}
+
+.preferencesSection input[type="text"],
+.preferencesSection input[type="email"] {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #495057;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.preferencesSection input[type="text"]:focus,
+.preferencesSection input[type="email"]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Toggle Switch */
+.toggleSwitch {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.toggleSwitch input[type="checkbox"] {
+  display: none;
+}
+
+.slider {
+  position: relative;
+  width: 50px;
+  height: 24px;
+  background-color: #dee2e6;
+  border-radius: 12px;
+  margin-right: 12px;
+  transition: all 0.3s ease;
+}
+
+.slider:before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggleSwitch input[type="checkbox"]:checked + .slider {
+  background-color: #007bff;
+}
+
+.toggleSwitch input[type="checkbox"]:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.toggleSwitch:hover .slider {
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Setting Description */
+.settingDescription {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .preferencesOverlay {
+    padding: 10px;
+  }
+  
+  .preferencesContent {
+    max-height: 90vh;
+    border-radius: 8px;
+  }
+  
+  .preferencesHeader,
+  .preferencesSection {
+    padding: 20px;
+  }
+  
+  .preferencesHeader h2 {
+    font-size: 1.5rem;
+  }
+}

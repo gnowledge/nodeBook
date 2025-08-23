@@ -146,11 +146,16 @@
   background-color: #b91c1c !important;
 }
 
-.deleteGraphBtn svg {
-  stroke: white !important; /* Force white stroke with !important */
-  stroke-width: 2 !important;
-  position: relative; /* Ensure icon is above background */
-  z-index: 11; /* Ensure icon is above button background */
+.deleteIcon {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) invert(1); /* Make the icon white */
+  transition: all 0.2s ease;
+}
+
+.deleteGraphBtn:hover .deleteIcon {
+  filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); /* Add subtle shadow on hover */
+  transform: scale(1.05); /* Slight scale effect on hover */
 }
 
 /* Tab Content */

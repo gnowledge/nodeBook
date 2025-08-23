@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './Menu.module.css';
+import hamburgerIcon from './assets/Hamburger_icon.svg.png';
 
 interface MenuProps {
   onSelectPage: (page: string) => void;
@@ -16,11 +17,7 @@ export function Menu({ onSelectPage }: MenuProps) {
   return (
     <div className={styles.menuContainer}>
       <button onClick={() => setIsOpen(!isOpen)} className={styles.menuButton}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
+        <img src={hamburgerIcon} alt="Menu" className={styles.menuIcon} />
       </button>
 
       {isOpen && (

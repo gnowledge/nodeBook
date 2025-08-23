@@ -1,0 +1,181 @@
+/* PageView Overlay */
+.pageViewOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.pageViewContent {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-width: 800px;
+  max-height: 80vh;
+  width: 100%;
+  overflow: auto;
+  position: relative;
+  padding: 0;
+}
+
+.pageViewCloseBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #6c757d;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.pageViewCloseBtn:hover {
+  background: #e9ecef;
+  color: #495057;
+  transform: scale(1.1);
+}
+
+/* Markdown Content Styling */
+.markdownContent {
+  padding: 32px;
+  color: #212529;
+  line-height: 1.6;
+}
+
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6 {
+  color: #1a1a1a;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.markdownContent h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 8px;
+}
+
+.markdownContent h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 6px;
+}
+
+.markdownContent h3 {
+  font-size: 1.25rem;
+}
+
+.markdownContent p {
+  margin-bottom: 16px;
+  color: #495057;
+}
+
+.markdownContent ul,
+.markdownContent ol {
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.markdownContent li {
+  margin-bottom: 8px;
+  color: #495057;
+}
+
+.markdownContent code {
+  background-color: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  color: #e83e8c;
+}
+
+.markdownContent pre {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdownContent pre code {
+  background: none;
+  padding: 0;
+  color: #495057;
+}
+
+.markdownContent blockquote {
+  border-left: 4px solid #007bff;
+  margin: 16px 0;
+  padding-left: 16px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.markdownContent a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.markdownContent a:hover {
+  text-decoration: underline;
+}
+
+/* CNL Content Styling */
+.cnlView {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 24px;
+  margin: 32px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #495057;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 60vh;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pageViewOverlay {
+    padding: 10px;
+  }
+  
+  .pageViewContent {
+    max-height: 90vh;
+    border-radius: 8px;
+  }
+  
+  .markdownContent {
+    padding: 20px;
+  }
+  
+  .cnlView {
+    margin: 20px;
+    padding: 16px;
+    font-size: 12px;
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styles from './Preferences.module.css';
 
 interface PreferencesProps {
   strictMode: boolean;
@@ -35,12 +36,15 @@ export function Preferences({
   };
 
   return (
-    <div className="page-view-overlay" onClick={onClose}>
-      <div className="page-view-content" onClick={(e) => e.stopPropagation()}>
-        <button className="page-view-close-btn" onClick={onClose}>&times;</button>
-        <h2>Preferences</h2>
+    <div className={styles.preferencesOverlay} onClick={onClose}>
+      <div className={styles.preferencesContent} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.preferencesCloseBtn} onClick={onClose}>&times;</button>
         
-        <div className="preferences-section">
+        <div className={styles.preferencesHeader}>
+          <h2>Preferences</h2>
+        </div>
+        
+        <div className={styles.preferencesSection}>
           <h3>User</h3>
           <label>
             Name/Nick:
@@ -52,18 +56,18 @@ export function Preferences({
           </label>
         </div>
 
-        <div className="preferences-section">
+        <div className={styles.preferencesSection}>
           <h3>Editor Settings</h3>
-          <label className="toggle-switch">
+          <label className={styles.toggleSwitch}>
             <input
               type="checkbox"
               checked={strictMode}
               onChange={(e) => onStrictModeChange(e.target.checked)}
             />
-            <span className="slider"></span>
+            <span className={styles.slider}></span>
             Strict Schema Mode
           </label>
-          <p className="setting-description">
+          <p className={styles.settingDescription}>
             When enabled, you can only create relations and attributes that are defined in the Schema.
           </p>
         </div>

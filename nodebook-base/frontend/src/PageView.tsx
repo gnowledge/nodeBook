@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import styles from './PageView.module.css';
 
 interface PageViewProps {
   page: string;
@@ -21,13 +22,15 @@ export function PageView({ page, onClose }: PageViewProps) {
   const isCnl = page.endsWith('.cnl');
 
   return (
-    <div className="page-view-overlay" onClick={onClose}>
-      <div className="page-view-content" onClick={(e) => e.stopPropagation()}>
-        <button className="page-view-close-btn" onClick={onClose}>&times;</button>
+    <div className={styles.pageViewOverlay} onClick={onClose}>
+      <div className={styles.pageViewContent} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.pageViewCloseBtn} onClick={onClose}>&times;</button>
         {isCnl ? (
-          <pre className="cnl-view">{content}</pre>
+          <pre className={styles.cnlView}>{content}</pre>
         ) : (
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <div className={styles.markdownContent}>
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
         )}
       </div>
     </div>

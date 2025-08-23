@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
-import './ImportContextModal.css';
+import styles from './ImportContextModal.module.css';
 
 interface ImportContextModalProps {
   sourceCnl: string;
@@ -37,11 +37,11 @@ export function ImportContextModal({ sourceCnl, targetCnl, sourceGraphId, target
   };
 
   const renderCnlPane = (title: string, cnl: string, selectedLines: string[], onCheckboxChange: (line: string) => void) => (
-    <div className="cnl-pane">
+    <div className={styles.cnlPane}>
       <h3>{title}</h3>
-      <div className="cnl-lines">
+      <div className={styles.cnlLines}>
         {cnl.split('\n').map((line, i) => (
-          <div key={i} className="cnl-line">
+          <div key={i} className={styles.cnlLine}>
             <input 
               type="checkbox" 
               checked={selectedLines.includes(line)}
@@ -55,18 +55,18 @@ export function ImportContextModal({ sourceCnl, targetCnl, sourceGraphId, target
   );
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
           <h2>Compare & Merge Node Context</h2>
-          <button className="modal-close-btn" onClick={onClose}>&times;</button>
+          <button className={styles.modalCloseBtn} onClick={onClose}>&times;</button>
         </div>
-        <div className="cnl-diff-view">
+        <div className={styles.cnlDiffView}>
           {renderCnlPane(`From ${sourceGraphId} (Source)`, sourceCnl, selectedSourceLines, handleSourceCheckboxChange)}
           {renderCnlPane(`In ${targetGraphId} (Target)`, targetCnl, selectedTargetLines, handleTargetCheckboxChange)}
         </div>
-        <div className="modal-footer">
-            <button className="merge-btn" onClick={handleCopy} disabled={selectedSourceLines.length === 0 && selectedTargetLines.length === 0}>
+        <div className={styles.modalFooter}>
+            <button className={styles.mergeBtn} onClick={handleCopy} disabled={selectedSourceLines.length === 0 && selectedTargetLines.length === 0}>
                 Copy to Target Editor
             </button>
         </div>
