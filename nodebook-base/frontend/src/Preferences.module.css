@@ -119,6 +119,7 @@
   align-items: center;
   cursor: pointer;
   margin-bottom: 16px;
+  gap: 12px; /* Add consistent gap between elements */
 }
 
 .toggleSwitch input[type="checkbox"] {
@@ -131,8 +132,16 @@
   height: 24px;
   background-color: #dee2e6;
   border-radius: 12px;
-  margin-right: 12px;
   transition: all 0.3s ease;
+  flex-shrink: 0; /* Prevent the slider from shrinking */
+}
+
+.toggleLabel {
+  color: #495057;
+  font-weight: 500;
+  font-size: 14px;
+  flex: 1; /* Allow the label to take remaining space */
+  user-select: none; /* Prevent text selection when clicking */
 }
 
 .slider:before {

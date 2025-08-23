@@ -65,7 +65,7 @@ export function Preferences({
               onChange={(e) => onStrictModeChange(e.target.checked)}
             />
             <span className={styles.slider}></span>
-            Strict Schema Mode
+            <span className={styles.toggleLabel}>Strict Schema Mode</span>
           </label>
           <p className={styles.settingDescription}>
             When enabled, you can only create relations and attributes that are defined in the Schema.
