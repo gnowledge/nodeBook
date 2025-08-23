@@ -145,12 +145,14 @@
 
 .slider {
   position: relative;
-  width: 50px;
-  height: 24px;
-  background-color: #dee2e6;
-  border-radius: 12px;
+  width: 60px; /* Wider for better proportions */
+  height: 28px; /* Taller for better visibility */
+  background-color: #6c757d; /* Darker gray for better contrast */
+  border-radius: 14px; /* Half of height for perfect roundness */
   transition: all 0.3s ease;
   cursor: pointer;
+  border: 2px solid #495057; /* Add border for better definition */
+  display: inline-block; /* Ensure proper display */
 }
 
 /* Slider knob */
@@ -159,21 +161,22 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 20px;
+  width: 20px; /* Larger knob for better visibility */
   height: 20px;
   background-color: #ffffff;
   border-radius: 50%;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Even stronger shadow */
 }
 
 /* Active state when checkbox is checked */
 .toggleInput:checked + .slider {
   background-color: #007bff;
+  border-color: #0056b3; /* Darker blue border when active */
 }
 
 .toggleInput:checked + .slider:before {
-  transform: translateX(26px);
+  transform: translateX(32px); /* Adjusted for larger knob size */
 }
 
 /* Make the entire toggle container clickable */
@@ -182,6 +185,10 @@
   display: flex;
   align-items: center;
   cursor: pointer;
+  padding: 4px; /* Add some padding around the toggle */
+  background-color: #f8f9fa; /* Light background to see the container */
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
 }
 
 /* Hover effects */
