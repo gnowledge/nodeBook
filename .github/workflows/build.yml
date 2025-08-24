@@ -14,41 +14,31 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install Python dependencies
-      run: |
-        cd backend
-        pip install -r requirements.txt
-    
-    - name: Run backend tests
-      run: |
-        cd backend
-        python -m pytest tests/ -v
-    
-    - name: Run post-install script
-      run: |
-        cd backend
-        python scripts/post_install.py
-    
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+        cache-dependency-path: nodebook-base/package-lock.json
+    
+    - name: Install backend dependencies
+      run: |
+        cd nodebook-base
+        npm ci
+    
+    - name: Run backend tests
+      run: |
+        cd nodebook-base
+        npm test
     
     - name: Install frontend dependencies
       run: |
-        cd frontend
+        cd nodebook-base/frontend
         npm ci
     
     - name: Run frontend tests
       run: |
-        cd frontend
+        cd nodebook-base/frontend
         npm run test:ci
 
   build-docker:
@@ -63,7 +53,8 @@ jobs:
     - name: Build backend image
       uses: docker/build-push-action@v5
       with:
-        context: ./backend
+        context: .
+        file: ./Dockerfile
         push: false
         tags: nodebook-backend:latest
         cache-from: type=gha
@@ -72,7 +63,8 @@ jobs:
     - name: Build frontend image
       uses: docker/build-push-action@v5
       with:
-        context: ./frontend
+        context: .
+        file: ./Dockerfile
         push: false
         tags: nodebook-frontend:latest
         cache-from: type=gha
@@ -87,54 +79,54 @@ jobs:
           nodebook-frontend:latest
         retention-days: 30
 
-  build-electron:
-    needs: test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Install frontend dependencies
-      run: |
-        cd frontend
-        npm ci
-    
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm run build
-    
-    - name: Install Electron dependencies
-      run: |
-        cd electron
-        npm ci
-    
-    - name: Build Electron package
-      run: |
-        cd electron
-        npm run dist
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Upload Electron packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: electron-packages-${{ matrix.os }}
-        path: electron/dist/
-        retention-days: 30
+  # build-electron:
+  #   needs: test
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, windows-latest, macos-latest]
+  #   
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   
+  #   - name: Set up Node.js
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: '18'
+  #       cache: 'npm'
+  #       cache-dependency-path: nodebook-base/frontend/package-lock.json
+  #   
+  #   - name: Install frontend dependencies
+  #     run: |
+  #       cd nodebook-base/frontend
+  #       npm ci
+  #   
+  #   - name: Build frontend
+  #     run: |
+  #       cd nodebook-base/frontend
+  #       npm run build
+  #   
+  #   - name: Install Electron dependencies
+  #     run: |
+  #       cd electron
+  #       npm ci
+  #   
+  #   - name: Build Electron package
+  #     run: |
+  #       cd electron
+  #       npm run dist
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #   
+  #   - name: Upload Electron packages
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: electron-packages-${{ matrix.os }}
+  #       path: electron/dist/
+  #       retention-days: 30
 
   release:
-    needs: [build-docker, build-electron]
+    needs: [build-docker]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     
@@ -147,16 +139,16 @@ jobs:
         name: docker-images
         path: ./
     
-    - name: Download Electron packages
-      uses: actions/download-artifact@v4
-      with:
-        name: electron-packages-ubuntu-latest
-        path: ./electron/dist/
+    # - name: Download Electron packages
+    #   uses: actions/download-artifact@v4
+    #   with:
+    #     name: electron-packages-ubuntu-latest
+    #     path: ./electron/dist/
     
     - name: Create release assets
       run: |
         mkdir -p releases/v${{ github.event.release.tag_name }}
-        cp -r electron/dist/* releases/v${{ github.event.release.tag_name }}/
+        # cp -r electron/dist/* releases/v${{ github.event.release.tag_name }}/
         
         # Create deployment script
         cat > releases/v${{ github.event.release.tag_name }}/deploy-docker.sh << 'EOF'

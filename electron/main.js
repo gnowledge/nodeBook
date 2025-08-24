@@ -1,33 +1,138 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { fork } = require('child_process');
+const fs = require('fs');
 
 let backendProcess;
+let tempNodebookPath = null;
 
-function createWindow() {
+async function extractNodebookBase() {
+  if (tempNodebookPath) return tempNodebookPath;
+  
+  const tempDir = path.join(app.getPath('temp'), 'nodebook-base-' + Date.now());
+  const sourcePath = path.join(__dirname, 'nodebook-base');
+  
+  try {
+    // Copy nodebook-base to temp directory, but skip node_modules if it doesn't exist
+    await fs.promises.mkdir(tempDir, { recursive: true });
+    
+    // Check if node_modules exists in source
+    const nodeModulesExists = await fs.promises.access(path.join(sourcePath, 'node_modules')).then(() => true).catch(() => false);
+    
+    if (nodeModulesExists) {
+      await copyDirectory(sourcePath, tempDir);
+    } else {
+      // Copy everything except node_modules
+      await copyDirectoryWithoutNodeModules(sourcePath, tempDir);
+      console.log('⚠️ [ELECTRON] node_modules not found, skipping...');
+    }
+    
+    tempNodebookPath = tempDir;
+    console.log('📦 [ELECTRON] Extracted nodebook-base to:', tempNodebookPath);
+    return tempNodebookPath;
+  } catch (error) {
+    console.error('❌ [ELECTRON] Failed to extract nodebook-base:', error);
+    throw error;
+  }
+}
+
+async function copyDirectory(src, dest) {
+  const entries = await fs.promises.readdir(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      await fs.promises.mkdir(destPath, { recursive: true });
+      await copyDirectory(srcPath, destPath);
+    } else {
+      await fs.promises.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+async function copyDirectoryWithoutNodeModules(src, dest) {
+  const entries = await fs.promises.readdir(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    // Skip node_modules directory
+    if (entry.name === 'node_modules') {
+      console.log('⏭️ [ELECTRON] Skipping node_modules directory');
+      continue;
+    }
+    
+    if (entry.isDirectory()) {
+      await fs.promises.mkdir(destPath, { recursive: true });
+      await copyDirectoryWithoutNodeModules(srcPath, destPath);
+    } else {
+      await fs.promises.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+async function createWindow() {
   const forkArgs = [];
   const backendEnv = { 
     ...process.env,
     NODE_ENV: 'desktop' // Set desktop environment for auto-login
   };
 
+  let nodebookBasePath;
+  
   if (app.isPackaged) {
-    // When packaged, we set the PORT and pass the data path as an argument.
+    // When packaged, extract nodebook-base to temp directory
+    nodebookBasePath = await extractNodebookBase();
+    
+    // Set the PORT and pass the data path as an argument.
     backendEnv.PORT = 3001;
     const dataPath = path.join(app.getPath('userData'), 'graph_data');
     forkArgs.push(dataPath);
+    
+    // Set working directory and NODE_PATH for the forked process
+    // Check if node_modules exists before setting NODE_PATH
+    const nodeModulesPath = path.join(nodebookBasePath, 'node_modules');
+    const nodeModulesExists = await fs.promises.access(nodeModulesPath).then(() => true).catch(() => false);
+    
+    if (nodeModulesExists) {
+      backendEnv.NODE_PATH = nodeModulesPath;
+      backendEnv.NODE_MODULES_PATH = nodeModulesPath;
+    } else {
+      console.log('⚠️ [ELECTRON] node_modules not found, NODE_PATH not set');
+    }
+    
+    backendEnv.PWD = nodebookBasePath;
+    backendEnv.cwd = nodebookBasePath;
+  } else {
+    // In development mode, set the working directory to nodebook-base and use port 3001
+    nodebookBasePath = path.join(__dirname, '../nodebook-base');
+    backendEnv.PORT = 3001; // Use different port to avoid Docker conflicts
+    backendEnv.PWD = nodebookBasePath;
+    backendEnv.cwd = nodebookBasePath;
   }
 
   const backendPath = app.isPackaged
-    ? path.join(__dirname, 'nodebook-base', 'server.js')
+    ? path.join(nodebookBasePath, 'server.js')
     : path.join(__dirname, '../nodebook-base/server.js');
 
-  // Pass the data path argument to the backend process.
-  backendProcess = fork(backendPath, forkArgs, {
+  const forkOptions = {
     env: backendEnv,
-    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
-  });
-
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+    cwd: nodebookBasePath
+  };
+  
+  // Debug logging
+  console.log('🔍 [ELECTRON DEBUG] App packaged:', app.isPackaged);
+  console.log('🔍 [ELECTRON DEBUG] Backend path:', backendPath);
+  console.log('🔍 [ELECTRON DEBUG] Working directory (cwd):', forkOptions.cwd);
+  console.log('🔍 [ELECTRON DEBUG] Environment PWD:', backendEnv.PWD);
+  console.log('🔍 [ELECTRON DEBUG] Environment cwd:', backendEnv.cwd);
+  
+  backendProcess = fork(backendPath, forkArgs, forkOptions);
+  
   if (backendProcess.stdout) {
     backendProcess.stdout.on('data', (data) => {
       const output = data.toString();
@@ -91,10 +196,10 @@ function createBrowserWindow(port) {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => createWindow().catch(console.error));
 
 app.on('activate', function () {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) createWindow().catch(console.error);
 });
 
 app.on('window-all-closed', function () {

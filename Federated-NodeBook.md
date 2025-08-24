@@ -21,7 +21,7 @@ The application will always consist of two primary components that communicate v
     -   **Recommended Method for Internet Facing Docker Environment:** OAuth (Google, GitHub) for simplicity and security.
     -   **Session Management:** JSON Web Tokens (JWT) will be used to manage user sessions. The token will be passed with every API request.
 -   **User-Based Data Segregation:** The backend will no longer use a single, global data directory. Instead, it will create and manage a separate data directory for each registered user. All file and database operations will be strictly contained within the authenticated user's directory.
--   **API Server:** The Express server will expose a formal REST/WebSocket API for all frontend operations (e.g., `GET /api/graph`, `POST /api/node`, etc.).
+-   **API Server:** The Fastify server will expose a formal REST/WebSocket API for all frontend operations (e.g., `GET /api/graph`, `POST /api/node`, etc.).
 -   **P2P Federation:** The backend will retain its `hyperswarm` capabilities, allowing one server instance to connect and sync with another server instance as a peer.
 
 ### Frontend (React / PWA)
@@ -71,12 +71,12 @@ This is for individual users who want a standalone, offline-capable version.
     -   Ensure all file I/O is scoped to the user's directory.
 
 3.  **Formalize the API:**
-    -   Define clear API endpoints for all frontend actions.
+    -   Define clear API endpoints for all frontend actions, ensure they are OpenAPI complaint with proper validation of Request and Response based on the structure defined in models.
     -   Update the frontend to use `fetch` or a similar library for all communication with the backend, removing any direct backend module imports.
 
 4.  **Create Docker Configuration:**
     -   Write a `Dockerfile` to build the production-ready image.
-    -   Write a `docker-compose.yml` for simplified deployment.
+    -   Write a `docker-compose.yml` for simplified deployment, this version unlike the dev version should have nginx with ssl layer (letsencrypt)
 
 5.  **Update Electron Wrapper:**
     -   Modify the `main.js` script to manage the lifecycle of the backend child process.

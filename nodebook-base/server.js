@@ -97,6 +97,11 @@ async function main() {
   // Attach the initialized instance to the fastify object
   fastify.decorate('graphManager', graphManager);
   
+  // --- Health Check Route ---
+  fastify.get('/api/health', async (request, reply) => {
+    return { status: 'ok', message: 'NodeBook Backend is running', timestamp: new Date().toISOString() };
+  });
+
   // --- Authentication Routes ---
   fastify.post('/api/auth/login', {
     schema: {

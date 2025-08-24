@@ -87,43 +87,43 @@ jobs:
         path: nodebook:latest
         retention-days: 30
 
-  build-electron:
-    needs: build-frontend
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download frontend build
-      uses: actions/download-artifact@v4
-      with:
-        name: frontend-build
-        path: nodebook-base/frontend/dist/
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-    
-    - name: Install all dependencies
-      run: npm run install:all
-    
-    - name: Build Electron package
-      run: cd electron && npm run build
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Upload Electron packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: electron-packages-${{ matrix.os }}
-        path: electron/dist/
-        retention-days: 30
+  # build-electron:
+  #   needs: build-frontend
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, windows-latest, macos-latest]
+  #   
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   
+  #   - name: Download frontend build
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: frontend-build
+  #       path: nodebook-base/frontend/dist/
+  #   
+  #   - name: Set up Node.js
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: '18'
+  #       cache: 'npm'
+  #       cache-dependency-path: package-lock.json
+  #   
+  #   - name: Install all dependencies
+  #     run: npm run install:all
+  #   
+  #   - name: Build Electron package
+  #     run: cd electron && npm run build
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #   
+  #   - name: Upload Electron packages
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: electron-packages-${{ matrix.os }}
+  #       path: electron/dist/
+  #       retention-days: 30
 
   create-release:
     needs: [build-docker, build-electron]

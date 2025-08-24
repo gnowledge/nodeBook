@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Proxy all API requests
         '/api': {
-          target: proxyTarget || 'http://localhost:3000',
+          target: proxyTarget || 'http://localhost:3001',
           changeOrigin: true,
           secure: false,
         },

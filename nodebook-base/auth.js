@@ -18,10 +18,24 @@ let db;
 
 async function initializeDatabase() {
   const dbPath = path.join(__dirname, 'users.db');
-  db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
-  });
+  
+  // Debug logging
+  console.log('🔍 [AUTH DEBUG] __dirname:', __dirname);
+  console.log('🔍 [AUTH DEBUG] Current working directory:', process.cwd());
+  console.log('🔍 [AUTH DEBUG] Database path:', dbPath);
+  console.log('🔍 [AUTH DEBUG] Database path exists:', require('fs').existsSync(dbPath));
+  console.log('🔍 [AUTH DEBUG] Directory exists:', require('fs').existsSync(path.dirname(dbPath)));
+  
+  try {
+    db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+    console.log('✅ [AUTH DEBUG] Database opened successfully');
+  } catch (error) {
+    console.error('❌ [AUTH DEBUG] Failed to open database:', error);
+    throw error;
+  }
 
   // Create users table if it doesn't exist
   await db.exec(`

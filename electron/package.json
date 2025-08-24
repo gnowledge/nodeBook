@@ -15,7 +15,30 @@
     "dist": "electron-builder",
     "build": "npm run dist"
   },
-  "dependencies": {},
+  "dependencies": {
+    "fastify": "^5.5.0",
+    "@fastify/cors": "^11.1.0",
+    "archiver": "^6.0.1",
+    "autobase": "^7.17.0",
+    "bcryptjs": "^2.4.3",
+    "connect-sqlite3": "^0.9.13",
+    "cytoscape": "^3.33.0",
+    "cytoscape-dagre": "^2.5.0",
+    "extract-zip": "^2.0.1",
+    "helmet": "^7.1.0",
+    "hyperbee": "^2.25.0",
+    "hypercore": "^11.12.0",
+    "hyperswarm": "^4.13.0",
+    "jsonwebtoken": "^9.0.2",
+    "mathjs": "^13.0.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.1",
+    "passport-oauth2": "^1.7.0",
+    "regexparam": "^3.0.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.6"
+  },
   "devDependencies": {
     "electron": "^28.2.3",
     "electron-builder": "^24.9.1"
@@ -26,9 +49,18 @@
     "files": [
       "main.js",
       "preload.js",
+      "node_modules/**/*",
       {
         "from": "../nodebook-base",
-        "to": "nodebook-base"
+        "to": "nodebook-base",
+        "filter": [
+          "**/*",
+          "!**/*.test.js",
+          "!**/*.test.ts",
+          "!**/*.spec.js",
+          "!**/*.spec.ts",
+          "!**/node_modules/**"
+        ]
       }
     ],
     "directories": {

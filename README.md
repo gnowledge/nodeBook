@@ -1,16 +1,12 @@
-# NodeBook (Peer-to-Peer NDF Studio)
+# NodeBook
 
-This is a peer-to-peer, collaborative graph authoring environment based on the Neighborhood Description Framework (NDF). It allows users to build and share complex knowledge graphs using a simple, markdown-inspired Controlled Natural Language (CNL).
+A federated, cross-platform knowledge graph application built with Node.js, React, and Fastify.
 
-## Project Structure
+## 🚫 **Electron Builds Suspended**
 
-- `/nodebook-base`: Contains the core backend logic (Node.js, Express, Hyperbee) and the frontend application.
-  - `/nodebook-base/server.js`: The main backend server.
-  - `/nodebook-base/frontend`: The frontend application (React, Vite, Cytoscape.js).
-- `/scripts`: Contains helper scripts for starting and managing the application.
-- `/graph_data`: Contains schema definitions for the graph.
+**Note**: Electron desktop app builds are currently suspended due to packaging issues. The application is fully functional as a web service and can be deployed using Docker.
 
-## Quick Start
+## 🚀 **Quick Start**
 
 ### 1. Environment Setup (Recommended)
 
