@@ -21,6 +21,14 @@ fastify.register(require('@fastify/cors'), {
   origin: true,
   credentials: true
 });
+
+// Register multipart for file uploads
+fastify.register(require('@fastify/multipart'), {
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+    files: 10 // Max 10 files per request
+  }
+});
   
   // Custom authentication hook
   async function authenticateJWT(request, reply) {
@@ -101,6 +109,11 @@ async function main() {
   // Initialize ThumbnailGenerator
   const thumbnailGenerator = new ThumbnailGenerator(graphManager.dataPath);
   fastify.decorate('thumbnailGenerator', thumbnailGenerator);
+  
+  // Initialize MediaManager
+  const MediaManager = require('./media-manager');
+  const mediaManager = new MediaManager(graphManager.dataPath);
+  fastify.decorate('mediaManager', mediaManager);
   
   // --- Health Check Route ---
   fastify.get('/api/health', async (request, reply) => {
@@ -1016,7 +1029,158 @@ Another service or function
     }
   });
 
-  // WebSocket for real-time communication
+  // --- Media Management API ---
+  fastify.post('/api/media/upload', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    
+    try {
+      const data = await request.file();
+      if (!data) {
+        reply.code(400).send({ error: 'No file uploaded' });
+        return;
+      }
+      
+      const buffer = await data.toBuffer();
+      const fileName = data.filename;
+      const mimeType = data.mimetype;
+      
+      // Additional metadata
+      const metadata = {
+        description: request.body.description || '',
+        tags: request.body.tags ? request.body.tags.split(',').map(t => t.trim()) : [],
+        graphId: request.body.graphId || null,
+        nodeId: request.body.nodeId || null
+      };
+      
+      const fileInfo = await fastify.mediaManager.uploadFile(
+        userId, 
+        buffer, 
+        fileName, 
+        mimeType, 
+        metadata
+      );
+      
+      reply.code(201);
+      return fileInfo;
+      
+    } catch (error) {
+      console.error(`[POST /api/media/upload] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/media/files', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const { type, search, limit, offset } = request.query;
+    
+    try {
+      const files = await fastify.mediaManager.listFiles(userId, {
+        type,
+        search,
+        limit: limit ? parseInt(limit) : undefined,
+        offset: offset ? parseInt(offset) : undefined
+      });
+      
+      return files;
+      
+    } catch (error) {
+      console.error(`[GET /api/media/files] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/media/files/:fileId', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const fileId = request.params.fileId;
+    
+    try {
+      const file = await fastify.mediaManager.getFile(userId, fileId);
+      
+      // Set appropriate headers
+      reply.header('Content-Type', file.metadata.mimeType);
+      reply.header('Content-Disposition', `inline; filename="${file.metadata.name}"`);
+      reply.header('Cache-Control', 'public, max-age=3600');
+      
+      return file.content;
+      
+    } catch (error) {
+      console.error(`[GET /api/media/files/:fileId] Error:`, error);
+      reply.code(404).send({ error: 'File not found' });
+      return;
+    }
+  });
+
+  fastify.delete('/api/media/files/:fileId', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const fileId = request.params.fileId;
+    
+    try {
+      await fastify.mediaManager.deleteFile(userId, fileId);
+      reply.code(204).send();
+      return;
+      
+    } catch (error) {
+      console.error(`[DELETE /api/media/files/:fileId] Error:`, error);
+      reply.code(404).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.put('/api/media/files/:fileId/metadata', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          tags: { type: 'array', items: { type: 'string' } }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const fileId = request.params.fileId;
+    const updates = request.body;
+    
+    try {
+      const updatedMetadata = await fastify.mediaManager.updateFileMetadata(userId, fileId, updates);
+      return updatedMetadata;
+      
+    } catch (error) {
+      console.error(`[PUT /api/media/files/:fileId/metadata] Error:`, error);
+      reply.code(404).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/media/stats', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    
+    try {
+      const stats = await fastify.mediaManager.getStorageStats(userId);
+      return stats;
+      
+    } catch (error) {
+      console.error(`[GET /api/media/stats] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  // --- WebSocket for real-time communication ---
   const wss = new WebSocket.Server({ server: fastify.server });
   
   wss.on('connection', (ws) => {

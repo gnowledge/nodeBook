@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GraphCard } from './GraphCard';
 import { TopBar } from './TopBar';
 import { PageView } from './PageView';
+import { MediaManager } from './MediaManager';
 import type { Graph, PublicGraph } from './types';
 import styles from './Dashboard.module.css';
 import { API_BASE_URL } from './api-config';
@@ -219,7 +220,9 @@ export default function Dashboard({
             {publicError && (
               <div className={styles.centerContent}>
                 <div className={styles.centerContent}>
-                  <div className={styles.errorText}>Error: {publicError}</div>
+                  <div className={styles.centerContent}>
+                    <div className={styles.errorText}>Error: {publicError}</div>
+                  </div>
                 </div>
               </div>
             )}
@@ -255,6 +258,22 @@ export default function Dashboard({
               </div>
             )}
           </div>
+
+          {/* Media Management Section */}
+          {isAuthenticated && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>
+                Media Library
+              </h2>
+              <p className={styles.sectionSubtitle}>
+                Upload and manage your files, images, and documents
+              </p>
+              
+              <div className={styles.mediaSection}>
+                <MediaManager />
+              </div>
+            </div>
+          )}
 
           {/* Token Info (for debugging) - Only show when authenticated */}
           {isAuthenticated && token && user && (
