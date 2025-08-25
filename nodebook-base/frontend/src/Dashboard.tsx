@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { GraphCard } from './GraphCard';
 import { TopBar } from './TopBar';
+import { PageView } from './PageView';
 import type { Graph, PublicGraph } from './types';
 import styles from './Dashboard.module.css';
+import { API_BASE_URL } from './api-config';
 
 interface DashboardProps {
   token: string | null;
@@ -14,13 +16,22 @@ interface DashboardProps {
   isAuthenticated: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp, onShowAuth, onViewPublicGraph, isAuthenticated }) => {
-  const [graphs, setGraphs] = useState<Graph[]>([]);
-  const [publicGraphs, setPublicGraphs] = useState<PublicGraph[]>([]);
-  const [loading, setLoading] = useState(false);
+export default function Dashboard({ 
+  token, 
+  user, 
+  onLogout, 
+  onGoToApp, 
+  onShowAuth, 
+  onViewPublicGraph, 
+  isAuthenticated 
+}: DashboardProps) {
+  const [graphs, setGraphs] = useState<any[]>([]);
+  const [publicGraphs, setPublicGraphs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [publicLoading, setPublicLoading] = useState(false);
   const [error, setError] = useState('');
   const [publicError, setPublicError] = useState('');
+  const [activePage, setActivePage] = useState<string | null>(null);
 
   const fetchGraphs = async () => {
     if (!token) {
@@ -111,6 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
         onShowAuth={onShowAuth}
         onLogout={onLogout}
         currentView="dashboard"
+        onSelectPage={setActivePage}
       />
       
       <div className={styles.content}>
@@ -261,6 +273,11 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
         </div>
       </div>
       
+      {/* PageView for About and Help */}
+      {activePage && (
+        <PageView page={activePage} onClose={() => setActivePage(null)} />
+      )}
+      
       {/* Footer */}
       <footer className={styles.footer}>
         <p>
@@ -278,5 +295,3 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
     </div>
   );
 };
-
-export default Dashboard;

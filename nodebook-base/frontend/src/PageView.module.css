@@ -61,6 +61,30 @@
   border-radius: 12px 12px 0 0;
 }
 
+.pageViewHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.backButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.backButton:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
 .pageViewTitle {
   margin: 0;
   font-size: 1.5rem;
@@ -221,6 +245,34 @@
 
 .markdownContent a:hover {
   text-decoration: underline;
+}
+
+/* Markdown Link Styling */
+.markdownLink {
+  background: none;
+  border: none;
+  color: #007bff;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.markdownLink:hover {
+  text-decoration: underline;
+  color: #0056b3;
+}
+
+.externalLink {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.externalLink:hover {
+  text-decoration: underline;
+  color: #0056b3;
 }
 
 /* CNL Content Styling */
