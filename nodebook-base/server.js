@@ -111,14 +111,16 @@ async function main() {
   fastify.decorate('thumbnailGenerator', thumbnailGenerator);
   
   // Initialize MediaManager
+  let mediaManager = null;
   try {
     const MediaManager = require('./media-manager');
-    const mediaManager = new MediaManager(graphManager.dataPath);
+    mediaManager = new MediaManager(graphManager.dataPath);
     fastify.decorate('mediaManager', mediaManager);
     console.log('✅ MediaManager initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize MediaManager:', error);
-    throw error; // Re-throw to prevent server from starting with broken MediaManager
+    console.log('⚠️ Continuing without MediaManager - media features will be disabled');
+    // Don't throw error - let server start without MediaManager
   }
   
   // --- Health Check Route ---
@@ -1036,7 +1038,10 @@ Another service or function
   });
 
   // --- Media Management API ---
-  console.log('🔧 Registering media upload route: POST /api/media/upload');
+  if (mediaManager) {
+    console.log('🔧 Registering media routes...');
+    
+    console.log('🔧 Registering media upload route: POST /api/media/upload');
   fastify.post('/api/media/upload', {
     preHandler: authenticateJWT
   }, async (request, reply) => {
@@ -1187,6 +1192,8 @@ Another service or function
       return;
     }
   });
+
+  } // End of if (mediaManager) block
 
   // --- WebSocket for real-time communication ---
   const wss = new WebSocket.Server({ server: fastify.server });
