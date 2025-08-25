@@ -201,12 +201,12 @@ class GraphManager {
         }
     }
 
-    async createGraph(userId, name, author = 'anonymous', email = '') {
+    async createGraph(userId, name, author = 'anonymous', email = '', mode = 'richgraph') {
         if (!userId) {
             throw new Error('User ID is required for data segregation');
         }
         
-        logDebug(`[createGraph] Creating graph "${name}" for user: ${userId}`);
+        logDebug(`[createGraph] Creating graph "${name}" for user: ${userId} in mode: ${mode}`);
         
         // Ensure user data directory exists
         await this.ensureUserDataDir(userId);
@@ -241,6 +241,7 @@ class GraphManager {
             description: '',
             author,
             email,
+            mode, // Store the graph mode
             publication_state: 'Private', // Default to Private
             createdAt: now,
             updatedAt: now,

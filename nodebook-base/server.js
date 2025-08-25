@@ -102,6 +102,89 @@ async function main() {
     return { status: 'ok', message: 'NodeBook Backend is running', timestamp: new Date().toISOString() };
   });
 
+  // --- MindMap Templates API ---
+  fastify.get('/api/mindmap/templates', async (request, reply) => {
+    const templates = {
+      'contains': {
+        name: 'Contains/Part-Whole',
+        description: 'Use for hierarchical structures where parts belong to wholes',
+        relation: 'contains',
+        example: `<! MindMap Mode: contains>
+\`\`\`graph-description
+A hierarchical structure showing how parts relate to wholes.
+\`\`\`
+# Main Topic
+\`\`\`description
+The central concept or whole entity
+\`\`\`
+## Subtopic 1
+\`\`\`description
+A component or part of the main topic
+\`\`\`
+### Detail 1.1
+### Detail 1.2
+## Subtopic 2
+\`\`\`description
+Another component or part
+\`\`\`
+### Detail 2.1
+### Detail 2.2`
+      },
+      'subtype': {
+        name: 'Subtype/Classification',
+        description: 'Use for categorizing and classifying concepts',
+        relation: 'subtype',
+        example: `<! MindMap Mode: subtype>
+\`\`\`graph-description
+A classification system showing types and subtypes.
+\`\`\`
+# Main Category
+\`\`\`description
+The broadest classification
+\`\`\`
+## Type A
+\`\`\`description
+A specific type within the main category
+\`\`\`
+### Subtype A1
+### Subtype A2
+## Type B
+\`\`\`description
+Another specific type
+\`\`\`
+### Subtype B1
+### Subtype B2`
+      },
+      'provides': {
+        name: 'Provides/Function',
+        description: 'Use for showing what functions or services are provided',
+        relation: 'provides',
+        example: `<! MindMap Mode: provides>
+\`\`\`graph-description
+A system showing what functions or services are provided.
+\`\`\`
+# Main System
+\`\`\`description
+The primary system or entity
+\`\`\`
+## Service 1
+\`\`\`description
+A specific service or function provided
+\`\`\`
+### Feature 1.1
+### Feature 1.2
+## Service 2
+\`\`\`description
+Another service or function
+\`\`\`
+### Feature 2.1
+### Feature 2.2`
+      }
+    };
+    
+    return templates;
+  });
+
   // --- Authentication Routes ---
   fastify.post('/api/auth/login', {
     schema: {
@@ -224,7 +307,12 @@ async function main() {
         properties: {
           name: { type: 'string' },
           author: { type: 'string' },
-          email: { type: 'string' }
+          email: { type: 'string' },
+          mode: { 
+            type: 'string', 
+            enum: ['mindmap', 'richgraph'],
+            default: 'richgraph'
+          }
         }
       }
     },
@@ -232,14 +320,14 @@ async function main() {
   }, async (request, reply) => {
     const gm = fastify.graphManager; // Get instance from fastify
     const userId = request.user.id;
-    const { name, author, email } = request.body;
-    console.log(`[POST /api/graphs] User ID: ${userId}, Type: ${typeof userId}, Name: ${name}`);
+    const { name, author, email, mode = 'richgraph' } = request.body;
+    console.log(`[POST /api/graphs] User ID: ${userId}, Type: ${typeof userId}, Name: ${name}, Mode: ${mode}`);
     if (!name) {
       reply.code(400).send({ error: 'name is required' });
       return;
     }
     try {
-      const newGraph = await gm.createGraph(userId, name, author, email);
+      const newGraph = await gm.createGraph(userId, name, author, email, mode);
       reply.code(201);
       return newGraph;
     } catch (error) {
@@ -608,9 +696,15 @@ async function main() {
     const { cnlText, strictMode = true } = request.body;
     
     try {
-      // Get the current CNL text from the graph
+      // Get the current CNL text and graph info to determine mode
       const currentCnl = await gm.getCnl(userId, graphId);
-      const result = await diffCnl(currentCnl, cnlText);
+      const graphRegistry = await gm.getGraphRegistry(userId);
+      const graphInfo = graphRegistry.find(g => g.id === graphId);
+      const mode = graphInfo?.mode || 'richgraph';
+      
+      console.log(`[POST /api/graphs/:graphId/cnl] Processing CNL in mode: ${mode}`);
+      
+      const result = await diffCnl(currentCnl, cnlText, mode);
       const operations = result.operations || [];
       
       if (operations.length > 0) {

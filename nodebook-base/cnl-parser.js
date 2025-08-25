@@ -8,10 +8,21 @@ const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
 const GRAPH_DESCRIPTION_REGEX = /```graph-description\n([\s\S]*?)\n```/;
 
-function getOperationsFromCnl(cnlText) {
+// MindMap specific regex patterns
+const MINDMAP_MODE_REGEX = /<! MindMap Mode:\s*([^>]+)>/;
+const MINDMAP_HEADING_REGEX = /^\s*(#+)\s*(.+?)$/;
+const MINDMAP_DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
+
+function getOperationsFromCnl(cnlText, mode = 'richgraph') {
     if (!cnlText) {
         return [];
     }
+    
+    if (mode === 'mindmap') {
+        return getMindMapOperationsFromCnl(cnlText);
+    }
+    
+    // Original rich graph parsing logic
     const operations = [];
     const structuralTree = buildStructuralTree(cnlText);
 
@@ -31,6 +42,141 @@ function getOperationsFromCnl(cnlText) {
     return operations;
 }
 
+function getMindMapOperationsFromCnl(cnlText) {
+    const operations = [];
+    
+    // Extract MindMap mode and relation type
+    const modeMatch = cnlText.match(MINDMAP_MODE_REGEX);
+    if (!modeMatch) {
+        throw new Error('MindMap mode requires <! MindMap Mode: relation_type> declaration');
+    }
+    
+    const relationType = modeMatch[1].trim();
+    console.log(`[MindMap] Parsing with relation type: ${relationType}`);
+    
+    // Extract graph description if present
+    const graphDescriptionMatch = cnlText.match(GRAPH_DESCRIPTION_REGEX);
+    if (graphDescriptionMatch) {
+        const description = graphDescriptionMatch[1].trim();
+        operations.push({ type: 'updateGraphDescription', payload: { description }, id: 'graph_description' });
+    }
+    
+    // Parse MindMap structure
+    const mindMapTree = buildMindMapTree(cnlText);
+    
+    for (const nodeBlock of mindMapTree) {
+        const { id: nodeId, payload: nodePayload } = processMindMapNodeHeading(nodeBlock.heading);
+        operations.push({ type: 'addNode', payload: nodePayload, id: nodeId });
+        
+        // Add description if present
+        if (nodeBlock.description) {
+            operations.push({ 
+                type: 'updateNode', 
+                payload: { id: nodeId, fields: { description: nodeBlock.description } }, 
+                id: `${nodeId}_description` 
+            });
+        }
+        
+        // Add parent-child relations based on heading levels
+        if (nodeBlock.parentId) {
+            operations.push({
+                type: 'addRelation',
+                payload: { 
+                    source: nodeBlock.parentId, 
+                    target: nodeId, 
+                    name: relationType 
+                },
+                id: `rel_${nodeBlock.parentId}_${relationType}_${nodeId}`
+            });
+        }
+    }
+    
+    return operations;
+}
+
+function buildMindMapTree(cnlText) {
+    const tree = [];
+    const lines = cnlText.split('\n');
+    const nodeStack = []; // Track parent nodes by heading level
+    
+    for (const line of lines) {
+        if (!line.trim()) continue;
+        
+        const headingMatch = line.match(MINDMAP_HEADING_REGEX);
+        if (headingMatch) {
+            const [, hashes, name] = headingMatch;
+            const level = hashes.length;
+            const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            const nodeId = cleanName;
+            
+            // Find parent based on heading level
+            let parentId = null;
+            if (level > 1) {
+                // Find the closest parent at level - 1
+                for (let i = nodeStack.length - 1; i >= 0; i--) {
+                    if (nodeStack[i].level === level - 1) {
+                        parentId = nodeStack[i].id;
+                        break;
+                    }
+                }
+            }
+            
+            const nodeBlock = { 
+                heading: line.trim(), 
+                id: nodeId,
+                level,
+                parentId,
+                description: null,
+                content: []
+            };
+            
+            tree.push(nodeBlock);
+            nodeStack.push({ id: nodeId, level });
+            
+            // Remove deeper levels from stack when we go back to a higher level
+            while (nodeStack.length > 0 && nodeStack[nodeStack.length - 1].level >= level) {
+                nodeStack.pop();
+            }
+            nodeStack.push({ id: nodeId, level });
+            
+        } else if (tree.length > 0) {
+            const currentNode = tree[tree.length - 1];
+            currentNode.content.push(line);
+            
+            // Check for description
+            const descMatch = line.match(MINDMAP_DESCRIPTION_REGEX);
+            if (descMatch) {
+                currentNode.description = descMatch[1].trim();
+            }
+        }
+    }
+    
+    return tree;
+}
+
+function processMindMapNodeHeading(heading) {
+    const match = heading.match(MINDMAP_HEADING_REGEX);
+    const [, hashes, name] = match;
+    const level = hashes.length;
+    const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+    const id = cleanName;
+    
+    return { 
+        id, 
+        level,
+        payload: { 
+            base_name: name.trim(), 
+            options: { 
+                id, 
+                role: 'individual', // MindMap nodes are always individuals
+                parent_types: [],
+                adjective: null,
+                level // Store heading level for visualization
+            } 
+        } 
+    };
+}
+
 function getNodeOrderFromCnl(cnlText) {
     if (!cnlText) {
         return [];
@@ -44,9 +190,9 @@ function getNodeOrderFromCnl(cnlText) {
     return ids;
 }
 
-async function diffCnl(oldCnl, newCnl) {
-    const oldOps = getOperationsFromCnl(oldCnl);
-    const newOps = getOperationsFromCnl(newCnl);
+async function diffCnl(oldCnl, newCnl, mode = 'richgraph') {
+    const oldOps = getOperationsFromCnl(oldCnl, mode);
+    const newOps = getOperationsFromCnl(newCnl, mode);
 
     const oldOpsMap = new Map(oldOps.map(op => [op.id, op]));
     const newOpsMap = new Map(newOps.map(op => [op.id, op]));
