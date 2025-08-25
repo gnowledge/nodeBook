@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from './api-config';
+import styles from './PeerTab.module.css';
 
 interface PeerTabProps {
   activeGraphId: string;
@@ -64,31 +65,31 @@ export function PeerTab({ activeGraphId, graphKey }: PeerTabProps) {
   };
 
   return (
-    <div className="peer-tab">
-      <div className="peer-status">
+    <div className={styles.peerTab}>
+      <div className={styles.peerStatus}>
         <h3>Connectivity</h3>
         <p>Connected Peers: <strong>{connections}</strong></p>
       </div>
-      <div className="share-graph">
+      <div className={styles.shareGraph}>
         <h3>Share Your Graph</h3>
         <p>Share this key with a peer to let them sync with your graph:</p>
-        <div className="share-key">
+        <div className={styles.shareKey}>
           {graphKey ? (
             <>
               <input type="text" readOnly value={graphKey} />
               <button onClick={() => navigator.clipboard.writeText(graphKey)}>Copy Key</button>
             </>
           ) : (
-            <div className="key-generating">
+            <div className={styles.keyGenerating}>
               <span>🔄 Generating key for graph...</span>
             </div>
           )}
         </div>
       </div>
-      <div className="sync-graph">
+      <div className={styles.syncGraph}>
         <h3>Sync with a Peer</h3>
         <p>Paste a key from a peer to sync with their graph:</p>
-        <div className="sync-form">
+        <div className={styles.syncForm}>
           <input
             type="text"
             value={remoteKey}
