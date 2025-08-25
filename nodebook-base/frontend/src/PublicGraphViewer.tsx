@@ -148,6 +148,7 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
           relations={graph.relations || []}
           attributes={graph.attributes || []}
           cnlText={graph.cnl || ''}
+          onGoToDashboard={onGoToDashboard}
         />
       </div>
     </div>

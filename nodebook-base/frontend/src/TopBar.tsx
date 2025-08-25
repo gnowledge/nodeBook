@@ -49,13 +49,6 @@ export const TopBar: React.FC<TopBarProps> = ({
               Workspace
             </button>
           )}
-          <button
-            onClick={() => window.open('/api/public/graphs', '_blank')}
-            className={styles.navItem}
-            title="View Public Graphs"
-          >
-            Public Graphs
-          </button>
         </nav>
       </div>
 

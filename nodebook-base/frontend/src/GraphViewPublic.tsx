@@ -10,11 +10,19 @@ interface GraphViewPublicProps {
   activeGraphId: string;
   nodes: Node[];
   relations: Edge[];
-  attributes: Attribute[]; // Change from AttributeType to Attribute
+  attributes: Attribute[];
   cnlText: string;
+  onGoToDashboard?: () => void; // Add navigation callback
 }
 
-export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, cnlText }: GraphViewPublicProps) {
+export function GraphViewPublic({ 
+  activeGraphId, 
+  nodes, 
+  relations, 
+  attributes, 
+  cnlText,
+  onGoToDashboard 
+}: GraphViewPublicProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'nodes' | 'cnl'>('overview');
@@ -320,7 +328,7 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
           <div className="header-left">
             <button 
               className="dashboard-back-button"
-              onClick={() => window.history.back()}
+              onClick={onGoToDashboard || (() => window.history.back())}
               title="Back to Dashboard"
             >
               ← Back to Dashboard
@@ -424,6 +432,21 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
           </div>
         )}
       </div>
+      
+      {/* Footer */}
+      <footer className="graph-footer">
+        <p>
+          NodeBook is free and open source software released under{' '}
+          <a 
+            href="https://github.com/gnowledge/nodeBook" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="footer-link"
+          >
+            AGPL
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }

@@ -267,6 +267,21 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
           )}
         </div>
       </div>
+      
+      {/* Footer */}
+      <footer className={styles.footer}>
+        <p>
+          NodeBook is free and open source software released under{' '}
+          <a 
+            href="https://github.com/gnowledge/nodeBook" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={styles.footerLink}
+          >
+            AGPL
+          </a>
+        </p>
+      </footer>
     </div>
   );
 };
