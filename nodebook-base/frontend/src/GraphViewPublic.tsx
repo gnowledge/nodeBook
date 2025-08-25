@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Node, Edge, AttributeType, Graph } from './types';
+import type { Node, Edge, Attribute, Graph } from './types';
 import { API_BASE_URL } from './api-config';
 import CytoscapeComponent from 'react-cytoscapejs';
+import { cytoscapeStylesheet, cytoscapeLayouts, getNodeType } from './cytoscape-styles';
 import './DataView.css';
 import './GraphViewPublic.css';
 
@@ -9,7 +10,7 @@ interface GraphViewPublicProps {
   activeGraphId: string;
   nodes: Node[];
   relations: Edge[];
-  attributes: AttributeType[];
+  attributes: Attribute[]; // Change from AttributeType to Attribute
   cnlText: string;
 }
 
@@ -60,18 +61,20 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
   const cytoscapeElements = useMemo(() => {
     if (!nodes || !relations) return [];
     
-    const elements = [];
+    const elements: any[] = [];
     
     // Add nodes
     nodes.forEach(node => {
+      const nodeType = getNodeType(node.role || '');
       elements.push({
         data: {
           id: node.id,
           label: node.name || node.id,
           role: node.role,
-          description: node.description
+          description: node.description,
+          type: nodeType // Add type for styling
         },
-        classes: 'node' // Add class for styling
+        classes: `node-${nodeType}` // Add class for styling
       });
     });
     
@@ -127,58 +130,6 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
     // Fallback to simple visualization if Cytoscape fails
     const [cytoscapeError, setCytoscapeError] = useState(false);
 
-    const cytoscapeStylesheet = [
-      {
-        selector: 'node',
-        style: {
-          'background-color': '#667eea',
-          'label': 'data(label)',
-          'color': '#ffffff',
-          'font-size': '12px',
-          'font-weight': 'bold',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'width': '60px',
-          'height': '60px',
-          'border-width': '2px',
-          'border-color': '#4a5568',
-          'shape': 'ellipse'
-        }
-      },
-      {
-        selector: 'edge',
-        style: {
-          'width': '4px',
-          'line-color': '#e53e3e',
-          'target-arrow-color': '#e53e3e',
-          'target-arrow-shape': 'triangle',
-          'curve-style': 'bezier',
-          'label': 'data(label)',
-          'font-size': '10px',
-          'color': '#2d3748',
-          'font-weight': 'bold',
-          'text-background-color': '#ffffff',
-          'text-background-opacity': '0.8',
-          'text-background-padding': '3px'
-        }
-      },
-      {
-        selector: 'node:selected',
-        style: {
-          'background-color': '#f56565',
-          'border-color': '#e53e3e',
-          'border-width': '4px'
-        }
-      },
-      {
-        selector: 'edge:selected',
-        style: {
-          'line-color': '#e53e3e',
-          'width': '6px'
-        }
-      }
-    ];
-
     // Fallback simple visualization
     const SimpleVisualization = () => (
       <div className="simple-graph-visualization">
@@ -220,28 +171,20 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
           elements={cytoscapeElements}
           style={{ width: '100%', height: '500px' }}
           stylesheet={cytoscapeStylesheet}
-          layout={{
-            name: 'cose',
-            animate: true,
-            animationDuration: 1500,
-            nodeDimensionsIncludeLabels: true,
-            fit: true,
-            padding: 50,
-            randomize: true,
-            componentSpacing: 100,
-            nodeRepulsion: 4500,
-            nodeOverlap: 20,
-            gravity: 80,
-            numIter: 1000,
-            initialTemp: 200,
-            coolingFactor: 0.95,
-            minTemp: 1.0
-          }}
-          cy={(cy) => {
+          layout={cytoscapeLayouts.dagre}
+          cy={(cy: any) => {
             if (cy) {
-              cy.on('error', (evt) => {
-                console.error('Cytoscape error:', evt);
-                setCytoscapeError(true);
+              console.log('Cytoscape instance created:', cy);
+              
+              // Add event listeners
+              cy.on('tap', 'node', (evt: any) => {
+                const node = evt.target;
+                console.log('Node clicked:', node.data());
+              });
+              
+              cy.on('tap', 'edge', (evt: any) => {
+                const edge = evt.target;
+                console.log('Edge clicked:', edge.data());
               });
             }
           }}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import type { Node, Edge } from './types';
+import { cytoscapeStylesheet, cytoscapeLayouts } from './cytoscape-styles';
 
 cytoscape.use(dagre);
 
@@ -20,44 +21,23 @@ export function Subgraph({ nodes, relations }: SubgraphProps) {
     cyRef.current = cytoscape({
       container: containerRef.current,
       elements: {
-        nodes: nodes.map(n => ({ data: { id: n.id, label: n.name, type: n.role === 'Transition' ? 'transition' : 'polynode' } })),
-        edges: relations.map(r => ({ data: { source: r.source_id, target: r.target_id, label: r.name } }))
+        nodes: nodes.map(n => ({ 
+          data: { 
+            id: n.id, 
+            label: n.name, 
+            type: n.role === 'Transition' ? 'transition' : 'polynode' 
+          } 
+        })),
+        edges: relations.map(r => ({ 
+          data: { 
+            source: r.source_id, 
+            target: r.target_id, 
+            label: r.name 
+          } 
+        }))
       },
-      style: [
-        {
-            selector: "node[type = 'polynode']",
-            style: {
-                label: "data(label)", "text-valign": "center", "text-halign": "center",
-                "background-color": "#f3f4f6", "color": "#2563eb", "text-outline-width": 0,
-                "font-size": 14,
-                "border-width": 0.5, "border-color": "#2563eb", "border-style": "solid", "shape": "roundrectangle",
-                'width': (ele) => ele.data('label').length * 8 + 20,
-                'height': 35
-            }
-        },
-        {
-            selector: "node[type = 'transition']",
-            style: {
-                label: "data(label)", "text-valign": "center", "text-halign": "center",
-                "background-color": "#a855f7", "color": "white", "shape": "diamond",
-                'width': 40,
-                'height': 40
-            }
-        },
-        {
-            selector: "edge",
-            style: {
-                label: "data(label)", "curve-style": "bezier", "target-arrow-shape": "triangle",
-                "width": 1, "line-color": "#ccc", "target-arrow-color": "#ccc", "font-size": 9,
-                "text-background-color": "#fff", "text-background-opacity": 1, "text-background-padding": "2px"
-            }
-        }
-      ],
-      layout: { 
-        name: 'dagre',
-        fit: false, // We will fit manually after layout
-        padding: 10
-      },
+      style: cytoscapeStylesheet,
+      layout: cytoscapeLayouts.dagre,
       userZoomingEnabled: false,
       userPanningEnabled: false,
     });
