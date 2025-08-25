@@ -108,14 +108,14 @@ async function main() {
   fastify.decorate('graphManager', graphManager);
   
   // Initialize ThumbnailGenerator
-  const thumbnailGenerator = new ThumbnailGenerator(graphManager.dataPath);
+  const thumbnailGenerator = new ThumbnailGenerator(graphManager.BASE_DATA_DIR);
   fastify.decorate('thumbnailGenerator', thumbnailGenerator);
   
   // Initialize MediaManager
   let mediaManager = null;
   try {
     const MediaManager = require('./media-manager');
-    mediaManager = new MediaManager(graphManager.dataPath);
+    mediaManager = new MediaManager(graphManager.BASE_DATA_DIR);
     fastify.decorate('mediaManager', mediaManager);
     console.log('✅ MediaManager initialized successfully');
   } catch (error) {
@@ -429,7 +429,7 @@ Another service or function
     
     try {
       // For public graphs, check if thumbnail exists in the public graphs directory
-      const thumbnailPath = path.join(gm.dataPath, 'graphs', graphId, 'thumbnail.png');
+              const thumbnailPath = path.join(gm.BASE_DATA_DIR, 'graphs', graphId, 'thumbnail.png');
       
       // Check if thumbnail exists
       try {
@@ -744,7 +744,7 @@ Another service or function
     
     try {
       // Construct the thumbnail path
-      const thumbnailPath = path.join(gm.dataPath, 'graphs', 'users', userId.toString(), graphId, 'thumbnail.png');
+              const thumbnailPath = path.join(gm.BASE_DATA_DIR, 'graphs', 'users', userId.toString(), graphId, 'thumbnail.png');
       
       // Check if thumbnail exists
       try {
