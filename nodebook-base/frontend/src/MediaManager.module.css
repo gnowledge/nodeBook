@@ -278,13 +278,71 @@
   font-weight: 500;
 }
 
+/* Usage Instructions */
+.usageInstructions {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.usageInstructions h3 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color, #333);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.usageContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.usageSection h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-color, #333);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.usageSection ul {
+  margin: 0 0 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.usageSection li {
+  margin: 0.25rem 0;
+  color: var(--text-color, #333);
+}
+
+.helpBtn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  align-self: flex-start;
+  transition: background-color 0.2s ease;
+}
+
+.helpBtn:hover {
+  background: #2563eb;
+}
+
 .fileActions {
   display: flex;
   gap: 0.5rem;
 }
 
-.selectBtn,
-.deleteBtn {
+.viewBtn,
+.downloadBtn,
+.deleteBtn,
+.copyBtn {
   flex: 1;
   padding: 0.5rem 0.75rem;
   border: none;
@@ -354,4 +412,128 @@
   .fileActions {
     flex-direction: column;
   }
+}
+
+/* Button Styles */
+.viewBtn {
+  background: #3b82f6;
+  color: white;
+}
+
+.viewBtn:hover {
+  background: #2563eb;
+}
+
+.downloadBtn {
+  background: #10b981;
+  color: white;
+}
+
+.downloadBtn:hover {
+  background: #059669;
+}
+
+.copyBtn {
+  background: #8b5cf6;
+  color: white;
+}
+
+.copyBtn:hover {
+  background: #7c3aed;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  color: var(--text-color, #333);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.closeBtn:hover {
+  color: #374151;
+}
+
+.modalContent {
+  padding: 1.5rem;
+}
+
+.exampleSection {
+  margin-bottom: 1.5rem;
+}
+
+.exampleSection h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-color, #333);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.codeBlock {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.codeBlock code {
+  color: #374151;
+}
+
+.tipBox {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.tipBox strong {
+  color: #1e40af;
 }

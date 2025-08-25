@@ -1,0 +1,21 @@
+{
+  "name": "nodebook-media-backend",
+  "version": "1.0.0",
+  "description": "Standalone media backend for NodeBook using file-based storage",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["media", "file-storage", "fastify"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^4.26.2",
+    "@fastify/multipart": "^8.0.0",
+    "@fastify/cors": "^8.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}

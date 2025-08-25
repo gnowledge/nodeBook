@@ -25,6 +25,24 @@ services:
     networks:
       - nodebook-dev-net
 
+  # Media backend service for file uploads and management
+  media-backend:
+    build:
+      context: ./media-backend
+      dockerfile: Dockerfile
+    container_name: nodebook-media-backend-dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./media-backend/media-data:/app/media-data
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATA_PATH=/app/media-data
+    networks:
+      - nodebook-dev-net
+    restart: unless-stopped
+
   # Frontend service with PWA development
   frontend:
     build:
@@ -40,11 +58,13 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_TARGET=http://backend:3000
+      - VITE_MEDIA_BACKEND_URL=http://localhost:3001
       - VITE_DEV_MODE=true
     networks:
       - nodebook-dev-net
     depends_on:
       - backend
+      - media-backend
 
 networks:
   nodebook-dev-net:

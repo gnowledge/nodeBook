@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  media-backend:
+    build: .
+    container_name: nodebook-media-backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./media-data:/app/media-data
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATA_PATH=/app/media-data
+      
+    restart: unless-stopped
+    networks:
+      - media-network
+      
+
+networks:
+  media-network:
+    driver: bridge
+  

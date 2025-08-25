@@ -1,0 +1,7 @@
+# Media data files (user uploads)
+media-data/files/*
+media-data/metadata/*
+media-data/index.json
+
+# Keep the directory structure
+!media-data/.gitkeep
