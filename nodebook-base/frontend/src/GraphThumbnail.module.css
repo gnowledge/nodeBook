@@ -1,0 +1,77 @@
+.thumbnailContainer {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbnailContainer:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.thumbnailSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.thumbnailError,
+.thumbnailEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #6b7280;
+  font-size: 0.875rem;
+  text-align: center;
+  gap: 8px;
+}
+
+.thumbnailError span,
+.thumbnailEmpty span {
+  font-size: 1.5rem;
+  opacity: 0.7;
+}
+
+.thumbnailError small,
+.thumbnailEmpty small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.thumbnailError {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .thumbnailContainer {
+    border-radius: 6px;
+  }
+  
+  .thumbnailError,
+  .thumbnailEmpty {
+    font-size: 0.8rem;
+  }
+  
+  .thumbnailError span,
+  .thumbnailEmpty span {
+    font-size: 1.25rem;
+  }
+  
+  .thumbnailError small,
+  .thumbnailEmpty small {
+    font-size: 0.7rem;
+  }
+}

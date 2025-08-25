@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Graph, PublicGraph } from './types';
+import { GraphThumbnail } from './GraphThumbnail';
 import styles from './GraphCard.module.css';
 
 interface GraphCardProps {
@@ -66,6 +67,11 @@ export function GraphCard({
             {getPublicationStateIcon(graph.publication_state)} {graph.publication_state}
           </span>
         </div>
+      </div>
+      
+      {/* Graph Thumbnail */}
+      <div className={styles.graphThumbnail}>
+        <GraphThumbnail graph={graph} width={200} height={120} />
       </div>
       
       <div className={styles.graphCardContent}>

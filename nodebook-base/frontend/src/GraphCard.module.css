@@ -52,6 +52,17 @@
   letter-spacing: 0.025em;
 }
 
+.graphThumbnail {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid #f1f5f9;
+}
+
 .graphCardContent {
   margin-bottom: 20px;
 }
