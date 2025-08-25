@@ -133,19 +133,12 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
                 )}
               </div>
               <div className={styles.sectionActions}>
-                {isAuthenticated ? (
+                {isAuthenticated && (
                   <button
                     onClick={onGoToApp}
                     className={`${styles.button} ${styles.buttonPrimary}`}
                   >
                     Go to NodeBook
-                  </button>
-                ) : (
-                  <button
-                    onClick={onShowAuth}
-                    className={`${styles.button} ${styles.buttonPrimary}`}
-                  >
-                    Sign In
                   </button>
                 )}
               </div>

@@ -86,6 +86,9 @@ function TestApp() {
     setIsAuthenticated(false);
     setToken(null);
     setUser(null);
+    // Ensure we return to Dashboard view
+    setCurrentView('dashboard');
+    setPublicGraphId(null);
   };
 
   if (loading) {
