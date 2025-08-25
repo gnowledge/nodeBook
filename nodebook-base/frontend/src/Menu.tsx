@@ -14,6 +14,11 @@ export function Menu({ onSelectPage }: MenuProps) {
     setIsOpen(false);
   };
 
+  const handleExamplesRedirect = () => {
+    onSelectPage('Help');
+    setIsOpen(false);
+  };
+
   return (
     <div className={styles.menuContainer}>
       <button onClick={() => setIsOpen(!isOpen)} className={styles.menuButton}>
@@ -22,16 +27,10 @@ export function Menu({ onSelectPage }: MenuProps) {
 
       {isOpen && (
         <div className={styles.menuDropdown}>
-          <a href="#" onClick={() => handleSelect('About')}>About</a>
           <a href="#" onClick={() => handleSelect('Preferences')}>Preferences</a>
-          <a href="#" onClick={() => handleSelect('Help')}>Help</a>
-          <a href="#" onClick={() => handleSelect('SourceCode')}>Source Code</a>
           <div className={styles.menuDivider}></div>
           <div className={styles.menuHeader}>Examples</div>
-          <a href="#" onClick={() => handleSelect('introduction.cnl')}>Introduction</a>
-          <a href="#" onClick={() => handleSelect('example.cnl')}>Simple Example</a>
-          <a href="#" onClick={() => handleSelect('rea_example.cnl')}>REA Example</a>
-          <a href="#" onClick={() => handleSelect('transition_example.cnl')}>Transition Example</a>
+          <a href="#" onClick={handleExamplesRedirect}>View Examples in Help</a>
         </div>
       )}
     </div>

@@ -97,6 +97,37 @@
 .topBarRight {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+.globalNavigation {
+  display: flex;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.globalNavItem {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
+.globalNavItem:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.globalNavItem:active {
+  transform: translateY(0);
 }
 
 .userSection {

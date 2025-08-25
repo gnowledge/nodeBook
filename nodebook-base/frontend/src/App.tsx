@@ -243,6 +243,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         onShowAuth={() => {}} // Not needed in app
         onLogout={onLogout || (() => {})}
         currentView="app"
+        onSelectPage={setActivePage}
       />
 
       <div className={styles.content}>

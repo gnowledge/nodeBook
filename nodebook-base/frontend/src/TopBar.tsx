@@ -9,6 +9,7 @@ interface TopBarProps {
   onShowAuth: () => void;
   onLogout: () => void;
   currentView: 'dashboard' | 'app' | 'public-graph';
+  onSelectPage?: (page: string) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -18,7 +19,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onGoToApp,
   onShowAuth,
   onLogout,
-  currentView
+  currentView,
+  onSelectPage
 }) => {
   return (
     <div className={styles.topBarPersistent}>
@@ -53,6 +55,23 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className={styles.topBarRight}>
+        <nav className={styles.globalNavigation}>
+          <button
+            onClick={() => onSelectPage?.('About')}
+            className={styles.globalNavItem}
+            title="About NodeBook"
+          >
+            About
+          </button>
+          <button
+            onClick={() => onSelectPage?.('Help')}
+            className={styles.globalNavItem}
+            title="Help & Documentation"
+          >
+            Help
+          </button>
+        </nav>
+        
         {isAuthenticated && user ? (
           <div className={styles.userSection}>
             <div className={styles.userInfo}>
