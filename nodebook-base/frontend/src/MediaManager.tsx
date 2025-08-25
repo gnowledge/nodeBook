@@ -66,7 +66,11 @@ export function MediaManager({
       if (searchTerm) params.append('search', searchTerm);
       if (graphId) params.append('graphId', graphId);
 
-      const response = await fetch(`${API_BASE_URL}/api/media/files?${params}`, {
+      const url = `${API_BASE_URL}/api/media/files?${params}`;
+      console.log('🔍 MediaManager: Making request to:', url);
+      console.log('🔍 API_BASE_URL value:', API_BASE_URL);
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -112,7 +116,10 @@ export function MediaManager({
           formData.append('description', description);
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/media/upload`, {
+        const uploadUrl = `${API_BASE_URL}/api/media/upload`;
+        console.log('🔍 MediaManager: Uploading to:', uploadUrl);
+        
+        const response = await fetch(uploadUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
