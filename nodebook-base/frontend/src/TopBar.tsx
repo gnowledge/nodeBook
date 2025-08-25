@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -22,6 +22,37 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentView,
   onSelectPage
 }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleMobileMenuClick = (action: string) => {
+    setIsMobileMenuOpen(false);
+    
+    switch (action) {
+      case 'about':
+        onSelectPage?.('About');
+        break;
+      case 'help':
+        onSelectPage?.('Help');
+        break;
+      case 'logout':
+        onLogout();
+        break;
+      case 'dashboard':
+        onGoToDashboard();
+        break;
+      case 'app':
+        onGoToApp();
+        break;
+      case 'auth':
+        onShowAuth();
+        break;
+    }
+  };
+
   return (
     <div className={styles.topBarPersistent}>
       <div className={styles.topBarLeft}>
@@ -54,6 +85,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </nav>
       </div>
 
+      {/* Desktop Navigation */}
       <div className={styles.topBarRight}>
         <nav className={styles.globalNavigation}>
           <button
@@ -96,6 +128,99 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
         )}
       </div>
+
+      {/* Mobile Menu Button */}
+      <button
+        onClick={toggleMobileMenu}
+        className={styles.mobileMenuButton}
+        title="Menu"
+      >
+        ☰
+      </button>
+
+      {/* Mobile Dropdown Menu */}
+      {isMobileMenuOpen && (
+        <div className={styles.mobileMenuOverlay} onClick={toggleMobileMenu}>
+          <div className={styles.mobileMenuDropdown} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.mobileMenuHeader}>
+              <h3>Menu</h3>
+              <button
+                onClick={toggleMobileMenu}
+                className={styles.mobileMenuCloseBtn}
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className={styles.mobileMenuContent}>
+              {/* Navigation Items */}
+              <div className={styles.mobileMenuSection}>
+                <h4>Navigation</h4>
+                <button
+                  onClick={() => handleMobileMenuClick('dashboard')}
+                  className={styles.mobileMenuItem}
+                >
+                  🏠 Dashboard
+                </button>
+                {isAuthenticated && (
+                  <button
+                    onClick={() => handleMobileMenuClick('app')}
+                    className={styles.mobileMenuItem}
+                  >
+                    💼 Workspace
+                  </button>
+                )}
+              </div>
+
+              {/* Documentation */}
+              <div className={styles.mobileMenuSection}>
+                <h4>Documentation</h4>
+                <button
+                  onClick={() => handleMobileMenuClick('about')}
+                  className={styles.mobileMenuItem}
+                >
+                  ℹ️ About
+                </button>
+                <button
+                  onClick={() => handleMobileMenuClick('help')}
+                  className={styles.mobileMenuItem}
+                >
+                  ❓ Help
+                </button>
+              </div>
+
+              {/* User Section */}
+              {isAuthenticated && user ? (
+                <div className={styles.mobileMenuSection}>
+                  <h4>Account</h4>
+                  <div className={styles.mobileUserInfo}>
+                    <span className={styles.mobileUserIcon}>👤</span>
+                    <span className={styles.mobileUsername}>{user.username}</span>
+                    {user.isAdmin && <span className={styles.mobileAdminBadge}>Admin</span>}
+                  </div>
+                  <button
+                    onClick={() => handleMobileMenuClick('logout')}
+                    className={styles.mobileMenuItem}
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.mobileMenuSection}>
+                  <h4>Account</h4>
+                  <button
+                    onClick={() => handleMobileMenuClick('auth')}
+                    className={styles.mobileMenuItem}
+                  >
+                    🔑 Sign In
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
