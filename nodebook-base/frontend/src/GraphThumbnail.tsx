@@ -47,7 +47,7 @@ export function GraphThumbnail({
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/graphs/${graph.id}/data`, {
+        const response = await fetch(`${API_BASE_URL}/api/graphs/${graph.id}/graph`, {
           headers
         });
 
