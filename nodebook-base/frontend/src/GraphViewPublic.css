@@ -7,18 +7,36 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Header Section */
+/* Header Section - Consolidated and Compact */
 .graph-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 25px 25px;
+  padding: 20px 25px;
   border-radius: 12px;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
-.header-top {
-  margin-bottom: 20px;
+.header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  flex-shrink: 0;
+}
+
+.header-center {
+  flex: 1;
+  text-align: center;
+  min-width: 300px;
+}
+
+.header-right {
+  flex-shrink: 0;
+  text-align: right;
 }
 
 .dashboard-back-button {
@@ -39,41 +57,38 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.graph-title-section {
-  text-align: center;
-}
-
 .graph-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   color: white;
 }
 
 .graph-description {
-  font-size: 1.1rem;
-  margin: 0 0 20px 0;
+  font-size: 1rem;
+  margin: 0;
   opacity: 0.95;
-  line-height: 1.5;
+  line-height: 1.4;
   color: white;
 }
 
 .graph-meta {
   display: flex;
-  justify-content: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
 }
 
 .graph-meta span {
   background: rgba(255, 255, 255, 0.2);
-  padding: 6px 14px;
-  border-radius: 18px;
-  font-size: 0.85rem;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
   backdrop-filter: blur(10px);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
 }
 
 /* Tab Navigation */
@@ -81,7 +96,7 @@
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   background: white;
   padding: 15px 20px;
   border-radius: 12px;
@@ -157,51 +172,7 @@ body {
   height: 40px;
 }
 
-/* Fix header positioning */
-.graph-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 2px solid #e2e8f0;
-  margin-bottom: 0;
-}
-
-/* Dashboard back button */
-.header-top {
-  display: flex;
-  justify-content: flex-start;
-  padding: 15px 0;
-  border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 20px;
-}
-
-.dashboard-back-button {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.dashboard-back-button:hover {
-  background: #5a67d8;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.dashboard-back-button:active {
-  transform: translateY(0);
-}
+/* Dashboard back button - consolidated with main header */
 
 /* Fix tab content scrolling */
 .overview-tab,
@@ -658,7 +629,7 @@ body {
   }
   
   .graph-header {
-    padding: 25px 20px;
+    padding: 20px 20px;
   }
   
   .graph-title {

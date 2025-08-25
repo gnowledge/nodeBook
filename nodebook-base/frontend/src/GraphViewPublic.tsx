@@ -314,31 +314,35 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
 
   return (
     <div className="graph-view-public">
-      {/* Header Information */}
+      {/* Consolidated Header Information */}
       <div className="graph-header">
-        <div className="header-top">
-          <button 
-            className="dashboard-back-button"
-            onClick={() => window.history.back()}
-            title="Back to Dashboard"
-          >
-            ← Back to Dashboard
-          </button>
-        </div>
-        <div className="graph-title-section">
-          <h1 className="graph-title">{activeGraph?.name || 'Loading...'}</h1>
-          {activeGraph?.description && (
-            <p className="graph-description">{activeGraph.description}</p>
-          )}
-          <div className="graph-meta">
-            {activeGraph?.author && <span className="graph-author">By: {activeGraph.author}</span>}
-            {activeGraph?.email && <span className="graph-email">Contact: {activeGraph.email}</span>}
-            <span className="graph-status">Status: Public</span>
+        <div className="header-content">
+          <div className="header-left">
+            <button 
+              className="dashboard-back-button"
+              onClick={() => window.history.back()}
+              title="Back to Dashboard"
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+          <div className="header-center">
+            <h1 className="graph-title">{activeGraph?.name || 'Loading...'}</h1>
+            {activeGraph?.description && (
+              <p className="graph-description">{activeGraph.description}</p>
+            )}
+          </div>
+          <div className="header-right">
+            <div className="graph-meta">
+              {activeGraph?.author && <span className="graph-author">By: {activeGraph.author}</span>}
+              {activeGraph?.email && <span className="graph-email">Contact: {activeGraph.email}</span>}
+              <span className="graph-status">Status: Public</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Moved closer to header */}
       <div className="tab-navigation">
         <button 
           className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
