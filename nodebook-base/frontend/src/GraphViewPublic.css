@@ -596,6 +596,22 @@ body {
   margin-bottom: 5px;
   border: 1px solid #e2e8f0;
   font-size: 0.9rem;
+  color: #2d3748;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+.node-attributes li:hover,
+.node-relations li:hover {
+  border-color: #667eea;
+  background: #f7fafc;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.node-attributes li strong,
+.node-relations li strong {
+  color: #1a202c;
+  font-weight: 600;
 }
 
 /* CNL Section */
