@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './GraphThumbnail.module.css';
+import { API_BASE_URL } from './api-config';
 
 interface GraphThumbnailProps {
   graph: {
@@ -12,27 +13,67 @@ interface GraphThumbnailProps {
   height?: number;
 }
 
+interface GraphData {
+  nodes: Array<{
+    id: string;
+    name: string;
+    type?: string;
+  }>;
+  relations: Array<{
+    id: string;
+    source_id: string;
+    target_id: string;
+    name: string;
+  }>;
+}
+
 export function GraphThumbnail({ 
   graph, 
   width = 200, 
-  height = 150 
+  height = 120 
 }: GraphThumbnailProps) {
-  // Generate a more distinctive visual representation based on graph properties
-  const generateThumbnail = () => {
-    const name = graph.name;
-    const description = graph.description || '';
-    
-    // Create a more distinctive pattern based on graph name and description
-    const nameHash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const descriptionHash = description.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
-    // Generate pseudo-random but consistent node positions based on graph properties
-    const seed = (nameHash + descriptionHash) % 1000;
-    const random = (min: number, max: number) => {
-      const x = Math.sin(seed) * 10000;
-      return min + (x - Math.floor(x)) * (max - min);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchGraphData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const headers: Record<string, string> = {};
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/graphs/${graph.id}/data`, {
+          headers
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setGraphData(data);
+        } else {
+          setError('Failed to load graph data');
+        }
+      } catch (err) {
+        console.error('Error fetching graph data:', err);
+        setError('Network error');
+      } finally {
+        setLoading(false);
+      }
     };
-    
+
+    fetchGraphData();
+  }, [graph.id]);
+
+  // Generate thumbnail based on actual graph data
+  const generateThumbnail = () => {
+    if (!graphData || graphData.nodes.length === 0) {
+      return [];
+    }
+
     const nodes = [];
     const maxNodes = 7; // Limit to 7 nodes for clarity
     
@@ -41,52 +82,79 @@ export function GraphThumbnail({
       id: 'main',
       x: width / 2,
       y: height / 2,
-      size: Math.min(width, height) * 0.18,
-      label: name.length > 10 ? name.substring(0, 10) + '...' : name,
+      size: Math.min(width, height) * 0.2,
+      label: graph.name.length > 8 ? graph.name.substring(0, 8) + '...' : graph.name,
       type: 'main'
     });
     
-    // Generate distinctive node positions and labels based on graph properties
-    const radius = Math.min(width, height) * 0.35;
+    // Get actual node names from the graph (up to 6 additional nodes)
+    const availableNodes = graphData.nodes
+      .filter(node => node.name && node.name.trim() !== '')
+      .slice(0, maxNodes - 1);
     
-    for (let i = 1; i < maxNodes; i++) {
-      // Create more varied positioning based on graph properties
-      const angle = (i * 2 * Math.PI / (maxNodes - 1)) + (seed / 1000);
-      const radiusVariation = radius * (0.7 + (random(0, 0.6)));
+    if (availableNodes.length === 0) {
+      return nodes;
+    }
+    
+    // Position nodes around the center
+    const radius = Math.min(width, height) * 0.4;
+    const angleStep = (2 * Math.PI) / availableNodes.length;
+    
+    availableNodes.forEach((node, index) => {
+      const angle = index * angleStep;
+      const x = width / 2 + radius * Math.cos(angle);
+      const y = height / 2 + radius * Math.sin(angle);
       
-      const x = width / 2 + radiusVariation * Math.cos(angle);
-      const y = height / 2 + radiusVariation * Math.sin(angle);
-      
-      // Generate meaningful labels based on graph properties
-      let label = '';
-      if (i === 1) {
-        label = name.length > 3 ? name.substring(0, 3).toUpperCase() : name.toUpperCase();
-      } else if (i === 2) {
-        label = description.length > 2 ? description.substring(0, 2) : 'N' + i;
-      } else if (i === 3) {
-        label = 'G' + (seed % 100);
-      } else if (i === 4) {
-        label = 'N' + (seed % 50);
-      } else if (i === 5) {
-        label = 'R' + (seed % 30);
-      } else if (i === 6) {
-        label = 'A' + (seed % 20);
-      }
+      // Use actual node name (truncated if too long)
+      const label = node.name.length > 4 ? node.name.substring(0, 4) : node.name;
       
       nodes.push({
-        id: `node-${i}`,
+        id: node.id,
         x,
         y,
-        size: Math.min(width, height) * (0.08 + (i % 2) * 0.02),
+        size: Math.min(width, height) * 0.1,
         label,
         type: 'secondary'
       });
-    }
+    });
     
     return nodes;
   };
 
   const nodes = generateThumbnail();
+
+  if (loading) {
+    return (
+      <div className={styles.thumbnailContainer} style={{ width, height }}>
+        <div className={styles.thumbnailLoading}>
+          <div className={styles.loadingSpinner}></div>
+          <small>Loading...</small>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !graphData) {
+    return (
+      <div className={styles.thumbnailContainer} style={{ width, height }}>
+        <div className={styles.thumbnailError}>
+          <span>📊</span>
+          <small>Graph Preview</small>
+        </div>
+      </div>
+    );
+  }
+
+  if (graphData.nodes.length === 0) {
+    return (
+      <div className={styles.thumbnailContainer} style={{ width, height }}>
+        <div className={styles.thumbnailEmpty}>
+          <span>📋</span>
+          <small>No Nodes</small>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.thumbnailContainer} style={{ width, height }}>
@@ -131,7 +199,7 @@ export function GraphThumbnail({
               x={node.x}
               y={node.y + (node.type === 'main' ? 4 : 3)}
               textAnchor="middle"
-              fontSize={node.type === 'main' ? '10' : '8'}
+              fontSize={node.type === 'main' ? '9' : '7'}
               fill={node.type === 'main' ? 'white' : '#374151'}
               fontWeight={node.type === 'main' ? 'bold' : 'normal'}
             >
@@ -142,9 +210,9 @@ export function GraphThumbnail({
         
         {/* Publication state indicator */}
         <circle
-          cx={width - 15}
-          cy={15}
-          r="6"
+          cx={width - 12}
+          cy={12}
+          r="5"
           fill={graph.publication_state === 'Public' ? '#10b981' : 
                 graph.publication_state === 'P2P' ? '#3b82f6' : '#6b7280'}
           stroke="white"
