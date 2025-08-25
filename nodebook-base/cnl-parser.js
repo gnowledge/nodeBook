@@ -52,7 +52,6 @@ function getMindMapOperationsFromCnl(cnlText) {
     }
     
     const relationType = modeMatch[1].trim();
-    console.log(`[MindMap] Parsing with relation type: ${relationType}`);
     
     // Extract graph description if present
     const graphDescriptionMatch = cnlText.match(GRAPH_DESCRIPTION_REGEX);
@@ -98,12 +97,22 @@ function buildMindMapTree(cnlText) {
     const tree = [];
     const lines = cnlText.split('\n');
     const nodeStack = []; // Track parent nodes by heading level
+    let inDescriptionBlock = false;
+    let currentDescription = '';
     
     for (const line of lines) {
         if (!line.trim()) continue;
         
         const headingMatch = line.match(MINDMAP_HEADING_REGEX);
         if (headingMatch) {
+            // If we were in a description block, save it to the current node
+            if (inDescriptionBlock && tree.length > 0) {
+                const currentNode = tree[tree.length - 1];
+                currentNode.description = currentDescription.trim();
+                inDescriptionBlock = false;
+                currentDescription = '';
+            }
+            
             const [, hashes, name] = headingMatch;
             const level = hashes.length;
             const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
@@ -143,12 +152,28 @@ function buildMindMapTree(cnlText) {
             const currentNode = tree[tree.length - 1];
             currentNode.content.push(line);
             
-            // Check for description
-            const descMatch = line.match(MINDMAP_DESCRIPTION_REGEX);
-            if (descMatch) {
-                currentNode.description = descMatch[1].trim();
+            // Check if we're starting a description block
+            if (line.trim() === '```description') {
+                inDescriptionBlock = true;
+                currentDescription = '';
+            }
+            // Check if we're ending a description block
+            else if (line.trim() === '```' && inDescriptionBlock) {
+                inDescriptionBlock = false;
+                currentNode.description = currentDescription.trim();
+                currentDescription = '';
+            }
+            // If we're inside a description block, add to current description
+            else if (inDescriptionBlock) {
+                currentDescription += line + '\n';
             }
         }
+    }
+    
+    // Handle case where description block is at the end
+    if (inDescriptionBlock && tree.length > 0) {
+        const currentNode = tree[tree.length - 1];
+        currentNode.description = currentDescription.trim();
     }
     
     return tree;
