@@ -15,6 +15,7 @@ if (import.meta.env.DEV) {
   // In development, Vite's proxy handles API requests.
   // We use a relative path, and the proxy forwards it.
   apiBaseUrl = '';
+  console.log('🔧 Development mode: Using relative paths with Vite proxy');
 } else {
   // In the packaged Electron app, the port is exposed by the preload script.
   const port = window.electronAPI?.getBackendPort();

@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
     // In a local environment (not in Docker), this will default to 3000
     // This is for running `npm run dev` outside of the docker-compose setup.
     console.warn('VITE_API_TARGET is not set. Defaulting to http://localhost:3000');
+  } else {
+    console.log(`🎯 Vite proxy target set to: ${proxyTarget}`);
   }
 
   return {
@@ -28,7 +30,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Proxy all API requests
         '/api': {
-          target: proxyTarget || 'http://localhost:3001',
+          target: proxyTarget || 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
         },
