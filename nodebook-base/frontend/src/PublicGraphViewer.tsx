@@ -70,9 +70,6 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
           currentView="public-graph"
         />
         <div className={styles.publicGraphContentWrapper}>
-          <div className={styles.publicGraphHeader}>
-            <h1>Loading Public Graph...</h1>
-          </div>
           <div className={styles.loadingContainer}>
             <div className={styles.loadingSpinner}></div>
             <p>Loading graph data...</p>
@@ -95,10 +92,8 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
           currentView="public-graph"
         />
         <div className={styles.publicGraphContentWrapper}>
-          <div className={styles.publicGraphHeader}>
-            <h1>Error Loading Graph</h1>
-          </div>
           <div className={styles.errorContainer}>
+            <h1>Error Loading Graph</h1>
             <p className={styles.errorMessage}>{error}</p>
             <button onClick={onGoToDashboard} className={styles.errorBackButton}>
               Return to Dashboard
@@ -122,10 +117,8 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
           currentView="public-graph"
         />
         <div className={styles.publicGraphContentWrapper}>
-          <div className={styles.publicGraphHeader}>
-            <h1>Graph Not Found</h1>
-          </div>
           <div className={styles.errorContainer}>
+            <h1>Graph Not Found</h1>
             <p>The requested graph could not be found.</p>
             <button onClick={onGoToDashboard} className={styles.errorBackButton}>
               Return to Dashboard
@@ -149,31 +142,13 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
       />
       
       <div className={styles.publicGraphContentWrapper}>
-        <div className={styles.publicGraphHeader}>
-          <div className={styles.graphInfo}>
-            <h1>{graph.name}</h1>
-            <div className={styles.graphMeta}>
-              <span className={styles.publicBadge}>🌐 Public Graph</span>
-              <span className={styles.ownerInfo}>by {graph.owner}</span>
-              {graph.description && <p className={styles.graphDescription}>{graph.description}</p>}
-            </div>
-          </div>
-          <div className={styles.headerActions}>
-            <button onClick={onShowAuth} className={styles.signInButton}>
-              Sign In to Create Your Own
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.publicGraphContent}>
-          <GraphViewPublic
-            activeGraphId={graphId}
-            nodes={nodes}
-            relations={relations}
-            attributes={attributes}
-            cnlText={cnlText}
-          />
-        </div>
+        <GraphViewPublic
+          activeGraphId={graphId}
+          nodes={graph.nodes || []}
+          relations={graph.relations || []}
+          attributes={graph.attributes || []}
+          cnlText={graph.cnl || ''}
+        />
       </div>
     </div>
   );
