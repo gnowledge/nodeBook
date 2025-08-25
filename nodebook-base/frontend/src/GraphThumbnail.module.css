@@ -16,15 +16,14 @@
   transform: translateY(-1px);
 }
 
-.thumbnailSvg {
+.thumbnailImage {
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: cover;
+  border-radius: 6px;
 }
 
-.thumbnailLoading,
-.thumbnailError,
-.thumbnailEmpty {
+.thumbnailError {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,38 +38,29 @@
   height: 100%;
 }
 
-.thumbnailLoading span,
-.thumbnailError span,
-.thumbnailEmpty span {
+.thumbnailError span {
   font-size: 1.5rem;
   opacity: 0.7;
 }
 
-.thumbnailLoading small,
-.thumbnailError small,
-.thumbnailEmpty small {
+.thumbnailError small {
   font-size: 0.75rem;
   opacity: 0.8;
 }
 
-.thumbnailError {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
+.publicationIndicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
 }
 
-.loadingSpinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e5e7eb;
-  border-top: 2px solid #3b82f6;
+.publicationDot {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Responsive adjustments */
@@ -79,21 +69,20 @@
     border-radius: 6px;
   }
   
-  .thumbnailError,
-  .thumbnailEmpty,
-  .thumbnailLoading {
+  .thumbnailError {
     font-size: 0.8rem;
   }
   
-  .thumbnailError span,
-  .thumbnailEmpty span,
-  .thumbnailLoading span {
+  .thumbnailError span {
     font-size: 1.25rem;
   }
   
-  .thumbnailError small,
-  .thumbnailEmpty small,
-  .thumbnailLoading small {
+  .thumbnailError small {
     font-size: 0.7rem;
+  }
+  
+  .publicationDot {
+    width: 10px;
+    height: 10px;
   }
 }
