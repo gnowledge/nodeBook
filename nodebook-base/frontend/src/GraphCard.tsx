@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Graph, PublicGraph } from './types';
-import { GraphThumbnail } from './GraphThumbnail';
+// import { GraphThumbnail } from './GraphThumbnail';
 import styles from './GraphCard.module.css';
 
 interface GraphCardProps {
@@ -70,9 +70,9 @@ export function GraphCard({
       </div>
       
       {/* Graph Thumbnail */}
-      <div className={styles.graphThumbnail}>
+      {/* <div className={styles.graphThumbnail}>
         <GraphThumbnail graph={graph} width={200} height={120} />
-      </div>
+      </div> */}
       
       <div className={styles.graphCardContent}>
         {graph.description && (
