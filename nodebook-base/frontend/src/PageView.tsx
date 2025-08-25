@@ -32,6 +32,10 @@ export function PageView({ page, onClose }: PageViewProps) {
       fileName = 'Schema-Guide.md';
     } else if (pageName === 'CNL-Help') {
       fileName = 'CNL-Help.md';
+    } else if (pageName === 'Developer-Notes') {
+      fileName = 'Developer-Notes.md';
+    } else if (pageName === 'API-Reference') {
+      fileName = 'API-Reference.md';
     } else if (pageName.endsWith('.cnl')) {
       fileName = pageName;
     } else {
@@ -78,7 +82,23 @@ export function PageView({ page, onClose }: PageViewProps) {
     a: ({ href, children, ...props }: any) => {
       // Check if this is a relative markdown link
       if (href && href.startsWith('./') && href.endsWith('.md')) {
-        const pageName = href.replace('./', '').replace('.md', '');
+        const fileName = href.replace('./', '').replace('.md', '');
+        // Convert file names to page names
+        let pageName = fileName;
+        if (fileName === 'Developer-Notes') {
+          pageName = 'Developer-Notes';
+        } else if (fileName === 'API-Reference') {
+          pageName = 'API-Reference';
+        } else if (fileName === 'Schema-Guide') {
+          pageName = 'Schema-Guide';
+        } else if (fileName === 'CNL-Help') {
+          pageName = 'CNL-Help';
+        } else if (fileName === 'Help') {
+          pageName = 'Help';
+        } else if (fileName === 'About') {
+          pageName = 'About';
+        }
+        
         return (
           <button
             {...props}
@@ -129,6 +149,8 @@ export function PageView({ page, onClose }: PageViewProps) {
                currentPage === 'Help' ? 'Help & Documentation' :
                currentPage === 'Schema-Guide' ? 'Schema Guide' :
                currentPage === 'CNL-Help' ? 'CNL Syntax Guide' :
+               currentPage === 'Developer-Notes' ? 'Developer Notes' :
+               currentPage === 'API-Reference' ? 'API Reference' :
                currentPage}
             </h2>
           </div>
