@@ -20,10 +20,11 @@ import { JsonView } from './JsonView';
 import { PageView } from './PageView';
 import { Preferences } from './Preferences';
 import { TopBar } from './TopBar';
+import { MediaManager } from './MediaManager';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 import { API_BASE_URL } from './api-config';
 
-type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers';
+type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media';
 
 interface AppProps {
   onLogout?: () => void;
@@ -282,6 +283,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     <button className={`${styles.tabButton} ${viewMode === 'peers' ? styles.active : ''}`} onClick={() => setViewMode('peers')} title="Peer-to-Peer">
                       <img src={p2pIcon} alt="Peer-to-Peer" className={styles.p2pIcon} />
                     </button>
+                    <button className={`${styles.tabButton} ${viewMode === 'media' ? styles.active : ''}`} onClick={() => setViewMode('media')} title="Media">
+                      <span className={styles.mediaIcon}>📁</span>
+                    </button>
                     <button className={`${styles.tabButton} ${viewMode === 'jsonData' ? styles.active : ''}`} onClick={() => setViewMode('jsonData')} title="JSON Data">
                       <span className={styles.jsonIcon}>{'{-}'}</span>
                     </button>
@@ -327,6 +331,15 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     />}
                     {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                     {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
+                    {viewMode === 'media' && (
+                      <div className={styles.mediaContainer}>
+                        <MediaManager 
+                          graphId={activeGraphId}
+                          showUpload={true}
+                          showList={true}
+                        />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className={styles.placeholder}>Select or create a graph to begin. For examples of how to create graphs, check Menu-Examples/Help.</div>
