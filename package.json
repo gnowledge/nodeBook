@@ -6,11 +6,9 @@
   "scripts": {
     "build:frontend": "cd nodebook-base/frontend && npm run build",
     "build:docker": "docker build -t nodebook:latest .",
-    # "build:electron": "cd electron && npm run build",
     "build:all": "npm run build:frontend && npm run build:docker",
     "dev:frontend": "cd nodebook-base/frontend && npm run dev",
     "dev:backend": "cd nodebook-base && npm run dev",
-    # "dev:electron": "cd electron && npm run dev",
     "start:backend": "cd nodebook-base && npm start",
     "test": "cd nodebook-base && npm test",
     "clean": "rm -rf nodebook-base/frontend/dist",

@@ -17,8 +17,6 @@ interface GraphSwitcherProps {
 export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: GraphSwitcherProps) {
   const [graphs, setGraphs] = useState<Graph[]>([]);
   const [newGraphName, setNewGraphName] = useState('');
-  const [author, setAuthor] = useState('');
-  const [email, setEmail] = useState('');
   const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
   const [showModeSelector, setShowModeSelector] = useState(false);
 
@@ -26,13 +24,17 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {
-      ...options.headers,
       'Authorization': `Bearer ${token}`,
     };
     
     // Only set Content-Type for requests that have a body
     if (options.body) {
       headers['Content-Type'] = 'application/json';
+    }
+    
+    // Merge with any existing headers from options
+    if (options.headers) {
+      Object.assign(headers, options.headers);
     }
     
     return fetch(url, {
