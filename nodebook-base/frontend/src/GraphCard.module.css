@@ -1,10 +1,10 @@
 /* Graph Card */
 .graphCard {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease-in-out;
   cursor: pointer;
   width: 100%; /* Take full width of grid cell */
@@ -14,8 +14,9 @@
 
 .graphCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #d1d5db;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #cbd5e1;
+  background: #f1f5f9;
 }
 
 .graphCardHeader {

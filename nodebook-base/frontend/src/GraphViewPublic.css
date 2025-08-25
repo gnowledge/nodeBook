@@ -11,10 +11,32 @@
 .graph-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 40px 30px;
+  padding: 25px 25px;
   border-radius: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.header-top {
+  margin-bottom: 20px;
+}
+
+.dashboard-back-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .graph-title-section {
@@ -22,32 +44,36 @@
 }
 
 .graph-title {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
-  margin: 0 0 15px 0;
+  margin: 0 0 12px 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: white;
 }
 
 .graph-description {
-  font-size: 1.2rem;
-  margin: 0 0 25px 0;
-  opacity: 0.9;
-  line-height: 1.6;
+  font-size: 1.1rem;
+  margin: 0 0 20px 0;
+  opacity: 0.95;
+  line-height: 1.5;
+  color: white;
 }
 
 .graph-meta {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 
 .graph-meta span {
   background: rgba(255, 255, 255, 0.2);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  padding: 6px 14px;
+  border-radius: 18px;
+  font-size: 0.85rem;
   backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Tab Navigation */
@@ -55,9 +81,9 @@
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   background: white;
-  padding: 20px;
+  padding: 15px 20px;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }

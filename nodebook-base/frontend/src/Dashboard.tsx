@@ -96,33 +96,10 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
     }
   };
 
-  const testProtectedEndpoint = async () => {
-    try {
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Current user: ${data.username} (ID: ${data.id})`);
-      } else {
-        alert('Failed to get user info');
-      }
-    } catch (err) {
-      alert('Error testing endpoint');
-    }
-  };
-
   useEffect(() => {
-    // Only fetch user graphs if authenticated
-    if (isAuthenticated && token) {
-      fetchGraphs();
-    }
-    // Always fetch public graphs
+    fetchGraphs();
     fetchPublicGraphs();
-  }, [token, isAuthenticated]);
+  }, [token]);
 
   return (
     <div className={styles.container}>
@@ -174,35 +151,6 @@ const Dashboard: React.FC<DashboardProps> = ({ token, user, onLogout, onGoToApp,
               </div>
             </div>
           </div>
-
-          {/* API Testing Section - Only show when authenticated */}
-          {isAuthenticated && (
-            <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>
-                API Testing
-              </h2>
-              <div className={styles.sectionActions}>
-                <button
-                  onClick={testProtectedEndpoint}
-                  className={`${styles.button} ${styles.buttonPrimary}`}
-                >
-                  Test /api/auth/me
-                </button>
-                <button
-                  onClick={fetchGraphs}
-                  className={`${styles.button} ${styles.buttonGreen}`}
-                >
-                  Refresh User Graphs
-                </button>
-                <button
-                  onClick={fetchPublicGraphs}
-                  className={`${styles.button} ${styles.buttonPurple}`}
-                >
-                  Refresh Public Graphs
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* User Graphs Section - Only show when authenticated */}
           {isAuthenticated && (
