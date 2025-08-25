@@ -99,7 +99,8 @@ async function main() {
   const graphManager = new GraphManager();
   
   // The first command-line argument (index 2) is our data path.
-  const dataPath = process.argv[2] || null;
+  const dataPath = process.argv[2] || '/app/nodebook-base/user_data';
+  console.log('🔧 Using dataPath:', dataPath);
   // Initialize the instance with the correct path.
   await graphManager.initialize(dataPath);
 
