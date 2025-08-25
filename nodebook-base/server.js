@@ -8,6 +8,7 @@ const WebSocket = require('ws');
 const HyperGraph = require('./hyper-graph');
 const GraphManager = require('./graph-manager'); // Import the class
 const schemaManager = require('./schema-manager');
+const ThumbnailGenerator = require('./thumbnail-generator');
 const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
   const { evaluate } = require('mathjs');
 const { buildStaticSite } = require('./build-static-site');
@@ -96,6 +97,10 @@ async function main() {
 
   // Attach the initialized instance to the fastify object
   fastify.decorate('graphManager', graphManager);
+  
+  // Initialize ThumbnailGenerator
+  const thumbnailGenerator = new ThumbnailGenerator(graphManager.dataPath);
+  fastify.decorate('thumbnailGenerator', thumbnailGenerator);
   
   // --- Health Check Route ---
   fastify.get('/api/health', async (request, reply) => {
@@ -395,6 +400,34 @@ Another service or function
     }
   });
 
+  // --- Public Thumbnail Endpoint (No Authentication Required) ---
+  fastify.get('/api/public/graphs/:graphId/thumbnail', async (request, reply) => {
+    const gm = fastify.graphManager;
+    const graphId = request.params.graphId;
+    
+    try {
+      // For public graphs, check if thumbnail exists in the public graphs directory
+      const thumbnailPath = path.join(gm.dataPath, 'graphs', graphId, 'thumbnail.png');
+      
+      // Check if thumbnail exists
+      try {
+        await fs.access(thumbnailPath);
+        // Set proper headers for PNG image
+        reply.header('Content-Type', 'image/png');
+        reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        return reply.sendFile(thumbnailPath);
+      } catch (accessError) {
+        // Thumbnail doesn't exist, return 404
+        reply.code(404).send({ error: 'Thumbnail not found' });
+        return;
+      }
+    } catch (error) {
+      console.error(`[getPublicThumbnail] Error getting thumbnail for public graph ${graphId}:`, error);
+      reply.code(500).send({ error: 'Failed to get thumbnail' });
+      return;
+    }
+  });
+
   // --- Schema CRUD API ---
   fastify.get('/api/schema/relations', {
     preHandler: authenticateJWT
@@ -671,6 +704,45 @@ Another service or function
     }
   });
 
+  // --- Thumbnail Endpoint ---
+  fastify.get('/api/graphs/:graphId/thumbnail', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT, loadGraph]
+  }, async (request, reply) => {
+    const gm = fastify.graphManager;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
+    try {
+      // Construct the thumbnail path
+      const thumbnailPath = path.join(gm.dataPath, 'graphs', 'users', userId.toString(), graphId, 'thumbnail.png');
+      
+      // Check if thumbnail exists
+      try {
+        await fs.access(thumbnailPath);
+        // Set proper headers for PNG image
+        reply.header('Content-Type', 'image/png');
+        reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        return reply.sendFile(thumbnailPath);
+      } catch (accessError) {
+        // Thumbnail doesn't exist, return 404
+        reply.code(404).send({ error: 'Thumbnail not found' });
+        return;
+      }
+    } catch (error) {
+      console.error(`[getThumbnail] Error getting thumbnail for graph ${graphId}:`, error);
+      reply.code(500).send({ error: 'Failed to get thumbnail' });
+      return;
+    }
+  });
+
   fastify.post('/api/graphs/:graphId/cnl', {
     schema: {
       params: {
@@ -776,6 +848,33 @@ Another service or function
       console.log(`[CNL Processing] Saving CNL for graph ${graphId}, user ${userId}`);
       await gm.saveCnl(userId, request.params.graphId, cnlText);
       console.log(`[CNL Processing] CNL saved successfully for graph ${graphId}`);
+      
+      // Generate thumbnail for the updated graph
+      try {
+        const graphData = {
+          nodes: await request.graph.listAll('nodes'),
+          relations: await request.graph.listAll('relations'),
+          attributes: await request.graph.listAll('attributes')
+        };
+        
+        // Filter out deleted items
+        const activeNodes = graphData.nodes.filter(node => !node.isDeleted);
+        const activeRelations = graphData.relations.filter(rel => !rel.isDeleted);
+        const activeAttributes = graphData.attributes.filter(attr => !attr.isDeleted);
+        
+        const cleanGraphData = {
+          nodes: activeNodes,
+          relations: activeRelations,
+          attributes: activeAttributes
+        };
+        
+        await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, cleanGraphData);
+        console.log(`[CNL Processing] Thumbnail generated for graph ${graphId}`);
+      } catch (thumbnailError) {
+        console.error(`[CNL Processing] Failed to generate thumbnail for graph ${graphId}:`, thumbnailError);
+        // Don't fail the CNL update if thumbnail generation fails
+      }
+      
       return { message: 'CNL processed successfully.' };
     } catch (error) {
       console.error(`[CNL Processing] Error for graph ${graphId}:`, error);
