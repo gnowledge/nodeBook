@@ -1059,12 +1059,18 @@ Another service or function
       const fileName = data.filename;
       const mimeType = data.mimetype;
       
+      // Get form fields from multipart data
+      const description = data.fields.description?.value || '';
+      const tags = data.fields.tags?.value ? data.fields.tags.value.split(',').map(t => t.trim()) : [];
+      const graphId = data.fields.graphId?.value || null;
+      const nodeId = data.fields.nodeId?.value || null;
+      
       // Additional metadata
       const metadata = {
-        description: request.body.description || '',
-        tags: request.body.tags ? request.body.tags.split(',').map(t => t.trim()) : [],
-        graphId: request.body.graphId || null,
-        nodeId: request.body.nodeId || null
+        description,
+        tags,
+        graphId,
+        nodeId
       };
       
       const fileInfo = await fastify.mediaManager.uploadFile(
