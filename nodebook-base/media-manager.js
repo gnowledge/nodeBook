@@ -5,9 +5,11 @@ const crypto = require('crypto');
 
 class MediaManager {
   constructor(dataPath) {
+    console.log('🔧 MediaManager constructor called with dataPath:', dataPath);
     this.dataPath = dataPath;
     this.drives = new Map(); // Store active drives by userId
     this.mediaPath = path.join(dataPath, 'media');
+    console.log('🔧 MediaManager mediaPath set to:', this.mediaPath);
   }
 
   /**
