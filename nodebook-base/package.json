@@ -29,7 +29,7 @@
     "helmet": "^7.1.0",
     "hyperbee": "^2.25.0",
     "hypercore": "^11.12.0",
-    "hyperdrive": "^13.0.1",
+    "hyperdrive": "^11.13.4",
     "hyperswarm": "^4.13.0",
     "jsonwebtoken": "^9.0.2",
     "koa": "^3.0.1",
