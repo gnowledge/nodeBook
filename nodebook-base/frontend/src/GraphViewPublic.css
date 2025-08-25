@@ -744,3 +744,24 @@ body {
   font-style: italic;
   padding: 10px;
 }
+
+/* Cytoscape Subgraph Styling */
+.cytoscape-subgraph-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9fafb;
+  margin: 10px 0;
+}
+
+.cytoscape-subgraph-container .cytoscape-react {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Highlight central node in subgraphs */
+.cytoscape-subgraph-container .central-node {
+  background-color: #fbbf24 !important;
+  border-color: #f59e0b !important;
+  border-width: 2px !important;
+}

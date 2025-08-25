@@ -1,7 +1,7 @@
 // Shared Cytoscape styles for consistent graph visualization across the app
 
 export const cytoscapeStylesheet = [
-  // Polynode styling (regular nodes)
+  // Polynode styling (regular nodes) - MUST come before default node selector
   {
     selector: "node[type = 'polynode']",
     style: {
@@ -20,7 +20,7 @@ export const cytoscapeStylesheet = [
       'height': 35
     }
   },
-  // Transition node styling
+  // Transition node styling - MUST come before default node selector
   {
     selector: "node[type = 'transition']",
     style: {
@@ -36,7 +36,7 @@ export const cytoscapeStylesheet = [
       "text-outline-width": 0
     }
   },
-  // Attribute value node styling
+  // Attribute value node styling - MUST come before default node selector
   {
     selector: "node[type = 'attribute_value']",
     style: {
@@ -51,25 +51,6 @@ export const cytoscapeStylesheet = [
       'width': (ele: any) => Math.max(ele.data('label').length * 7 + 16, 50),
       'height': 30,
       "text-outline-width": 0
-    }
-  },
-  // Default node styling (fallback)
-  {
-    selector: "node",
-    style: {
-      label: "data(label)",
-      "text-valign": "center",
-      "text-halign": "center",
-      "background-color": "#f3f4f6",
-      "color": "#2563eb",
-      "text-outline-width": 0,
-      "font-size": 14,
-      "border-width": 0.5,
-      "border-color": "#2563eb",
-      "border-style": "solid",
-      "shape": "roundrectangle",
-      'width': 60,
-      'height': 35
     }
   },
   // Edge styling
@@ -122,6 +103,25 @@ export const cytoscapeStylesheet = [
     style: {
       "line-color": "#9ca3af",
       "width": 1.5
+    }
+  },
+  // Default node styling (fallback) - MUST come LAST to avoid overriding specific types
+  {
+    selector: "node",
+    style: {
+      label: "data(label)",
+      "text-valign": "center",
+      "text-halign": "center",
+      "background-color": "#f3f4f6",
+      "color": "#2563eb",
+      "text-outline-width": 0,
+      "font-size": 14,
+      "border-width": 0.5,
+      "border-color": "#2563eb",
+      "border-style": "solid",
+      "shape": "roundrectangle",
+      'width': 60,
+      'height': 35
     }
   }
 ];

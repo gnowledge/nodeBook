@@ -193,12 +193,14 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
     );
   };
 
-  // Simple Subgraph component for public view
-  const SimpleSubgraph = ({ nodeId }: { nodeId: string }) => {
+  // Cytoscape Subgraph component for node neighborhoods
+  const CytoscapeSubgraph = ({ nodeId }: { nodeId: string }) => {
     const nodeRelations = relations.filter(r => r.source_id === nodeId || r.target_id === nodeId);
-    const connectedNodeIds = new Set([nodeId]);
     
-    // Add connected nodes
+    // Get connected nodes
+    const connectedNodeIds = new Set<string>();
+    connectedNodeIds.add(nodeId); // Include the central node
+    
     nodeRelations.forEach(rel => {
       if (rel.source_id === nodeId) connectedNodeIds.add(rel.target_id);
       if (rel.target_id === nodeId) connectedNodeIds.add(rel.source_id);
@@ -214,28 +216,45 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
       );
     }
 
+    // Transform data to Cytoscape format for subgraph
+    const subgraphElements = connectedNodes.map(node => ({
+      data: {
+        id: node.id,
+        label: node.name || node.id,
+        role: node.role,
+        type: getNodeType(node.role || ''),
+        isCentral: node.id === nodeId
+      },
+      classes: `node-${getNodeType(node.role || '')} ${node.id === nodeId ? 'central-node' : 'connected-node'}`
+    }));
+
+    // Add edges for the subgraph
+    const subgraphEdges = nodeRelations.map(rel => ({
+      data: {
+        id: rel.id,
+        source: rel.source_id,
+        target: rel.target_id,
+        label: rel.name
+      },
+      classes: 'subgraph-edge'
+    }));
+
+    const allElements = [...subgraphElements, ...subgraphEdges];
+
     return (
-      <div className="simple-subgraph">
-        <div className="subgraph-nodes">
-          {connectedNodes.map(n => (
-            <div 
-              key={n.id} 
-              className={`subgraph-node ${n.id === nodeId ? 'central' : 'connected'}`}
-              title={n.description || n.name}
-            >
-              <div className="subgraph-node-label">
-                {n.id === nodeId ? '●' : '○'} {n.name || n.id}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="subgraph-relations">
-          {nodeRelations.map(rel => (
-            <div key={rel.id} className="subgraph-relation">
-              <span className="relation-label">{rel.name}</span>
-            </div>
-          ))}
-        </div>
+      <div className="cytoscape-subgraph-container">
+        <CytoscapeComponent
+          elements={allElements}
+          style={{ width: '100%', height: '200px' }}
+          stylesheet={cytoscapeStylesheet}
+          layout={cytoscapeLayouts.dagre}
+          cy={(cy: any) => {
+            if (cy) {
+              // Highlight central node
+              cy.nodes('[isCentral = "true"]').addClass('central-node');
+            }
+          }}
+        />
       </div>
     );
   };
@@ -255,7 +274,7 @@ export function GraphViewPublic({ activeGraphId, nodes, relations, attributes, c
         {/* Subgraph Visualization */}
         <div className="node-subgraph">
           <h4>Subgraph:</h4>
-          <SimpleSubgraph nodeId={node.id} />
+          <CytoscapeSubgraph nodeId={node.id} />
         </div>
         
         {node.description && (
