@@ -272,8 +272,16 @@ export function GraphViewPublic({
     const nodeRelations = relations.filter(r => r.source_id === node.id || r.target_id === node.id);
     const nodeAttributes = attributes.filter(a => a.source_id === node.id);
 
+    // Helper function to scroll to a specific node card
+    const scrollToNode = (nodeId: string) => {
+      const element = document.getElementById(`node-card-${nodeId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
     return (
-      <div className="public-node-card">
+      <div className="public-node-card" id={`node-card-${node.id}`}>
         <div className="node-card-header">
           <h3 className="node-name">{node.name || node.id}</h3>
           {node.role && <span className="node-role">{node.role}</span>}
@@ -308,11 +316,29 @@ export function GraphViewPublic({
           <div className="node-relations">
             <h4>Relations:</h4>
             <ul>
-              {nodeRelations.map(rel => (
-                <li key={rel.id}>
-                  <strong>{rel.name}</strong> → {rel.target_id}
-                </li>
-              ))}
+              {nodeRelations.map(rel => {
+                const isOutgoing = rel.source_id === node.id;
+                const targetId = isOutgoing ? rel.target_id : rel.source_id;
+                const relationText = isOutgoing ? `${rel.name} →` : `← ${rel.name}`;
+                
+                return (
+                  <li key={rel.id}>
+                    <span>
+                      <strong>{relationText}</strong>
+                      <a 
+                        href="#" 
+                        className="relation-target" 
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          scrollToNode(targetId); 
+                        }}
+                      >
+                        {targetId}
+                      </a>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

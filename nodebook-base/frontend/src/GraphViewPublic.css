@@ -614,6 +614,24 @@ body {
   font-weight: 600;
 }
 
+/* Relation target hyperlink styling */
+.relation-target {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 4px;
+  transition: color 0.2s ease;
+}
+
+.relation-target:hover {
+  color: #5a67d8;
+  text-decoration: underline;
+}
+
+.relation-target:active {
+  color: #4c51bf;
+}
+
 /* CNL Section */
 .cnl-section {
   background: white;
