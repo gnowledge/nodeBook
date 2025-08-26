@@ -310,9 +310,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           relationTypes={relationTypes}
                           attributeTypes={attributeTypes}
                         />
-                        <button className={styles.submitCnlBtn} onClick={handleCnlSubmit} disabled={!activeGraphId || isSubmitting}>
-                          {isSubmitting ? 'Submitting...' : 'Submit (Ctrl+Enter)'}
-                        </button>
                       </div>
                     )}
                     {viewMode === 'visualization' && <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />}

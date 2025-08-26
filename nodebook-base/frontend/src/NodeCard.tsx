@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MathJax } from 'better-react-mathjax';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Subgraph } from './Subgraph';
+import { NLPParsingModal } from './NLPParsingModal';
 import type { Node, Edge, AttributeType, Morph } from './types';
 import { API_BASE_URL } from './api-config';
 import './NodeCard.css';
@@ -24,6 +25,11 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
   const cardRef = React.useRef<HTMLDivElement>(null);
   const registryEntry = nodeRegistry[node.id];
   
+  // NLP parsing state
+  const [isNLPModalOpen, setIsNLPModalOpen] = useState(false);
+  const [nlpAnalysis, setNlpAnalysis] = useState(null);
+  const [isNLPLoading, setIsNLPLoading] = useState(false);
+  
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
@@ -41,6 +47,49 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       ...options,
       headers,
     });
+  };
+
+  // NLP parsing function
+  const handleNLPParse = async () => {
+    if (!node.description) return;
+    
+    setIsNLPLoading(true);
+    try {
+      const nlpServiceUrl = import.meta.env.VITE_NLP_SERVICE_URL || 'http://localhost:3002';
+      const response = await fetch(`${nlpServiceUrl}/api/nlp/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: node.description,
+          language: 'en'
+        }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setNlpAnalysis(result.analysis);
+      } else {
+        console.error('NLP analysis failed:', response.statusText);
+      }
+    } catch (error) {
+      console.error('NLP analysis error:', error);
+    } finally {
+      setIsNLPLoading(false);
+    }
+  };
+
+  // Open NLP modal
+  const openNLPModal = () => {
+    setIsNLPModalOpen(true);
+    setNlpAnalysis(null); // Reset previous analysis
+  };
+
+  // Close NLP modal
+  const closeNLPModal = () => {
+    setIsNLPModalOpen(false);
+    setNlpAnalysis(null);
   };
 
   React.useEffect(() => {
@@ -140,6 +189,15 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       {node.description && (
         <div className="node-description">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{node.description}</ReactMarkdown>
+          {!isPublic && (
+            <button 
+              className="parse-btn-small" 
+              onClick={openNLPModal}
+              title="Analyze text and get graph building suggestions"
+            >
+              🧠 Parse Text
+            </button>
+          )}
         </div>
       )}
       
@@ -151,6 +209,16 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
           {!isPublic && <button className="import-btn" onClick={() => onImportContext(node.id)}>Import Context</button>}
         </div>
       )}
+
+      {/* NLP Parsing Modal */}
+      <NLPParsingModal
+        isOpen={isNLPModalOpen}
+        onClose={closeNLPModal}
+        text={node.description || ''}
+        analysis={nlpAnalysis}
+        isLoading={isNLPLoading}
+        onParse={handleNLPParse}
+      />
     </div>
   );
 }

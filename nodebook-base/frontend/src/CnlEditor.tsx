@@ -1,7 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import type { Monaco } from 'monaco-editor';
+import type { Monaco } from '@monaco-editor/react';
 import type { RelationType, AttributeType, NodeType } from './types';
+import { NLPSidePanel } from './NLPSidePanel';
+import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescriptions } from './utils/cnlProcessor';
+import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
+import './CnlEditor.css';
 
 interface CnlEditorProps {
   value: string;
@@ -17,10 +21,71 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   const monacoRef = useRef<Monaco | null>(null);
   const providerRef = useRef<any>(null);
   
+  // NLP Analysis State
+  const [isNLPPanelOpen, setIsNLPPanelOpen] = useState(false);
+  const [nlpAnalysisResults, setNlpAnalysisResults] = useState<Array<NLPAnalysisResult | NLPAnalysisError>>([]);
+  const [isNLPLoading, setIsNLPLoading] = useState(false);
+  const [nlpError, setNlpError] = useState<string | null>(null);
+  
+
+  
   const schemaRef = useRef({ nodeTypes, relationTypes, attributeTypes });
   useEffect(() => {
     schemaRef.current = { nodeTypes, relationTypes, attributeTypes };
   }, [nodeTypes, relationTypes, attributeTypes]);
+
+  // Handle NLP Analysis
+  const handleNLPParse = async () => {
+    if (!value.trim()) {
+      setNlpError('No CNL text to analyze');
+      return;
+    }
+
+    setIsNLPLoading(true);
+    setNlpError(null);
+    setNlpAnalysisResults([]);
+
+    try {
+      // First, ensure description blocks are present
+      const enhancedCnl = ensureDescriptionBlocks(value);
+      
+      // Debug: Show what we're extracting
+      debugDescriptions(enhancedCnl);
+      
+      // Extract descriptions for analysis
+      const descriptions = extractDescriptionsForAnalysis(enhancedCnl);
+      
+      if (descriptions.length === 0) {
+        setNlpError('No descriptions found in the CNL text. Please add description blocks to your nodes.');
+        setIsNLPLoading(false);
+        return;
+      }
+
+      // Analyze all descriptions
+      const analysisResult = await analyzeMultipleTexts(descriptions);
+      
+      if (analysisResult.results.length > 0) {
+        // Store all analysis results
+        setNlpAnalysisResults(analysisResult.results);
+        setIsNLPPanelOpen(true);
+      } else {
+        setNlpError('Failed to analyze the text. Please try again.');
+      }
+    } catch (error) {
+      setNlpError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsNLPLoading(false);
+    }
+  };
+
+  // Auto-insert description blocks when needed
+  const handleAutoInsertDescriptions = () => {
+    const enhancedCnl = ensureDescriptionBlocks(value);
+    
+    if (enhancedCnl !== value) {
+      onChange(enhancedCnl);
+    }
+  };
 
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     monacoRef.current = monaco;
@@ -28,7 +93,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
       onSubmit();
     });
 
-    if (!monaco.languages.getLanguages().some(lang => lang.id === 'cnl')) {
+    if (!monaco.languages.getLanguages().some((lang: any) => lang.id === 'cnl')) {
       monaco.languages.register({ id: 'cnl' });
 
       monaco.languages.setMonarchTokensProvider('cnl', {
@@ -69,7 +134,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
 
     if (!providerRef.current) {
       providerRef.current = monaco.languages.registerCompletionItemProvider('cnl', {
-        provideCompletionItems: (model, position) => {
+        provideCompletionItems: (model: any, position: any) => {
           const { nodeTypes, relationTypes, attributeTypes } = schemaRef.current;
           const textUntilPosition = model.getValueInRange({
             startLineNumber: 1,
@@ -134,24 +199,86 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   };
 
   return (
-    <Editor
-      height="calc(80vh - 48px)"
-      language="cnl"
-      theme="cnlTheme"
-      value={value}
-      onChange={(val) => onChange(val || '')}
-      onMount={handleEditorDidMount}
-      options={{
-        minimap: { enabled: false },
-        fontSize: 14,
-        wordWrap: 'on',
-        lineNumbers: 'off',
-        glyphMargin: false,
-        folding: false,
-        lineDecorationsWidth: 0,
-        lineNumbersMinChars: 0,
-        readOnly: disabled,
-      }}
-    />
+    <div className="cnl-editor-container">
+      {/* Editor Toolbar */}
+      <div className="cnl-editor-toolbar">
+        <div className="toolbar-left">
+          <button 
+            className="toolbar-btn auto-insert-btn"
+            onClick={handleAutoInsertDescriptions}
+            title="Automatically insert description blocks for nodes that don't have them"
+          >
+            📝 Auto-Insert Descriptions
+          </button>
+        </div>
+        
+        <div className="toolbar-right">
+          <button 
+            className="toolbar-btn parse-btn"
+            onClick={handleNLPParse}
+            disabled={disabled || isNLPLoading || !value.trim()}
+            title="Analyze description blocks with NLP to help build your graph"
+          >
+            {isNLPLoading ? '🔍 Analyzing...' : '🧠 Parse Descriptions'}
+          </button>
+          
+          <button 
+            className="toolbar-btn submit-btn"
+            onClick={onSubmit}
+            disabled={disabled}
+            title="Submit CNL to build graph (Ctrl+Enter)"
+          >
+            🚀 Submit to Build Graph
+          </button>
+        </div>
+      </div>
+
+      {/* Monaco Editor */}
+      <div className="cnl-editor-main">
+        <Editor
+          height="100%"
+          language="cnl"
+          theme="cnlTheme"
+          value={value}
+          onChange={(val) => onChange(val || '')}
+          onMount={handleEditorDidMount}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            wordWrap: 'on',
+            lineNumbers: 'off',
+            glyphMargin: false,
+            folding: false,
+            lineDecorationsWidth: 0,
+            lineNumbersMinChars: 0,
+            readOnly: disabled,
+          }}
+        />
+      </div>
+
+      {/* NLP Side Panel */}
+      <NLPSidePanel
+        isOpen={isNLPPanelOpen}
+        onClose={() => setIsNLPPanelOpen(false)}
+        analysisResults={nlpAnalysisResults}
+        isLoading={isNLPLoading}
+      />
+      
+
+
+      {/* Error Display */}
+      {nlpError && (
+        <div className="nlp-error-banner">
+          <span className="error-icon">⚠️</span>
+          <span className="error-message">{nlpError}</span>
+          <button 
+            className="error-close-btn"
+            onClick={() => setNlpError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -43,6 +43,21 @@ services:
       - nodebook-dev-net
     restart: unless-stopped
 
+  # NLP service for text analysis and graph suggestions
+  nlp-service:
+    build:
+      context: ./nlp-service
+      dockerfile: Dockerfile
+    container_name: nodebook-nlp-service-dev
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    networks:
+      - nodebook-dev-net
+    restart: unless-stopped
+
   # Frontend service with PWA development
   frontend:
     build:
@@ -59,6 +74,7 @@ services:
     environment:
       - VITE_API_TARGET=http://backend:3000
       - VITE_MEDIA_BACKEND_URL=http://localhost:3001
+      - VITE_NLP_SERVICE_URL=http://localhost:3002
       - VITE_DEV_MODE=true
     networks:
       - nodebook-dev-net
