@@ -117,7 +117,7 @@ def generate_intelligent_fallback(term: str) -> WordNetDefinition:
     # Generic fallback
     return WordNetDefinition(
         id=1,
-        text=f"{term} is a term that wasn't found in WordNet. Consider providing a specific definition based on your domain knowledge or context.",
+        text=f"WordNet doesn't seem to have anything about '{term}'. It is possibly a technical term specific to a domain. Please search online and paste that text manually to continue graph making.",
         type="unknown",
         confidence=0.1,
         source="fallback"
@@ -149,6 +149,32 @@ def try_alternative_lookups(term: str) -> List[WordNetDefinition]:
                         source="wordnet_variant"
                     ))
                 break
+    
+    # Try with underscore format for compound terms (if term contains spaces)
+    if not definitions and ' ' in term:
+        underscore_term = term.replace(' ', '_')
+        logger.info(f"🔄 Trying underscore format: '{underscore_term}'")
+        
+        synsets = []
+        if WORDNET_AVAILABLE:
+            try:
+                synsets = nltk.corpus.wordnet.synsets(underscore_term)
+            except Exception as e:
+                logger.warning(f"⚠️ Error accessing WordNet for '{underscore_term}': {e}")
+        
+        if synsets:
+            for i, synset in enumerate(synsets[:2]):
+                definitions.append(WordNetDefinition(
+                    id=len(definitions) + 1,
+                    text=f"{synset.definition()} (found via underscore format '{underscore_term}')",
+                    type="concept",
+                    confidence=0.7 - (i * 0.1),
+                    synset=str(synset.offset()),
+                    examples=synset.examples(),
+                    synonyms=[lemma.name() for lemma in synset.lemmas()],
+                    source="wordnet_underscore"
+                ))
+            logger.info(f"✅ Found {len(synsets)} definitions using underscore format")
     
     # Try to find related terms that might help
     if not definitions and WORDNET_AVAILABLE:

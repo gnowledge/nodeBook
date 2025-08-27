@@ -89,12 +89,13 @@ export function WordNetDefinitionsPanel({
   const getSourceBadge = (source: string | undefined): React.ReactNode => {
     if (!source) return null;
     
-    const sourceColors: Record<string, { color: string; icon: string; label: string }> = {
-      'wordnet': { color: '#3b82f6', icon: '📚', label: 'WordNet' },
-      'wordnet_variant': { color: '#8b5cf6', icon: '🔄', label: 'WordNet Variant' },
-      'related_terms': { color: '#10b981', icon: '🔗', label: 'Related Terms' },
-      'fallback': { color: '#f59e0b', icon: '⚠️', label: 'Fallback' }
-    };
+            const sourceColors: Record<string, { color: string; icon: string; label: string }> = {
+          'wordnet': { color: '#3b82f6', icon: '📚', label: 'WordNet' },
+          'wordnet_variant': { color: '#8b5cf6', icon: '🔄', label: 'WordNet Variant' },
+          'wordnet_underscore': { color: '#06b6d4', icon: '🔗', label: 'WordNet Compound' },
+          'related_terms': { color: '#10b981', icon: '🔗', label: 'Related Terms' },
+          'fallback': { color: '#f59e0b', icon: '⚠️', label: 'Fallback' }
+        };
     
     const sourceInfo = sourceColors[source] || { color: '#6b7280', icon: '❓', label: source };
     
