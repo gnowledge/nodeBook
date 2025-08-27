@@ -56,26 +56,45 @@ validate_environment() {
   print_status "Validating environment configuration..."
   
   # Check for both possible names
+  print_status "Current working directory: $(pwd)"
+  print_status "Looking for environment files..."
+  
   if [ -f ".env.production" ]; then
     ENV_FILE=".env.production"
+    print_status "Found .env.production"
   elif [ -f "env.production" ]; then
     ENV_FILE="env.production"
+    print_status "Found env.production"
   else
-    print_error "Environment file not found. Please create either .env.production or env.production"
+    print_error "Environment file not found in current directory"
+    print_error "Files in current directory:"
+    ls -la | grep -E "(env|\.env)" || print_error "No env files found"
+    print_error "Please create either .env.production or env.production"
     print_error "Recommended: cp env.production .env.production"
     exit 1
   fi
   
   print_status "Using environment file: $ENV_FILE"
+  print_status "File contents preview:"
+  head -5 "$ENV_FILE" | while read line; do
+    print_status "  $line"
+  done
   
   # Source the environment file
   source "$ENV_FILE"
+  
+  # Debug: Show what was loaded
+  print_status "Debug: Environment variables loaded:"
+  print_status "DOMAIN='$DOMAIN'"
+  print_status "EMAIL='$EMAIL'"
+  print_status "JWT_SECRET='$JWT_SECRET'"
     
-        # Check required variables
-    if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "your-domain.com" ]; then
-      print_error "Please set a valid DOMAIN in $ENV_FILE"
-      exit 1
-    fi
+  # Check required variables
+  if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "your-domain.com" ]; then
+    print_error "Please set a valid DOMAIN in $ENV_FILE"
+    print_error "Current DOMAIN value: '$DOMAIN'"
+    exit 1
+  fi
     
     if [ -z "$EMAIL" ] || [ "$EMAIL" = "your-email@domain.com" ]; then
       print_error "Please set a valid EMAIL in $ENV_FILE"
