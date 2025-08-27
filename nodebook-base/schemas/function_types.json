@@ -9,14 +9,14 @@
   },
   {
     "name": "distance",
-    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2))",
+    "expression": "let position_1 be ($\"position x\", \"position y\", \"position z\"$); let position_2 be ($\"previous position x\", \"previous position y\", \"previous position z\"$); let delta_x be \"position x\" - \"previous position x\"; let delta_y be \"position y\" - \"previous position y\"; let delta_z be \"position z\" - \"previous position z\"; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
     "scope": [
       "Object",
       "Particle",
       "Vehicle",
       "class"
     ],
-    "description": "Calculates Euclidean distance between two 3D positions",
+    "description": "Calculates Euclidean distance between two 3D positions using vector notation",
     "required_attributes": [
       "position x",
       "position y",
@@ -28,14 +28,14 @@
   },
   {
     "name": "displacement",
-    "expression": "sqrt(power(\"position x\" - \"initial position x\", 2) + power(\"position y\" - \"initial position y\", 2) + power(\"position z\" - \"initial position z\", 2))",
+    "expression": "let position_current be ($\"position x\", \"position y\", \"position z\"$); let position_initial be ($\"initial position x\", \"initial position y\", \"initial position z\"$); let delta_x be \"position x\" - \"initial position x\"; let delta_y be \"position y\" - \"initial position y\"; let delta_z be \"position z\" - \"initial position z\"; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
     "scope": [
       "Object",
       "Particle",
       "Vehicle",
       "class"
     ],
-    "description": "Calculates displacement from initial position to current position",
+    "description": "Calculates displacement from initial position to current position using vector notation",
     "required_attributes": [
       "position x",
       "position y",
@@ -47,14 +47,14 @@
   },
   {
     "name": "speed",
-    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\")",
+    "expression": "let distance be sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)); let delta_t be \"time\" - \"previous time\"; distance / delta_t",
     "scope": [
       "Object",
       "Particle",
       "Vehicle",
       "class"
     ],
-    "description": "Calculates speed (distance traveled over time)",
+    "description": "Calculates speed (distance traveled over time) using intermediate variables",
     "required_attributes": [
       "position x",
       "position y",
@@ -68,35 +68,35 @@
   },
   {
     "name": "velocity_magnitude",
-    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\")",
+    "expression": "let displacement be sqrt(power(\"position x\" - \"initial position x\", 2) + power(\"position y\" - \"initial position y\", 2) + power(\"position z\" - \"initial position z\", 2)); let delta_t be \"time\" - \"previous time\"; displacement / delta_t",
     "scope": [
       "Object",
       "Particle",
       "Vehicle",
       "class"
     ],
-    "description": "Calculates velocity magnitude (displacement over time)",
+    "description": "Calculates velocity magnitude (displacement over time) using intermediate variables",
     "required_attributes": [
       "position x",
       "position y",
       "position z",
-      "previous position x",
-      "previous position y",
-      "previous position z",
+      "initial position x",
+      "initial position y",
+      "initial position z",
       "time",
       "previous time"
     ]
   },
   {
     "name": "acceleration",
-    "expression": "(sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\") - sqrt(power(\"previous position x\" - \"previous previous position x\", 2) + power(\"previous position y\" - \"previous previous position y\", 2) + power(\"previous position z\" - \"previous previous position z\", 2)) / (\"previous time\" - \"previous previous time\")) / (\"time\" - \"previous time\")",
+    "expression": "let velocity_1 be sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\"); let velocity_2 be sqrt(power(\"previous position x\" - \"previous previous position x\", 2) + power(\"previous position y\" - \"previous previous position y\", 2) + power(\"previous position z\" - \"previous previous position z\", 2)) / (\"previous time\" - \"previous previous time\"); let delta_v be velocity_1 - velocity_2; let delta_t be \"time\" - \"previous time\"; delta_v / delta_t",
     "scope": [
       "Object",
       "Particle",
       "Vehicle",
       "class"
     ],
-    "description": "Calculates acceleration (change in velocity over time)",
+    "description": "Calculates acceleration (change in velocity over time) using intermediate variables",
     "required_attributes": [
       "position x",
       "position y",

@@ -43,6 +43,22 @@ NodeBook now supports advanced physics calculations through derived functions. T
 - **Square Root**: `sqrt(value)` - e.g., `sqrt(25)` for √25
 - **Absolute Value**: `abs(value)` - e.g., `abs(-5)` for |5|
 
+### Let Statement Syntax
+
+NodeBook supports a powerful `let` statement syntax that makes functions more readable and educational:
+
+```
+let position_1 be ($x_1, y_1, z_1$);
+let delta_x be "position x" - "previous position x";
+let distance be sqrt(power(delta_x, 2) + power(delta_y, 2));
+```
+
+This syntax:
+- Makes functions self-documenting
+- Teaches proper mathematical notation
+- Supports LaTeX rendering for beautiful math
+- Uses intermediate variables for clarity
+
 ### Example Usage
 
 ```

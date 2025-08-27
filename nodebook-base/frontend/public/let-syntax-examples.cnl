@@ -1,0 +1,84 @@
+# Let Statement Syntax Examples
+# This file demonstrates the powerful let statement syntax in NodeBook functions
+
+# Example 1: Simple Variable Assignment
+Object "SimpleExample" {
+  has "value" = 10
+  has "multiplier" = 3
+  
+  # Using let statements to make calculations clear
+  let result be "value" * "multiplier";
+  let doubled be result * 2;
+  
+  calculate "result"
+  calculate "doubled"
+}
+
+# Example 2: Vector Notation with LaTeX
+Particle "VectorExample" {
+  has "x" = 5.0
+  has "y" = 3.0
+  has "z" = 1.0
+  
+  # Define vectors using LaTeX notation
+  let position be ($"x", "y", "z"$);
+  let magnitude be sqrt(power("x", 2) + power("y", 2) + power("z", 2));
+  
+  calculate "magnitude"
+}
+
+# Example 3: Physics Calculation with Intermediate Steps
+Car "PhysicsExample" {
+  has "mass" = 1000.0
+  has "velocity" = 20.0
+  
+  # Break down kinetic energy calculation
+  let velocity_squared be power("velocity", 2);
+  let kinetic_energy be 0.5 * "mass" * velocity_squared;
+  
+  calculate "kinetic_energy"
+}
+
+# Example 4: Complex Mathematical Expression
+Ball "MathExample" {
+  has "radius" = 5.0
+  has "height" = 10.0
+  
+  # Calculate volume of a cylinder step by step
+  let radius_squared be power("radius", 2);
+  let area be 3.14159 * radius_squared;
+  let volume be area * "height";
+  
+  calculate "volume"
+}
+
+# Example 5: Multiple Intermediate Variables
+Rocket "ComplexExample" {
+  has "initial_velocity" = 0.0
+  has "final_velocity" = 100.0
+  has "time" = 10.0
+  
+  # Calculate acceleration with clear steps
+  let delta_v be "final_velocity" - "initial_velocity";
+  let acceleration be delta_v / "time";
+  let distance be 0.5 * acceleration * power("time", 2);
+  
+  calculate "acceleration"
+  calculate "distance"
+}
+
+# Instructions for Students:
+# 1. Load this file to see let statement examples
+# 2. Notice how each calculation is broken into clear steps
+# 3. See how variables are reused in subsequent calculations
+# 4. Observe the LaTeX notation for vectors
+# 5. Try modifying the values and see how results change
+# 6. Create your own functions using this syntax
+
+# Benefits of Let Statement Syntax:
+# - Functions are self-documenting
+# - Easy to debug and modify
+# - Teaches proper mathematical notation
+# - Supports LaTeX rendering
+# - Makes complex calculations accessible
+# - Perfect for educational use
