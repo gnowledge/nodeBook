@@ -299,3 +299,48 @@
     font-size: 1.1em;
   }
 }
+
+/* Visualization Wrapper and Node Card */
+.visualizationWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.selectedNodeCard {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 400px;
+  max-height: calc(100vh - 200px);
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+}
+
+.selectedNodeCard:hover {
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive adjustments for node card */
+@media (max-width: 1200px) {
+  .selectedNodeCard {
+    width: 350px;
+    right: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .selectedNodeCard {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    margin: 10px;
+    max-height: 300px;
+  }
+}

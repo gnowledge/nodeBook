@@ -10,7 +10,7 @@ import trashIcon from './assets/trash_icon.png';
 import styles from './App.module.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
-import { NodeCardModal } from './NodeCardModal';
+
 import { GraphSwitcher } from './GraphSwitcher';
 import { Menu } from './Menu';
 import { DataView } from './DataView';
@@ -350,19 +350,24 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       </div>
                     )}
                     {viewMode === 'visualization' && (
-                      <>
+                      <div className={styles.visualizationWrapper}>
                         <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />
                         {selectedNode && (
-                          <NodeCardModal
-                            node={selectedNode}
-                            allNodes={nodes}
-                            allRelations={relations}
-                            attributes={attributeTypes}
-                            onClose={() => setSelectedNodeId(null)}
-                            nodeRegistry={nodeRegistry}
-                          />
+                          <div className={styles.selectedNodeCard}>
+                            <NodeCard
+                              node={selectedNode}
+                              allNodes={nodes}
+                              allRelations={relations}
+                              attributes={attributeTypes}
+                              isActive={false}
+                              onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
+                              onImportContext={(nodeId) => console.log('Import context:', nodeId)}
+                              nodeRegistry={{}}
+                              isPublic={false}
+                            />
+                          </div>
                         )}
-                      </>
+                      </div>
                     )}
                     {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
                     {viewMode === 'nodes' && <DataView 
