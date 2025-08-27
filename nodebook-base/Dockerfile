@@ -25,17 +25,25 @@ RUN apk add --no-cache \
 # Set working directory
 WORKDIR /app
 
+# Set environment for native module compilation
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV npm_config_build_from_source=true
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies with native module support
 RUN npm install --omit=dev
 
 # Copy source code
 COPY . .
 
-# Rebuild native modules for the current platform
-RUN npm rebuild
+# Force rebuild of problematic native modules
+RUN npm rebuild sodium-native || npm install sodium-native --build-from-source
+RUN npm rebuild hyperswarm || npm install hyperswarm --build-from-source
+RUN npm rebuild hypercore || npm install hypercore --build-from-source
+RUN npm rebuild hyperdrive || npm install hyperdrive --build-from-source
+RUN npm rebuild hyperbee || npm install hyperbee --build-from-source
 
 # Build frontend
 WORKDIR /app/frontend
