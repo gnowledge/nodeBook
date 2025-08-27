@@ -14,7 +14,8 @@ RUN apk add --no-cache \
     pixman-dev \
     pangomm-dev \
     libjpeg-turbo-dev \
-    freetype-dev
+    freetype-dev \
+    curl
 
 # Set working directory
 WORKDIR /app
@@ -23,7 +24,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --omit=dev
+RUN npm install --omit=dev --build-from-source
 
 # Copy source code
 COPY . .

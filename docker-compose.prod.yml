@@ -18,6 +18,7 @@ services:
       - SMTP_SECURE=${SMTP_SECURE}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - nodebook-data:/app/nodebook-base/user_data
       - ./nodebook-base/schemas:/app/nodebook-base/schemas
@@ -103,10 +104,14 @@ services:
       - certbot-var:/var/lib/letsencrypt
       - nginx-logs:/var/log/nginx
     depends_on:
-      - nodebook-base
-      - wordnet-service
-      - nlp-service
-      - media-backend
+      nodebook-base:
+        condition: service_healthy
+      wordnet-service:
+        condition: service_healthy
+      nlp-service:
+        condition: service_healthy
+      media-backend:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - app-network
