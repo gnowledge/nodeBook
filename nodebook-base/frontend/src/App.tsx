@@ -10,6 +10,7 @@ import trashIcon from './assets/trash_icon.png';
 import styles from './App.module.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
+import { SlideShow } from './SlideShow';
 
 import { GraphSwitcher } from './GraphSwitcher';
 import { Menu } from './Menu';
@@ -28,7 +29,7 @@ import { calculateGraphScore } from './utils/graphScoring';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 import { API_BASE_URL } from './api-config';
 
-type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media' | 'score';
+type ViewMode = 'editor' | 'visualization' | 'slideshow' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media' | 'score';
 
 interface AppProps {
   onLogout?: () => void;
@@ -307,6 +308,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     <button className={`${styles.tabButton} ${viewMode === 'visualization' ? styles.active : ''}`} onClick={() => setViewMode('visualization')} title="Graph">
                       <img src={visualizationIcon} alt="Graph" className={styles.tabButtonIcon} />
                     </button>
+                    <button className={`${styles.tabButton} ${viewMode === 'slideshow' ? styles.active : ''}`} onClick={() => setViewMode('slideshow')} title="SlideShow">
+                      <span className={styles.slideshowIcon}>🎬</span>
+                    </button>
                     <button className={`${styles.tabButton} ${viewMode === 'schema' ? styles.active : ''}`} onClick={() => setViewMode('schema')} title="Schema">
                       <span className={styles.schemaIcon}>
                         <img src={schemaIcon} alt="Schema" className={styles.schemaIconImg} />
@@ -368,6 +372,14 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           </div>
                         )}
                       </div>
+                    )}
+                    {viewMode === 'slideshow' && (
+                      <SlideShow
+                        nodes={nodes}
+                        relations={relations}
+                        attributes={attributeTypes}
+                        cnlText={cnlText[activeGraphId] || ''}
+                      />
                     )}
                     {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
                     {viewMode === 'nodes' && <DataView 

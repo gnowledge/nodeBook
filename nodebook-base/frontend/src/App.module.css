@@ -298,6 +298,15 @@
   .jsonIcon {
     font-size: 1.1em;
   }
+  
+  .slideshowIcon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+  }
 }
 
 /* Visualization Wrapper and Node Card */
