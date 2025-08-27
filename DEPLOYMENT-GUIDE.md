@@ -27,12 +27,12 @@ The production deployment includes:
 ### Software Installation
 ```bash
 # Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+#curl -fsSL https://get.docker.com -o get-docker.sh
+#sudo sh get-docker.sh
 
 # Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+#sudo curl -L "https://github.com/docker/compose/releases/download/v2.#20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/#docker-compose
+#sudo chmod +x /usr/local/bin/docker-compose
 
 # Install OpenSSL
 sudo apt update
@@ -43,8 +43,11 @@ sudo apt install openssl
 
 ### 1. Clone and Setup
 ```bash
-git clone <your-repo>
+git clone https://github.com/gnowledge/nodeBook.git
 cd nodeBook
+
+# Switch to the production branch
+git checkout federated-releases
 ```
 
 ### 2. Configure Environment
@@ -52,6 +55,8 @@ cd nodeBook
 # Copy and edit the production environment file
 cp env.production .env.production
 nano .env.production
+
+# Note: The script will automatically detect either env.production or .env.production
 ```
 
 **Required changes in `.env.production`:**
@@ -76,6 +81,11 @@ The script will:
 ## 🔧 Manual Deployment Steps
 
 If you prefer manual deployment or need to troubleshoot:
+
+**⚠️ Important**: Make sure you're on the `federated-releases` branch before proceeding:
+```bash
+git checkout federated-releases
+```
 
 ### 1. Create Directories
 ```bash
@@ -234,6 +244,21 @@ chmod +x backup.sh
 
 ### Common Issues
 
+#### Wrong Branch or Missing Files
+```bash
+# Check current branch
+git branch
+
+# Switch to correct branch
+git checkout federated-releases
+
+# Verify production files exist
+ls -la docker-compose.prod.yml init-production.sh nginx/conf.d/production.conf
+
+# If files are missing, pull latest
+git pull origin federated-releases
+```
+
 #### SSL Certificate Issues
 ```bash
 # Check certificate status
@@ -308,6 +333,63 @@ docker-compose -f docker-compose.prod.yml up -d --scale wordnet-service=3
 docker-compose -f docker-compose.prod.yml up -d --scale nlp-service=2
 ```
 
+## 📍 Volume Mount Points and Data Storage
+
+### **Service Volume Mapping**
+
+| Service | Volume Name | Container Path | Host Path | Purpose |
+|---------|-------------|----------------|-----------|---------|
+| **nodebook-base** | `nodebook-data` | `/app/nodebook-base/user_data` | `/var/lib/docker/volumes/nodebook_nodebook-data/_data` | User graphs, auth data, user files |
+| **wordnet-service** | `wordnet-data` | `/app/data` | `/var/lib/docker/volumes/nodebook_wordnet-data/_data` | WordNet service cache and data |
+| **nlp-service** | `nlp-data` | `/app/data` | `/var/lib/docker/volumes/nodebook_nlp-data/_data` | NLP parsing service data and models |
+| **media-backend** | `media-data` | `/app/media-data` | `/var/lib/docker/volumes/nodebook_media-data/_data` | Uploaded media files, images, documents |
+| **nginx** | `nginx-logs` | `/var/log/nginx` | `/var/lib/docker/volumes/nodebook_nginx-logs/_data` | Nginx access and error logs |
+| **certbot** | `certbot-etc` | `/etc/letsencrypt` | `/var/lib/docker/volumes/nodebook_certbot-etc/_data` | SSL certificates and configuration |
+| **redis** | `redis-data` | `/data` | `/var/lib/docker/volumes/nodebook_redis-data/_data` | Session data and caching |
+
+### **Volume Inspection Commands**
+
+```bash
+# List all volumes
+docker volume ls
+
+# Inspect specific volume
+docker volume inspect nodebook_nodebook-data
+
+# See actual host path
+docker volume inspect nodebook_nodebook-data | grep Mountpoint
+
+# Check volume usage
+docker system df -v
+```
+
+### **Data Persistence**
+
+All volumes use the **local driver**, ensuring data persists on your server's local filesystem:
+
+- **User Data**: Graphs, authentication databases, user preferences
+- **Service Data**: WordNet cache, NLP models, media uploads
+- **System Data**: SSL certificates, logs, Redis sessions
+- **Backup Data**: All volumes are included in backup operations
+
+### **Volume Management**
+
+```bash
+# Create volume manually (if needed)
+docker volume create nodebook_nodebook-data
+
+# Remove volume (WARNING: destroys all data)
+docker volume rm nodebook_nodebook-data
+
+# Backup specific volume
+docker run --rm -v nodebook_nodebook-data:/data -v /backup:/backup \
+  alpine tar czf /backup/nodebook-data.tar.gz -C /data .
+
+# Restore specific volume
+docker run --rm -v nodebook_nodebook-data:/data -v /backup:/backup \
+  alpine tar xzf /backup/nodebook-data.tar.gz -C /data
+```
+
 ## 📚 Additional Resources
 
 - [Docker Documentation](https://docs.docker.com/)
@@ -318,11 +400,12 @@ docker-compose -f docker-compose.prod.yml up -d --scale nlp-service=2
 ## 🆘 Support
 
 For deployment issues:
-1. Check the troubleshooting section above
-2. Review service logs
-3. Verify configuration files
-4. Check system resources (CPU, memory, disk)
-5. Ensure firewall rules allow necessary traffic
+1. **Verify you're on the correct branch**: `git checkout federated-releases`
+2. Check the troubleshooting section above
+3. Review service logs
+4. Verify configuration files
+5. Check system resources (CPU, memory, disk)
+6. Ensure firewall rules allow necessary traffic
 
 ---
 

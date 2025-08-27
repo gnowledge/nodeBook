@@ -53,30 +53,38 @@ check_requirements() {
 
 # Validate environment configuration
 validate_environment() {
-    print_status "Validating environment configuration..."
+  print_status "Validating environment configuration..."
+  
+  # Check for both possible names
+  if [ -f ".env.production" ]; then
+    ENV_FILE=".env.production"
+  elif [ -f "env.production" ]; then
+    ENV_FILE="env.production"
+  else
+    print_error "Environment file not found. Please create either .env.production or env.production"
+    print_error "Recommended: cp env.production .env.production"
+    exit 1
+  fi
+  
+  print_status "Using environment file: $ENV_FILE"
+  
+  # Source the environment file
+  source "$ENV_FILE"
     
-    if [ ! -f "env.production" ]; then
-        print_error "env.production file not found. Please create it first."
-        exit 1
-    fi
-    
-    # Source the environment file
-    source env.production
-    
-    # Check required variables
+        # Check required variables
     if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "your-domain.com" ]; then
-        print_error "Please set a valid DOMAIN in env.production"
-        exit 1
+      print_error "Please set a valid DOMAIN in $ENV_FILE"
+      exit 1
     fi
     
     if [ -z "$EMAIL" ] || [ "$EMAIL" = "your-email@domain.com" ]; then
-        print_error "Please set a valid EMAIL in env.production"
-        exit 1
+      print_error "Please set a valid EMAIL in $ENV_FILE"
+      exit 1
     fi
     
     if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your-super-secret-jwt-key-change-this-in-production" ]; then
-        print_error "Please set a secure JWT_SECRET in env.production"
-        exit 1
+      print_error "Please set a secure JWT_SECRET in $ENV_FILE"
+      exit 1
     fi
     
     print_success "Environment configuration is valid."
