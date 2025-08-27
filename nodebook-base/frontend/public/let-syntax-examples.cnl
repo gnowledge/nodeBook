@@ -14,15 +14,17 @@ Object "SimpleExample" {
   calculate "doubled"
 }
 
-# Example 2: Vector Notation with LaTeX
+# Example 2: Variable Definition with LaTeX
 Particle "VectorExample" {
   has "x" = 5.0
   has "y" = 3.0
   has "z" = 1.0
   
-  # Define vectors using LaTeX notation
-  let position be ($"x", "y", "z"$);
-  let magnitude be sqrt(power("x", 2) + power("y", 2) + power("z", 2));
+  # Define variables using LaTeX notation
+  let $x$ be "x";
+  let $y$ be "y";
+  let $z$ be "z";
+  let magnitude be sqrt(power($x$, 2) + power($y$, 2) + power($z$, 2));
   
   calculate "magnitude"
 }
@@ -33,8 +35,10 @@ Car "PhysicsExample" {
   has "velocity" = 20.0
   
   # Break down kinetic energy calculation
-  let velocity_squared be power("velocity", 2);
-  let kinetic_energy be 0.5 * "mass" * velocity_squared;
+  let $m$ be "mass";
+  let $v$ be "velocity";
+  let velocity_squared be power($v$, 2);
+  let kinetic_energy be 0.5 * $m$ * velocity_squared;
   
   calculate "kinetic_energy"
 }

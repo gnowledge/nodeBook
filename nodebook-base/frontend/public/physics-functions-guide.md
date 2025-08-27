@@ -17,11 +17,15 @@ NodeBook now supports advanced physics calculations through derived functions. T
 
 **Function Expression**:
 ```
-let position_1 be ($"position x", "position y", "position z"$);
-let position_2 be ($"previous position x", "previous position y", "previous position z"$);
-let delta_x be "position x" - "previous position x";
-let delta_y be "position y" - "previous position y";
-let delta_z be "position z" - "previous position z";
+let $x_1$ be "position x";
+let $y_1$ be "position y";
+let $z_1$ be "position z";
+let $x_2$ be "previous position x";
+let $y_2$ be "previous position y";
+let $z_2$ be "previous position z";
+let delta_x be $x_1$ - $x_2$;
+let delta_y be $y_1$ - $y_2$;
+let delta_z be $z_1$ - $z_2$;
 sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))
 ```
 
@@ -37,11 +41,15 @@ sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))
 
 **Function Expression**:
 ```
-let position_current be ($"position x", "position y", "position z"$);
-let position_initial be ($"initial position x", "initial position y", "initial position z"$);
-let delta_x be "position x" - "initial position x";
-let delta_y be "position y" - "initial position y";
-let delta_z be "position z" - "initial position z";
+let $x$ be "position x";
+let $y$ be "position y";
+let $z$ be "position z";
+let $x_0$ be "initial position x";
+let $y_0$ be "initial position y";
+let $z_0$ be "initial position z";
+let delta_x be $x$ - $x_0$;
+let delta_y be $y$ - $y_0$;
+let delta_z be $z$ - $z_0$;
 sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))
 ```
 
@@ -118,16 +126,17 @@ NodeBook supports a powerful `let` statement syntax that makes functions more re
 let variable_name be expression;
 ```
 
-### Vector Notation with LaTeX
+### Variable Definition with LaTeX
 ```
-let position_1 be ($x_1, y_1, z_1$);
-let position_2 be ($x_2, y_2, z_2$);
+let $x_1$ be "position x";
+let $y_1$ be "position y";
+let $z_1$ be "position z";
 ```
 
 ### Intermediate Variables
 ```
-let delta_x be "position x" - "previous position x";
-let delta_t be "time" - "previous time";
+let delta_x be $x_1$ - $x_2$;
+let delta_t be $t_1$ - $t_2$;
 ```
 
 ### Multiple Let Statements

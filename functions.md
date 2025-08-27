@@ -48,8 +48,9 @@ NodeBook now supports advanced physics calculations through derived functions. T
 NodeBook supports a powerful `let` statement syntax that makes functions more readable and educational:
 
 ```
-let position_1 be ($x_1, y_1, z_1$);
-let delta_x be "position x" - "previous position x";
+let $x_1$ be "position x";
+let $y_1$ be "position y";
+let delta_x be $x_1$ - $x_2$;
 let distance be sqrt(power(delta_x, 2) + power(delta_y, 2));
 ```
 

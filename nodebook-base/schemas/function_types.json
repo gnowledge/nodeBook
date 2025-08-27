@@ -9,7 +9,7 @@
   },
   {
     "name": "distance",
-    "expression": "let position_1 be ($\"position x\", \"position y\", \"position z\"$); let position_2 be ($\"previous position x\", \"previous position y\", \"previous position z\"$); let delta_x be \"position x\" - \"previous position x\"; let delta_y be \"position y\" - \"previous position y\"; let delta_z be \"position z\" - \"previous position z\"; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
+    "expression": "let $x_1$ be \"position x\"; let $y_1$ be \"position y\"; let $z_1$ be \"position z\"; let $x_2$ be \"previous position x\"; let $y_2$ be \"previous position y\"; let $z_2$ be \"previous position z\"; let delta_x be $x_1$ - $x_2$; let delta_y be $y_1$ - $y_2$; let delta_z be $z_1$ - $z_2$; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
     "scope": [
       "Object",
       "Particle",
@@ -28,7 +28,7 @@
   },
   {
     "name": "displacement",
-    "expression": "let position_current be ($\"position x\", \"position y\", \"position z\"$); let position_initial be ($\"initial position x\", \"initial position y\", \"initial position z\"$); let delta_x be \"position x\" - \"initial position x\"; let delta_y be \"position y\" - \"initial position y\"; let delta_z be \"position z\" - \"initial position z\"; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
+    "expression": "let $x$ be \"position x\"; let $y$ be \"position y\"; let $z$ be \"position z\"; let $x_0$ be \"initial position x\"; let $y_0$ be \"initial position y\"; let $z_0$ be \"initial position z\"; let delta_x be $x$ - $x_0$; let delta_y be $y$ - $y_0$; let delta_z be $z$ - $z_0$; sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2))",
     "scope": [
       "Object",
       "Particle",
@@ -47,7 +47,7 @@
   },
   {
     "name": "speed",
-    "expression": "let distance be sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)); let delta_t be \"time\" - \"previous time\"; distance / delta_t",
+    "expression": "let $x_1$ be \"position x\"; let $y_1$ be \"position y\"; let $z_1$ be \"position z\"; let $x_2$ be \"previous position x\"; let $y_2$ be \"previous position y\"; let $z_2$ be \"previous position z\"; let $t_1$ be \"time\"; let $t_2$ be \"previous time\"; let delta_x be $x_1$ - $x_2$; let delta_y be $y_1$ - $y_2$; let delta_z be $z_1$ - $z_2$; let distance be sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2)); let delta_t be $t_1$ - $t_2$; distance / delta_t",
     "scope": [
       "Object",
       "Particle",
@@ -68,7 +68,7 @@
   },
   {
     "name": "velocity_magnitude",
-    "expression": "let displacement be sqrt(power(\"position x\" - \"initial position x\", 2) + power(\"position y\" - \"initial position y\", 2) + power(\"position z\" - \"initial position z\", 2)); let delta_t be \"time\" - \"previous time\"; displacement / delta_t",
+    "expression": "let $x$ be \"position x\"; let $y$ be \"position y\"; let $z$ be \"position z\"; let $x_0$ be \"initial position x\"; let $y_0$ be \"initial position y\"; let $z_0$ be \"initial position z\"; let $t_1$ be \"time\"; let $t_2$ be \"previous time\"; let delta_x be $x$ - $x_0$; let delta_y be $y$ - $y_0$; let delta_z be $z$ - $z_0$; let displacement be sqrt(power(delta_x, 2) + power(delta_y, 2) + power(delta_z, 2)); let delta_t be $t_1$ - $t_2$; displacement / delta_t",
     "scope": [
       "Object",
       "Particle",
@@ -89,7 +89,7 @@
   },
   {
     "name": "acceleration",
-    "expression": "let velocity_1 be sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\"); let velocity_2 be sqrt(power(\"previous position x\" - \"previous previous position x\", 2) + power(\"previous position y\" - \"previous previous position y\", 2) + power(\"previous position z\" - \"previous previous position z\", 2)) / (\"previous time\" - \"previous previous time\"); let delta_v be velocity_1 - velocity_2; let delta_t be \"time\" - \"previous time\"; delta_v / delta_t",
+    "expression": "let $x_1$ be \"position x\"; let $y_1$ be \"position y\"; let $z_1$ be \"position z\"; let $x_2$ be \"previous position x\"; let $y_2$ be \"previous position y\"; let $z_2$ be \"previous position z\"; let $x_3$ be \"previous previous position x\"; let $y_3$ be \"previous previous position y\"; let $z_3$ be \"previous previous position z\"; let $t_1$ be \"time\"; let $t_2$ be \"previous time\"; let $t_3$ be \"previous previous time\"; let velocity_1 be sqrt(power($x_1$ - $x_2$, 2) + power($y_1$ - $y_2$, 2) + power($z_1$ - $z_2$, 2)) / ($t_1$ - $t_2$); let velocity_2 be sqrt(power($x_2$ - $x_3$, 2) + power($y_2$ - $y_3$, 2) + power($z_2$ - $z_3$, 2)) / ($t_2$ - $t_3$); let delta_v be velocity_1 - velocity_2; let delta_t be $t_1$ - $t_2$; delta_v / delta_t",
     "scope": [
       "Object",
       "Particle",
