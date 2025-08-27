@@ -3,8 +3,10 @@ import Editor from '@monaco-editor/react';
 import type { Monaco } from '@monaco-editor/react';
 import type { RelationType, AttributeType, NodeType } from './types';
 import { NLPSidePanel } from './NLPSidePanel';
+import { WordNetDefinitionsPanel } from './WordNetDefinitionsPanel';
 import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescriptions } from './utils/cnlProcessor';
 import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
+import { WordNetService } from './services/wordnetService';
 import './CnlEditor.css';
 
 interface CnlEditorProps {
@@ -26,6 +28,12 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   const [nlpAnalysisResults, setNlpAnalysisResults] = useState<Array<NLPAnalysisResult | NLPAnalysisError>>([]);
   const [isNLPLoading, setIsNLPLoading] = useState(false);
   const [nlpError, setNlpError] = useState<string | null>(null);
+
+  // WordNet Auto-Description State
+  const [isWordNetPanelOpen, setIsWordNetPanelOpen] = useState(false);
+  const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
+  const [isWordNetLoading, setIsWordNetLoading] = useState(false);
+  const [wordNetError, setWordNetError] = useState<string | null>(null);
   
 
   
@@ -84,6 +92,46 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     
     if (enhancedCnl !== value) {
       onChange(enhancedCnl);
+    }
+  };
+
+  // Handle WordNet auto-description
+  const handleWordNetAutoDescription = async () => {
+    if (!value.trim()) {
+      setWordNetError('No CNL text to analyze');
+      return;
+    }
+
+    setIsWordNetLoading(true);
+    setWordNetError(null);
+
+    try {
+      // Extract terms that need descriptions
+      const terms = WordNetService.extractTermsFromCNL(value);
+      
+      if (terms.length === 0) {
+        setWordNetError('All nodes already have descriptions. Great work!');
+        setIsWordNetLoading(false);
+        return;
+      }
+
+      setWordNetTerms(terms);
+      setIsWordNetPanelOpen(true);
+    } catch (error) {
+      setWordNetError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsWordNetLoading(false);
+    }
+  };
+
+  // Handle definition selection from WordNet
+  const handleDefinitionSelect = (term: string, definition: string) => {
+    try {
+      const updatedCnl = WordNetService.insertDescription(value, term, definition);
+      onChange(updatedCnl);
+    } catch (error) {
+      console.error('Error inserting definition:', error);
+      setWordNetError('Failed to insert definition. Please try again.');
     }
   };
 
@@ -202,15 +250,23 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     <div className="cnl-editor-container">
       {/* Editor Toolbar */}
       <div className="cnl-editor-toolbar">
-        <div className="toolbar-left">
-          <button 
-            className="toolbar-btn auto-insert-btn"
-            onClick={handleAutoInsertDescriptions}
-            title="Automatically insert description blocks for nodes that don't have them"
-          >
-            📝 Auto-Insert Descriptions
-          </button>
-        </div>
+                    <div className="toolbar-left">
+              <button
+                className="toolbar-btn auto-insert-btn"
+                onClick={handleAutoInsertDescriptions}
+                title="Automatically insert description blocks for nodes that don't have them"
+              >
+                📝 Auto-Insert Descriptions
+              </button>
+              <button
+                className="toolbar-btn wordnet-btn"
+                onClick={handleWordNetAutoDescription}
+                disabled={disabled || isWordNetLoading || !value.trim()}
+                title="Get WordNet definitions for nodes without descriptions"
+              >
+                {isWordNetLoading ? '🔍 Analyzing...' : '📚 WordNet Definitions'}
+              </button>
+            </div>
         
         <div className="toolbar-right">
           <button 
@@ -256,13 +312,22 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
         />
       </div>
 
-      {/* NLP Side Panel */}
-      <NLPSidePanel
-        isOpen={isNLPPanelOpen}
-        onClose={() => setIsNLPPanelOpen(false)}
-        analysisResults={nlpAnalysisResults}
-        isLoading={isNLPLoading}
-      />
+                  {/* NLP Side Panel */}
+            <NLPSidePanel
+              isOpen={isNLPPanelOpen}
+              onClose={() => setIsNLPPanelOpen(false)}
+              analysisResults={nlpAnalysisResults}
+              isLoading={isNLPLoading}
+            />
+
+            {/* WordNet Definitions Panel */}
+            <WordNetDefinitionsPanel
+              isOpen={isWordNetPanelOpen}
+              onClose={() => setIsWordNetPanelOpen(false)}
+              terms={wordNetTerms}
+              onDefinitionSelect={handleDefinitionSelect}
+              isLoading={isWordNetLoading}
+            />
       
 
 
@@ -274,6 +339,20 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
           <button 
             className="error-close-btn"
             onClick={() => setNlpError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* WordNet Error Display */}
+      {wordNetError && (
+        <div className="wordnet-error-banner">
+          <span className="error-icon">📚</span>
+          <span className="error-message">{wordNetError}</span>
+          <button 
+            className="error-close-btn"
+            onClick={() => setWordNetError(null)}
           >
             ×
           </button>

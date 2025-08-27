@@ -58,6 +58,21 @@ services:
       - nodebook-dev-net
     restart: unless-stopped
 
+  # WordNet service for auto-filling node descriptions
+  wordnet-service:
+    build:
+      context: ./wordnet-service
+      dockerfile: Dockerfile
+    container_name: nodebook-wordnet-service-dev
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+    networks:
+      - nodebook-dev-net
+    restart: unless-stopped
+
   # Frontend service with PWA development
   frontend:
     build:
@@ -75,12 +90,15 @@ services:
       - VITE_API_TARGET=http://backend:3000
       - VITE_MEDIA_BACKEND_URL=http://localhost:3001
       - VITE_NLP_SERVICE_URL=http://localhost:3002
+      - VITE_WORDNET_SERVICE_URL=http://localhost:3003
       - VITE_DEV_MODE=true
     networks:
       - nodebook-dev-net
     depends_on:
       - backend
       - media-backend
+      - nlp-service
+      - wordnet-service
 
 networks:
   nodebook-dev-net:
