@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
 import { SchemaEditModal } from './SchemaEditModal';
+import { ScientificLibraryTester } from './ScientificLibraryTester';
 import { API_BASE_URL } from './api-config';
 import styles from './SchemaView.module.css';
 
@@ -8,7 +9,7 @@ interface SchemaViewProps {
   onSchemaChange: () => void;
 }
 
-type SchemaViewMode = 'nodes' | 'relations' | 'attributes' | 'functions';
+type SchemaViewMode = 'nodes' | 'relations' | 'attributes' | 'functions' | 'scientific';
 
 export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   const [mode, setMode] = useState<SchemaViewMode>('nodes');
@@ -191,6 +192,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         <button className={`${styles.schemaTabBtn} ${mode === 'relations' ? styles.active : ''}`} onClick={() => setMode('relations')} title="Relation Types">RT</button>
         <button className={`${styles.schemaTabBtn} ${mode === 'attributes' ? styles.active : ''}`} onClick={() => setMode('attributes')} title="Attribute Types">AT</button>
         <button className={`${styles.schemaTabBtn} ${mode === 'functions' ? styles.active : ''}`} onClick={() => setMode('functions')} title="Function Types">FT</button>
+        <button className={`${styles.schemaTabBtn} ${mode === 'scientific' ? styles.active : ''}`} onClick={() => setMode('scientific')} title="Scientific Library">🧪</button>
         <button className={styles.createNewBtn} onClick={openModalForCreate}>+ Create New</button>
       </div>
       <div className={styles.schemaGrid}>
@@ -227,6 +229,11 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
             {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
           </div>
         ))}
+        {mode === 'scientific' && (
+          <div className={styles.schemaCard} style={{ gridColumn: '1 / -1' }}>
+            <ScientificLibraryTester />
+          </div>
+        )}
       </div>
       {editingItem && (
         <SchemaEditModal

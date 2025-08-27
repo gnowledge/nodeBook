@@ -24,6 +24,29 @@ learn the meaning of what they are from this approach. In this way
 they will also know why scientists use equations, which are nothing
 but derived attributes.
 
+## Scientific Library Integration
+
+NodeBook now integrates with professional scientific computing libraries to provide access to a vast ecosystem of mathematical functions:
+
+### **Available Libraries**
+- **Math.js**: Core mathematics, expressions, units, complex numbers
+- **Stdlib**: Advanced scientific computing, numerical methods, statistics
+
+### **Benefits**
+- **Professional Grade**: Access to battle-tested mathematical libraries
+- **Scalable**: No need to maintain our own math function implementations
+- **Up-to-Date**: Always have the latest mathematical capabilities
+- **Educational**: Students learn about real scientific computing libraries
+- **Extensible**: New libraries can be added without code changes
+
+### **Function Discovery**
+- Browse functions by library, category, or search
+- Get detailed function information and examples
+- Validate expressions before using them
+- Execute expressions with variable scope
+
+For detailed information, see the [Scientific Library Guide](frontend/public/scientific-library-guide.md).
+
 ## Physics Functions
 
 NodeBook now supports advanced physics calculations through derived functions. These functions automatically calculate physical quantities like distance, displacement, speed, velocity, and acceleration based on position and time attributes.
@@ -83,8 +106,34 @@ Car "MyCar" {
 For detailed documentation and examples, see:
 - [Physics Functions Guide](frontend/public/physics-functions-guide.md)
 - [Working Example](frontend/public/physics-example.cnl)
+- [Scientific Library Guide](frontend/public/scientific-library-guide.md)
+- [Scientific Library Example](frontend/public/scientific-library-example.cnl)
 
 ## Schema Functions Tab
 
 Use the Functions tab in Schema to define new functions and view existing ones. The physics functions are pre-configured and ready to use.
+
+## Scientific Library Examples
+
+The scientific library system provides comprehensive examples of advanced mathematical operations:
+
+### **Physics Calculations**
+- Distance calculations using 3D coordinates
+- Kinetic energy and trajectory analysis
+- Projectile motion with trigonometric functions
+- Unit conversions and dimensional analysis
+
+### **Statistical Analysis**
+- Standard deviation and variance calculations
+- Correlation coefficient analysis
+- Data set processing and analysis
+- Regression and hypothesis testing
+
+### **Advanced Mathematics**
+- Matrix operations and determinants
+- Numerical integration and differentiation
+- Complex number operations
+- Special mathematical functions
+
+For hands-on examples, see the [Scientific Library Example](frontend/public/scientific-library-example.cnl) file.
 

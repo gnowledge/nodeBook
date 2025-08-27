@@ -10,9 +10,10 @@ const GraphManager = require('./graph-manager'); // Import the class
 const schemaManager = require('./schema-manager');
 const ThumbnailGenerator = require('./thumbnail-generator');
 const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
-  const { evaluate } = require('mathjs');
+const { evaluate } = require('mathjs');
 const { buildStaticSite } = require('./build-static-site');
 const auth = require('./auth');
+const ScientificLibraryManager = require('./scientific-library-manager');
   
   const PORT = process.env.PORT || 3000;
   
@@ -601,6 +602,99 @@ Another service or function
     preHandler: authenticateJWT
   }, async (request, reply) => {
     return await schemaManager.getFunctionTypes();
+  });
+
+  // --- Scientific Library API ---
+  fastify.get('/api/scientific/libraries', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    return scientificManager.getAvailableLibraries();
+  });
+
+  fastify.get('/api/scientific/libraries/:library', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    const library = request.params.library;
+    const info = scientificManager.getLibraryInfo(library);
+    if (!info) {
+      reply.code(404).send({ error: 'Library not found' });
+      return;
+    }
+    return info;
+  });
+
+  fastify.get('/api/scientific/functions', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    const { library, category, search } = request.query;
+    
+    if (library) {
+      return scientificManager.getFunctionsByLibrary(library);
+    } else if (category) {
+      return scientificManager.getFunctionsByCategory(category);
+    } else if (search) {
+      return scientificManager.searchFunctions(search);
+    } else {
+      return scientificManager.getAllFunctions();
+    }
+  });
+
+  fastify.get('/api/scientific/functions/:library/:name', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    const { library, name } = request.params;
+    const info = scientificManager.getFunctionInfo(library, name);
+    if (!info) {
+      reply.code(404).send({ error: 'Function not found' });
+      return;
+    }
+    return info;
+  });
+
+  fastify.post('/api/scientific/validate', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['expression'],
+        properties: {
+          expression: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    const { expression } = request.body;
+    const result = scientificManager.validateExpression(expression);
+    return result;
+  });
+
+  fastify.post('/api/scientific/evaluate', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['expression'],
+        properties: {
+          expression: { type: 'string' },
+          scope: { type: 'object' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const scientificManager = new ScientificLibraryManager();
+    const { expression, scope = {} } = request.body;
+    try {
+      const result = scientificManager.executeExpression(expression, scope);
+      return { result, expression, scope };
+    } catch (error) {
+      reply.code(400).send({ error: error.message });
+      return;
+    }
   });
 
   fastify.post('/api/schema/functions', {

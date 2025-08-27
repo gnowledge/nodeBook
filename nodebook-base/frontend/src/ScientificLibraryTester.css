@@ -1,0 +1,365 @@
+/* Scientific Library Tester Styles */
+
+.scientific-library-tester {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.tester-header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tester-header h2 {
+  margin: 0 0 12px 0;
+  color: #2d3748;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.tester-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.tester-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.tester-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.tester-section h3 {
+  margin: 0 0 16px 0;
+  color: #2d3748;
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Library Selector */
+.library-selector {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.library-btn {
+  padding: 8px 16px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  background: white;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.library-btn:hover {
+  border-color: #63b3ed;
+  color: #2b6cb0;
+}
+
+.library-btn.active {
+  background: #3182ce;
+  color: white;
+  border-color: #3182ce;
+}
+
+/* Search Controls */
+.search-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-controls input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.search-controls button {
+  padding: 8px 16px;
+  background: #3182ce;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.search-controls button:hover {
+  background: #2c5aa0;
+}
+
+.category-filter select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+}
+
+/* Functions List */
+.functions-list {
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.function-item {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.function-item:hover {
+  border-color: #63b3ed;
+  box-shadow: 0 2px 8px rgba(99, 179, 237, 0.15);
+}
+
+.function-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.function-name {
+  font-weight: 600;
+  color: #2d3748;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+}
+
+.function-category {
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.function-description {
+  margin: 0 0 12px 0;
+  color: #4a5568;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.function-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.function-example {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #2d3748;
+}
+
+.insert-function-btn {
+  background: #38a169;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.insert-function-btn:hover {
+  background: #2f855a;
+}
+
+/* Expression Tester */
+.expression-tester {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.expression-tester label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 0.875rem;
+}
+
+.expression-tester textarea {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.expression-tester textarea:focus {
+  outline: none;
+  border-color: #63b3ed;
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+}
+
+.test-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.test-buttons button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.test-buttons button:first-child {
+  background: #ed8936;
+  color: white;
+}
+
+.test-buttons button:first-child:hover:not(:disabled) {
+  background: #dd6b20;
+}
+
+.test-buttons button:last-child {
+  background: #3182ce;
+  color: white;
+}
+
+.test-buttons button:last-child:hover:not(:disabled) {
+  background: #2c5aa0;
+}
+
+.test-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error and Result Messages */
+.error-message {
+  padding: 12px 16px;
+  background: #fed7d7;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  color: #c53030;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.test-result {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.test-result h4 {
+  margin: 0 0 12px 0;
+  color: #22543d;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.test-result pre {
+  margin: 0;
+  background: white;
+  border: 1px solid #c6f6d5;
+  border-radius: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  color: #2d3748;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  background: white;
+  padding: 24px 32px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .tester-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .scientific-library-tester {
+    padding: 16px;
+    margin: 16px;
+  }
+  
+  .tester-section {
+    padding: 16px;
+  }
+  
+  .search-controls {
+    flex-direction: column;
+  }
+  
+  .test-buttons {
+    flex-direction: column;
+  }
+  
+  .library-selector {
+    justify-content: center;
+  }
+}

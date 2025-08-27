@@ -1,0 +1,159 @@
+# Scientific Library Example
+# Demonstrating Math.js and Stdlib integration in NodeBook
+
+# - Physics calculations using scientific functions
+# - Statistical analysis with library functions
+# - Complex mathematical expressions
+# - Unit conversions and calculations
+
+## Physics Experiment Setup
+
+@node Experiment {
+  name: "Projectile Motion Study"
+  description: "Study of projectile motion using scientific library functions"
+  date: "2024-01-15"
+  location: "Physics Lab"
+}
+
+@node Ball {
+  name: "Steel Ball"
+  mass: 0.5 kg
+  initial_velocity: 20 m/s
+  angle: 45 degrees
+  position: (0, 0, 0)
+  time: (0, "seconds")
+}
+
+@node Measurement {
+  name: "Trajectory Data"
+  time_points: [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+  x_positions: [0, 7.07, 14.14, 21.21, 28.28, 35.35, 42.42]
+  y_positions: [0, 7.07, 14.14, 21.21, 28.28, 35.35, 42.42]
+  z_positions: [0, 0, 0, 0, 0, 0, 0]
+}
+
+## Mathematical Calculations
+
+@function calculate_distance {
+  name: "Distance Calculator"
+  description: "Calculate distance between two 3D points using Math.js sqrt and power functions"
+  expression: "sqrt(power(x2 - x1, 2) + power(y2 - y1, 2) + power(z2 - z1, 2))"
+  variables: ["x1", "y1", "z1", "x2", "y2", "z2"]
+  library: "mathjs"
+  category: "Physics"
+}
+
+@function calculate_kinetic_energy {
+  name: "Kinetic Energy"
+  description: "Calculate kinetic energy using Math.js power function"
+  expression: "0.5 * mass * power(velocity, 2)"
+  variables: ["mass", "velocity"]
+  library: "mathjs"
+  category: "Physics"
+}
+
+@function calculate_trajectory_range {
+  name: "Trajectory Range"
+  description: "Calculate horizontal range of projectile using Math.js sin and cos functions"
+  expression: "power(initial_velocity, 2) * sin(2 * angle) / 9.81"
+  variables: ["initial_velocity", "angle"]
+  library: "mathjs"
+  category: "Physics"
+}
+
+@function calculate_standard_deviation {
+  name: "Standard Deviation"
+  description: "Calculate standard deviation of dataset using Math.js std function"
+  expression: "std(dataset)"
+  variables: ["dataset"]
+  library: "mathjs"
+  category: "Statistics"
+}
+
+@function calculate_correlation {
+  name: "Correlation Coefficient"
+  description: "Calculate correlation between two datasets using Stdlib correlation function"
+  expression: "correlation(dataset1, dataset2)"
+  variables: ["dataset1", "dataset2"]
+  library: "stdlib"
+  category: "Statistics"
+}
+
+## Statistical Analysis
+
+@node Analysis {
+  name: "Data Analysis Results"
+  x_std: @calculate_standard_deviation(Measurement.x_positions)
+  y_std: @calculate_standard_deviation(Measurement.y_positions)
+  correlation_xy: @calculate_correlation(Measurement.x_positions, Measurement.y_positions)
+  total_distance: @calculate_distance(0, 0, 0, 42.42, 42.42, 0)
+}
+
+## Physics Calculations
+
+@node Results {
+  name: "Physics Results"
+  kinetic_energy: @calculate_kinetic_energy(Ball.mass, Ball.initial_velocity)
+  trajectory_range: @calculate_trajectory_range(Ball.initial_velocity, Ball.angle)
+  final_position: (42.42, 42.42, 0)
+  final_distance: @calculate_distance(Ball.position.x, Ball.position.y, Ball.position.z, 42.42, 42.42, 0)
+}
+
+## Unit Conversions
+
+@node Conversions {
+  name: "Unit Conversions"
+  mass_lbs: 1.1 lbs  # Convert from kg
+  velocity_mph: 44.7 mph  # Convert from m/s
+  distance_ft: 139.2 ft  # Convert from m
+  time_min: 0.05 min  # Convert from seconds
+}
+
+## Advanced Mathematical Operations
+
+@function matrix_operations {
+  name: "Matrix Operations"
+  description: "Demonstrate Stdlib matrix operations for physics calculations"
+  expression: "det(matrix([[cos(angle), -sin(angle)], [sin(angle), cos(angle)]]))"
+  variables: ["angle"]
+  library: "stdlib"
+  category: "Linear Algebra"
+}
+
+@function numerical_integration {
+  name: "Numerical Integration"
+  description: "Calculate area under curve using Stdlib integration"
+  expression: "integrate('x^2', 0, 5)"
+  variables: []
+  library: "stdlib"
+  category: "Numerical Methods"
+}
+
+## Function Testing
+
+@node TestResults {
+  name: "Function Test Results"
+  matrix_det: @matrix_operations(Ball.angle)
+  integration_result: @numerical_integration()
+  sqrt_test: sqrt(16)  # Math.js function
+  power_test: power(2, 8)  # Math.js function
+  sin_test: sin(pi/2)  # Math.js function with constant
+}
+
+## Educational Notes
+
+# This example demonstrates:
+# - Integration with Math.js for core mathematical functions
+# - Integration with Stdlib for advanced scientific computing
+# - Complex mathematical expressions using library functions
+# - Statistical analysis capabilities
+# - Physics calculations with proper units
+# - Matrix operations and numerical methods
+# - Real-world application of scientific libraries
+
+# Benefits:
+# - Professional-grade mathematical capabilities
+# - Educational exposure to real scientific computing
+# - Consistent function interface across libraries
+# - Scalable function discovery system
+# - Performance-optimized mathematical operations

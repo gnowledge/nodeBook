@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
+import './SchemaEditModal.css';
 
 interface SchemaEditModalProps {
   item: any;
