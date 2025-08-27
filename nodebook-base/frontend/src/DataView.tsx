@@ -105,23 +105,7 @@ export function DataView({
     );
   }, [nodes, searchTerm]);
 
-  const handleDelete = async (type: 'nodes' | 'relations' | 'attributes', item: any) => {
-    let confirmMessage = `Are you sure you want to delete this ${type.slice(0, -1)}?`;
-    let url = '';
-    if (type === 'nodes') {
-      confirmMessage += ' This will also delete all connected relations and attributes.';
-      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${item.id}`;
-    } else if (type === 'relations') {
-      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/relations/${item.id}`;
-    } else if (type === 'attributes') {
-      url = `${API_BASE_URL}/api/graphs/${activeGraphId}/attributes/${item.id}`;
-    }
 
-    if (window.confirm(confirmMessage)) {
-      await authenticatedFetch(url, { method: 'DELETE' });
-      onDataChange();
-    }
-  };
 
   const getCnlForNode = (nodeId: string, cnl: string) => {
     const lines = cnl.split('\n');
@@ -323,7 +307,6 @@ export function DataView({
             allRelations={relations}
             attributes={attributes}
             isActive={node.id === activeNodeId}
-            onDelete={handleDelete}
             onSelectNode={setActiveNodeId}
             onImportContext={handleImportContext}
             nodeRegistry={nodeRegistry}

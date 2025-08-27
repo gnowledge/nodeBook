@@ -14,14 +14,13 @@ interface NodeCardProps {
   allRelations: Edge[];
   attributes: AttributeType[];
   isActive: boolean;
-  onDelete: (type: 'nodes' | 'relations' | 'attributes', item: any) => void;
   onSelectNode: (nodeId: string) => void;
   onImportContext: (nodeId: string) => void;
   nodeRegistry: any;
   isPublic?: boolean; // Optional prop for public view mode
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onDelete, onSelectNode, onImportContext, nodeRegistry, isPublic = false }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const registryEntry = nodeRegistry[node.id];
   
@@ -131,7 +130,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
                   <strong>{attr.name}:</strong> {attr.value} {attr.unit || ''}
                   {attr.isDerived && <span className="derived-indicator"> (fx)</span>}
                 </MathJax>
-                {!attr.isDerived && !isPublic && <button className="delete-btn-small" onClick={() => onDelete('attributes', attr)}>&times;</button>}
+
               </li>
             ))}
           </ul>
@@ -146,7 +145,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
                     {rel.target_id}
                   </a>
                 </span>
-                {!isPublic && <button className="delete-btn-small" onClick={() => onDelete('relations', rel)}>&times;</button>}
+
               </li>
             ))}
           </ul>
