@@ -14,7 +14,7 @@
   "dependencies": {
     "@fastify/cors": "^8.5.0",
     "@fastify/multipart": "^8.0.0",
-    "@koa/router": "^14.0.0",
+
     "@stdlib/stdlib": "^0.3.2",
     "archiver": "^6.0.1",
     "autobase": "^7.17.0",
