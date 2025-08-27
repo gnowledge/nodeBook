@@ -21,10 +21,13 @@ import { PageView } from './PageView';
 import { Preferences } from './Preferences';
 import { TopBar } from './TopBar';
 import { MediaManager } from './MediaManager';
+import { GraphScore } from './GraphScore';
+import { CompactScoreDisplay } from './CompactScoreDisplay';
+import { calculateGraphScore } from './utils/graphScoring';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 import { API_BASE_URL } from './api-config';
 
-type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media';
+type ViewMode = 'editor' | 'visualization' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media' | 'score';
 
 interface AppProps {
   onLogout?: () => void;
@@ -98,6 +101,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     const saved = localStorage.getItem('strictMode');
     return saved !== null ? JSON.parse(saved) : true; // Default to true
   });
+  const [activeGraph, setActiveGraph] = useState<any>(null);
+  const [graphScore, setGraphScore] = useState<any>(null);
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,9 +128,17 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
-        setNodes(data.nodes || []);
-        setRelations(data.relations || []);
-        setAttributes(data.attributes || []);
+        const graphNodes = data.nodes || [];
+        const graphRelations = data.relations || [];
+        const graphAttributes = data.attributes || [];
+        
+        setNodes(graphNodes);
+        setRelations(graphRelations);
+        setAttributes(graphAttributes);
+        
+        // Calculate graph score
+        const score = calculateGraphScore(graphNodes, graphRelations, graphAttributes);
+        setGraphScore(score);
       });
     
     // Fetch graph key
@@ -146,6 +159,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       .then(graphs => {
         const currentGraph = graphs.find((g: any) => g.id === graphId);
         if (currentGraph) {
+          setActiveGraph(currentGraph);
           setPublicationState(currentGraph.publication_state || 'Private');
         }
       })
@@ -170,8 +184,17 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       fetchGraph(activeGraphId);
     } else {
       setActiveGraphKey(null);
+      setGraphScore(null);
     }
   }, [activeGraphId]);
+
+  // Recalculate score when graph data changes
+  useEffect(() => {
+    if (nodes.length > 0 || relations.length > 0 || attributes.length > 0) {
+      const score = calculateGraphScore(nodes, relations, attributes);
+      setGraphScore(score);
+    }
+  }, [nodes, relations, attributes]);
 
   const handleCnlChange = (value: string) => {
     if (activeGraphId) {
@@ -194,6 +217,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       alert(`CNL Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
     } else {
       fetchGraph(activeGraphId);
+      // Score will be calculated in fetchGraph
     }
   };
   
@@ -202,6 +226,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
       fetchGraph(activeGraphId!);
+      // Score will be recalculated in fetchGraph
     }
   };
 
@@ -258,6 +283,12 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
               email={email}
             />
           </div>
+          <div className={styles.topBarRight}>
+            <CompactScoreDisplay 
+              score={graphScore}
+              isVisible={!!activeGraphId && !!graphScore}
+            />
+          </div>
         </div>
 
         <main className={styles.mainContent}>
@@ -290,9 +321,14 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       <span className={styles.jsonIcon}>{'{-}'}</span>
                     </button>
                   {activeGraphId && (
-                    <button className={`${styles.tabButton} ${styles.deleteGraphBtn}`} onClick={handleDeleteGraph} title="Delete this graph">
-                      <img src={trashIcon} alt="Delete" className={styles.deleteIcon} />
-                    </button>
+                    <>
+                      <button className={`${styles.tabButton} ${viewMode === 'score' ? styles.active : ''}`} onClick={() => setViewMode('score')} title="Graph Score">
+                        <span className={styles.scoreIcon}>📊</span>
+                      </button>
+                      <button className={`${styles.tabButton} ${styles.deleteGraphBtn}`} onClick={handleDeleteGraph} title="Delete this graph">
+                        <img src={trashIcon} alt="Delete" className={styles.deleteIcon} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -334,6 +370,14 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           graphId={activeGraphId}
                           showUpload={true}
                           showList={true}
+                        />
+                      </div>
+                    )}
+                    {viewMode === 'score' && (
+                      <div className={styles.scoreContainer}>
+                        <GraphScore 
+                          score={graphScore}
+                          graphName={activeGraph?.name}
                         />
                       </div>
                     )}

@@ -34,6 +34,12 @@
   align-items: center;
 }
 
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 /* Main Content */
 .mainContent {
   flex: 1;
@@ -134,6 +140,12 @@
   margin: auto;
 }
 
+.scoreIcon {
+  font-size: 1.5em;
+  color: #333;
+  margin: auto;
+}
+
 .mediaIcon {
   font-size: 1.5em;
   color: #333;
@@ -183,6 +195,13 @@
   display: flex;
   flex-direction: column;
   padding: 20px;
+  overflow: auto;
+}
+
+.scoreContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
 }
 

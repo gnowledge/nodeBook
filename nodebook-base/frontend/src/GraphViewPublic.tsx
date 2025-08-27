@@ -432,17 +432,17 @@ export function GraphViewPublic({
             <div className="section-header">
               <h2 className="section-title">Nodes ({filteredNodes.length})</h2>
               <div className="search-section">
-                <input
-                  type="text"
-                  placeholder="Search nodes..."
-                  className="search-input"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
+        <input
+          type="text"
+          placeholder="Search nodes..."
+          className="search-input"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        </div>
+      </div>
             <div className="nodes-grid">
-              {filteredNodes.map(node => (
+        {filteredNodes.map(node => (
                 <PublicNodeCard key={node.id} node={node} />
               ))}
             </div>
