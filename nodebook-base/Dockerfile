@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     libsodium-dev \
+    libsodium23 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -23,6 +24,7 @@ WORKDIR /app
 # Set environment for native module compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
+ENV SODIUM_NATIVE_PREBUILT=1
 
 # Copy package files
 COPY package*.json ./
@@ -34,7 +36,7 @@ RUN npm install --omit=dev
 COPY . .
 
 # Force rebuild of problematic native modules
-RUN npm rebuild sodium-native || npm install sodium-native --build-from-source
+RUN npm rebuild sodium-native || npm install sodium-native@2.4.10 --build-from-source || npm uninstall sodium-native && npm install sodium-js
 RUN npm rebuild hyperswarm || npm install hyperswarm --build-from-source
 RUN npm rebuild hypercore || npm install hypercore --build-from-source
 RUN npm rebuild hyperdrive || npm install hyperdrive --build-from-source
