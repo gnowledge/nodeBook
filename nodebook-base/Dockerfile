@@ -11,15 +11,8 @@ RUN apt-get update && apt-get install -y \
     libpango1.0-dev \
     libgif-dev \
     libpixman-1-dev \
-    libpangomm-1.4-dev \
-    libjpeg-turbo8-dev \
     libfreetype6-dev \
     curl \
-    autoconf \
-    automake \
-    libtool \
-    pkg-config \
-    nasm \
     build-essential \
     libsodium-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -62,7 +55,6 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libgif7 \
     libpixman-1-0 \
-    libpangomm-1.4-1v5 \
     libfreetype6 \
     && rm -rf /var/lib/apt/lists/*
 
