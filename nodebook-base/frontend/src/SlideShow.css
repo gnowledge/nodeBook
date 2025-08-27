@@ -7,6 +7,16 @@
   overflow: hidden;
 }
 
+.slideshow-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
 .slideshow-header {
   display: flex;
   justify-content: space-between;
@@ -25,6 +35,12 @@
   font-weight: 600;
 }
 
+.slideshow-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .slideshow-progress {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -32,6 +48,27 @@
   border-radius: 20px;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.fullscreen-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 1.2rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
 }
 
 .slideshow-content {
@@ -42,7 +79,7 @@
   min-height: 0;
 }
 
-.slideshow-subgraph {
+.slideshow-graph {
   flex: 1;
   background: white;
   border-radius: 12px;
@@ -51,7 +88,7 @@
   overflow: hidden;
 }
 
-.slideshow-subgraph h3 {
+.slideshow-graph h3 {
   margin: 0 0 15px 0;
   color: #2c3e50;
   font-size: 1.3rem;
@@ -61,12 +98,114 @@
   border-bottom: 2px solid #ecf0f1;
 }
 
-.slideshow-nodecard {
+.slideshow-nodeinfo {
   flex: 1;
   background: white;
   border-radius: 12px;
+  padding: 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-y: auto;
+}
+
+.node-header {
+  margin-bottom: 25px;
+  text-align: center;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.node-name {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.node-role {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 1rem;
+  display: inline-block;
+}
+
+.node-description {
+  margin-bottom: 25px;
+}
+
+.node-description h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.node-description p {
+  margin: 0;
+  color: #34495e;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.node-attributes,
+.node-relations {
+  margin-bottom: 25px;
+}
+
+.node-attributes h4,
+.node-relations h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.attributes-list,
+.relations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.attribute-item,
+.relation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.attr-name,
+.rel-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  min-width: 120px;
+}
+
+.attr-value {
+  color: #7f8c8d;
+  font-style: italic;
+  font-size: 1rem;
+}
+
+.rel-arrow {
+  color: #667eea;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.rel-target {
+  color: #34495e;
+  font-weight: 500;
+  font-size: 1.1rem;
 }
 
 /* Navigation Controls */
@@ -169,12 +308,12 @@
     flex-direction: column;
   }
   
-  .slideshow-subgraph,
-  .slideshow-nodecard {
+  .slideshow-graph,
+  .slideshow-nodeinfo {
     flex: none;
   }
   
-  .slideshow-subgraph {
+  .slideshow-graph {
     height: 300px;
   }
 }
@@ -246,19 +385,53 @@
   }
   
   .slideshow-header,
-  .slideshow-subgraph,
-  .slideshow-nodecard {
+  .slideshow-graph,
+  .slideshow-nodeinfo {
     background: #34495e;
     color: #ecf0f1;
   }
   
   .slideshow-header h2,
-  .slideshow-subgraph h3 {
+  .slideshow-graph h3 {
     color: #ecf0f1;
   }
   
-  .slideshow-subgraph h3 {
+  .slideshow-graph h3 {
     border-bottom-color: #2c3e50;
+  }
+  
+  .node-name {
+    color: #ecf0f1;
+  }
+  
+  .node-description h4,
+  .node-attributes h4,
+  .node-relations h4 {
+    color: #ecf0f1;
+    border-bottom-color: #2c3e50;
+  }
+  
+  .node-description p {
+    color: #bdc3c7;
+  }
+  
+  .attribute-item,
+  .relation-item {
+    background: #2c3e50;
+    border-left-color: #667eea;
+  }
+  
+  .attr-name,
+  .rel-name {
+    color: #ecf0f1;
+  }
+  
+  .attr-value {
+    color: #95a5a6;
+  }
+  
+  .rel-target {
+    color: #bdc3c7;
   }
   
   .slideshow-empty h2 {

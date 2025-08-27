@@ -14,14 +14,16 @@ interface SlideShowProps {
 export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowProps) {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [currentSection, setCurrentSection] = useState<'nodes' | 'relations' | 'attributes'>('nodes');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
-  // Parse CNL to get the order of nodes
+  // Parse CNL to get the exact order of nodes as specified by user
   const orderedNodes = useMemo(() => {
     if (!cnlText) return nodes;
     
     const lines = cnlText.split('\n');
     const nodeOrder: string[] = [];
     
+    // First pass: collect nodes in exact CNL order
     lines.forEach(line => {
       if (line.startsWith('# ')) {
         const nodeName = line.substring(2).trim();
@@ -32,14 +34,12 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
       }
     });
     
-    // Add any remaining nodes that weren't in CNL
-    nodes.forEach(node => {
-      if (!nodeOrder.includes(node.id)) {
-        nodeOrder.push(node.id);
-      }
-    });
+    // Only add remaining nodes if they weren't in CNL at all
+    // This preserves the user's intended order
+    const cnlNodeIds = new Set(nodeOrder);
+    const remainingNodes = nodes.filter(node => !cnlNodeIds.has(node.id));
     
-    return nodeOrder.map(id => nodes.find(n => n.id === id)!).filter(Boolean);
+    return [...nodeOrder.map(id => nodes.find(n => n.id === id)!).filter(Boolean), ...remainingNodes];
   }, [cnlText, nodes]);
 
   const currentNode = orderedNodes[currentSlideIndex];
@@ -66,6 +66,10 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
     setCurrentSlideIndex(totalSlides - 1);
   };
 
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -89,7 +93,9 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
           break;
         case 'Escape':
           event.preventDefault();
-          // Could add a way to exit slideshow mode
+          if (isFullScreen) {
+            setIsFullScreen(false);
+          }
           break;
       }
     };
@@ -110,18 +116,27 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
   }
 
   return (
-    <div className="slideshow-container">
+    <div className={`slideshow-container ${isFullScreen ? 'fullscreen' : ''}`}>
       <div className="slideshow-header">
         <h2>SlideShow: {currentNode.name}</h2>
-        <div className="slideshow-progress">
-          Slide {currentSlideIndex + 1} of {totalSlides}
+        <div className="slideshow-controls">
+          <div className="slideshow-progress">
+            Slide {currentSlideIndex + 1} of {totalSlides}
+          </div>
+          <button 
+            className="fullscreen-btn" 
+            onClick={toggleFullScreen}
+            title={isFullScreen ? "Exit full screen (Esc)" : "Enter full screen"}
+          >
+            {isFullScreen ? "⛶" : "⛶"}
+          </button>
         </div>
       </div>
 
       <div className="slideshow-content">
-        {/* Left side: Subgraph visualization */}
-        <div className="slideshow-subgraph">
-          <h3>Graph Context</h3>
+        {/* Left side: Graph visualization */}
+        <div className="slideshow-graph">
+          <h3>Graph Visualization</h3>
           <Subgraph 
             nodes={[currentNode, ...nodes.filter(n => 
               relations.some(r => 
@@ -135,22 +150,55 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
           />
         </div>
 
-        {/* Right side: NodeCard */}
-        <div className="slideshow-nodecard">
-          <NodeCard
-            node={currentNode}
-            allNodes={nodes}
-            allRelations={relations}
-            attributes={attributes}
-            isActive={true}
-            onSelectNode={(nodeId) => {
-              const index = orderedNodes.findIndex(n => n.id === nodeId);
-              if (index !== -1) setCurrentSlideIndex(index);
-            }}
-            onImportContext={(nodeId) => console.log('Import context:', nodeId)}
-            nodeRegistry={{}}
-            isPublic={false}
-          />
+        {/* Right side: Enhanced NodeCard information */}
+        <div className="slideshow-nodeinfo">
+          <div className="node-header">
+            <h3 className="node-name">{currentNode.name}</h3>
+            <div className="node-role">{currentNode.role}</div>
+          </div>
+          
+          {currentNode.description && (
+            <div className="node-description">
+              <h4>Description</h4>
+              <p>{currentNode.description}</p>
+            </div>
+          )}
+
+          {/* Node attributes with larger font */}
+          <div className="node-attributes">
+            <h4>Attributes</h4>
+            <div className="attributes-list">
+              {attributes.filter(attr => 
+                attr.scope.includes(currentNode.role) || attr.scope.includes('all')
+              ).map(attr => (
+                <div key={attr.name} className="attribute-item">
+                  <span className="attr-name">{attr.name}:</span>
+                  <span className="attr-value">[Click to view]</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Node relations with larger font */}
+          <div className="node-relations">
+            <h4>Relations</h4>
+            <div className="relations-list">
+              {relations.filter(rel => 
+                rel.source_id === currentNode.id || rel.target_id === currentNode.id
+              ).map(rel => {
+                const targetNode = nodes.find(n => 
+                  n.id === (rel.source_id === currentNode.id ? rel.target_id : rel.source_id)
+                );
+                return (
+                  <div key={rel.id} className="relation-item">
+                    <span className="rel-name">{rel.name}</span>
+                    <span className="rel-arrow">→</span>
+                    <span className="rel-target">{targetNode?.name || rel.target_id}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
