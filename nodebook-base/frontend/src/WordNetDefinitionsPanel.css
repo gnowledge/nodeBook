@@ -350,6 +350,39 @@
   color: #92400e;
 }
 
+.source-legend {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.legend-title {
+  margin: 0 0 12px 0;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.875rem;
+}
+
+.legend-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.legend-icon {
+  font-size: 1rem;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .wordnet-panel-overlay {

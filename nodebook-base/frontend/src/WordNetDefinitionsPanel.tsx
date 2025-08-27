@@ -86,6 +86,32 @@ export function WordNetDefinitionsPanel({
     }
   };
 
+  const getSourceBadge = (source: string | undefined): React.ReactNode => {
+    if (!source) return null;
+    
+    const sourceColors: Record<string, { color: string; icon: string; label: string }> = {
+      'wordnet': { color: '#3b82f6', icon: '📚', label: 'WordNet' },
+      'wordnet_variant': { color: '#8b5cf6', icon: '🔄', label: 'WordNet Variant' },
+      'related_terms': { color: '#10b981', icon: '🔗', label: 'Related Terms' },
+      'fallback': { color: '#f59e0b', icon: '⚠️', label: 'Fallback' }
+    };
+    
+    const sourceInfo = sourceColors[source] || { color: '#6b7280', icon: '❓', label: source };
+    
+    return (
+      <span 
+        className="source-badge"
+        style={{ 
+          backgroundColor: sourceInfo.color + '20',
+          color: sourceInfo.color,
+          border: `1px solid ${sourceInfo.color}`
+        }}
+      >
+        {sourceInfo.icon} {sourceInfo.label}
+      </span>
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -121,6 +147,27 @@ export function WordNetDefinitionsPanel({
                   <strong>Found {definitions.length} terms</strong> that need descriptions. 
                   Select the best definition for each term to auto-fill your CNL.
                 </p>
+                <div className="source-legend">
+                  <p className="legend-title">📚 Definition Sources:</p>
+                  <div className="legend-items">
+                    <span className="legend-item">
+                      <span className="legend-icon" style={{ color: '#3b82f6' }}>📚</span>
+                      <strong>WordNet:</strong> Official WordNet definitions
+                    </span>
+                    <span className="legend-item">
+                      <span className="legend-icon" style={{ color: '#8b5cf6' }}>🔄</span>
+                      <strong>WordNet Variant:</strong> Found via case variations
+                    </span>
+                    <span className="legend-item">
+                      <span className="legend-icon" style={{ color: '#10b981' }}>🔗</span>
+                      <strong>Related Terms:</strong> Found via related concepts
+                    </span>
+                    <span className="legend-item">
+                      <span className="legend-icon" style={{ color: '#f59e0b' }}>⚠️</span>
+                      <strong>Fallback:</strong> Intelligent suggestions when WordNet doesn't have the term
+                    </span>
+                  </div>
+                </div>
                 <p className="note">
                   💡 <strong>Learning Tip:</strong> Read each definition carefully to understand 
                   the concept before building your graph. This helps you think critically about 
@@ -148,9 +195,12 @@ export function WordNetDefinitionsPanel({
                           onClick={() => handleDefinitionSelect(result.term, definition.text)}
                         >
                           <div className="definition-header">
-                            <span className="definition-type" style={{ color: getDefinitionTypeColor(definition.type) }}>
-                              {getDefinitionTypeIcon(definition.type)} {definition.type}
-                            </span>
+                            <div className="definition-meta">
+                              <span className="definition-type" style={{ color: getDefinitionTypeColor(definition.type) }}>
+                                {getDefinitionTypeIcon(definition.type)} {definition.type}
+                              </span>
+                              {getSourceBadge(definition.source)}
+                            </div>
                             <span className="confidence-badge">
                               {Math.round(definition.confidence * 100)}% confidence
                             </span>

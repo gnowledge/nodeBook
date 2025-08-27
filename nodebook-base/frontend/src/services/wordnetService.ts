@@ -3,6 +3,10 @@ export interface WordNetDefinition {
   text: string;
   type: string;
   confidence: number;
+  source?: string;
+  synset?: string;
+  examples?: string[];
+  synonyms?: string[];
 }
 
 export interface WordNetResult {
@@ -133,10 +137,12 @@ export class WordNetService {
       
       // Check if this is a node definition (markdown heading)
       if (trimmedLine.startsWith('#')) {
-        // Extract the node name (remove # and optional type)
-        const nodeMatch = trimmedLine.match(/^#\s*(.+?)(?:\s*\[.*?\])?\s*$/);
+        // Extract the node name (remove all # and optional type)
+        // Updated regex to handle multiple # characters and be more robust
+        const nodeMatch = trimmedLine.match(/^#+\s*(.+?)(?:\s*\[.*?\])?\s*$/);
         if (nodeMatch) {
           const nodeName = nodeMatch[1].trim();
+          
           if (nodeName && !this.hasDescriptionBlock(cnlText, trimmedLine)) {
             terms.push(nodeName);
           }
