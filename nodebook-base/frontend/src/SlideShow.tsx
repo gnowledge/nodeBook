@@ -168,14 +168,21 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
           <div className="node-attributes">
             <h4>Attributes</h4>
             <div className="attributes-list">
-              {attributes.filter(attr => 
-                attr.scope.includes(currentNode.role) || attr.scope.includes('all')
-              ).map(attr => (
-                <div key={attr.name} className="attribute-item">
-                  <span className="attr-name">{attr.name}:</span>
-                  <span className="attr-value">[Click to view]</span>
-                </div>
-              ))}
+              {attributes && attributes.length > 0 ? (
+                attributes.filter(attr => 
+                  attr.scope && (
+                    attr.scope.includes(currentNode.role) || 
+                    attr.scope.includes('all')
+                  )
+                ).map(attr => (
+                  <div key={attr.name} className="attribute-item">
+                    <span className="attr-name">{attr.name}:</span>
+                    <span className="attr-value">[Click to view]</span>
+                  </div>
+                ))
+              ) : (
+                <div className="no-attributes">No attributes defined for this node type</div>
+              )}
             </div>
           </div>
 
@@ -183,20 +190,24 @@ export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowPr
           <div className="node-relations">
             <h4>Relations</h4>
             <div className="relations-list">
-              {relations.filter(rel => 
-                rel.source_id === currentNode.id || rel.target_id === currentNode.id
-              ).map(rel => {
-                const targetNode = nodes.find(n => 
-                  n.id === (rel.source_id === currentNode.id ? rel.target_id : rel.source_id)
-                );
-                return (
-                  <div key={rel.id} className="relation-item">
-                    <span className="rel-name">{rel.name}</span>
-                    <span className="rel-arrow">→</span>
-                    <span className="rel-target">{targetNode?.name || rel.target_id}</span>
-                  </div>
-                );
-              })}
+              {relations && relations.length > 0 ? (
+                relations.filter(rel => 
+                  rel.source_id === currentNode.id || rel.target_id === currentNode.id
+                ).map(rel => {
+                  const targetNode = nodes.find(n => 
+                    n.id === (rel.source_id === currentNode.id ? rel.target_id : rel.source_id)
+                  );
+                  return (
+                    <div key={rel.id} className="relation-item">
+                      <span className="rel-name">{rel.name}</span>
+                      <span className="rel-arrow">→</span>
+                      <span className="rel-target">{targetNode?.name || rel.target_id}</span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="no-relations">No relations defined for this node</div>
+              )}
             </div>
           </div>
         </div>
