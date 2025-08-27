@@ -1,0 +1,70 @@
+# Complex Data Types Example
+# This file demonstrates the new complex data types: position, time, and GPS
+# Using morphs to show state transitions
+
+# Morph 1: Initial state of the car
+Car "MyCar" {
+  has "position" = (0.0, 0.0, 0.0)
+  has "time" = (0.0, "seconds")
+  has "mass" = 1000.0
+}
+
+# Morph 2: Car after 5 seconds of movement
+Car "MyCar" {
+  has "position" = (25.0, 15.0, 0.0)
+  has "time" = (5.0, "seconds")
+  has "mass" = 1000.0
+}
+
+# Morph 3: Car after 10 seconds of movement
+Car "MyCar" {
+  has "position" = (50.0, 30.0, 0.0)
+  has "time" = (10.0, "seconds")
+  has "mass" = 1000.0
+}
+
+# Morph 4: Car after 15 seconds of movement
+Car "MyCar" {
+  has "position" = (75.0, 45.0, 0.0)
+  has "time" = (15.0, "seconds")
+  has "mass" = 1000.0
+}
+
+# Drone with GPS tracking
+Drone "MyDrone" {
+  has "gps" = (37.7749, -122.4194, 100.0, "2024-01-01T12:00:00Z")
+  has "mass" = 2.5
+}
+
+# Physics particle with position and time
+Particle "PhysicsParticle" {
+  has "position" = (10.0, 20.0, 5.0)
+  has "time" = (3.0, "seconds")
+  has "mass" = 1.0
+}
+
+# Instructions for Students:
+# 1. Load this file to see complex data types in action
+# 2. Notice how position and time are single attributes with multiple values
+# 3. Observe the morph pattern showing state transitions
+# 4. See how GPS combines coordinates and timestamp
+# 5. Try modifying the values and see how they change
+# 6. Experiment with creating your own complex data types
+
+# Complex Data Types Demonstrated:
+# - position: (x, y, z) coordinates as single attribute
+# - time: (value, unit) as single attribute
+# - gps: (lat, long, alt, timestamp) as single attribute
+
+# Benefits:
+# - Clean, elegant attribute definitions
+# - Educational data structure concepts
+# - Real-world modeling (GPS, physics)
+# - Leverages existing morph system
+# - Perfect for state transitions
+
+# Next Steps:
+# - Create functions that work with complex types
+# - Use morphs for time-series analysis
+# - Build physics calculations
+# - Explore transition system integration

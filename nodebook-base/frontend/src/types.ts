@@ -40,6 +40,15 @@ export interface AttributeType {
   name: string;
   description: string;
   scope: string[];
+  data_type?: string;
+  unit?: string;
+  allowed_values?: any;
+  complex_type?: string;
+  structure?: Record<string, {
+    type: string;
+    unit: string | null;
+    description: string;
+  }>;
 }
 
 export interface FunctionType {
