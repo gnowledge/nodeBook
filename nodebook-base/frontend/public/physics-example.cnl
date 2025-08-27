@@ -1,0 +1,104 @@
+# Physics Functions Example - Car Movement Analysis
+# This example demonstrates how to use the new physics functions
+# for calculating distance, displacement, speed, velocity, and acceleration
+
+# Define a car with position tracking over time
+Car "MyCar" {
+  # Current position at t=5 seconds
+  has "position x" = 25.0
+  has "position y" = 15.0
+  has "position z" = 0.0
+  
+  # Previous position at t=4 seconds
+  has "previous position x" = 20.0
+  has "previous position y" = 12.0
+  has "previous position z" = 0.0
+  
+  # Initial position at t=0 seconds
+  has "initial position x" = 0.0
+  has "initial position y" = 0.0
+  has "initial position z" = 0.0
+  
+  # Time values
+  has "time" = 5.0
+  has "previous time" = 4.0
+  
+  # Calculate physics quantities
+  calculate "distance"      # Distance from previous position
+  calculate "displacement"  # Displacement from initial position
+  calculate "speed"         # Speed over the last time interval
+  calculate "velocity_magnitude"  # Velocity magnitude
+}
+
+# Define a ball with 3D movement
+Ball "PhysicsBall" {
+  # Current position at t=3 seconds
+  has "position x" = 8.0
+  has "position y" = 12.0
+  has "position z" = 6.0
+  
+  # Previous position at t=2 seconds
+  has "previous position x" = 6.0
+  has "previous position y" = 9.0
+  has "position z" = 4.0
+  
+  # Two positions back at t=1 second (for acceleration)
+  has "previous previous position x" = 4.0
+  has "previous previous position y" = 6.0
+  has "previous previous position z" = 2.0
+  
+  # Time values
+  has "time" = 3.0
+  has "previous time" = 2.0
+  has "previous previous time" = 1.0
+  
+  # Calculate movement quantities
+  calculate "distance"
+  calculate "speed"
+  calculate "acceleration"
+}
+
+# Define a rocket with vertical movement
+Rocket "TestRocket" {
+  # Current position at t=10 seconds
+  has "position x" = 0.0
+  has "position y" = 0.0
+  has "position z" = 100.0
+  
+  # Previous position at t=9 seconds
+  has "previous position x" = 0.0
+  has "previous position y" = 0.0
+  has "previous position z" = 81.0
+  
+  # Initial position at t=0 seconds
+  has "initial position x" = 0.0
+  has "initial position y" = 0.0
+  has "initial position z" = 0.0
+  
+  # Time values
+  has "time" = 10.0
+  has "previous time" = 9.0
+  
+  # Calculate vertical movement
+  calculate "distance"      # Vertical distance traveled
+  calculate "displacement"  # Total height from ground
+  calculate "speed"         # Vertical speed
+}
+
+# Instructions for Students:
+# 1. Load this CNL file into NodeBook
+# 2. Check the Functions tab to see the new physics functions
+# 3. Observe how the calculated values change when you modify position or time values
+# 4. Try adding more objects with different movement patterns
+# 5. Experiment with different coordinate systems and units
+# 6. Compare distance vs displacement for different paths
+# 7. Analyze how speed and acceleration relate to position changes
+
+# Physics Concepts Demonstrated:
+# - Distance vs Displacement (scalar vs vector)
+# - Speed calculation from position changes
+# - Velocity magnitude from displacement
+# - Acceleration from velocity changes
+# - 3D coordinate systems
+# - Time derivatives in kinematics
+# - Real-world applications (cars, balls, rockets)

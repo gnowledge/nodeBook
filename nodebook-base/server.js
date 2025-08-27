@@ -99,7 +99,7 @@ async function main() {
   const graphManager = new GraphManager();
   
   // The first command-line argument (index 2) is our data path.
-  const dataPath = process.argv[2] || '/app/nodebook-base/user_data';
+  const dataPath = process.argv[2] || './user_data';
   console.log('🔧 Using dataPath:', dataPath);
   // Initialize the instance with the correct path.
   await graphManager.initialize(dataPath);
@@ -595,6 +595,79 @@ Another service or function
     preHandler: authenticateJWT
   }, async (request, reply) => {
     return await schemaManager.getNodeTypes();
+  });
+
+  fastify.get('/api/schema/functions', {
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    return await schemaManager.getFunctionTypes();
+  });
+
+  fastify.post('/api/schema/functions', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name', 'expression'],
+        properties: {
+          name: { type: 'string' },
+          expression: { type: 'string' },
+          scope: { type: 'array', items: { type: 'string' } },
+          description: { type: 'string' },
+          required_attributes: { type: 'array', items: { type: 'string' } }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const newFunctionType = await schemaManager.addFunctionType(request.body);
+      reply.code(201);
+      return newFunctionType;
+    } catch (error) {
+      reply.code(409).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.put('/api/schema/functions/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const updatedFunctionType = await schemaManager.updateFunctionType(request.params.name, request.body);
+      return updatedFunctionType;
+    } catch (error) {
+      reply.code(404).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.delete('/api/schema/functions/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      await schemaManager.deleteFunctionType(request.params.name);
+      reply.code(204).send();
+      return;
+    } catch (error) {
+      reply.code(404).send({ error: error.message });
+      return;
+    }
   });
   
   fastify.post('/api/schema/nodetypes', {

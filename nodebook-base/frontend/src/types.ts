@@ -42,6 +42,14 @@ export interface AttributeType {
   scope: string[];
 }
 
+export interface FunctionType {
+  name: string;
+  expression: string;
+  scope: string[];
+  description?: string;
+  required_attributes?: string[];
+}
+
 export interface Graph {
   id: string;
   name: string;

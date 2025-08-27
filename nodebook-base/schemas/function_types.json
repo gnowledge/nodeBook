@@ -6,5 +6,110 @@
       "Element",
       "class"
     ]
+  },
+  {
+    "name": "distance",
+    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2))",
+    "scope": [
+      "Object",
+      "Particle",
+      "Vehicle",
+      "class"
+    ],
+    "description": "Calculates Euclidean distance between two 3D positions",
+    "required_attributes": [
+      "position x",
+      "position y",
+      "position z",
+      "previous position x",
+      "previous position y",
+      "previous position z"
+    ]
+  },
+  {
+    "name": "displacement",
+    "expression": "sqrt(power(\"position x\" - \"initial position x\", 2) + power(\"position y\" - \"initial position y\", 2) + power(\"position z\" - \"initial position z\", 2))",
+    "scope": [
+      "Object",
+      "Particle",
+      "Vehicle",
+      "class"
+    ],
+    "description": "Calculates displacement from initial position to current position",
+    "required_attributes": [
+      "position x",
+      "position y",
+      "position z",
+      "initial position x",
+      "initial position y",
+      "initial position z"
+    ]
+  },
+  {
+    "name": "speed",
+    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\")",
+    "scope": [
+      "Object",
+      "Particle",
+      "Vehicle",
+      "class"
+    ],
+    "description": "Calculates speed (distance traveled over time)",
+    "required_attributes": [
+      "position x",
+      "position y",
+      "position z",
+      "previous position x",
+      "previous position y",
+      "previous position z",
+      "time",
+      "previous time"
+    ]
+  },
+  {
+    "name": "velocity_magnitude",
+    "expression": "sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\")",
+    "scope": [
+      "Object",
+      "Particle",
+      "Vehicle",
+      "class"
+    ],
+    "description": "Calculates velocity magnitude (displacement over time)",
+    "required_attributes": [
+      "position x",
+      "position y",
+      "position z",
+      "previous position x",
+      "previous position y",
+      "previous position z",
+      "time",
+      "previous time"
+    ]
+  },
+  {
+    "name": "acceleration",
+    "expression": "(sqrt(power(\"position x\" - \"previous position x\", 2) + power(\"position y\" - \"previous position y\", 2) + power(\"position z\" - \"previous position z\", 2)) / (\"time\" - \"previous time\") - sqrt(power(\"previous position x\" - \"previous previous position x\", 2) + power(\"previous position y\" - \"previous previous position y\", 2) + power(\"previous position z\" - \"previous previous position z\", 2)) / (\"previous time\" - \"previous previous time\")) / (\"time\" - \"previous time\")",
+    "scope": [
+      "Object",
+      "Particle",
+      "Vehicle",
+      "class"
+    ],
+    "description": "Calculates acceleration (change in velocity over time)",
+    "required_attributes": [
+      "position x",
+      "position y",
+      "position z",
+      "previous position x",
+      "previous position y",
+      "previous position z",
+      "previous previous position x",
+      "previous previous position y",
+      "previous previous position z",
+      "time",
+      "previous time",
+      "previous previous time"
+    ]
   }
 ]

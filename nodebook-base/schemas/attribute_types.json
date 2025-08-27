@@ -536,5 +536,185 @@
     "description": "Attribute type used in the graph",
     "data_type": "string",
     "unit": null
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "X-coordinate of position in 3D space. Example: A car at x=10 meters from origin.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "position x",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Y-coordinate of position in 3D space. Example: A car at y=5 meters from origin.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "position y",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Z-coordinate of position in 3D space. Example: A car at z=0 meters (ground level).",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "position z",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous X-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous position x",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous Y-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous position y",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous Z-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous position z",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Initial X-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "initial position x",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Initial Y-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "initial position y",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Initial Z-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "initial position z",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous previous X-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous previous position x",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous previous Y-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous previous position y",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous previous Z-coordinate of position in 3D space.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous previous position z",
+    "unit": "meters (m)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Current time in seconds. Example: t=5.0 seconds from start.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "time",
+    "unit": "seconds (s)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous time in seconds.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous time",
+    "unit": "seconds (s)"
+  },
+  {
+    "allowed_values": null,
+    "data_type": "float",
+    "description": "Previous previous time in seconds.",
+    "domain": [
+      "Object",
+      "Particle",
+      "Vehicle"
+    ],
+    "name": "previous previous time",
+    "unit": "seconds (s)"
   }
 ]
