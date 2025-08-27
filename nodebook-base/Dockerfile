@@ -15,7 +15,12 @@ RUN apk add --no-cache \
     pangomm-dev \
     libjpeg-turbo-dev \
     freetype-dev \
-    curl
+    curl \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    nasm
 
 # Set working directory
 WORKDIR /app
@@ -24,10 +29,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --omit=dev --build-from-source
+RUN npm install --omit=dev
 
 # Copy source code
 COPY . .
+
+# Rebuild native modules for the current platform
+RUN npm rebuild
 
 # Build frontend
 WORKDIR /app/frontend
