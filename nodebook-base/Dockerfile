@@ -59,8 +59,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodebook -u 1001
+RUN addgroup --gid 1001 nodejs
+RUN adduser --uid 1001 --gid 1001 --disabled-password --gecos "" nodebook
 
 # Set working directory
 WORKDIR /app
