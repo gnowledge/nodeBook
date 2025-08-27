@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { NodeCard } from './NodeCard';
 import { Subgraph } from './Subgraph';
 import type { Node, Edge, AttributeType } from './types';
 import './SlideShow.css';
@@ -13,7 +12,6 @@ interface SlideShowProps {
 
 export function SlideShow({ nodes, relations, attributes, cnlText }: SlideShowProps) {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [currentSection, setCurrentSection] = useState<'nodes' | 'relations' | 'attributes'>('nodes');
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Parse CNL to get the exact order of nodes as specified by user
