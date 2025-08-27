@@ -1,26 +1,28 @@
 # Multi-stage build for NodeBook Base Service
-FROM node:20-alpine AS base
+FROM node:20-bullseye AS base
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    musl-dev \
-    giflib-dev \
-    pixman-dev \
-    pangomm-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
+    libcairo2-dev \
+    libjpeg-dev \
+    libpango1.0-dev \
+    libgif-dev \
+    libpixman-1-dev \
+    libpangomm-1.4-dev \
+    libjpeg-turbo8-dev \
+    libfreetype6-dev \
     curl \
     autoconf \
     automake \
     libtool \
-    pkgconfig \
-    nasm
+    pkg-config \
+    nasm \
+    build-essential \
+    libsodium-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -51,18 +53,18 @@ RUN npm install
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:20-bullseye AS production
 
 # Install runtime dependencies
-RUN apk add --no-cache \
-    cairo \
-    jpeg \
-    pango \
-    giflib \
-    pixman \
-    pangomm \
-    libjpeg-turbo \
-    freetype
+RUN apt-get update && apt-get install -y \
+    libcairo2 \
+    libjpeg62-turbo \
+    libpango-1.0-0 \
+    libgif7 \
+    libpixman-1-0 \
+    libpangomm-1.4-1v5 \
+    libfreetype6 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app user
 RUN addgroup -g 1001 -S nodejs
