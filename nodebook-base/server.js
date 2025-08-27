@@ -301,8 +301,123 @@ Another service or function
       id: user.id,
       username: user.username,
       isAdmin: user.is_admin,
-      email: user.email
+      email: user.email,
+      emailVerified: user.email_verified
     };
+  });
+
+  // Password reset request
+  fastify.post('/api/auth/forgot-password', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { email } = request.body;
+      
+      if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+        reply.code(400).send({ error: 'Password reset is not enabled' });
+        return;
+      }
+      
+      const result = await auth.requestPasswordReset(email);
+      reply.code(200).send(result);
+    } catch (error) {
+      fastify.log.error('Password reset request error:', error);
+      reply.code(400).send({ error: error.message });
+    }
+  });
+
+  // Password reset with token
+  fastify.post('/api/auth/reset-password', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['token', 'newPassword'],
+        properties: {
+          token: { type: 'string' },
+          newPassword: { type: 'string', minLength: 6 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { token, newPassword } = request.body;
+      
+      if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+        reply.code(400).send({ error: 'Password reset is not enabled' });
+        return;
+      }
+      
+      const result = await auth.resetPassword(token, newPassword);
+      reply.code(200).send(result);
+    } catch (error) {
+      fastify.log.error('Password reset error:', error);
+      reply.code(400).send({ error: error.message });
+    }
+  });
+
+  // Email verification
+  fastify.post('/api/auth/verify-email', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { token } = request.body;
+      
+      if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+        reply.code(400).send({ error: 'Email verification is not enabled' });
+        return;
+      }
+      
+      const result = await auth.verifyEmail(token);
+      reply.code(200).send(result);
+    } catch (error) {
+      fastify.log.error('Email verification error:', error);
+      reply.code(400).send({ error: error.message });
+    }
+  });
+
+  // Resend verification email
+  fastify.post('/api/auth/resend-verification', {
+    preHandler: authenticateJWT,
+    schema: {
+      body: {
+        type: 'object',
+        required: ['username'],
+        properties: {
+          username: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { username } = request.body;
+      
+      if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+        reply.code(400).send({ error: 'Email verification is not enabled' });
+        return;
+      }
+      
+      const result = await auth.resendVerificationEmail(username);
+      reply.code(200).send(result);
+    } catch (error) {
+      fastify.log.error('Resend verification error:', error);
+      reply.code(400).send({ error: error.message });
+    }
   });
   
   // --- Graph Management API ---

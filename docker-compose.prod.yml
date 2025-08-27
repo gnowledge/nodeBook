@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # Main NodeBook application
+  nodebook-base:
+    build:
+      context: ./nodebook-base
+      dockerfile: Dockerfile
+    container_name: nodebook-base
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOCAL_BACKEND=any
+      - EMAIL_FEATURES_ENABLED=true
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    volumes:
+      - nodebook-data:/app/nodebook-base/user_data
+      - ./nodebook-base/schemas:/app/nodebook-base/schemas
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # WordNet service
+  wordnet-service:
+    build:
+      context: ./wordnet-service
+      dockerfile: Dockerfile
+    container_name: wordnet-service
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - wordnet-data:/app/data
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # NLP parsing service
+  nlp-service:
+    build:
+      context: ./nlp-service
+      dockerfile: Dockerfile
+    container_name: nlp-service
+    environment:
+      - NODE_ENV=production
+      - PORT=8001
+    volumes:
+      - nlp-data:/app/data
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Media backend service
+  media-backend:
+    build:
+      context: ./media-backend
+      dockerfile: Dockerfile
+    container_name: media-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=8002
+    volumes:
+      - media-data:/app/media-data
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - nodebook-base
+      - wordnet-service
+      - nlp-service
+      - media-backend
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Let's Encrypt certificate management
+  certbot:
+    image: certbot/certbot:v2.10.0
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    command: renew --quiet --no-random-sleep-on-renew
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Redis for session management and caching
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  nodebook-data:
+    driver: local
+  wordnet-data:
+    driver: local
+  nlp-data:
+    driver: local
+  media-data:
+    driver: local
+  certbot-etc:
+    driver: local
+  certbot-var:
+    driver: local
+  nginx-logs:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

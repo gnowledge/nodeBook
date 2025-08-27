@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
+const emailService = require('./email-service');
 
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -45,6 +46,7 @@ async function initializeDatabase() {
       email TEXT UNIQUE,
       password_hash TEXT NOT NULL,
       is_admin BOOLEAN DEFAULT 0,
+      email_verified BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_login DATETIME,
       data_directory TEXT NOT NULL
@@ -58,9 +60,9 @@ async function initializeDatabase() {
     const adminDataDir = path.join(__dirname, 'user_data', 'admin');
     
     await db.run(`
-      INSERT INTO users (username, email, password_hash, is_admin, data_directory)
-      VALUES (?, ?, ?, ?, ?)
-    `, ['admin', 'admin@nodebook.local', adminPassword, 1, adminDataDir]);
+      INSERT INTO users (username, email, password_hash, is_admin, email_verified, data_directory)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, ['admin', 'admin@nodebook.local', adminPassword, 1, 1, adminDataDir]);
 
     // Create admin data directory
     await fs.mkdir(adminDataDir, { recursive: true });
@@ -75,14 +77,27 @@ async function createUser(username, email, password, isAdmin = false) {
   
   try {
     await db.run(`
-      INSERT INTO users (username, email, password_hash, is_admin, data_directory)
-      VALUES (?, ?, ?, ?, ?)
-    `, [username, email, passwordHash, isAdmin ? 1 : 0, dataDirectory]);
+      INSERT INTO users (username, email, password_hash, is_admin, email_verified, data_directory)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [username, email, passwordHash, isAdmin ? 1 : 0, isAdmin ? 1 : 0, dataDirectory]);
 
     // Create user data directory
     await fs.mkdir(dataDirectory, { recursive: true });
     
-    return { username, email, isAdmin, dataDirectory };
+    // If email features are enabled and user is not admin, send verification email
+    if (process.env.EMAIL_FEATURES_ENABLED === 'true' && !isAdmin && email) {
+      try {
+        const user = await findUser(username);
+        const verificationToken = await emailService.createEmailVerificationToken(user.id);
+        const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email`;
+        await emailService.sendEmailVerificationEmail(email, verificationToken, verificationUrl);
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send verification email:', emailError);
+        // Don't fail user creation if email fails
+      }
+    }
+    
+    return { username, email, isAdmin, dataDirectory, emailVerified: isAdmin };
   } catch (error) {
     if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       throw new Error('Username or email already exists');
@@ -225,6 +240,91 @@ function autoLoginForDesktop(req, res, next) {
   next();
 }
 
+// Password reset functions
+async function requestPasswordReset(email) {
+  try {
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+      throw new Error('Email features are disabled');
+    }
+    
+    const resetToken = await emailService.createPasswordResetToken(user.id);
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`;
+    
+    await emailService.sendPasswordResetEmail(email, resetToken, resetUrl);
+    return { message: 'Password reset email sent' };
+  } catch (error) {
+    console.error('❌ Password reset request failed:', error);
+    throw error;
+  }
+}
+
+async function resetPassword(token, newPassword) {
+  try {
+    const tokenInfo = await emailService.verifyPasswordResetToken(token);
+    if (!tokenInfo) {
+      throw new Error('Invalid or expired token');
+    }
+    
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    
+    // Update password
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, tokenInfo.user_id]);
+    
+    // Mark token as used
+    await emailService.markPasswordResetTokenUsed(token);
+    
+    return { message: 'Password reset successfully' };
+  } catch (error) {
+    console.error('❌ Password reset failed:', error);
+    throw error;
+  }
+}
+
+// Email verification functions
+async function verifyEmail(token) {
+  try {
+    const result = await emailService.markEmailVerified(token);
+    if (!result) {
+      throw new Error('Invalid or expired verification token');
+    }
+    return { message: 'Email verified successfully' };
+  } catch (error) {
+    console.error('❌ Email verification failed:', error);
+    throw error;
+  }
+}
+
+async function resendVerificationEmail(username) {
+  try {
+    const user = await findUser(username);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    if (user.email_verified) {
+      throw new Error('Email already verified');
+    }
+    
+    if (process.env.EMAIL_FEATURES_ENABLED !== 'true') {
+      throw new Error('Email features are disabled');
+    }
+    
+    const verificationToken = await emailService.createEmailVerificationToken(user.id);
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email`;
+    
+    await emailService.sendEmailVerificationEmail(user.email, verificationToken, verificationUrl);
+    return { message: 'Verification email sent' };
+  } catch (error) {
+    console.error('❌ Failed to resend verification email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   initializeDatabase,
   createUser,
@@ -236,5 +336,9 @@ module.exports = {
   authenticateJWT,
   requireAdmin,
   autoLoginForDesktop,
+  requestPasswordReset,
+  resetPassword,
+  verifyEmail,
+  resendVerificationEmail,
   passport
 };
