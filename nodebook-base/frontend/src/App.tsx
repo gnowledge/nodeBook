@@ -10,8 +10,6 @@ import trashIcon from './assets/trash_icon.png';
 import styles from './App.module.css';
 import { NodeCard } from './NodeCard';
 import { Visualization } from './Visualization';
-import { SlideShow } from './SlideShow';
-
 import { GraphSwitcher } from './GraphSwitcher';
 import { Menu } from './Menu';
 import { DataView } from './DataView';
@@ -25,6 +23,7 @@ import { TopBar } from './TopBar';
 import { MediaManager } from './MediaManager';
 import { GraphScore } from './GraphScore';
 import { CompactScoreDisplay } from './CompactScoreDisplay';
+import { SlideShow } from './SlideShow';
 import { calculateGraphScore } from './utils/graphScoring';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 import { API_BASE_URL } from './api-config';
