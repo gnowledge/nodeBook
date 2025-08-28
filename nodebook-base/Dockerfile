@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     libsodium-dev \
+    pkg-config \
+    autoconf \
+    automake \
+    libtool \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -23,11 +27,14 @@ WORKDIR /app
 # Set environment for native module compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
+ENV SODIUM_NATIVE_PREBUILT=0
+ENV npm_config_sodium_native_prebuilt=false
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with native module support
+# Upgrade npm and install dependencies with native module support
+RUN npm install -g npm@latest
 RUN npm install --omit=dev
 
 # Copy source code
