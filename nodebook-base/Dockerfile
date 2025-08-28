@@ -26,6 +26,9 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
 ENV SODIUM_NATIVE_PREBUILT=1
 
+# Upgrade npm to latest version
+RUN npm install -g npm@latest
+
 # Copy package files
 COPY package*.json ./
 

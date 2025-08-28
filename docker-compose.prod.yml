@@ -104,8 +104,6 @@ services:
       - certbot-var:/var/lib/letsencrypt
       - nginx-logs:/var/log/nginx
     depends_on:
-      nodebook-base:
-        condition: service_healthy
       wordnet-service:
         condition: service_healthy
       nlp-service:
