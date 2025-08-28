@@ -14,8 +14,6 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     curl \
     build-essential \
-    libsodium-dev \
-    libsodium23 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -24,7 +22,6 @@ WORKDIR /app
 # Set environment for native module compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
-ENV SODIUM_NATIVE_PREBUILT=1
 
 # Upgrade npm to latest version
 RUN npm install -g npm@latest
@@ -38,14 +35,8 @@ RUN npm install --omit=dev
 # Copy source code
 COPY . .
 
-# Replace sodium-native with libsodium-wrappers (pure JavaScript alternative)
-RUN npm uninstall sodium-native && npm install libsodium-wrappers
-
-# Rebuild other native modules
-RUN npm rebuild hyperswarm || npm install hyperswarm --build-from-source
-RUN npm rebuild hypercore || npm install hypercore --build-from-source
-RUN npm rebuild hyperdrive || npm install hyperdrive --build-from-source
-RUN npm rebuild hyperbee || npm install hyperbee --build-from-source
+# Rebuild native modules that might need it
+RUN npm rebuild
 
 # Build frontend
 WORKDIR /app/frontend
@@ -63,6 +54,7 @@ RUN apt-get update && apt-get install -y \
     libgif7 \
     libpixman-1-0 \
     libfreetype6 \
+    libsodium23 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user

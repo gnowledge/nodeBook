@@ -104,6 +104,8 @@ services:
       - certbot-var:/var/lib/letsencrypt
       - nginx-logs:/var/log/nginx
     depends_on:
+      nodebook-base:
+        condition: service_healthy
       wordnet-service:
         condition: service_healthy
       nlp-service:
@@ -113,6 +115,11 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Let's Encrypt certificate management
   certbot:
