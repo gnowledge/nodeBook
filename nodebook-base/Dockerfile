@@ -1,5 +1,5 @@
 # Multi-stage build for NodeBook Base Service
-FROM node:20-bullseye AS base
+FROM node:18-bullseye AS base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -48,7 +48,7 @@ RUN npm install
 RUN npm run build
 
 # Production stage
-FROM node:20-bullseye AS production
+FROM node:18-bullseye AS production
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
