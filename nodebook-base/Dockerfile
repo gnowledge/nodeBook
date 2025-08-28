@@ -27,15 +27,12 @@ WORKDIR /app
 # Set environment for native module compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
-ENV SODIUM_NATIVE_PREBUILT=0
-ENV npm_config_sodium_native_prebuilt=false
 
 # Copy package files
 COPY package*.json ./
 
-# Upgrade npm and install dependencies with native module support
-RUN npm install -g npm@latest
-RUN npm install --omit=dev
+# Install dependencies with native module support
+RUN npm install --omit=dev --build-from-source
 
 # Copy source code
 COPY . .
