@@ -19,45 +19,45 @@ oxide ion after gaining two more electrons.
 ```description
 A chemical element with symbol H and atomic number 1.
 ```
-has number of protons: 1
-has number of electrons: 1
-has number of neutrons: 0
+has number of protons: 1;
+has number of electrons: 1;
+has number of neutrons: 0;
 
 ## Hydrogen ion
-has number of protons: 1
-has number of neutrons: 0
-has number of electrons: 0
-<part of> Water
+has number of protons: 1;
+has number of neutrons: 0;
+has number of electrons: 0;
+<part of> Water;
 ## Hydrogen isotope
-has number of protons: 1
-has number of neutrons: 1
-has number of electrons: 1
+has number of protons: 1;
+has number of neutrons: 1;
+has number of electrons: 1;
 
 # Oxygen [Element]
 ```description
 A chemical element with symbol O and atomic number 8.
 ```
-has number of protons: 8
-has number of neutrons: 8
-has number of electrons: 8
+has number of protons: 8;
+has number of neutrons: 8;
+has number of electrons: 8;
 
 ## Oxide ion
-has number of protons: 8
-has number of neutrons: 8
-has number of electrons: 10
-<part of> Water
+has number of protons: 8;
+has number of neutrons: 8;
+has number of electrons: 10;
+<part of> Water;
 
 # Water [Class]
 ```description
 A substance composed of the chemical elements hydrogen and oxygen and existing in gaseous, liquid, and solid states.
 ```
-<is a type of> Substance
-<is a type of> Molecule
-has chemical formula: $\ce{H2O}$ 
+<is a type of> Substance;
+<is a type of> Molecule;
+has chemical formula: $\ce{H2O}$; 
 ## hydronium
-has chemical formula: $\ce{H3O+}$
+has chemical formula: $\ce{H3O+}$;
 ## hydroxide
-has chemical formula: $\ce{OH-}$
+has chemical formula: $\ce{OH-}$;
 
 # Electrolysis of Water [Transition]
 ```description
@@ -65,25 +65,25 @@ The process of using electricity to decompose water into oxygen and hydrogen gas
 ```
 ## priorState
 
-- Water:basic
-- **high voltage** Electricity
+- Water:basic;
+- **high voltage** Electricity;
 
 ## postState
 
-- Hydrogen:basic
-- Oxygen:basic 
+- Hydrogen:basic;
+- Oxygen:basic ;
 
 # Combustion [Transition]
 ```description
 A rapid reaction between hydrogen and oxygen that produces water.
 ```
 ## prior-state
-- Hydrogen:basic
-- Oxygen: basic
-- Spark|Flame
+- Hydrogen:basic;
+- Oxygen: basic;
+- Spark|Flame;
 
 ## post-state
-- Water
+- Water;
 
 # Spark [Energy]
 ```description

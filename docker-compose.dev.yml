@@ -22,6 +22,7 @@ services:
       - JWT_EXPIRES_IN=7d
       - SESSION_SECRET=dev-session-secret-change-in-production
       - HYPERSWARM_PORT=49737
+      - ADMIN_PASSWORD=admin123
     networks:
       - nodebook-dev-net
 

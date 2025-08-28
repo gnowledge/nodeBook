@@ -56,17 +56,27 @@ async function initializeDatabase() {
   // Create default admin user if no users exist
   const userCount = await db.get('SELECT COUNT(*) as count FROM users');
   if (userCount.count === 0) {
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    // Use environment variable for admin password, fallback to generated one
+    const adminPassword = process.env.ADMIN_PASSWORD || 
+      Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+    
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
     const adminDataDir = path.join(__dirname, 'user_data', 'admin');
     
     await db.run(`
       INSERT INTO users (username, email, password_hash, is_admin, email_verified, data_directory)
       VALUES (?, ?, ?, ?, ?, ?)
-    `, ['admin', 'admin@nodebook.local', adminPassword, 1, 1, adminDataDir]);
+    `, ['admin', 'admin@nodebook.local', adminPasswordHash, 1, 1, adminDataDir]);
 
     // Create admin data directory
     await fs.mkdir(adminDataDir, { recursive: true });
-    console.log('Default admin user created: admin/admin123');
+    
+    if (process.env.ADMIN_PASSWORD) {
+      console.log('✅ Admin user created with environment password');
+    } else {
+      console.log('⚠️  Admin user created with generated password:', adminPassword);
+      console.log('⚠️  Set ADMIN_PASSWORD environment variable for production!');
+    }
   }
 }
 

@@ -22,7 +22,6 @@
     "cors": "^2.8.5",
     "cytoscape": "^3.33.0",
     "cytoscape-dagre": "^2.5.0",
-
     "extract-zip": "^2.0.1",
     "fastify": "^4.26.2",
     "helmet": "^7.1.0",
@@ -30,11 +29,10 @@
     "hypercore": "^11.12.0",
     "hyperdrive": "^11.13.4",
     "hyperswarm": "^4.13.0",
-    "libsodium-wrappers": "^0.7.13",
     "jsonwebtoken": "^9.0.2",
-
+    "libsodium-wrappers": "^0.7.13",
     "mathjs": "^13.2.3",
-    "nodemailer": "^6.9.7",
+    "nodemailer": "^6.10.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
