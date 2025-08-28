@@ -30,14 +30,8 @@ COPY package*.json ./
 # Install dependencies with native module support
 RUN npm install --omit=dev
 
-# Specifically build sodium-native
-RUN npm install sodium-native --build-from-source
-
 # Copy source code
 COPY . .
-
-# Rebuild native modules that might need it
-RUN npm rebuild
 
 # Build frontend
 WORKDIR /app/frontend

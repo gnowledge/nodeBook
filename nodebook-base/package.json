@@ -30,7 +30,6 @@
     "hyperdrive": "^11.13.4",
     "hyperswarm": "^4.13.0",
     "jsonwebtoken": "^9.0.2",
-    "libsodium-wrappers": "^0.7.13",
     "mathjs": "^13.2.3",
     "nodemailer": "^6.10.1",
     "passport": "^0.7.0",
@@ -38,6 +37,7 @@
     "passport-local": "^1.0.0",
     "passport-oauth2": "^1.7.0",
     "regexparam": "^3.0.0",
+    "sodium-native": "3.3.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.6",
     "ws": "^8.18.3"
