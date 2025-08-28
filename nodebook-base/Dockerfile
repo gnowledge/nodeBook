@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     curl \
     build-essential \
+    libsodium-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -22,9 +23,6 @@ WORKDIR /app
 # Set environment for native module compilation
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV npm_config_build_from_source=true
-
-# Upgrade npm to latest version
-RUN npm install -g npm@latest
 
 # Copy package files
 COPY package*.json ./
