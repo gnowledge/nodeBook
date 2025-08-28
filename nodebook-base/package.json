@@ -30,6 +30,7 @@
     "hypercore": "^11.12.0",
     "hyperdrive": "^11.13.4",
     "hyperswarm": "^4.13.0",
+    "libsodium-wrappers": "^0.7.13",
     "jsonwebtoken": "^9.0.2",
 
     "mathjs": "^13.2.3",

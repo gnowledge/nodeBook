@@ -35,8 +35,10 @@ RUN npm install --omit=dev
 # Copy source code
 COPY . .
 
-# Force rebuild of problematic native modules
-RUN npm rebuild sodium-native || npm install sodium-native@2.4.10 --build-from-source || npm uninstall sodium-native && npm install sodium-universal
+# Replace sodium-native with libsodium-wrappers (pure JavaScript alternative)
+RUN npm uninstall sodium-native && npm install libsodium-wrappers
+
+# Rebuild other native modules
 RUN npm rebuild hyperswarm || npm install hyperswarm --build-from-source
 RUN npm rebuild hypercore || npm install hypercore --build-from-source
 RUN npm rebuild hyperdrive || npm install hyperdrive --build-from-source
