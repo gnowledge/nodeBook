@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 const BASE_URL = 'http://localhost:3000';
 
@@ -123,7 +123,7 @@ async function testGraphAPI() {
         console.log('✅ Nodes in graph:', nodesResponse.data.nodes.length);
         
         // Test 9: List all relations in the graph
-        console.log('\n9️⃣ Testing relation listing...');
+        console.log('\n9️⃣ Testing node listing...');
         const relationsResponse = await authAxios.get(`/api/graphs/${graphId}/relations?userId=${testUser}`);
         console.log('✅ Relations in graph:', relationsResponse.data.relations.length);
         
@@ -142,7 +142,7 @@ async function testGraphAPI() {
         try {
             const shareResponse = await authAxios.post(`/api/graphs/${graphId}/share`, {
                 userId: testUser,
-                permissions: { edit: false, view: true }
+                password: '.osok466cfpk.d84q1ofmttk'
             });
             console.log('✅ Share link created:', shareResponse.data.shareId);
         } catch (error) {
@@ -164,8 +164,8 @@ async function testGraphAPI() {
 }
 
 // Run the tests
-if (require.main === module) {
+if (import.meta.main) {
     testGraphAPI().catch(console.error);
 }
 
-module.exports = { testGraphAPI };
+export { testGraphAPI };

@@ -1,4 +1,4 @@
-const SimpleGraph = require('./simple-graph');
+import SimpleGraph from './simple-graph.js';
 
 console.log('🧪 Testing SimpleGraph Core Functionality (In-Memory)...\n');
 
@@ -150,8 +150,8 @@ async function testSimpleGraphCore() {
 }
 
 // Run the tests
-if (require.main === module) {
+if (import.meta.main) {
     testSimpleGraphCore().catch(console.error);
 }
 
-module.exports = { testSimpleGraphCore };
+export { testSimpleGraphCore };
