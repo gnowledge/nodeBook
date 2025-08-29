@@ -1,0 +1,18 @@
+[
+  {
+    "id": "session_1756438814573_riswb92166",
+    "graphId": "graph_1756438814556_wnxgi4yscmd",
+    "userId": "test-user-123",
+    "shareLink": {
+      "id": "ob8nitcvcbqas1eew8rcsc",
+      "permissions": {
+        "edit": true,
+        "view": true
+      },
+      "createdAt": "2025-08-29T03:40:14.573Z",
+      "expiresAt": null
+    },
+    "createdAt": "2025-08-29T03:40:14.573Z",
+    "activeCollaborators": []
+  }
+]

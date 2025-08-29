@@ -1,0 +1,20 @@
+[
+  {
+    "id": "graph_1756438781438_9zwgukdolm5",
+    "name": "Test Graph",
+    "userId": "test-user-123",
+    "createdAt": "2025-08-29T03:39:41.438Z",
+    "updatedAt": "2025-08-29T03:39:41.438Z",
+    "storagePath": "test-data/users/test-user-123/graphs/graph_1756438781438_9zwgukdolm5",
+    "graphId": "graph_1756438781438_2sgess6qtjm"
+  },
+  {
+    "id": "graph_1756438814556_k87wfl9aucc",
+    "name": "Test Graph",
+    "userId": "test-user-123",
+    "createdAt": "2025-08-29T03:40:14.556Z",
+    "updatedAt": "2025-08-29T03:40:14.556Z",
+    "storagePath": "test-data/users/test-user-123/graphs/graph_1756438814556_k87wfl9aucc",
+    "graphId": "graph_1756438814556_wnxgi4yscmd"
+  }
+]
