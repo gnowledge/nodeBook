@@ -1,30 +1,32 @@
-const fastify = require('fastify')({ 
+import fastify from 'fastify';
+import WebSocket from 'ws';
+import path from 'path';
+import { promises as fs } from 'fs';
+import SimpleGraph from './simple-graph.js';
+import SimpleGraphManager from './simple-graph-manager.js';
+import * as schemaManager from './schema-manager.js';
+import ThumbnailGenerator from './thumbnail-generator.js';
+import { diffCnl, getNodeOrderFromCnl } from './cnl-parser.js';
+import { evaluate } from 'mathjs';
+// import { buildStaticSite } from './build-static-site.js'; // Removed for SimpleGraph
+import * as auth from './auth.js';
+import ScientificLibraryManager from './scientific-library-manager.js';
+
+const server = fastify({ 
     logger: true,
     trustProxy: true
   });
-const WebSocket = require('ws');
-  const path = require('path');
-  const fs = require('fs').promises;
-const SimpleGraph = require('./simple-graph');
-const SimpleGraphManager = require('./simple-graph-manager'); // Import the new class
-const schemaManager = require('./schema-manager');
-const ThumbnailGenerator = require('./thumbnail-generator');
-const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
-const { evaluate } = require('mathjs');
-const { buildStaticSite } = require('./build-static-site');
-const auth = require('./auth');
-const ScientificLibraryManager = require('./scientific-library-manager');
   
   const PORT = process.env.PORT || 3000;
   
 // Register CORS
-fastify.register(require('@fastify/cors'), {
+server.register(await import('@fastify/cors'), {
   origin: true,
   credentials: true
 });
 
 // Register multipart for file uploads
-fastify.register(require('@fastify/multipart'), {
+server.register(await import('@fastify/multipart'), {
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
     files: 10 // Max 10 files per request
@@ -63,7 +65,7 @@ fastify.register(require('@fastify/multipart'), {
   
   // Load graph middleware - Updated for SimpleGraph
   async function loadGraph(request, reply) {
-    const gm = fastify.graphManager;
+    const gm = server.graphManager;
     const graphId = request.params.graphId;
     const userId = request.user.id;
     
@@ -95,40 +97,68 @@ async function main() {
   const graphManager = new SimpleGraphManager();
   
   // The first command-line argument (index 2) is our data path.
-  const dataPath = process.argv[2] || './user_data';
+  let dataPath = process.argv[2] || './user_data';
+  
+  // Convert relative paths to absolute paths for Docker compatibility
+  if (dataPath.startsWith('./') || dataPath.startsWith('../')) {
+    dataPath = path.resolve(dataPath);
+  }
+  
   console.log('🔧 Using dataPath:', dataPath);
   // Initialize the instance with the correct path.
   await graphManager.initialize(dataPath);
 
-  // Attach the initialized instance to the fastify object
-  fastify.decorate('graphManager', graphManager);
+  // Attach the initialized instance to the server object
+  server.decorate('graphManager', graphManager);
   
   // Initialize ThumbnailGenerator
   const thumbnailGenerator = new ThumbnailGenerator(graphManager.BASE_DATA_DIR);
-  fastify.decorate('thumbnailGenerator', thumbnailGenerator);
+  server.decorate('thumbnailGenerator', thumbnailGenerator);
   
-  // Initialize MediaManager
-  let mediaManager = null;
-  try {
-    const MediaManager = require('./media-manager');
-    mediaManager = new MediaManager(graphManager.BASE_DATA_DIR);
-    fastify.decorate('mediaManager', mediaManager);
-    console.log('✅ MediaManager initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize MediaManager:', error);
-    console.log('⚠️ Continuing without MediaManager - media features will be disabled');
-    // Don't throw error - let server start without MediaManager
-  }
+  // MediaManager removed - not needed for this project
+  console.log('ℹ️ MediaManager not included - media features disabled');
   
   // --- Health Check Route ---
-  fastify.get('/api/health', async (request, reply) => {
+  server.get('/api/health', async (request, reply) => {
     return { status: 'ok', message: 'NodeBook Backend is running (SimpleGraph)', timestamp: new Date().toISOString() };
+  });
+
+  // --- Temporary Login Endpoint for Testing ---
+  server.post('/api/auth/login', async (request, reply) => {
+    try {
+      const { username, password } = request.body;
+      
+      // For testing, allow admin login with the generated password
+      if (username === 'admin') {
+        const user = await auth.findUser(username);
+        if (user) {
+          const isValid = await auth.verifyPassword(password, user.password_hash);
+          if (isValid) {
+            const token = auth.generateToken(user);
+            return { 
+              success: true, 
+              token, 
+              user: { 
+                id: user.id, 
+                username: user.username, 
+                is_admin: user.is_admin 
+              } 
+            };
+          }
+        }
+      }
+      
+      reply.code(401).send({ error: 'Invalid credentials' });
+    } catch (error) {
+      console.error('Login error:', error);
+      reply.code(500).send({ error: 'Login failed', details: error.message });
+    }
   });
 
   // --- Collaboration API Routes ---
   
   // Create collaboration session
-  fastify.post('/api/collaboration/create', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.post('/api/collaboration/create', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { graphId, permissions } = request.body;
       const userId = request.user.id;
@@ -146,7 +176,7 @@ async function main() {
   });
 
   // Join collaboration session
-  fastify.post('/api/collaboration/join', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.post('/api/collaboration/join', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { shareId, permissions } = request.body;
       const userId = request.user.id;
@@ -164,7 +194,7 @@ async function main() {
   });
 
   // Get collaboration status
-  fastify.get('/api/collaboration/status/:graphId', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.get('/api/collaboration/status/:graphId', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { graphId } = request.params;
       const status = await graphManager.getCollaborationStatus(graphId);
@@ -185,7 +215,7 @@ async function main() {
   });
 
   // Leave collaboration session
-  fastify.post('/api/collaboration/leave', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.post('/api/collaboration/leave', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { sessionId } = request.body;
       const userId = request.user.id;
@@ -203,7 +233,7 @@ async function main() {
   });
 
   // --- MindMap Templates API ---
-  fastify.get('/api/mindmap/templates', async (request, reply) => {
+  server.get('/api/mindmap/templates', async (request, reply) => {
     const templates = {
       'contains': {
         name: 'Contains/Part-Whole',
@@ -288,7 +318,7 @@ Another specific service
   // --- Graph Management API Routes ---
   
   // Create new graph
-  fastify.post('/api/graphs', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.post('/api/graphs', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { name, description, options } = request.body;
       const userId = request.user.id;
@@ -311,7 +341,7 @@ Another specific service
   });
 
   // List user graphs
-  fastify.get('/api/graphs', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.get('/api/graphs', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const userId = request.user.id;
       const graphs = await graphManager.listGraphs(userId);
@@ -327,7 +357,7 @@ Another specific service
   });
 
   // Get specific graph
-  fastify.get('/api/graphs/:graphId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.get('/api/graphs/:graphId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       
@@ -352,7 +382,7 @@ Another specific service
   });
 
   // Delete graph
-  fastify.delete('/api/graphs/:graphId', { preHandler: authenticateJWT }, async (request, reply) => {
+  server.delete('/api/graphs/:graphId', { preHandler: authenticateJWT }, async (request, reply) => {
     try {
       const { graphId } = request.params;
       const userId = request.user.id;
@@ -372,7 +402,7 @@ Another specific service
   // --- Node Management API Routes ---
   
   // Add node
-  fastify.post('/api/graphs/:graphId/nodes', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.post('/api/graphs/:graphId/nodes', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { base_name, options } = request.body;
@@ -390,7 +420,7 @@ Another specific service
   });
 
   // Update node
-  fastify.put('/api/graphs/:graphId/nodes/:nodeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.put('/api/graphs/:graphId/nodes/:nodeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { nodeId } = request.params;
@@ -409,7 +439,7 @@ Another specific service
   });
 
   // Delete node
-  fastify.delete('/api/graphs/:graphId/nodes/:nodeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.delete('/api/graphs/:graphId/nodes/:nodeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { nodeId } = request.params;
@@ -429,7 +459,7 @@ Another specific service
   // --- Relation Management API Routes ---
   
   // Add relation
-  fastify.post('/api/graphs/:graphId/relations', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.post('/api/graphs/:graphId/relations', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { source_id, target_id, name, options } = request.body;
@@ -447,7 +477,7 @@ Another specific service
   });
 
   // Delete relation
-  fastify.delete('/api/graphs/:graphId/relations/:relationId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.delete('/api/graphs/:graphId/relations/:relationId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { relationId } = request.params;
@@ -467,7 +497,7 @@ Another specific service
   // --- Attribute Management API Routes ---
   
   // Add attribute
-  fastify.post('/api/graphs/:graphId/attributes', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.post('/api/graphs/:graphId/attributes', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { source_id, attributeName, attributeValue, options } = request.body;
@@ -485,7 +515,7 @@ Another specific service
   });
 
   // Delete attribute
-  fastify.delete('/api/graphs/:graphId/attributes/:attributeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.delete('/api/graphs/:graphId/attributes/:attributeId', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { attributeId } = request.params;
@@ -505,7 +535,7 @@ Another specific service
   // --- Function Application API Routes ---
   
   // Apply function
-  fastify.post('/api/graphs/:graphId/functions', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.post('/api/graphs/:graphId/functions', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { source_id, name, expression, options } = request.body;
@@ -530,7 +560,7 @@ Another specific service
   // --- CNL Processing API Routes ---
   
   // Process CNL and build graph
-  fastify.post('/api/graphs/:graphId/process-cnl', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
+  server.post('/api/graphs/:graphId/process-cnl', { preHandler: authenticateJWT, preHandler: loadGraph }, async (request, reply) => {
     try {
       const graph = request.graph;
       const { cnlText } = request.body;
@@ -551,12 +581,12 @@ Another specific service
   // --- Server Startup ---
   
   try {
-    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    await server.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`🚀 NodeBook Backend (SimpleGraph) running on port ${PORT}`);
     console.log(`📁 Data directory: ${dataPath}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   } catch (err) {
-    fastify.log.error(err);
+    server.log.error(err);
     process.exit(1);
   }
 }
@@ -566,12 +596,12 @@ process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   
   try {
-    if (fastify.graphManager) {
-      await fastify.graphManager.cleanup();
+    if (server.graphManager) {
+      await server.graphManager.cleanup();
       console.log('✅ Graph manager cleaned up');
     }
     
-    await fastify.close();
+    await server.close();
     console.log('✅ Server closed');
     process.exit(0);
   } catch (error) {

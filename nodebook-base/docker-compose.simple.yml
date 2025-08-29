@@ -1,0 +1,56 @@
+services:
+  nodebook-simple:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: nodebook-simple-test
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - ./user_data:/app/user_data
+      - ./logs:/app/logs
+      - ./media:/app/media
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nodebook-network
+
+  # Optional: Add a test client container
+  test-client:
+    image: curlimages/curl:latest
+    container_name: nodebook-test-client
+    depends_on:
+      - nodebook-simple
+    command: >
+      sh -c "
+        echo 'Waiting for NodeBook server to be ready...' &&
+        until curl -f http://nodebook-simple:3000/api/health; do
+          echo 'Server not ready, waiting...'
+          sleep 5
+        done &&
+        echo 'Server is ready! Testing endpoints...' &&
+        echo 'Health check:' &&
+        curl -s http://nodebook-simple:3000/api/health | jq . &&
+        echo 'MindMap templates:' &&
+        curl -s http://nodebook-simple:3000/api/mindmap/templates | jq . &&
+        echo 'All tests completed!'
+      "
+    networks:
+      - nodebook-network
+
+networks:
+  nodebook-network:
+    driver: bridge
+
+volumes:
+  user_data:
+  logs:
+  media:

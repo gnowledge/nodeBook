@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 class PolyNode {
   constructor(base_name, options = {}) {
@@ -59,4 +59,4 @@ class FunctionNode extends AttributeNode {
   }
 }
 
-module.exports = { PolyNode, RelationNode, AttributeNode, FunctionNode };
+export { PolyNode, RelationNode, AttributeNode, FunctionNode };

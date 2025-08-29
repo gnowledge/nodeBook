@@ -1,4 +1,4 @@
-const math = require('mathjs');
+import * as math from 'mathjs';
 // const stdlib = require('@stdlib/stdlib'); // TODO: Add when package is available
 
 /**
@@ -236,4 +236,4 @@ class ScientificLibraryManager {
   }
 }
 
-module.exports = ScientificLibraryManager;
+export default ScientificLibraryManager;

@@ -1,5 +1,5 @@
-const crypto = require('crypto');
-const schemaManager = require('./schema-manager');
+import crypto from 'crypto';
+import * as schemaManager from './schema-manager.js';
 
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
@@ -342,4 +342,4 @@ function processNeighborhood(nodeId, lines) {
 
 
 
-module.exports = { diffCnl, validateOperations, getNodeOrderFromCnl };
+export { diffCnl, validateOperations, getNodeOrderFromCnl };

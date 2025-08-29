@@ -1,9 +1,9 @@
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const path = require('path');
-const fs = require('fs').promises;
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import path from 'path';
+import { promises as fs } from 'fs';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 
 // Email configuration
 const EMAIL_CONFIG = {
@@ -328,7 +328,7 @@ async function cleanupExpiredTokens() {
 // Schedule cleanup every hour
 setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 
-module.exports = {
+export {
   initializeEmailDatabase,
   sendPasswordResetEmail,
   sendEmailVerificationEmail,

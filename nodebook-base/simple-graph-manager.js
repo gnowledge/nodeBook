@@ -1,6 +1,6 @@
-const fsp = require('fs').promises;
-const path = require('path');
-const SimpleGraph = require('./simple-graph');
+import { promises as fsp } from 'fs';
+import path from 'path';
+import SimpleGraph from './simple-graph.js';
 
 const DEBUG_LOG_FILE = '/tmp/nodebook-debug.log';
 
@@ -41,18 +41,27 @@ class SimpleGraphManager {
         this.BASE_DATA_DIR = dataPath || path.join(__dirname, 'graphs');
         logDebug(`Initializing with BASE_DATA_DIR: ${this.BASE_DATA_DIR}`);
         
-        // Create base data directory
-        await fsp.mkdir(this.BASE_DATA_DIR, { recursive: true });
-        
-        // Create users directory
-        const usersDir = path.join(this.BASE_DATA_DIR, 'users');
-        await fsp.mkdir(usersDir, { recursive: true });
-        
-        // Create collaboration sessions directory
-        const sessionsDir = path.join(this.BASE_DATA_DIR, 'collaboration_sessions');
-        await fsp.mkdir(sessionsDir, { recursive: true });
-        
-        logDebug('SimpleGraphManager initialized with user data segregation and collaboration support.');
+        try {
+            // Create base data directory
+            await fsp.mkdir(this.BASE_DATA_DIR, { recursive: true });
+            
+            // Create users directory
+            const usersDir = path.join(this.BASE_DATA_DIR, 'users');
+            await fsp.mkdir(usersDir, { recursive: true });
+            
+            // Create collaboration sessions directory
+            const sessionsDir = path.join(this.BASE_DATA_DIR, 'collaboration_sessions');
+            await fsp.mkdir(sessionsDir, { recursive: true });
+            
+            logDebug('SimpleGraphManager initialized with user data segregation and collaboration support.');
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                logDebug(`Warning: Permission denied creating directories. Continuing with limited functionality. Error: ${error.message}`);
+                console.warn(`⚠️  Warning: Permission denied creating directories. Continuing with limited functionality.`);
+            } else {
+                throw error;
+            }
+        }
     }
 
     // Get user-specific data directory
@@ -80,27 +89,64 @@ class SimpleGraphManager {
         const userDataDir = this.getUserDataDir(userId);
         const { graphRegistry, nodeRegistry, collaborationRegistry } = this.getUserRegistryFiles(userId);
         
-        await fsp.mkdir(userDataDir, { recursive: true });
+        try {
+            await fsp.mkdir(userDataDir, { recursive: true });
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                logDebug(`Warning: Permission denied creating user directory ${userDataDir}. Continuing with limited functionality.`);
+                console.warn(`⚠️  Warning: Permission denied creating user directory. Continuing with limited functionality.`);
+                // Continue without creating the directory
+            } else {
+                throw error;
+            }
+        }
         
         // Initialize user's graph registry if it doesn't exist
         try {
             await fsp.access(graphRegistry);
         } catch {
-            await writeJsonFile(graphRegistry, []);
+            try {
+                await writeJsonFile(graphRegistry, []);
+            } catch (writeError) {
+                if (writeError.code === 'EACCES') {
+                    logDebug(`Warning: Permission denied writing to graph registry. Continuing with in-memory storage.`);
+                    console.warn(`⚠️  Warning: Permission denied writing to graph registry. Continuing with in-memory storage.`);
+                } else {
+                    throw writeError;
+                }
+            }
         }
         
         // Initialize user's node registry if it doesn't exist
         try {
             await fsp.access(nodeRegistry);
         } catch {
-            await writeJsonFile(nodeRegistry, {});
+            try {
+                await writeJsonFile(nodeRegistry, {});
+            } catch (writeError) {
+                if (writeError.code === 'EACCES') {
+                    logDebug(`Warning: Permission denied writing to node registry. Continuing with in-memory storage.`);
+                    console.warn(`⚠️  Warning: Permission denied writing to node registry. Continuing with in-memory storage.`);
+                } else {
+                    throw writeError;
+                }
+            }
         }
         
         // Initialize user's collaboration registry if it doesn't exist
         try {
             await fsp.access(collaborationRegistry);
         } catch {
-            await writeJsonFile(collaborationRegistry, []);
+            try {
+                await writeJsonFile(collaborationRegistry, []);
+            } catch (writeError) {
+                if (writeError.code === 'EACCES') {
+                    logDebug(`Warning: Permission denied writing to collaboration registry. Continuing with in-memory storage.`);
+                    console.warn(`⚠️  Warning: Permission denied writing to collaboration registry. Continuing with in-memory storage.`);
+                } else {
+                    throw writeError;
+                }
+            }
         }
         
         return userDataDir;
@@ -160,13 +206,35 @@ class SimpleGraphManager {
 
     // Create a new graph
     async createGraph(userId, graphName, options = {}) {
-        await this.ensureUserDataDir(userId);
+        try {
+            await this.ensureUserDataDir(userId);
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                logDebug(`Warning: Permission denied in ensureUserDataDir. Continuing with in-memory storage.`);
+                console.warn(`⚠️  Warning: Permission denied in ensureUserDataDir. Continuing with in-memory storage.`);
+            } else {
+                throw error;
+            }
+        }
         
         const graphId = this.generateGraphId();
-        const storagePath = path.join(this.getUserDataDir(userId), 'graphs', graphId);
+        let storagePath = path.join(this.getUserDataDir(userId), 'graphs', graphId);
         
         // Create graph storage directory
-        await fsp.mkdir(storagePath, { recursive: true });
+        try {
+            await fsp.mkdir(storagePath, { recursive: true });
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                logDebug(`Warning: Permission denied creating graph storage directory. Continuing with in-memory storage.`);
+                console.warn(`⚠️  Warning: Permission denied creating graph storage directory. Continuing with in-memory storage.`);
+                // Use a fallback path that doesn't require directory creation
+                const fallbackPath = `/tmp/simplegraph_${graphId}`;
+                logDebug(`Using fallback storage path: ${fallbackPath}`);
+                storagePath = fallbackPath;
+            } else {
+                throw error;
+            }
+        }
         
         // Create simple graph instance
         const graph = await SimpleGraph.create(storagePath, graphId);
@@ -184,7 +252,16 @@ class SimpleGraphManager {
         };
         
         // Update registry
-        await this.updateGraphRegistry(userId, graphId, graphMetadata);
+        try {
+            await this.updateGraphRegistry(userId, graphId, graphMetadata);
+        } catch (error) {
+            if (error.code === 'EACCES') {
+                logDebug(`Warning: Permission denied updating graph registry. Continuing with in-memory storage.`);
+                console.warn(`⚠️  Warning: Permission denied updating graph registry. Continuing with in-memory storage.`);
+            } else {
+                throw error;
+            }
+        }
         
         // Store active graph reference - use both the generated graphId and the graph.key for lookup
         this.activeGraphs.set(graphId, graph);
@@ -414,4 +491,4 @@ class SimpleGraphManager {
     }
 }
 
-module.exports = SimpleGraphManager;
+export default SimpleGraphManager;

@@ -1,5 +1,5 @@
-const { PolyNode, RelationNode, AttributeNode, FunctionNode } = require('./models');
-const { evaluate } = require('mathjs');
+import { PolyNode, RelationNode, AttributeNode, FunctionNode } from './models.js';
+import { evaluate } from 'mathjs';
 
 class SimpleGraph {
   constructor(storagePath) {
@@ -245,4 +245,4 @@ class SimpleGraph {
   }
 }
 
-module.exports = SimpleGraph;
+export default SimpleGraph;

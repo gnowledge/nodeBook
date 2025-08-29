@@ -1,5 +1,9 @@
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SCHEMA_DIR = path.join(__dirname, 'schemas');
 const RELATION_TYPES_FILE = path.join(SCHEMA_DIR, 'relation_types.json');
@@ -135,7 +139,7 @@ async function deleteFunctionType(name) {
     await writeSchema(FUNCTION_TYPES_FILE, filteredTypes);
 }
 
-module.exports = {
+export {
     getNodeTypes,
     getRelationTypes,
     addRelationType,

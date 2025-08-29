@@ -1,14 +1,18 @@
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const JwtStrategy = require('passport-jwt').Strategy;
-const { ExtractJwt } = require('passport-jwt');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const path = require('path');
-const fs = require('fs').promises;
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
-const emailService = require('./email-service');
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import { Strategy as JwtStrategy } from 'passport-jwt';
+import { ExtractJwt } from 'passport-jwt';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import path from 'path';
+import { promises as fs, existsSync } from 'fs';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import * as emailService from './email-service.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -24,8 +28,8 @@ async function initializeDatabase() {
   console.log('🔍 [AUTH DEBUG] __dirname:', __dirname);
   console.log('🔍 [AUTH DEBUG] Current working directory:', process.cwd());
   console.log('🔍 [AUTH DEBUG] Database path:', dbPath);
-  console.log('🔍 [AUTH DEBUG] Database path exists:', require('fs').existsSync(dbPath));
-  console.log('🔍 [AUTH DEBUG] Directory exists:', require('fs').existsSync(path.dirname(dbPath)));
+  console.log('🔍 [AUTH DEBUG] Database path exists:', existsSync(dbPath));
+  console.log('🔍 [AUTH DEBUG] Directory exists:', existsSync(path.dirname(dbPath)));
   
   try {
     db = await open({
@@ -78,6 +82,11 @@ async function initializeDatabase() {
       console.log('⚠️  Set ADMIN_PASSWORD environment variable for production!');
     }
   }
+}
+
+// Password verification function
+async function verifyPassword(password, passwordHash) {
+  return await bcrypt.compare(password, passwordHash);
 }
 
 // User management functions
@@ -335,7 +344,7 @@ async function resendVerificationEmail(username) {
   }
 }
 
-module.exports = {
+export {
   initializeDatabase,
   createUser,
   findUser,
@@ -343,6 +352,7 @@ module.exports = {
   getUserDataDirectory,
   generateToken,
   verifyToken,
+  verifyPassword,
   authenticateJWT,
   requireAdmin,
   autoLoginForDesktop,

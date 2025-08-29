@@ -1,5 +1,5 @@
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import path from 'path';
 
 /**
  * Generate a simple PNG thumbnail for a graph
@@ -150,4 +150,4 @@ class ThumbnailGenerator {
   }
 }
 
-module.exports = ThumbnailGenerator;
+export default ThumbnailGenerator;
