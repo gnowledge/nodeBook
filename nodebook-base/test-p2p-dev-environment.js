@@ -2,13 +2,13 @@ import axios from 'axios';
 
 console.log('🧪 Testing NodeBook P2P Development Environment...\n');
 
-// Service endpoints
+// Service endpoints - Updated for new Docker setup
 const SERVICES = {
     p2pServer: 'http://localhost:3000',
-    nlpService: 'http://localhost:3001',
-    wordnetService: 'http://localhost:3002',
-    p2pMonitor: 'http://localhost:3003',
-    frontend: 'http://localhost:8080'
+    nlpService: 'http://localhost:3002',
+    wordnetService: 'http://localhost:3003',
+    p2pMonitor: 'http://localhost:3004',  // Updated port
+    frontend: 'http://localhost:5173'     // Updated port
 };
 
 // Test results

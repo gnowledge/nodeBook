@@ -1,0 +1,97 @@
+services:
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: nodebook-auth-service-core-dev
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./auth-service:/app
+      - /app/node_modules
+      - nodebook-p2p-core-data:/app/user_data
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - JWT_EXPIRES_IN=7d
+      - ADMIN_PASSWORD=admin123
+    networks:
+      - nodebook-p2p-core-net
+    restart: unless-stopped
+
+  # P2P NodeBook Backend Service
+  nodebook-p2p:
+    build:
+      context: ./nodebook-base
+      dockerfile: Dockerfile.p2p
+    container_name: nodebook-p2p-core-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nodebook-base:/app
+      - /app/node_modules
+      - nodebook-p2p-core-data:/app/user_data
+      - nodebook-p2p-core-logs:/app/logs
+      - nodebook-p2p-core-media:/app/media
+    environment:
+      - NODE_ENV=development
+      - P2P_ENABLED=true
+      - COLLABORATION_ENABLED=true
+      - LOG_LEVEL=info
+      - AUTH_SERVICE_URL=http://auth-service:3005
+    networks:
+      - nodebook-p2p-core-net
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  # P2P Network Monitor Service
+  p2p-monitor:
+    build:
+      context: ./nodebook-base
+      dockerfile: Dockerfile.p2p-monitor
+    container_name: nodebook-p2p-monitor-core-dev
+    ports:
+      - "3004:3003"
+    volumes:
+      - ./nodebook-base:/app
+      - /app/node_modules
+      - nodebook-p2p-core-data:/app/user_data
+    environment:
+      - NODE_ENV=development
+      - MONITOR_PORT=3003
+      - P2P_NETWORK_ID=nodebook-core-dev
+    networks:
+      - nodebook-p2p-core-net
+    depends_on:
+      - nodebook-p2p
+    restart: unless-stopped
+
+  # Redis for session management and P2P coordination
+  redis:
+    image: redis:7-alpine
+    container_name: nodebook-redis-p2p-core-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-p2p-core-data:/data
+    networks:
+      - nodebook-p2p-core-net
+    restart: unless-stopped
+
+networks:
+  nodebook-p2p-core-net:
+    driver: bridge
+
+volumes:
+  # Persistent storage for P2P core development
+  nodebook-p2p-core-data:
+    driver: local
+  nodebook-p2p-core-logs:
+    driver: local
+  nodebook-p2p-core-media:
+    driver: local
+  redis-p2p-core-data:
+    driver: local

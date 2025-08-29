@@ -30,12 +30,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p user_data logs media
-
-# Set permissions
-RUN chown -R node:node /app
-USER node
+# Create necessary directories with proper permissions
+RUN mkdir -p user_data logs media && \
+    chmod -R 755 user_data logs media
 
 # Expose port
 EXPOSE 3000
@@ -53,12 +50,9 @@ FROM base AS production
 # Copy source code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p user_data logs media
-
-# Set permissions
-RUN chown -R node:node /app
-USER node
+# Create necessary directories with proper permissions
+RUN mkdir -p user_data logs media && \
+    chmod -R 755 user_data logs media
 
 # Expose port
 EXPOSE 3000

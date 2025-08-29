@@ -18,22 +18,16 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
-import websocket from '@fastify/websocket';
+// import websocket from '@fastify/websocket';
 import P2PGraphManager from './p2p-graph-manager.js';
-import auth from './auth.js';
+import * as auth from './auth.js';
 import path from 'path';
 import fs from 'fs';
 
-// Initialize Fastify server
+// Initialize Fastify server with simple logger
 const server = Fastify({
     logger: {
-        level: 'info',
-        transport: {
-            target: 'pino-pretty',
-            options: {
-                colorize: true
-            }
-        }
+        level: 'info'
     }
 });
 
@@ -47,7 +41,7 @@ await server.register(cors, {
 });
 
 await server.register(multipart);
-await server.register(websocket);
+// await server.register(websocket);
 
 // Initialize P2P system
 server.addHook('onReady', async () => {
@@ -90,11 +84,11 @@ server.get('/api/mindmap/templates', async (request, reply) => {
 server.post('/api/auth/login', async (request, reply) => {
     try {
         const { username, password } = request.body;
-        const result = await auth.authenticateUser(username, password);
+        const user = await auth.validateUser(username, password);
         
-        if (result.success) {
-            const token = auth.generateToken(result.user);
-            return { token, user: result.user };
+        if (user) {
+            const token = auth.generateToken(user);
+            return { token, user };
         } else {
             return reply.code(401).send({ error: 'Invalid credentials' });
         }

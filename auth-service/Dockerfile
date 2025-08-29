@@ -1,4 +1,4 @@
-# NodeBook P2P Network Monitor Dockerfile
+# NodeBook Authentication Service Dockerfile
 
 FROM node:22-alpine
 
@@ -21,16 +21,18 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy source code
 COPY . .
 
-# Create necessary directories with proper permissions
-RUN mkdir -p user_data logs && \
-    chmod -R 755 user_data logs
+# Create necessary directories
+RUN mkdir -p user_data
+
+# Set permissions
+RUN chmod -R 755 user_data
 
 # Expose port
-EXPOSE 3003
+EXPOSE 3005
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3003/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+    CMD node -e "require('http').get('http://localhost:3005/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start P2P monitor
-CMD ["node", "p2p-monitor.js"]
+# Start authentication service
+CMD ["node", "server.js"]

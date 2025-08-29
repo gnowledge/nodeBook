@@ -1,0 +1,176 @@
+services:
+  # Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: nodebook-auth-service-p2p-dev
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./auth-service:/app
+      - /app/node_modules
+      - nodebook-p2p-data:/app/user_data
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - JWT_EXPIRES_IN=7d
+      - ADMIN_PASSWORD=admin123
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+  # P2P NodeBook Backend Service
+  nodebook-p2p:
+    build:
+      context: ./nodebook-base
+      dockerfile: Dockerfile.p2p
+    container_name: nodebook-p2p-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nodebook-base:/app
+      - /app/node_modules
+      - nodebook-p2p-data:/app/user_data
+      - nodebook-p2p-logs:/app/logs
+      - nodebook-p2p-media:/app/media
+    environment:
+      - NODE_ENV=development
+      - P2P_ENABLED=true
+      - COLLABORATION_ENABLED=true
+      - LOG_LEVEL=info
+      - AUTH_SERVICE_URL=http://auth-service:3005
+    networks:
+      - nodebook-p2p-net
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  # P2P Network Monitor Service
+  p2p-monitor:
+    build:
+      context: ./nodebook-base
+      dockerfile: Dockerfile.p2p-monitor
+    container_name: nodebook-p2p-monitor-dev
+    ports:
+      - "3004:3003"
+    volumes:
+      - ./nodebook-base:/app
+      - /app/node_modules
+      - nodebook-p2p-data:/app/user_data
+    environment:
+      - NODE_ENV=development
+      - MONITOR_PORT=3003
+      - P2P_NETWORK_ID=nodebook-dev
+    networks:
+      - nodebook-p2p-net
+    depends_on:
+      - nodebook-p2p
+    restart: unless-stopped
+
+  # Media backend service for file uploads and management
+  media-backend:
+    build:
+      context: ./media-backend
+      dockerfile: Dockerfile
+    container_name: nodebook-media-backend-p2p-dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./media-backend/media-data:/app/media-data
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATA_PATH=/app/media-data
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+  # NLP service for text analysis and graph suggestions
+  nlp-service:
+    build:
+      context: ./nlp-service
+      dockerfile: Dockerfile
+    container_name: nodebook-nlp-service-p2p-dev
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+  # WordNet service for auto-filling node descriptions
+  wordnet-service:
+    build:
+      context: ./wordnet-service
+      dockerfile: Dockerfile
+    container_name: nodebook-wordnet-service-p2p-dev
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+  # Frontend service with PWA development
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nodebook-frontend-p2p-dev
+    command: sh -c "cd nodebook-base/frontend && npm run dev -- --host 0.0.0.0 --port 5173"
+    working_dir: /app
+    volumes:
+      - ./nodebook-base:/app/nodebook-base
+      - /app/nodebook-base/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_TARGET=http://nodebook-p2p:3000
+      - VITE_AUTH_SERVICE_URL=http://localhost:3005
+      - VITE_MEDIA_BACKEND_URL=http://localhost:3001
+      - VITE_NLP_SERVICE_URL=http://localhost:3002
+      - VITE_WORDNET_SERVICE_URL=http://localhost:3003
+      - VITE_P2P_ENABLED=true
+      - VITE_DEV_MODE=true
+    networks:
+      - nodebook-p2p-net
+    depends_on:
+      - nodebook-p2p
+      - auth-service
+      - media-backend
+      - nlp-service
+      - wordnet-service
+    restart: unless-stopped
+
+  # Redis for session management and P2P coordination
+  redis:
+    image: redis:7-alpine
+    container_name: nodebook-redis-p2p-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-p2p-data:/data
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+networks:
+  nodebook-p2p-net:
+    driver: bridge
+
+volumes:
+  # Persistent storage for P2P development
+  nodebook-p2p-data:
+    driver: local
+  nodebook-p2p-logs:
+    driver: local
+  nodebook-p2p-media:
+    driver: local
+  redis-p2p-data:
+    driver: local

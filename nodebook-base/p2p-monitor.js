@@ -10,20 +10,14 @@
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import websocket from '@fastify/websocket';
+// import websocket from '@fastify/websocket';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// Initialize Fastify server
+// Initialize Fastify server with simple logger
 const server = Fastify({
     logger: {
-        level: 'info',
-        transport: {
-            target: 'pino-pretty',
-            options: {
-                colorize: true
-            }
-        }
+        level: 'info'
     }
 });
 
@@ -33,7 +27,7 @@ await server.register(cors, {
     credentials: true
 });
 
-await server.register(websocket);
+// await server.register(websocket);
 
 // P2P Network Monitor Data
 let p2pNetworkData = {
@@ -139,33 +133,33 @@ server.get('/api/p2p/network/metrics', async (request, reply) => {
     }
 });
 
-// WebSocket endpoint for real-time updates
-server.register(async function (fastify) {
-    fastify.get('/ws/p2p-monitor', { websocket: true }, (connection, req) => {
-        server.log.info('P2P Monitor WebSocket connection established');
-        
-        // Send initial data
-        connection.socket.send(JSON.stringify({
-            type: 'initial',
-            data: p2pNetworkData
-        }));
-        
-        // Set up periodic updates
-        const updateInterval = setInterval(() => {
-            updateP2PNetworkData();
-            connection.socket.send(JSON.stringify({
-                type: 'update',
-                data: p2PNetworkData
-            }));
-        }, 5000); // Update every 5 seconds
-        
-        // Handle connection close
-        connection.socket.on('close', () => {
-            server.log.info('P2P Monitor WebSocket connection closed');
-            clearInterval(updateInterval);
-        });
-    });
-});
+// WebSocket endpoint for real-time updates (disabled due to Fastify version compatibility)
+// server.register(async function (fastify) {
+//     fastify.get('/ws/p2p-monitor', { websocket: true }, (connection, req) => {
+//         server.log.info('P2P Monitor WebSocket connection established');
+//         
+//         // Send initial data
+//         connection.socket.send(JSON.stringify({
+//             type: 'initial',
+//             data: p2pNetworkData
+//         }));
+//         
+//         // Set up periodic updates
+//         const updateInterval = setInterval(() => {
+//             updateP2PNetworkData();
+//             connection.socket.send(JSON.stringify({
+//                 type: 'update',
+//                 data: p2PNetworkData
+//             }));
+//         }, 5000); // Update every 5 seconds
+//         
+//         // Handle connection close
+//         connection.socket.on('close', () => {
+//             server.log.info('P2P Monitor WebSocket connection closed');
+//             clearInterval(updateInterval);
+//         });
+//     });
+// });
 
 // Helper functions
 async function getP2PNetworkData(userDataPath) {
