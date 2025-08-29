@@ -152,3 +152,4 @@ else
     echo -e "${GREEN}✅ Password updated in docker-compose.dev.yml${NC}"
 fi
 
+
