@@ -75,6 +75,8 @@ export function CNLEditor({
 }: CNLEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -116,13 +118,45 @@ export function CNLEditor({
             // Simple approach: just show the completion dropdown
             // This will work with the existing autocompletion setup
             return false; // Let the default handler deal with it
-          }}
+          }},
+          // Markdown shortcuts
+          { key: 'Ctrl-b', run: (view) => { insertMarkdown('**', '**'); return true; }},
+          { key: 'Ctrl-i', run: (view) => { insertMarkdown('*', '*'); return true; }},
+          { key: 'Ctrl-k', run: (view) => { insertMarkdownBlock('link'); return true; }},
+          { key: 'Ctrl-l', run: (view) => { insertMarkdownBlock('list'); return true; }},
+          { key: 'Ctrl-q', run: (view) => { insertMarkdownBlock('quote'); return true; }},
+          { key: 'Ctrl-`', run: (view) => { insertMarkdown('`', '`'); return true; }}
         ]),
         
         // Update listener
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !readOnly) {
             onChange(update.state.doc.toString());
+          }
+        }),
+        
+        // Click listener for markdown toolbar
+        EditorView.domEventHandlers({
+          click: (event, view) => {
+            // Check if we're in a description block
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos !== null) {
+              const line = view.state.doc.lineAt(pos);
+              const lineText = line.text;
+              
+              // Show toolbar if we're in a description block
+              if (lineText.includes('```description') || 
+                  (lineText.startsWith('```') && !lineText.includes('description'))) {
+                const coords = view.coordsAtPos(pos);
+                if (coords) {
+                  setToolbarPosition({ 
+                    top: coords.top + window.scrollY, 
+                    left: coords.left + window.scrollX 
+                  });
+                  setShowMarkdownToolbar(true);
+                }
+              }
+            }
           }
         }),
         
@@ -150,7 +184,15 @@ export function CNLEditor({
             override: [cnlCompletion],
             activateOnTyping: false, // Don't show automatically
             defaultKeymap: false // Disable default Enter behavior
-          })
+          }),
+          // Manual trigger for Ctrl+Space
+          keymap.of([
+            { key: 'Ctrl-Space', run: (view) => {
+              // Force show completion
+              view.dispatch({ effects: autocompletion.startCompletion.of(view.state) });
+              return true;
+            }}
+          ])
         ] : []),
         
         // Custom light theme
@@ -238,16 +280,165 @@ export function CNLEditor({
     }
   }, [value]);
 
+  // Markdown formatting functions
+  const insertMarkdown = (before: string, after: string = '') => {
+    if (!viewRef.current) return;
+    
+    const { from, to } = viewRef.current.state.selection;
+    const selectedText = viewRef.current.state.sliceDoc(from, to);
+    const newText = before + selectedText + after;
+    
+    viewRef.current.dispatch({
+      changes: { from, to, insert: newText },
+      selection: { anchor: from + before.length, head: from + before.length + selectedText.length }
+    });
+  };
+
+  const insertMarkdownBlock = (blockType: string) => {
+    if (!viewRef.current) return;
+    
+    const { from } = viewRef.current.state.selection;
+    const line = viewRef.current.state.doc.lineAt(from);
+    const lineStart = line.from;
+    
+    let insertText = '';
+    switch (blockType) {
+      case 'bold':
+        insertText = '**bold text**';
+        break;
+      case 'italic':
+        insertText = '*italic text*';
+        break;
+      case 'code':
+        insertText = '`code`';
+        break;
+      case 'link':
+        insertText = '[link text](url)';
+        break;
+      case 'list':
+        insertText = '- list item';
+        break;
+      case 'numbered':
+        insertText = '1. numbered item';
+        break;
+      case 'quote':
+        insertText = '> quoted text';
+        break;
+      case 'codeblock':
+        insertText = '```\ncode block\n```';
+        break;
+    }
+    
+    viewRef.current.dispatch({
+      changes: { from: lineStart, insert: insertText + '\n' },
+      selection: { anchor: lineStart + insertText.length, head: lineStart + insertText.length }
+    });
+  };
+
   return (
-    <div 
-      ref={editorRef} 
-      className={`cnl-editor ${className}`}
-      style={{ 
-        height: '100%', 
-        border: '1px solid #e5e7eb', 
-        borderRadius: '8px',
-        overflow: 'hidden'
-      }}
-    />
+    <div className="cnl-editor-wrapper" style={{ position: 'relative', height: '100%' }}>
+      {/* Markdown Toolbar */}
+      {showMarkdownToolbar && (
+        <div 
+          className="markdown-toolbar"
+          style={{
+            position: 'absolute',
+            top: toolbarPosition.top - 50,
+            left: toolbarPosition.left,
+            zIndex: 1000,
+            backgroundColor: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            padding: '8px',
+            display: 'flex',
+            gap: '4px',
+            flexWrap: 'wrap',
+            maxWidth: '400px'
+          }}
+        >
+          {/* Text Formatting */}
+          <button
+            onClick={() => insertMarkdown('**', '**')}
+            title="Bold (Ctrl+B)"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            onClick={() => insertMarkdown('*', '*')}
+            title="Italic (Ctrl+I)"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            <em>I</em>
+          </button>
+          <button
+            onClick={() => insertMarkdown('`', '`')}
+            title="Inline Code"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            <code>code</code>
+          </button>
+          
+          {/* Block Elements */}
+          <button
+            onClick={() => insertMarkdownBlock('list')}
+            title="Unordered List"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            • List
+          </button>
+          <button
+            onClick={() => insertMarkdownBlock('numbered')}
+            title="Ordered List"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            1. List
+          </button>
+          <button
+            onClick={() => insertMarkdownBlock('quote')}
+            title="Blockquote"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            Quote
+          </button>
+          <button
+            onClick={() => insertMarkdownBlock('codeblock')}
+            title="Code Block"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            Code
+          </button>
+          
+          {/* Links and Media */}
+          <button
+            onClick={() => insertMarkdownBlock('link')}
+            title="Link"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+          >
+            🔗
+          </button>
+          
+          {/* Close Button */}
+          <button
+            onClick={() => setShowMarkdownToolbar(false)}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#f3f4f6', cursor: 'pointer', marginLeft: 'auto' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      
+      <div 
+        ref={editorRef} 
+        className={`cnl-editor ${className}`}
+        style={{ 
+          height: '100%', 
+          border: '1px solid #e5e7eb', 
+          borderRadius: '8px',
+          overflow: 'hidden'
+        }}
+      />
+    </div>
   );
 }

@@ -13,7 +13,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "india_morph_1756634442164",
+          "morph_id": "india_morph_1756635034888",
           "node_id": "india",
           "name": "basic",
           "relationNode_ids": [
@@ -22,7 +22,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "india_morph_1756634442164"
+      "nbh": "india_morph_1756635034888"
     },
     {
       "id": "country",
@@ -37,14 +37,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "country_morph_1756634442164",
+          "morph_id": "country_morph_1756635034888",
           "node_id": "country",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "country_morph_1756634442164"
+      "nbh": "country_morph_1756635034888"
     },
     {
       "id": "us",
@@ -59,20 +59,55 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "us_morph_1756634442164",
+          "morph_id": "us_morph_1756635034888",
           "node_id": "us",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_us_is_a_country"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "us_morph_1756635034888"
+    },
+    {
+      "id": "country",
+      "base_name": "Country",
+      "name": "Country",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "country_morph_1756635034888",
+          "node_id": "country",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "us_morph_1756634442164"
+      "nbh": "country_morph_1756635034888"
     }
   ],
   "relations": [
     {
       "id": "rel_india_is_a_country",
       "source_id": "india",
+      "target_id": "country",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_us_is_a_country",
+      "source_id": "us",
       "target_id": "country",
       "name": "is a",
       "adverb": null,
