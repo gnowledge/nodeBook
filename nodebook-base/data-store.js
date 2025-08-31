@@ -182,6 +182,11 @@ export class FileSystemStore extends DataStore {
                     node.name = op.payload.displayName;
                 }
                 
+                // Set adjective if provided
+                if (op.payload.options && op.payload.options.adjective) {
+                    node.adjective = op.payload.options.adjective;
+                }
+                
                 graphData.nodes.push(node);
             }
         }

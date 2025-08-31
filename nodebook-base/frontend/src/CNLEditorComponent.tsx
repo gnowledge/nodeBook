@@ -220,13 +220,29 @@ export function CNLEditor({
           // Custom keymap for Tab selection instead of Enter
           keymap.of([
             { key: 'Tab', run: (view) => {
-              // Use Tab to select completion instead of Enter
+              // Check if completion is active
               const completion = view.state.facet(autocompletion);
               if (completion.length > 0) {
-                // Select the first completion
-                return false; // Let the default Tab handler work
+                // Use Tab to select completion
+                return false; // Let the default Tab handler work for completion
               }
-              return false; // Normal Tab behavior
+              // Normal Tab indentation when no completion
+              return indentWithTab(view);
+            }},
+            // Keep Shift+Tab for outdent
+            { key: 'Shift-Tab', run: (view) => {
+              // Outdent logic
+              const { from, to } = view.state.selection;
+              const line = view.state.doc.lineAt(from);
+              const indent = line.text.match(/^\s*/)[0];
+              if (indent.length > 0) {
+                const newIndent = indent.slice(2); // Remove 2 spaces
+                view.dispatch({
+                  changes: { from: line.from, to: line.from + indent.length, insert: newIndent }
+                });
+                return true;
+              }
+              return false;
             }}
           ])
         ] : []),
@@ -339,6 +355,9 @@ export function CNLEditor({
     
     let insertText = '';
     switch (blockType) {
+      case 'heading':
+        insertText = '## Section Heading';
+        break;
       case 'bold':
         insertText = '**bold text**';
         break;
@@ -416,6 +435,15 @@ export function CNLEditor({
             <code>code</code>
           </button>
           
+          {/* Section Heading */}
+          <button
+            onClick={() => insertMarkdownBlock('heading')}
+            title="Section Heading"
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+          >
+            # Heading
+          </button>
+          
           {/* Block Elements */}
           <button
             onClick={() => insertMarkdownBlock('list')}
@@ -458,7 +486,7 @@ export function CNLEditor({
           {/* Close Button */}
           <button
             onClick={() => setShowMarkdownToolbar(false)}
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#f3f4f6', cursor: 'pointer', marginLeft: 'auto' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#f3f4f6', cursor: 'pointer', marginLeft: 'auto', color: '#dc2626', fontWeight: 'bold' }}
           >
             ✕
           </button>

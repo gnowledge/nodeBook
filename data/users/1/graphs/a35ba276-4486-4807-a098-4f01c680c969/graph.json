@@ -1,0 +1,1167 @@
+{
+  "nodes": [
+    {
+      "id": "nodebook",
+      "base_name": "nodeBook",
+      "name": "nodeBook",
+      "adjective": null,
+      "quantifier": null,
+      "role": "App",
+      "description": "You can build knowledge graphs expressed in a *controlled natural\n\tlanguage*, and visualize as a graph, linking one node to another\n\tand describing the nodes with their properties. nodeBook is unique\n\tapplication that has special nodes called **transitions** and\n\tspecial attributes called **functions**.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "nodebook_morph_1756643599005",
+          "node_id": "nodebook",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_nodebook_is_a_note_book",
+            "rel_nodebook_is_a_p2p_app",
+            "rel_nodebook_constructs_knoweldge_graph",
+            "rel_nodebook_processes_controlled_natural_language",
+            "rel_nodebook_decodes_controlled_natural_language",
+            "rel_nodebook_parses_controlled_natural_language",
+            "rel_nodebook_consists_of_polymorphic_nodes",
+            "rel_nodebook_consists_of_transitions",
+            "rel_nodebook_consists_of_functions",
+            "rel_nodebook_consists_of_attributes",
+            "rel_nodebook_consists_of_relations"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "nodebook_morph_1756643599005"
+    },
+    {
+      "id": "note_book",
+      "base_name": "Note Book",
+      "name": "Note Book",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "note_book_morph_1756643599005",
+          "node_id": "note_book",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "note_book_morph_1756643599005"
+    },
+    {
+      "id": "p2p_app",
+      "base_name": "p2p App",
+      "name": "p2p App",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "p2p_app_morph_1756643599005",
+          "node_id": "p2p_app",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "p2p_app_morph_1756643599005"
+    },
+    {
+      "id": "knoweldge_graph",
+      "base_name": "Knoweldge Graph",
+      "name": "Knoweldge Graph",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "knoweldge_graph_morph_1756643599005",
+          "node_id": "knoweldge_graph",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "knoweldge_graph_morph_1756643599005"
+    },
+    {
+      "id": "controlled_natural_language",
+      "base_name": "Controlled Natural Language",
+      "name": "Controlled Natural Language",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "controlled_natural_language_morph_1756643599005",
+          "node_id": "controlled_natural_language",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "controlled_natural_language_morph_1756643599005"
+    },
+    {
+      "id": "controlled_natural_language",
+      "base_name": "Controlled Natural Language",
+      "name": "Controlled Natural Language",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "controlled_natural_language_morph_1756643599005",
+          "node_id": "controlled_natural_language",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "controlled_natural_language_morph_1756643599005"
+    },
+    {
+      "id": "controlled_natural_language",
+      "base_name": "Controlled Natural Language",
+      "name": "Controlled Natural Language",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "controlled_natural_language_morph_1756643599005",
+          "node_id": "controlled_natural_language",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "controlled_natural_language_morph_1756643599005"
+    },
+    {
+      "id": "*polymorphic*_nodes",
+      "base_name": "*polymorphic* Nodes",
+      "name": "*polymorphic* Nodes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "*polymorphic*_nodes_morph_1756643599005",
+          "node_id": "*polymorphic*_nodes",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "*polymorphic*_nodes_morph_1756643599005"
+    },
+    {
+      "id": "transitions",
+      "base_name": "Transitions",
+      "name": "Transitions",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "These are special nodes that help us to represent changes/processes and the\nconditions underwhich a change happens. E.g., an electric sparc,\nin the presence of oxygen and hydrogen can produce water molecule. In\nthis example, water is represented as a post state of the process,\nwhile sparc, oxygen and hydrogen are prior states. Also, sparc is also\nrepresented as a trigger, in the absence of which no process\nhappens. We can represent such details in nodeBook.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "transitions_morph_1756643599005",
+          "node_id": "transitions",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_transitions_is_a_special_node",
+            "rel_transitions_have_prior_state",
+            "rel_transitions_have_post_state"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "transitions_morph_1756643599005"
+    },
+    {
+      "id": "functions",
+      "base_name": "Functions",
+      "name": "Functions",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "Functions are **derived attributes**. E.g., if we know the number of\nprotons in an element, we know its atomic number. And if we also know\nthe number of neutrons of an element, we can make a function\nmentioning that adding the number of neutrons and protons will be same\nas its atomic mass. Derived attributes (functions) will work for all\nthe elements. Similarly, given the position and time of a moving\nobject, we can derive new attributes like displacement, speed,\nvelocity etc.  Functions are very special to nodeBook.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "functions_morph_1756643599005",
+          "node_id": "functions",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_functions_is_a_special_edge",
+            "rel_functions_is_a_derived_attribute"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "functions_morph_1756643599005"
+    },
+    {
+      "id": "attributes",
+      "base_name": "Attributes",
+      "name": "Attributes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "Attributes are **properties** of a node. E.g. color, shape, size,\nmass, weight, length of an object.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "attributes_morph_1756643599005",
+          "node_id": "attributes",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_attributes_is_a_edges"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "attributes_morph_1756643599005"
+    },
+    {
+      "id": "relations",
+      "base_name": "Relations",
+      "name": "Relations",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "Relation is a **linking phrase** we use to link between two or more\nnodes. e.g., Asia **is a** Continent; or Oxygen **is a**\nElement. While making the graph we don't care about if the verb phrase\nwe use is **is a** or **is an**. We are more tolerant about the\ngrammatical exceptions we find in a natural langauge. We focus only on\nmeaning, or technically speaking: semantics. We use bare minimum\nsyntax of a sentence: subject-predicate-object.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "relations_morph_1756643599005",
+          "node_id": "relations",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_relations_is_a_edge"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "relations_morph_1756643599005"
+    },
+    {
+      "id": "knowledge_graph",
+      "base_name": "Knowledge Graph",
+      "name": "Knowledge Graph",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": "A knowledge graph is made with nodes and edges, and nothing\nelse. Using a knowledge graph we can express **meaning**, without\nworrying too much of about variations in grammar that we find in a\nnatural langauge.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "knowledge_graph_morph_1756643599005",
+          "node_id": "knowledge_graph",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_knowledge_graph_consists_of_nodes",
+            "rel_knowledge_graph_consists_of_edges"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "knowledge_graph_morph_1756643599005"
+    },
+    {
+      "id": "nodes",
+      "base_name": "Nodes",
+      "name": "Nodes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "Any thing about which you want to talk about or describe. \nNodes are represented in nodeBook as polymorphic nodes: a very special\nimplementation of NodeBook's graph database. We allow a nodes to\nchange their state. We call them **morphs**, because their structure\nchanged due to change in properties. Whenever a node gains \na property or changes the value of a property, we represent them as\ntwo different states (morphs) of the same node. E.g., Oxygen when it\ngains two more electrons, it becomes an oxide ion. or Alice got\npregnant. Alice and Oxygen remain as the same node, but their property\nchanges. This helps us to represent changes of a node.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "nodes_morph_1756643599005",
+          "node_id": "nodes",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_nodes_can_be_concepts",
+            "rel_nodes_can_be_people",
+            "rel_nodes_can_be_places",
+            "rel_nodes_can_be_substances"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "nodes_morph_1756643599005"
+    },
+    {
+      "id": "edges",
+      "base_name": "Edges",
+      "name": "Edges",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "Any thing about which you want to talk about or describe.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "edges_morph_1756643599005",
+          "node_id": "edges",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_edges_can_be_relations",
+            "rel_edges_can_be_attributes"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "edges_morph_1756643599005"
+    },
+    {
+      "id": "cnl",
+      "base_name": "CNL",
+      "name": "CNL",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Language",
+      "description": "CNL refers to Controlled Natural Language.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "cnl_morph_1756643599005",
+          "node_id": "cnl",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_cnl_refers_to_controlled_natural_language",
+            "rel_cnl_is_a_special_language"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "cnl_morph_1756643599005"
+    },
+    {
+      "id": "controlled_natural_language",
+      "base_name": "Controlled Natural Language",
+      "name": "Controlled Natural Language",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "controlled_natural_language_morph_1756643599005",
+          "node_id": "controlled_natural_language",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "controlled_natural_language_morph_1756643599005"
+    },
+    {
+      "id": "*special*_language",
+      "base_name": "*special* Language",
+      "name": "*special* Language",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "*special*_language_morph_1756643599005",
+          "node_id": "*special*_language",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "*special*_language_morph_1756643599005"
+    },
+    {
+      "id": "nodes",
+      "base_name": "Nodes",
+      "name": "Nodes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "nodes_morph_1756643599005",
+          "node_id": "nodes",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "nodes_morph_1756643599005"
+    },
+    {
+      "id": "concepts",
+      "base_name": "Concepts",
+      "name": "Concepts",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "concepts_morph_1756643599005",
+          "node_id": "concepts",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "concepts_morph_1756643599005"
+    },
+    {
+      "id": "people",
+      "base_name": "People",
+      "name": "People",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "people_morph_1756643599005",
+          "node_id": "people",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "people_morph_1756643599005"
+    },
+    {
+      "id": "places",
+      "base_name": "Places",
+      "name": "Places",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "places_morph_1756643599005",
+          "node_id": "places",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "places_morph_1756643599005"
+    },
+    {
+      "id": "substances",
+      "base_name": "Substances",
+      "name": "Substances",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "substances_morph_1756643599005",
+          "node_id": "substances",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "substances_morph_1756643599005"
+    },
+    {
+      "id": "edges",
+      "base_name": "Edges",
+      "name": "Edges",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "edges_morph_1756643599005",
+          "node_id": "edges",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "edges_morph_1756643599005"
+    },
+    {
+      "id": "relations",
+      "base_name": "Relations",
+      "name": "Relations",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "relations_morph_1756643599005",
+          "node_id": "relations",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "relations_morph_1756643599005"
+    },
+    {
+      "id": "attributes",
+      "base_name": "Attributes",
+      "name": "Attributes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "attributes_morph_1756643599005",
+          "node_id": "attributes",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "attributes_morph_1756643599005"
+    },
+    {
+      "id": "relations",
+      "base_name": "Relations",
+      "name": "Relations",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "relations_morph_1756643599005",
+          "node_id": "relations",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "relations_morph_1756643599005"
+    },
+    {
+      "id": "edge",
+      "base_name": "Edge",
+      "name": "Edge",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "edge_morph_1756643599005",
+          "node_id": "edge",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "edge_morph_1756643599005"
+    },
+    {
+      "id": "attributes",
+      "base_name": "Attributes",
+      "name": "Attributes",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "attributes_morph_1756643599005",
+          "node_id": "attributes",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "attributes_morph_1756643599005"
+    },
+    {
+      "id": "edges",
+      "base_name": "Edges",
+      "name": "Edges",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "edges_morph_1756643599005",
+          "node_id": "edges",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "edges_morph_1756643599005"
+    },
+    {
+      "id": "functions",
+      "base_name": "Functions",
+      "name": "Functions",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "functions_morph_1756643599005",
+          "node_id": "functions",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "functions_morph_1756643599005"
+    },
+    {
+      "id": "*special*_edge",
+      "base_name": "*special* Edge",
+      "name": "*special* Edge",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "*special*_edge_morph_1756643599005",
+          "node_id": "*special*_edge",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "*special*_edge_morph_1756643599005"
+    },
+    {
+      "id": "*derived*_attribute",
+      "base_name": "*derived* Attribute",
+      "name": "*derived* Attribute",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "*derived*_attribute_morph_1756643599005",
+          "node_id": "*derived*_attribute",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "*derived*_attribute_morph_1756643599005"
+    },
+    {
+      "id": "transitions",
+      "base_name": "Transitions",
+      "name": "Transitions",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Representation",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "transitions_morph_1756643599005",
+          "node_id": "transitions",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "transitions_morph_1756643599005"
+    },
+    {
+      "id": "*special*_node",
+      "base_name": "*special* Node",
+      "name": "*special* Node",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "*special*_node_morph_1756643599005",
+          "node_id": "*special*_node",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "*special*_node_morph_1756643599005"
+    },
+    {
+      "id": "prior_state",
+      "base_name": "Prior State",
+      "name": "Prior State",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "prior_state_morph_1756643599005",
+          "node_id": "prior_state",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "prior_state_morph_1756643599005"
+    },
+    {
+      "id": "post_state",
+      "base_name": "Post State",
+      "name": "Post State",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "post_state_morph_1756643599005",
+          "node_id": "post_state",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "post_state_morph_1756643599005"
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel_nodebook_is_a_note_book",
+      "source_id": "nodebook",
+      "target_id": "note_book",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_is_a_p2p_app",
+      "source_id": "nodebook",
+      "target_id": "p2p_app",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_constructs_knoweldge_graph",
+      "source_id": "nodebook",
+      "target_id": "knoweldge_graph",
+      "name": "constructs",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_processes_controlled_natural_language",
+      "source_id": "nodebook",
+      "target_id": "controlled_natural_language",
+      "name": "processes",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_decodes_controlled_natural_language",
+      "source_id": "nodebook",
+      "target_id": "controlled_natural_language",
+      "name": "decodes",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_parses_controlled_natural_language",
+      "source_id": "nodebook",
+      "target_id": "controlled_natural_language",
+      "name": "parses",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_consists_of_polymorphic_nodes",
+      "source_id": "nodebook",
+      "target_id": "polymorphic_nodes",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_consists_of_transitions",
+      "source_id": "nodebook",
+      "target_id": "transitions",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_consists_of_functions",
+      "source_id": "nodebook",
+      "target_id": "functions",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_consists_of_attributes",
+      "source_id": "nodebook",
+      "target_id": "attributes",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodebook_consists_of_relations",
+      "source_id": "nodebook",
+      "target_id": "relations",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_knowledge_graph_consists_of_nodes",
+      "source_id": "knowledge_graph",
+      "target_id": "nodes",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_knowledge_graph_consists_of_edges",
+      "source_id": "knowledge_graph",
+      "target_id": "edges",
+      "name": "consists of",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_cnl_refers_to_controlled_natural_language",
+      "source_id": "cnl",
+      "target_id": "controlled_natural_language",
+      "name": "refers to",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_cnl_is_a_special_language",
+      "source_id": "cnl",
+      "target_id": "special_language",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodes_can_be_concepts",
+      "source_id": "nodes",
+      "target_id": "concepts",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodes_can_be_people",
+      "source_id": "nodes",
+      "target_id": "people",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodes_can_be_places",
+      "source_id": "nodes",
+      "target_id": "places",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_nodes_can_be_substances",
+      "source_id": "nodes",
+      "target_id": "substances",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_edges_can_be_relations",
+      "source_id": "edges",
+      "target_id": "relations",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_edges_can_be_attributes",
+      "source_id": "edges",
+      "target_id": "attributes",
+      "name": "can be",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_relations_is_a_edge",
+      "source_id": "relations",
+      "target_id": "edge",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_attributes_is_a_edges",
+      "source_id": "attributes",
+      "target_id": "edges",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_functions_is_a_special_edge",
+      "source_id": "functions",
+      "target_id": "special_edge",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_functions_is_a_derived_attribute",
+      "source_id": "functions",
+      "target_id": "derived_attribute",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_transitions_is_a_special_node",
+      "source_id": "transitions",
+      "target_id": "special_node",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_transitions_have_prior_state",
+      "source_id": "transitions",
+      "target_id": "prior_state",
+      "name": "have",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_transitions_have_post_state",
+      "source_id": "transitions",
+      "target_id": "post_state",
+      "name": "have",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ],
+  "attributes": [],
+  "description": "This graph introduces nodeBook to the users."
+}

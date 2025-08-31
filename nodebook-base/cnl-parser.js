@@ -458,16 +458,33 @@ function processNeighborhood(nodeId, lines) {
         const [, relationName, targets] = match;
 
         for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
-            const targetId = target.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            // Parse target for adjectives and base name (similar to node headings)
+            let targetAdjective = null;
+            let targetBaseName = target;
+            let targetDisplayName = target;
+            
+            // Check if target has adjective formatting (*adjective* baseName)
+            const adjectiveMatch = target.match(/\*\*?([^*]+)\*\*?\s+(.+)/);
+            if (adjectiveMatch) {
+                targetAdjective = adjectiveMatch[1].trim();
+                targetBaseName = adjectiveMatch[2].trim();
+                targetDisplayName = target; // Keep the original formatting
+            }
+            
+            // Generate clean ID from base name
+            const targetId = targetBaseName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
             const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;
             
             // Create target node if it doesn't exist (for implicit nodes like "Country", "Asia")
             neighborhoodOps.push({ 
                 type: 'addNode', 
                 payload: { 
-                    base_name: target, 
-                    displayName: target,
-                    role: 'class' // Default role for implicit nodes
+                    base_name: targetBaseName, 
+                    displayName: targetDisplayName,
+                    role: 'class', // Default role for implicit nodes
+                    options: {
+                        adjective: targetAdjective
+                    }
                 }, 
                 id: targetId 
             });
