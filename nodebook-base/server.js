@@ -625,6 +625,31 @@ Another service or function
   }, async (request, reply) => {
     return await schemaManager.getRelationTypes();
   });
+
+  fastify.get('/api/schema/relations/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const relationTypes = await schemaManager.getRelationTypes();
+      const relationType = relationTypes.find(t => t.name === request.params.name);
+      if (!relationType) {
+        reply.code(404).send({ error: 'Relation type not found' });
+        return;
+      }
+      return relationType;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
   
   fastify.post('/api/schema/relations', {
     schema: {
@@ -694,6 +719,31 @@ Another service or function
     preHandler: authenticateJWT
   }, async (request, reply) => {
     return await schemaManager.getAttributeTypes();
+  });
+
+  fastify.get('/api/schema/attributes/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const attributeTypes = await schemaManager.getAttributeTypes();
+      const attributeType = attributeTypes.find(t => t.name === request.params.name);
+      if (!attributeType) {
+        reply.code(404).send({ error: 'Attribute type not found' });
+        return;
+      }
+      return attributeType;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
   });
   
   fastify.post('/api/schema/attributes', {
@@ -766,10 +816,60 @@ Another service or function
     return await schemaManager.getNodeTypes();
   });
 
+  fastify.get('/api/schema/nodetypes/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const nodeTypes = await schemaManager.getNodeTypes();
+      const nodeType = nodeTypes.find(t => t.name === request.params.name);
+      if (!nodeType) {
+        reply.code(404).send({ error: 'Node type not found' });
+        return;
+      }
+      return nodeType;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
   fastify.get('/api/schema/functions', {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     return await schemaManager.getFunctionTypes();
+  });
+
+  fastify.get('/api/schema/functions/:name', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    try {
+      const functionTypes = await schemaManager.getFunctionTypes();
+      const functionType = functionTypes.find(t => t.name === request.params.name);
+      if (!functionType) {
+        reply.code(404).send({ error: 'Function type not found' });
+        return;
+      }
+      return functionType;
+    } catch (error) {
+      reply.code(500).send({ error: error.message });
+      return;
+    }
   });
 
   // --- Scientific Library API ---
@@ -1044,14 +1144,14 @@ Another service or function
         }
       }
     },
-    preHandler: [authenticateJWT, loadGraph]
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
-    const gm = fastify.graphManager;
+    const dataStore = fastify.dataStore;
     const userId = request.user.id;
     const graphId = request.params.graphId;
     try {
       console.log(`[getCnl] Getting CNL for graph: ${graphId}, user: ${userId}`);
-      const cnl = await gm.getCnl(userId, graphId);
+      const cnl = await dataStore.getCnl(userId, graphId);
       console.log(`[getCnl] Successfully got CNL for graph: ${graphId}, length: ${cnl.length}`);
       return { cnl };
     } catch (error) {
@@ -1258,47 +1358,34 @@ Another service or function
   });
 
   // --- Peer Management API ---
-  fastify.get('/api/graphs/:graphId/peers', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: [authenticateJWT, loadGraph]
-  }, async (request, reply) => {
-    const status = request.graph.getSwarmStatus();
-    return status;
-  });
+  // Legacy hypercore endpoints removed - will be reimplemented with libp2p in Phase 2
+  // fastify.get('/api/graphs/:graphId/peers' - removed
+  // fastify.post('/api/graphs/:graphId/peers/sync' - removed
 
-  fastify.post('/api/graphs/:graphId/peers/sync', {
+  // Get graph publication state
+  fastify.get('/api/graphs/:graphId/publication', {
     schema: {
       params: {
         type: 'object',
         properties: {
           graphId: { type: 'string' }
         }
-      },
-      body: {
-        type: 'object',
-        required: ['remoteKey'],
-        properties: {
-          remoteKey: { type: 'string' }
-        }
       }
     },
-    preHandler: [authenticateJWT, loadGraph]
+    preHandler: authenticateJWT
   }, async (request, reply) => {
-    const { remoteKey } = request.body;
-    if (!remoteKey) {
-      reply.code(400).send({ error: 'remoteKey is required' });
-      return;
-    }
+    const gm = fastify.graphManager;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
     try {
-      await request.graph.syncWithPeer(remoteKey);
-      return { message: 'Sync initiated.' };
+      const graphRegistry = await gm.getGraphRegistry(userId);
+      const graphInfo = graphRegistry.find(g => g.id === graphId);
+      if (!graphInfo) {
+        reply.code(404).send({ error: 'Graph not found' });
+        return;
+      }
+      return { publication_state: graphInfo.publication_state || 'Private' };
     } catch (error) {
       reply.code(500).send({ error: error.message });
       return;

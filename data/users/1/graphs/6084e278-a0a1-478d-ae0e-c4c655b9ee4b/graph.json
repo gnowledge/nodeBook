@@ -2,9 +2,9 @@
   "nodes": [
     {
       "id": "simple_test",
-      "base_name": "Test",
+      "base_name": "Simple Test",
       "name": "Simple Test",
-      "adjective": "Simple",
+      "adjective": null,
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -13,14 +13,61 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "simple_test_morph_1756605724827",
+          "morph_id": "simple_test_morph_1756619815005",
           "node_id": "simple_test",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_simple_test_is_a_example",
+            "rel_simple_test_has_property"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "simple_test_morph_1756619815005"
+    },
+    {
+      "id": "example",
+      "base_name": "Example",
+      "name": "Example",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "example_morph_1756619815005",
+          "node_id": "example",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "simple_test_morph_1756605724827"
+      "nbh": "example_morph_1756619815005"
+    },
+    {
+      "id": "property",
+      "base_name": "Property",
+      "name": "Property",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "property_morph_1756619815005",
+          "node_id": "property",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "property_morph_1756619815005"
     }
   ],
   "relations": [
@@ -31,6 +78,7 @@
       "name": "is a",
       "adverb": null,
       "modality": null,
+      "quantifier": null,
       "morph_ids": [],
       "isDeleted": false
     },
@@ -41,6 +89,7 @@
       "name": "has",
       "adverb": null,
       "modality": null,
+      "quantifier": null,
       "morph_ids": [],
       "isDeleted": false
     }

@@ -52,6 +52,20 @@ export function SchemaEditModal({ item, itemType, nodeTypes, attributeTypes, onC
     setFormData(item);
   }, [item]);
 
+  // Add ESC key functionality
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [onClose]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -179,11 +193,16 @@ export function SchemaEditModal({ item, itemType, nodeTypes, attributeTypes, onC
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}>&times;</button>
+        <button className="modal-close-btn" onClick={onClose} title="Close (ESC)" aria-label="Close modal">
+          ✕
+        </button>
         <h2>{item.originalName ? 'Edit' : 'Create'} {itemType.slice(0, -1)} Type</h2>
         <form onSubmit={handleSubmit} className="schema-edit-form">
           {renderFormContent()}
-          <button type="submit">Save</button>
+          <div className="form-actions">
+            <button type="button" className="cancel-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="save-btn">Save</button>
+          </div>
         </form>
       </div>
     </div>

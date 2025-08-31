@@ -1,83 +1,113 @@
 {
   "nodes": [
     {
-      "id": "earth",
-      "base_name": "Earth",
-      "name": "Earth",
+      "id": "india",
+      "base_name": "India",
+      "name": "India",
       "adjective": null,
       "quantifier": null,
-      "role": "Planet",
-      "description": "Our home planet with enhanced attribute examples.",
+      "role": "Country",
+      "description": null,
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "earth_morph_1756613904055",
-          "node_id": "earth",
+          "morph_id": "india_morph_1756619733267",
+          "node_id": "india",
           "name": "basic",
-          "relationNode_ids": [],
+          "relationNode_ids": [
+            "rel_india_is_a_country",
+            "rel_india_located_in_asia"
+          ],
           "attributeNode_ids": [
-            "attr_earth_mass_7cce83",
-            "attr_earth_color_da39a3",
-            "attr_earth_temperature_b70706",
-            "attr_earth_population_fe5dbb"
+            "attr_india_population_a26f83"
           ]
         }
       ],
-      "nbh": "earth_morph_1756613904055"
+      "nbh": "india_morph_1756619733267"
+    },
+    {
+      "id": "country",
+      "base_name": "Country",
+      "name": "Country",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "country_morph_1756619733267",
+          "node_id": "country",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "country_morph_1756619733267"
+    },
+    {
+      "id": "asia",
+      "base_name": "Asia",
+      "name": "Asia",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "asia_morph_1756619733267",
+          "node_id": "asia",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "asia_morph_1756619733267"
     }
   ],
-  "relations": [],
+  "relations": [
+    {
+      "id": "rel_india_is_a_country",
+      "source_id": "india",
+      "target_id": "country",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_india_located_in_asia",
+      "source_id": "india",
+      "target_id": "asia",
+      "name": "located in",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ],
   "attributes": [
     {
-      "id": "attr_earth_mass_7cce83",
-      "source_id": "earth",
-      "name": "mass",
-      "value": "5.972e24",
-      "adverb": "approximately",
-      "unit": "kg",
-      "modality": "certain",
-      "quantifier": null,
-      "morph_ids": [],
-      "isDeleted": false
-    },
-    {
-      "id": "attr_earth_color_da39a3",
-      "source_id": "earth",
-      "name": "color",
-      "value": "",
-      "adverb": null,
-      "unit": "blue",
-      "modality": "observed",
-      "quantifier": null,
-      "morph_ids": [],
-      "isDeleted": false
-    },
-    {
-      "id": "attr_earth_temperature_b70706",
-      "source_id": "earth",
-      "name": "temperature",
-      "value": "288",
-      "adverb": "roughly",
-      "unit": "K",
-      "modality": "measured",
-      "quantifier": null,
-      "morph_ids": [],
-      "isDeleted": false
-    },
-    {
-      "id": "attr_earth_population_fe5dbb",
-      "source_id": "earth",
+      "id": "attr_india_population_a26f83",
+      "source_id": "india",
       "name": "population",
-      "value": "8",
+      "value": "1.4",
       "adverb": null,
-      "unit": "some",
-      "modality": "estimated",
-      "quantifier": "billion",
+      "unit": "billion",
+      "modality": null,
+      "quantifier": null,
       "morph_ids": [],
       "isDeleted": false
     }
-  ],
-  "description": "Testing enhanced attribute syntax with priority on units."
+  ]
 }

@@ -34,29 +34,27 @@ export interface RelationType {
   description: string;
   domain: string[];
   range: string[];
+  symmetric: boolean;
+  transitive: boolean;
 }
 
 export interface AttributeType {
   name: string;
   description: string;
-  scope: string[];
-  data_type?: string;
+  data_type: string;
+  required: boolean;
+  validation: string;
   unit?: string;
-  allowed_values?: any;
-  complex_type?: string;
-  structure?: Record<string, {
-    type: string;
-    unit: string | null;
-    description: string;
-  }>;
 }
 
 export interface FunctionType {
   name: string;
+  description: string;
   expression: string;
   scope: string[];
-  description?: string;
-  required_attributes?: string[];
+  variables: string[];
+  library: string;
+  category: string;
 }
 
 export interface Graph {

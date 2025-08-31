@@ -1,0 +1,128 @@
+[
+  {
+    "name": "name",
+    "description": "The name or title of an entity",
+    "data_type": "string",
+    "required": true,
+    "validation": "non-empty string"
+  },
+  {
+    "name": "description",
+    "description": "A detailed description of an entity",
+    "data_type": "text",
+    "required": false,
+    "validation": "optional text"
+  },
+  {
+    "name": "mass",
+    "description": "The mass of a physical object",
+    "data_type": "number",
+    "required": false,
+    "validation": "positive number",
+    "unit": "kg"
+  },
+  {
+    "name": "color",
+    "description": "The color of an object",
+    "data_type": "string",
+    "required": false,
+    "validation": "color name or hex code"
+  },
+  {
+    "name": "temperature",
+    "description": "The temperature of a system",
+    "data_type": "number",
+    "required": false,
+    "validation": "number in Kelvin",
+    "unit": "K"
+  },
+  {
+    "name": "population",
+    "description": "The number of people in a place",
+    "data_type": "number",
+    "required": false,
+    "validation": "positive integer"
+  },
+  {
+    "name": "position",
+    "description": "The spatial position of an object",
+    "data_type": "vector",
+    "required": false,
+    "validation": "3D coordinates (x, y, z)",
+    "unit": "meters"
+  },
+  {
+    "name": "time",
+    "description": "A point in time",
+    "data_type": "datetime",
+    "required": false,
+    "validation": "ISO 8601 format"
+  },
+  {
+    "name": "accuracy",
+    "description": "The accuracy of a measurement",
+    "data_type": "string",
+    "required": false,
+    "validation": "accuracy level description"
+  },
+  {
+    "name": "scale",
+    "description": "The scale of a representation",
+    "data_type": "string",
+    "required": false,
+    "validation": "scale ratio (e.g., 1:1000)"
+  },
+  {
+    "name": "number of protons",
+    "description": "The number of protons in an atom",
+    "data_type": "number",
+    "required": false,
+    "validation": "positive integer",
+    "unit": "count"
+  },
+  {
+    "name": "number of neutrons",
+    "description": "The number of neutrons in an atom",
+    "data_type": "number",
+    "required": false,
+    "validation": "non-negative integer",
+    "unit": "count"
+  },
+  {
+    "name": "number of electrons",
+    "description": "The number of electrons in an atom",
+    "data_type": "number",
+    "required": false,
+    "validation": "non-negative integer",
+    "unit": "count"
+  },
+  {
+    "name": "initial velocity",
+    "description": "The starting velocity of an object",
+    "data_type": "number",
+    "required": false,
+    "validation": "number",
+    "unit": "m/s"
+  },
+  {
+    "name": "angle",
+    "description": "An angular measurement",
+    "data_type": "number",
+    "required": false,
+    "validation": "number in degrees or radians",
+    "unit": "degrees"
+  },
+  {
+    "name": "gps",
+    "description": "GPS coordinates with timestamp",
+    "data_type": "vector",
+    "required": false,
+    "validation": "latitude, longitude, altitude, timestamp",
+    "unit": "degrees, meters, ISO 8601"
+  },
+  {
+    "name": "test_attribute",
+    "description": "A test attribute type",
+    "data_type": "string"
+  }
+]

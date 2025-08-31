@@ -1,0 +1,152 @@
+[
+  {
+    "name": "atomicMass",
+    "description": "Calculate atomic mass from protons and neutrons",
+    "expression": "number of protons + number of neutrons",
+    "scope": [
+      "Element"
+    ],
+    "variables": [
+      "number of protons",
+      "number of neutrons"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "distance",
+    "description": "Calculate distance between two 3D points",
+    "expression": "sqrt(power(x2 - x1, 2) + power(y2 - y1, 2) + power(z2 - z1, 2))",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "x1",
+      "y1",
+      "z1",
+      "x2",
+      "y2",
+      "z2"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "kinetic_energy",
+    "description": "Calculate kinetic energy from mass and velocity",
+    "expression": "0.5 * mass * power(velocity, 2)",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "mass",
+      "velocity"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "trajectory_range",
+    "description": "Calculate horizontal range of projectile",
+    "expression": "power(initial_velocity, 2) * sin(2 * angle) / 9.81",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "initial_velocity",
+      "angle"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "standard_deviation",
+    "description": "Calculate standard deviation of dataset",
+    "expression": "std(dataset)",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "dataset"
+    ],
+    "library": "mathjs",
+    "category": "Statistics"
+  },
+  {
+    "name": "correlation",
+    "description": "Calculate correlation between two datasets",
+    "expression": "correlation(dataset1, dataset2)",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "dataset1",
+      "dataset2"
+    ],
+    "library": "stdlib",
+    "category": "Statistics"
+  },
+  {
+    "name": "speed",
+    "description": "Calculate speed from distance and time",
+    "expression": "distance / time",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "distance",
+      "time"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "velocity_magnitude",
+    "description": "Calculate velocity magnitude from displacement and time",
+    "expression": "displacement / time",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "displacement",
+      "time"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "acceleration",
+    "description": "Calculate acceleration from velocity change and time",
+    "expression": "(velocity2 - velocity1) / time",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "velocity1",
+      "velocity2",
+      "time"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "displacement",
+    "description": "Calculate displacement from initial and final positions",
+    "expression": "final_position - initial_position",
+    "scope": [
+      "Entity"
+    ],
+    "variables": [
+      "final_position",
+      "initial_position"
+    ],
+    "library": "mathjs",
+    "category": "Physics"
+  },
+  {
+    "name": "test_function",
+    "description": "A test function type",
+    "expression": "x + y",
+    "library": "mathjs"
+  }
+]

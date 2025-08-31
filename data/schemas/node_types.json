@@ -1,0 +1,116 @@
+[
+  {
+    "name": "class",
+    "description": "A class or category of entities",
+    "parent_types": []
+  },
+  {
+    "name": "individual",
+    "description": "A specific instance of a class",
+    "parent_types": []
+  },
+  {
+    "name": "Person",
+    "description": "A human being",
+    "parent_types": [
+      "Agent"
+    ]
+  },
+  {
+    "name": "Organization",
+    "description": "A group of people organized for a purpose",
+    "parent_types": [
+      "Agent"
+    ]
+  },
+  {
+    "name": "Place",
+    "description": "A physical location",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "Country",
+    "description": "A sovereign state",
+    "parent_types": [
+      "Place"
+    ]
+  },
+  {
+    "name": "Continent",
+    "description": "A large landmass",
+    "parent_types": [
+      "Place"
+    ]
+  },
+  {
+    "name": "Planet",
+    "description": "A celestial body orbiting a star",
+    "parent_types": [
+      "Place"
+    ]
+  },
+  {
+    "name": "Transition",
+    "description": "A process that transforms inputs to outputs",
+    "parent_types": [
+      "class"
+    ]
+  },
+  {
+    "name": "Element",
+    "description": "A pure substance consisting of one type of atom",
+    "parent_types": [
+      "Substance"
+    ]
+  },
+  {
+    "name": "Concept",
+    "description": "An abstract idea or mental construct",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "Event",
+    "description": "Something that happens at a specific time",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "Resource",
+    "description": "Something that can be used or consumed",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "Agent",
+    "description": "An entity capable of action",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "Entity",
+    "description": "A general entity or thing",
+    "parent_types": []
+  },
+  {
+    "name": "Substance",
+    "description": "A material or chemical substance",
+    "parent_types": [
+      "Entity"
+    ]
+  },
+  {
+    "name": "test_node",
+    "description": "Updated test node type",
+    "parent_types": [
+      "Entity",
+      "Agent"
+    ]
+  }
+]

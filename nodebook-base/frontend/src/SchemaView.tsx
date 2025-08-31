@@ -42,7 +42,10 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(data => setNodeTypes(data.nodetypes || []))
+      .then(data => {
+        console.log('Node types response:', data);
+        setNodeTypes(data || []);
+      })
       .catch(error => {
         console.error('Error fetching node types:', error);
         setNodeTypes([]);
@@ -58,7 +61,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(data => setRelationTypes(data.relations || []))
+      .then(data => setRelationTypes(data || []))
       .catch(error => {
         console.error('Error fetching relation types:', error);
         setRelationTypes([]);
@@ -74,7 +77,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(data => setAttributeTypes(data.attributes || []))
+      .then(data => setAttributeTypes(data || []))
       .catch(error => {
         console.error('Error fetching attribute types:', error);
         setAttributeTypes([]);
@@ -90,7 +93,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(data => setFunctionTypes(data.functions || []))
+      .then(data => setFunctionTypes(data || []))
       .catch(error => {
         console.error('Error fetching function types:', error);
         setFunctionTypes([]);
@@ -100,6 +103,11 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
   useEffect(() => {
     fetchAllSchemas();
   }, []);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Schema state:', { nodeTypes, relationTypes, attributeTypes, functionTypes });
+  }, [nodeTypes, relationTypes, attributeTypes, functionTypes]);
 
   const handleSchemaChange = () => {
     fetchAllSchemas();
@@ -186,6 +194,15 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
 
   return (
     <div className={styles.schemaView}>
+      {/* Debug Info */}
+      <div style={{ background: '#f0f0f0', padding: '10px', marginBottom: '20px', borderRadius: '4px', fontSize: '12px' }}>
+        <strong>Debug Info:</strong> 
+        Nodes: {nodeTypes.length} | 
+        Relations: {relationTypes.length} | 
+        Attributes: {attributeTypes.length} | 
+        Functions: {functionTypes.length}
+      </div>
+      
       <div className={styles.schemaTabs}>
         <button className={`${styles.schemaTabBtn} ${mode === 'nodes' ? styles.active : ''}`} onClick={() => setMode('nodes')} title="Node Types">NT</button>
         <button className={`${styles.schemaTabBtn} ${mode === 'relations' ? styles.active : ''}`} onClick={() => setMode('relations')} title="Relation Types">RT</button>
@@ -193,41 +210,90 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         <button className={`${styles.schemaTabBtn} ${mode === 'functions' ? styles.active : ''}`} onClick={() => setMode('functions')} title="Function Types">FT</button>
         <button className={`${styles.schemaTabBtn} ${mode === 'scientific' ? styles.active : ''}`} onClick={() => setMode('scientific')} title="Scientific Library">🧪</button>
         <button className={styles.createNewBtn} onClick={openModalForCreate}>+ Create New</button>
+        <button 
+          style={{ background: '#6b7280', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', marginLeft: '8px' }}
+          onClick={fetchAllSchemas}
+        >
+          🔄 Refresh
+        </button>
       </div>
       <div className={styles.schemaGrid}>
-        {mode === 'nodes' && nodeTypes.map(item => (
-          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'nodes')}>
-            <h4>{item.name}</h4>
-            <p>{item.description}</p>
-            {item.parent_types && item.parent_types.length > 0 && <small>Parents: {item.parent_types.join(', ')}</small>}
-          </div>
-        ))}
-        {mode === 'relations' && relationTypes.map(item => (
-          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'relations')}>
-            <h4>{item.name}</h4>
-            <p>{item.description}</p>
-            <small>Inverse: {item.inverse_name}</small>
-            <small>Symmetric: {String(item.symmetric)}</small>
-            <small>Transitive: {String(item.transitive)}</small>
-            {item.domain && item.domain.length > 0 && <small>Domain: {item.domain.join(', ')}</small>}
-            {item.range && item.range.length > 0 && <small>Range: {item.range.join(', ')}</small>}
-          </div>
-        ))}
-        {mode === 'attributes' && attributeTypes.map(item => (
-          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'attributes')}>
-            <h4>{item.name}</h4>
-            <p>{item.description}</p>
-            <small>Value Type: {item.value_type}</small>
-            {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
-          </div>
-        ))}
-        {mode === 'functions' && functionTypes.map(item => (
-          <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'functions')}>
-            <h4>{item.name}</h4>
-            <p>{item.expression}</p>
-            {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
-          </div>
-        ))}
+        {mode === 'nodes' && (
+          <>
+            {nodeTypes.length > 0 ? (
+              nodeTypes.map(item => (
+                <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'nodes')}>
+                  <h4>{item.name}</h4>
+                  <p>{item.description}</p>
+                  {item.parent_types && item.parent_types.length > 0 && <small>Parents: {item.parent_types.join(', ')}</small>}
+                </div>
+              ))
+            ) : (
+              <div className={styles.schemaCard}>
+                <p>No node types found. Count: {nodeTypes.length}</p>
+              </div>
+            )}
+          </>
+        )}
+        {mode === 'relations' && (
+          <>
+            {relationTypes.length > 0 ? (
+              relationTypes.map(item => (
+                <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'relations')}>
+                  <h4>{item.name}</h4>
+                  <p>{item.description}</p>
+                  {item.inverse_name && <small>Inverse: {item.inverse_name}</small>}
+                  <small>Symmetric: {String(item.symmetric)}</small>
+                  <small>Transitive: {String(item.transitive)}</small>
+                  {item.domain && item.domain.length > 0 && <small>Domain: {item.domain.join(', ')}</small>}
+                  {item.range && item.range.length > 0 && <small>Range: {item.range.join(', ')}</small>}
+                </div>
+              ))
+            ) : (
+              <div className={styles.schemaCard}>
+                <p>No relation types found. Count: {relationTypes.length}</p>
+              </div>
+            )}
+          </>
+        )}
+        {mode === 'attributes' && (
+          <>
+            {attributeTypes.length > 0 ? (
+              attributeTypes.map(item => (
+                <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'attributes')}>
+                  <h4>{item.name}</h4>
+                  <p>{item.description}</p>
+                  <small>Data Type: {item.data_type}</small>
+                  {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
+                </div>
+              ))
+            ) : (
+              <div className={styles.schemaCard}>
+                <p>No attribute types found. Count: {attributeTypes.length}</p>
+              </div>
+            )}
+          </>
+        )}
+        {mode === 'functions' && (
+          <>
+            {functionTypes.length > 0 ? (
+              functionTypes.map(item => (
+                <div key={item.name} className={styles.schemaCard} onClick={() => openModalForEdit(item, 'functions')}>
+                  <h4>{item.name}</h4>
+                  <p>{item.description}</p>
+                  <small>Expression: {item.expression}</small>
+                  <small>Library: {item.library}</small>
+                  <small>Category: {item.category}</small>
+                  {item.scope && item.scope.length > 0 && <small>Scope: {item.scope.join(', ')}</small>}
+                </div>
+              ))
+            ) : (
+              <div className={styles.schemaCard}>
+                <p>No function types found. Count: {functionTypes.length}</p>
+              </div>
+            )}
+          </>
+        )}
         {mode === 'scientific' && (
           <div className={styles.schemaCard} style={{ gridColumn: '1 / -1' }}>
             <ScientificLibraryTester />

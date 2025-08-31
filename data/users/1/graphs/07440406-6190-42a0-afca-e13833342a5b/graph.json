@@ -1,0 +1,64 @@
+{
+  "nodes": [
+    {
+      "id": "india",
+      "base_name": "India",
+      "name": "India",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Country",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "india_morph_1756619295356",
+          "node_id": "india",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_india_is_a_country"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "india_morph_1756619295356"
+    },
+    {
+      "id": "us",
+      "base_name": "US",
+      "name": "US",
+      "adjective": null,
+      "quantifier": null,
+      "role": "Country",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "us_morph_1756619295356",
+          "node_id": "us",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "us_morph_1756619295356"
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel_india_is_a_country",
+      "source_id": "india",
+      "target_id": "country",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "quantifier": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ],
+  "attributes": []
+}

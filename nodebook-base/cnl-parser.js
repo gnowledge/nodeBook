@@ -460,7 +460,28 @@ function processNeighborhood(nodeId, lines) {
         for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
             const targetId = target.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
             const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;
-            neighborhoodOps.push({ type: 'addRelation', payload: { source: nodeId, target: targetId, name: relationName.trim() }, id });
+            
+            // Create target node if it doesn't exist (for implicit nodes like "Country", "Asia")
+            neighborhoodOps.push({ 
+                type: 'addNode', 
+                payload: { 
+                    base_name: target, 
+                    displayName: target,
+                    role: 'class' // Default role for implicit nodes
+                }, 
+                id: targetId 
+            });
+            
+            // Create relation to the target node
+            neighborhoodOps.push({ 
+                type: 'addRelation', 
+                payload: { 
+                    source: nodeId, 
+                    target: targetId, 
+                    name: relationName.trim() 
+                }, 
+                id 
+            });
         }
     }
     

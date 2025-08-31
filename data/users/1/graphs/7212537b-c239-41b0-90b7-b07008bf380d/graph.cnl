@@ -1,12 +1,4 @@
-```graph-description
-Testing enhanced attribute syntax with priority on units.
-```
-
-# Earth [Planet]
-```description
-Our home planet with enhanced attribute examples.
-```
-has mass: ++approximately++ 5.972e24 *kg* [certain];
-has color: *blue* [observed];
-has temperature: ++roughly++ 288 *K* [measured];
-has population: *some* 8 *billion* [estimated];
+# India [Country]
+<is a> Country;
+<located in> Asia;
+has population: 1.4 *billion*;

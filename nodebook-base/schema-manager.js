@@ -32,6 +32,36 @@ async function getNodeTypes() {
     return await readSchema(NODE_TYPES_FILE);
 }
 
+async function addNodeType(type) {
+    const types = await getNodeTypes();
+    if (types.find(t => t.name === type.name)) {
+        throw new Error('Node type with this name already exists.');
+    }
+    types.push(type);
+    await writeSchema(NODE_TYPES_FILE, types);
+    return type;
+}
+
+async function updateNodeType(name, updatedType) {
+    let types = await getNodeTypes();
+    const index = types.findIndex(t => t.name === name);
+    if (index === -1) {
+        throw new Error('Node type not found.');
+    }
+    types[index] = updatedType;
+    await writeSchema(NODE_TYPES_FILE, types);
+    return updatedType;
+}
+
+async function deleteNodeType(name) {
+    let types = await getNodeTypes();
+    const filteredTypes = types.filter(t => t.name !== name);
+    if (types.length === filteredTypes.length) {
+        throw new Error('Node type not found.');
+    }
+    await writeSchema(NODE_TYPES_FILE, filteredTypes);
+}
+
 // --- Relation Types ---
 
 async function getRelationTypes() {
@@ -142,6 +172,9 @@ async function deleteFunctionType(name) {
 
 export {
     getNodeTypes,
+    addNodeType,
+    updateNodeType,
+    deleteNodeType,
     getRelationTypes,
     addRelationType,
     updateRelationType,
