@@ -70,12 +70,16 @@ function createCnlCompletion(nodeTypes: any[] | null = [], relationTypes: any[] 
   const lineText = line.text;
   const cursorPos = context.pos - line.from;
   
-  // Check if we're at the first column (or very beginning of line)
-  const isFirstColumn = cursorPos <= 1;
-  
-  // Get the word being typed
-  let word = context.matchBefore(/\w*/);
-  if (!word) return null;
+      // Check if we're at the first column (or very beginning of line)
+    const isFirstColumn = cursorPos <= 1;
+    
+    // Check if the line already contains a semicolon (indicating statement completion)
+    const hasSemicolon = lineText.includes(';');
+    if (hasSemicolon) return null; // Stop auto-completion for completed statements
+    
+    // Get the word being typed
+    let word = context.matchBefore(/\w*/);
+    if (!word) return null;
   
   // Context-aware suggestions based on position and content
   if (isFirstColumn) {
