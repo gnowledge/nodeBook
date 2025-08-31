@@ -225,11 +225,22 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       });
       
       if (!res.ok) {
-        const { errors } = await res.json();
-        alert(`Save Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
+        const responseData = await res.json();
+        let errorMessage = 'Unknown error occurred while saving CNL.';
+        
+        if (responseData.errors && Array.isArray(responseData.errors)) {
+          errorMessage = responseData.errors.map((e: any) => `- ${e.message}`).join('\n');
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        }
+        
+        alert(`Save Error:\n${errorMessage}`);
       } else {
         // Save successful, enable submit button
         setCnlText(prev => ({ ...prev, [`${activeGraphId}_saved`]: cnlText[activeGraphId] }));
+        console.log('CNL saved successfully');
       }
     } catch (error) {
       console.error('Error saving CNL:', error);
@@ -384,16 +395,25 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                   <>
                     {viewMode === 'editor' && (
                       <div className={styles.editorContainer}>
-                        <CnlEditor
-                          value={cnlText[activeGraphId] || ''}
-                          onChange={handleCnlChange}
-                          onSubmit={handleCnlSubmit}
-                          onSave={handleCnlSave}
-                          disabled={!activeGraphId}
-                          nodeTypes={nodeTypes}
-                          relationTypes={relationTypes}
-                          attributeTypes={attributeTypes}
-                        />
+                                <div className={styles.editorHeader}>
+          <div className={styles.editorStatus}>
+            {activeGraphId && cnlText[activeGraphId] && (
+              <span className={cnlText[`${activeGraphId}_saved`] === cnlText[activeGraphId] ? styles.saved : styles.unsaved}>
+                {cnlText[`${activeGraphId}_saved`] === cnlText[activeGraphId] ? '✅ Saved' : '⚠️ Unsaved Changes'}
+              </span>
+            )}
+          </div>
+        </div>
+        <CnlEditor
+          value={cnlText[activeGraphId] || ''}
+          onChange={handleCnlChange}
+          onSubmit={handleCnlSubmit}
+          onSave={handleCnlSave}
+          disabled={!activeGraphId}
+          nodeTypes={nodeTypes}
+          relationTypes={relationTypes}
+          attributeTypes={attributeTypes}
+        />
                       </div>
                     )}
                     {viewMode === 'visualization' && (

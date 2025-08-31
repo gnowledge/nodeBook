@@ -1200,6 +1200,46 @@ Another service or function
     }
   });
 
+  // --- CNL Save API (without processing) ---
+  fastify.put('/api/graphs/:graphId/cnl', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['cnlText'],
+        properties: {
+          cnlText: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { cnlText } = request.body;
+    
+    try {
+      console.log(`[CNL Save] Saving CNL for graph ${graphId} by user ${userId}`);
+      
+      // Just save the CNL text without processing
+      await dataStore.saveCnl(userId, graphId, cnlText);
+      
+      console.log(`[CNL Save] CNL saved successfully for graph ${graphId}`);
+      return { message: 'CNL saved successfully.' };
+      
+    } catch (error) {
+      console.error(`[CNL Save] Error for graph ${graphId}:`, error);
+      reply.code(400).send({ errors: [{ message: error.message }] });
+      return;
+    }
+  });
+
   fastify.post('/api/graphs/:graphId/cnl', {
     schema: {
       params: {
