@@ -16,6 +16,9 @@ interface CNLEditorProps {
   placeholder?: string;
   readOnly?: boolean;
   className?: string;
+  nodeTypes?: any[];
+  relationTypes?: any[];
+  attributeTypes?: any[];
 }
 
 // CNL Auto-completion
@@ -53,7 +56,7 @@ const cnlCompletions = [
 ];
 
 // Smart context-aware auto-completion function
-function cnlCompletion(context: any) {
+function cnlCompletion(context: any, nodeTypes: any[] = [], relationTypes: any[] = [], attributeTypes: any[] = []) {
   const line = context.state.doc.lineAt(context.pos);
   const lineText = line.text;
   const cursorPos = context.pos - line.from;
@@ -67,11 +70,13 @@ function cnlCompletion(context: any) {
   
   // Context-aware suggestions based on position and content
   if (isFirstColumn) {
-    // First column suggestions: # | < | has
+    // First column suggestions: # | < | has | ```description | ```graph-description
     const firstColumnSuggestions = [
       { label: '#', type: 'node', apply: '# ', info: 'Start a node heading' },
       { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
-      { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' }
+      { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' },
+      { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Add description block' },
+      { label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Add graph description block' }
     ];
     
     // Filter based on what user is typing
@@ -90,32 +95,71 @@ function cnlCompletion(context: any) {
     
     // If we're after a # (node heading), suggest node types
     if (lineText.trim().startsWith('#')) {
-      contextSuggestions.push(
-        { label: 'Person', type: 'nodeType', apply: 'Person', info: 'Individual person' },
-        { label: 'Place', type: 'nodeType', apply: 'Place', info: 'Geographic location' },
-        { label: 'Concept', type: 'nodeType', apply: 'Concept', info: 'Abstract idea' },
-        { label: 'Object', type: 'nodeType', apply: 'Object', info: 'Physical object' }
-      );
+      if (nodeTypes.length > 0) {
+        // Use real schema data
+        nodeTypes.forEach(nodeType => {
+          contextSuggestions.push({
+            label: nodeType.name,
+            type: 'nodeType',
+            apply: `[${nodeType.name}]`,
+            info: nodeType.description || 'Node type'
+          });
+        });
+      } else {
+        // Fallback to default suggestions
+        contextSuggestions.push(
+          { label: 'Person', type: 'nodeType', apply: '[Person]', info: 'Individual person' },
+          { label: 'Place', type: 'nodeType', apply: '[Place]', info: 'Geographic location' },
+          { label: 'Concept', type: 'nodeType', apply: '[Concept]', info: 'Abstract idea' },
+          { label: 'Object', type: 'nodeType', apply: '[Object]', info: 'Physical object' }
+        );
+      }
     }
     
     // If we're after a < (relation), suggest relation types
     if (lineText.trim().startsWith('<')) {
-      contextSuggestions.push(
-        { label: 'is a', type: 'relationType', apply: 'is a', info: 'Type relationship' },
-        { label: 'contains', type: 'relationType', apply: 'contains', info: 'Containment' },
-        { label: 'located in', type: 'relationType', apply: 'located in', info: 'Location' },
-        { label: 'works for', type: 'relationType', apply: 'works for', info: 'Employment' }
-      );
+      if (relationTypes.length > 0) {
+        // Use real schema data
+        relationTypes.forEach(relationType => {
+          contextSuggestions.push({
+            label: relationType.name,
+            type: 'relationType',
+            apply: `${relationType.name}>`,
+            info: relationType.description || 'Relation type'
+          });
+        });
+      } else {
+        // Fallback to default suggestions
+        contextSuggestions.push(
+          { label: 'is a', type: 'relationType', apply: 'is a>', info: 'Type relationship' },
+          { label: 'contains', type: 'relationType', apply: 'contains>', info: 'Containment' },
+          { label: 'located in', type: 'relationType', apply: 'located in>', info: 'Location' },
+          { label: 'works for', type: 'relationType', apply: 'works for>', info: 'Employment' }
+        );
+      }
     }
     
     // If we're after 'has', suggest attribute types
     if (lineText.trim().startsWith('has')) {
-      contextSuggestions.push(
-        { label: 'name', type: 'attributeType', apply: 'name', info: 'Name attribute' },
-        { label: 'age', type: 'attributeType', apply: 'age', info: 'Age attribute' },
-        { label: 'color', type: 'attributeType', apply: 'color', info: 'Color attribute' },
-        { label: 'size', type: 'attributeType', apply: 'size', info: 'Size attribute' }
-      );
+      if (attributeTypes.length > 0) {
+        // Use real schema data
+        attributeTypes.forEach(attributeType => {
+          contextSuggestions.push({
+            label: attributeType.name,
+            type: 'attributeType',
+            apply: `${attributeType.name}: `,
+            info: attributeType.description || 'Attribute type'
+          });
+        });
+      } else {
+        // Fallback to default suggestions
+        contextSuggestions.push(
+          { label: 'name', type: 'attributeType', apply: 'name: ', info: 'Name attribute' },
+          { label: 'age', type: 'attributeType', apply: 'age: ', info: 'Age attribute' },
+          { label: 'color', type: 'attributeType', apply: 'color: ', info: 'Color attribute' },
+          { label: 'size', type: 'attributeType', apply: 'size: ', info: 'Size attribute' }
+        );
+      }
     }
     
     // Filter based on what user is typing
@@ -137,7 +181,10 @@ export function CNLEditor({
   language = 'cnl', 
   placeholder = 'Start typing your CNL...',
   readOnly = false,
-  className = ''
+  className = '',
+  nodeTypes = [],
+  relationTypes = [],
+  attributeTypes = []
 }: CNLEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -279,9 +326,9 @@ export function CNLEditor({
         // Auto-completion for CNL
         ...(language === 'cnl' ? [
           autocompletion({ 
-            override: [cnlCompletion],
+            override: [() => cnlCompletion({ ...arguments[0], nodeTypes, relationTypes, attributeTypes })],
             activateOnTyping: true, // Show automatically as you type
-            defaultKeymap: false, // Disable default Enter behavior
+            defaultKeymap: true, // Enable default keyboard navigation
             maxRenderedOptions: 10, // Limit dropdown size
             renderCompletionItem: (completion, state, view) => {
               const dom = document.createElement('li');

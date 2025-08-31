@@ -269,6 +269,9 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
           language="cnl"
           readOnly={disabled}
           placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
+          nodeTypes={nodeTypes}
+          relationTypes={relationTypes}
+          attributeTypes={attributeTypes}
         />
       </div>
 
