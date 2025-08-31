@@ -93,7 +93,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [attributes, setAttributes] = useState<AttributeType[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
-  const [nodeTypes, setNodeTypes] = useState<any[]>(null);
+  const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');

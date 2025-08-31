@@ -56,8 +56,16 @@ const cnlCompletions = [
 ];
 
 // Smart context-aware auto-completion function
-function createCnlCompletion(nodeTypes: any[] = [], relationTypes: any[] = [], attributeTypes: any[] = []) {
+function createCnlCompletion(nodeTypes: any[] | null = [], relationTypes: any[] | null = [], attributeTypes: any[] | null = []) {
   return function cnlCompletion(context: any) {
+    // Ensure we have arrays, not null
+    const safeNodeTypes = nodeTypes || [];
+    const safeRelationTypes = relationTypes || [];
+    const safeAttributeTypes = attributeTypes || [];
+    
+    // Debug logging
+    console.log('Auto-completion props:', { nodeTypes, relationTypes, attributeTypes });
+    console.log('Safe arrays:', { safeNodeTypes, safeRelationTypes, safeAttributeTypes });
     const line = context.state.doc.lineAt(context.pos);
   const lineText = line.text;
   const cursorPos = context.pos - line.from;
@@ -96,9 +104,9 @@ function createCnlCompletion(nodeTypes: any[] = [], relationTypes: any[] = [], a
     
     // If we're after a # (node heading), suggest node types
     if (lineText.trim().startsWith('#')) {
-      if (nodeTypes.length > 0) {
+      if (safeNodeTypes.length > 0) {
         // Use real schema data
-        nodeTypes.forEach(nodeType => {
+        safeNodeTypes.forEach(nodeType => {
           contextSuggestions.push({
             label: nodeType.name,
             type: 'nodeType',
@@ -119,9 +127,9 @@ function createCnlCompletion(nodeTypes: any[] = [], relationTypes: any[] = [], a
     
     // If we're after a < (relation), suggest relation types
     if (lineText.trim().startsWith('<')) {
-      if (relationTypes.length > 0) {
+      if (safeRelationTypes.length > 0) {
         // Use real schema data
-        relationTypes.forEach(relationType => {
+        safeRelationTypes.forEach(relationType => {
           contextSuggestions.push({
             label: relationType.name,
             type: 'relationType',
@@ -142,9 +150,9 @@ function createCnlCompletion(nodeTypes: any[] = [], relationTypes: any[] = [], a
     
     // If we're after 'has', suggest attribute types
     if (lineText.trim().startsWith('has')) {
-      if (attributeTypes.length > 0) {
+      if (safeAttributeTypes.length > 0) {
         // Use real schema data
-        attributeTypes.forEach(attributeType => {
+        safeAttributeTypes.forEach(attributeType => {
           contextSuggestions.push({
             label: attributeType.name,
             type: 'attributeType',
