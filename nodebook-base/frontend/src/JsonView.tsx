@@ -1,8 +1,5 @@
-import Editor from '@monaco-editor/react';
 import React, { useState, useEffect } from 'react';
-
-// Import Monaco Editor configuration
-import './monaco-config';
+import { CNLEditor } from './CNLEditorComponent';
 
 interface JsonViewProps {
   data: object;
@@ -26,23 +23,12 @@ export function JsonView({ data }: JsonViewProps) {
   }, []);
 
   return (
-    <Editor
-      height="100%"
-      language="json"
-      theme="light"
+    <CNLEditor
       value={jsonString}
-      options={{
-        readOnly: true,
-        minimap: { enabled: false },
-        fontSize: 14,
-        wordWrap: 'on',
-        lineNumbers: isMobile ? 'off' : 'on',
-        lineNumbersMinChars: isMobile ? 0 : 5,
-        scrollBeyondLastLine: false,
-        overviewRulerBorder: false,
-        hideCursorInOverviewRuler: true,
-        renderLineHighlight: isMobile ? 'none' : 'all',
-      }}
+      onChange={() => {}} // Read-only, no onChange needed
+      language="json"
+      readOnly={true}
+      placeholder="JSON data will appear here..."
     />
   );
 }

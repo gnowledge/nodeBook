@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Editor from '@monaco-editor/react';
-import type { Monaco } from '@monaco-editor/react';
+import React, { useEffect, useState } from 'react';
+import { CNLEditor } from './CNLEditorComponent';
 import type { RelationType, AttributeType, NodeType } from './types';
 import { NLPSidePanel } from './NLPSidePanel';
 import { WordNetDefinitionsPanel } from './WordNetDefinitionsPanel';
@@ -8,9 +7,6 @@ import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescripti
 import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
 import { WordNetService } from './services/wordnetService';
 import './CnlEditor.css';
-
-// Import Monaco Editor configuration
-import './monaco-config';
 
 interface CnlEditorProps {
   value: string;
@@ -23,8 +19,6 @@ interface CnlEditorProps {
 }
 
 export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, relationTypes, attributeTypes }: CnlEditorProps) {
-  const monacoRef = useRef<Monaco | null>(null);
-  const providerRef = useRef<any>(null);
   
   // NLP Analysis State
   const [isNLPPanelOpen, setIsNLPPanelOpen] = useState(false);
@@ -40,10 +34,7 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   
 
   
-  const schemaRef = useRef({ nodeTypes, relationTypes, attributeTypes });
-  useEffect(() => {
-    schemaRef.current = { nodeTypes, relationTypes, attributeTypes };
-  }, [nodeTypes, relationTypes, attributeTypes]);
+
 
   // Handle NLP Analysis
   const handleNLPParse = async () => {
@@ -138,116 +129,21 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     }
   };
 
-  const handleEditorDidMount = (editor: any, monaco: Monaco) => {
-    monacoRef.current = monaco;
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-      onSubmit();
-    });
-
-    if (!monaco.languages.getLanguages().some((lang: any) => lang.id === 'cnl')) {
-      monaco.languages.register({ id: 'cnl' });
-
-      monaco.languages.setMonarchTokensProvider('cnl', {
-        tokenizer: {
-          root: [
-            [/^#\s*.+$/, 'entity.name.type'],
-            [/<.+?>/, 'entity.name.tag'],
-            [/has\s+.+:/, 'keyword'],
-            [/```description/, 'comment', '@description'],
-            [/[A-Z][\w\s]*/, 'entity.name.type'],
-          ],
-          description: [
-            [/```/, 'comment', '@pop'],
-            [/.*/, 'comment'],
-          ],
-        },
-      });
-
-      monaco.editor.defineTheme('cnlTheme', {
-        base: 'vs',
-        inherit: true,
-        rules: [
-          { token: 'entity.name.type', foreground: '0000ff' }, // Blue for Nodes and Targets
-          { token: 'entity.name.tag', foreground: '008000' },   // Green for Relations
-          { token: 'keyword', foreground: 'D95F02' },         // Dark Orange for Attributes
-          { token: 'comment', foreground: '808080' },
-        ],
-        colors: {
-          'editor.background': '#ffffff',
-          'editor.foreground': '#212529',
-          'editorLineNumber.foreground': '#6c757d',
-          'editorCursor.foreground': '#007bff',
-          'editor.selectionBackground': '#e9ecef',
-          'editor.inactiveSelectionBackground': '#f0f2f5',
-        },
-      });
-    }
-
-    if (!providerRef.current) {
-      providerRef.current = monaco.languages.registerCompletionItemProvider('cnl', {
-        provideCompletionItems: (model: any, position: any) => {
-          const { nodeTypes, relationTypes, attributeTypes } = schemaRef.current;
-          const textUntilPosition = model.getValueInRange({
-            startLineNumber: 1,
-            startColumn: 1,
-            endLineNumber: position.lineNumber,
-            endColumn: position.column,
-          });
-
-          const suggestions: any[] = [];
-          
-          const lines = textUntilPosition.split('\n');
-          let currentNodeType: string | null = null;
-          for (let i = lines.length - 1; i >= 0; i--) {
-            const match = lines[i].match(/^\s*#+\s*.+?\[(.+?)\]/);
-            if (match) {
-              currentNodeType = match[1].split(';')[0].trim();
-              break;
-            }
-          }
-
-          if (/#\s*.*?\\\[[^]]*$/.test(textUntilPosition)) {
-            nodeTypes.forEach(nt => {
-              suggestions.push({
-                label: nt.name,
-                kind: monaco.languages.CompletionItemKind.Class,
-                insertText: nt.name,
-                detail: nt.description,
-              });
-            });
-          } else if (/<[^>]*$/.test(textUntilPosition)) {
-            const validRelations = currentNodeType
-              ? relationTypes.filter(rt => rt.domain.length === 0 || rt.domain.includes(currentNodeType))
-              : relationTypes;
-            
-            validRelations.forEach(rt => {
-              suggestions.push({
-                label: rt.name,
-                kind: monaco.languages.CompletionItemKind.Interface,
-                insertText: rt.name,
-                detail: rt.description,
-              });
-            });
-          } else if (/has\s+[^:]*$/.test(textUntilPosition)) {
-            const validAttributes = currentNodeType
-              ? attributeTypes.filter(at => at.scope.length === 0 || at.scope.includes(currentNodeType))
-              : attributeTypes;
-
-            validAttributes.forEach(at => {
-              suggestions.push({
-                label: at.name,
-                kind: monaco.languages.CompletionItemKind.Property,
-                insertText: at.name,
-                detail: at.description,
-              });
-            });
-          }
-
-          return { suggestions };
-        },
-      });
-    }
-  };
+  // Add Ctrl+Enter shortcut for submission
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        onSubmit();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onSubmit]);
 
   return (
     <div className="cnl-editor-container">
@@ -292,26 +188,14 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
         </div>
       </div>
 
-      {/* Monaco Editor */}
+      {/* CodeMirror CNL Editor */}
       <div className="cnl-editor-main">
-        <Editor
-          height="100%"
-          language="cnl"
-          theme="cnlTheme"
+        <CNLEditor
           value={value}
-          onChange={(val) => onChange(val || '')}
-          onMount={handleEditorDidMount}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            wordWrap: 'on',
-            lineNumbers: 'off',
-            glyphMargin: false,
-            folding: false,
-            lineDecorationsWidth: 0,
-            lineNumbersMinChars: 0,
-            readOnly: disabled,
-          }}
+          onChange={onChange}
+          language="cnl"
+          readOnly={disabled}
+          placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
         />
       </div>
 

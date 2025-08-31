@@ -34,16 +34,5 @@ export default defineConfig({
   define: {
     global: 'globalThis'
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          monaco: ['@monaco-editor/react']
-        }
-      }
-    }
-  },
-  optimizeDeps: {
-    include: ['@monaco-editor/react']
-  }
+
 });
