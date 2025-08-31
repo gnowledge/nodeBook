@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { EditorView, basicSetup } from 'codemirror';
+import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
+import { basicSetup } from '@codemirror/basic-setup';
 import { cnl, cnlHighlightStyle } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
 import { javascript } from '@codemirror/lang-javascript';
