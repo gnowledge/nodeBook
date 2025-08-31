@@ -13,7 +13,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "india_morph_1756619295356",
+          "morph_id": "india_morph_1756634213679",
           "node_id": "india",
           "name": "basic",
           "relationNode_ids": [
@@ -22,7 +22,29 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "india_morph_1756619295356"
+      "nbh": "india_morph_1756634213679"
+    },
+    {
+      "id": "country",
+      "base_name": "country",
+      "name": "country",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "country_morph_1756634213679",
+          "node_id": "country",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "country_morph_1756634213679"
     },
     {
       "id": "us",
@@ -31,20 +53,20 @@
       "adjective": null,
       "quantifier": null,
       "role": "Country",
-      "description": null,
+      "description": "North American republic containing 50 states - 48 conterminous states in North America plus Alaska in northwest North America and the Hawaiian Islands in the Pacific Ocean; achieved independence in 1776",
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "us_morph_1756619295356",
+          "morph_id": "us_morph_1756634213679",
           "node_id": "us",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "us_morph_1756619295356"
+      "nbh": "us_morph_1756634213679"
     }
   ],
   "relations": [

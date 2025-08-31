@@ -6,7 +6,7 @@ import { cnl, cnlHighlightStyle } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
-import { oneDark } from '@codemirror/theme-one-dark';
+
 import { autocompletion } from '@codemirror/autocomplete';
 
 interface CNLEditorProps {
@@ -136,11 +136,51 @@ export function CNLEditor({
         // Apply CNL highlighting for CNL language
         ...(language === 'cnl' ? [EditorView.theme(cnlHighlightStyle)] : []),
         
-        // Auto-completion for CNL
-        ...(language === 'cnl' ? [autocompletion({ override: [cnlCompletion] })] : []),
+        // Auto-completion for CNL (only on Ctrl+Space)
+        ...(language === 'cnl' ? [
+          autocompletion({ 
+            override: [cnlCompletion],
+            defaultKeymap: false // Disable default Enter behavior
+          }),
+          keymap.of([
+            { key: 'Ctrl-Space', run: (view) => {
+              view.dispatch({ effects: autocompletion.startCompletion.of(view.state) });
+              return true;
+            }}
+          ])
+        ] : []),
         
-        // Dark theme
-        oneDark,
+        // Custom light theme
+        EditorView.theme({
+          '&': {
+            fontSize: '14px',
+            height: '100%'
+          },
+          '.cm-content': {
+            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+            padding: '16px',
+            color: '#333',
+            backgroundColor: '#ffffff'
+          },
+          '.cm-scroller': {
+            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
+          },
+          '.cm-line': {
+            color: '#333'
+          },
+          '.cm-cursor': {
+            borderLeftColor: '#333'
+          },
+          '.cm-selectionBackground': {
+            backgroundColor: '#b3d4fc'
+          },
+          '.cm-lineNumbers': {
+            color: '#999'
+          },
+          '.cm-activeLine': {
+            backgroundColor: '#f8f9fa'
+          }
+        }),
         
         // Read-only mode
         ...(readOnly ? [EditorState.readOnly.of(true)] : [])

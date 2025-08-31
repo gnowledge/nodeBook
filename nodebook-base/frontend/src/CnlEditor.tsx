@@ -19,6 +19,9 @@ interface CnlEditorProps {
 }
 
 export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, relationTypes, attributeTypes }: CnlEditorProps) {
+  // Undo functionality
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   
   // NLP Analysis State
   const [isNLPPanelOpen, setIsNLPPanelOpen] = useState(false);
@@ -121,7 +124,9 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
   // Handle definition selection from WordNet
   const handleDefinitionSelect = (term: string, definition: string) => {
     try {
+      console.log('Before WordNet insertion:', value);
       const updatedCnl = WordNetService.insertDescription(value, term, definition);
+      console.log('After WordNet insertion:', updatedCnl);
       onChange(updatedCnl);
     } catch (error) {
       console.error('Error inserting definition:', error);
@@ -129,12 +134,46 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     }
   };
 
-  // Add Ctrl+Enter shortcut for submission
+  // Track changes for undo functionality
+  useEffect(() => {
+    if (value !== (history[historyIndex] || '')) {
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(value);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  }, [value]);
+
+  // Undo function
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+    }
+  };
+
+  // Redo function
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+    }
+  };
+
+  // Add Ctrl+Enter shortcut for submission and Ctrl+Z for undo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === 'Enter') {
         event.preventDefault();
         onSubmit();
+      } else if (event.ctrlKey && event.key === 'z') {
+        event.preventDefault();
+        handleUndo();
+      } else if (event.ctrlKey && event.key === 'y') {
+        event.preventDefault();
+        handleRedo();
       }
     };
     
@@ -143,13 +182,29 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onSubmit]);
+  }, [onSubmit, handleUndo, handleRedo]);
 
   return (
     <div className="cnl-editor-container">
       {/* Editor Toolbar */}
       <div className="cnl-editor-toolbar">
                     <div className="toolbar-left">
+              <button
+                className="toolbar-btn undo-btn"
+                onClick={handleUndo}
+                disabled={historyIndex <= 0}
+                title="Undo (Ctrl+Z)"
+              >
+                ↩️ Undo
+              </button>
+              <button
+                className="toolbar-btn redo-btn"
+                onClick={handleRedo}
+                disabled={historyIndex >= history.length - 1}
+                title="Redo (Ctrl+Y)"
+              >
+                ↪️ Redo
+              </button>
               <button
                 className="toolbar-btn auto-insert-btn"
                 onClick={handleAutoInsertDescriptions}
@@ -179,7 +234,10 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
           
           <button 
             className="toolbar-btn submit-btn"
-            onClick={onSubmit}
+            onClick={() => {
+              console.log('Submit button clicked, calling onSubmit with value:', value);
+              onSubmit();
+            }}
             disabled={disabled}
             title="Submit CNL to build graph (Ctrl+Enter)"
           >
