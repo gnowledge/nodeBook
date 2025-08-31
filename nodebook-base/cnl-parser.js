@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import * as schemaManager from './schema-manager.js';
 
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
-const ADJECTIVE_HEADING_REGEX = /^\s*(#+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/;
 const SIMPLE_HEADING_REGEX = /^\s*(#+)\s*(.+?)$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([^;\n]*?)(?:;|$)/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
@@ -292,66 +291,51 @@ function buildStructuralTree(cnlText) {
 }
 
 function processNodeHeading(heading) {
-    // Try adjective format first (Adjective BaseName) - most common case
-    let match = heading.match(ADJECTIVE_HEADING_REGEX);
     let adjective = null;
-    let name = null;
+    let baseName = null;
+    let displayName = null;
     let rolesString = null;
     
+    // Try the explicit format first (with **adjective** markers)
+    let match = heading.match(HEADING_REGEX);
     if (match) {
-        const fullText = match[2].trim();
-        // Check if the text contains multiple words (potential adjective + base name)
-        const words = fullText.split(/\s+/);
-        if (words.length > 1) {
-            // Assume first word is adjective, rest is base name
-            adjective = words[0];
-            name = words.slice(1).join(' ');
+        [, , adjective, baseName, rolesString] = match;
+        // If we have an explicit adjective, create display name with ** markers for frontend rendering
+        if (adjective && baseName) {
+            displayName = `**${adjective}** ${baseName}`;
         } else {
-            // Single word, no adjective
-            name = fullText;
-            adjective = null;
+            displayName = baseName;
         }
     } else {
-        // Try the complex format (with **adjective** markers)
-        match = heading.match(HEADING_REGEX);
+        // Try simple format (any text without ** markers)
+        match = heading.match(SIMPLE_HEADING_REGEX);
         if (match) {
-            [, , adjective, name, rolesString] = match;
-        } else {
-            // Try simple format (any text)
-            match = heading.match(SIMPLE_HEADING_REGEX);
-            if (match) {
-                const fullText = match[2].trim();
-                // Check if the text contains multiple words (potential adjective + base name)
-                const words = fullText.split(/\s+/);
-                if (words.length > 1) {
-                    // Assume first word is adjective, rest is base name
-                    adjective = words[0];
-                    name = words.slice(1).join(' ');
-                } else {
-                    // Single word, no adjective
-                    name = fullText;
-                    adjective = null;
-                }
-            }
+            baseName = match[2].trim();
+            displayName = baseName;
+            // For simple format, treat the entire text as the base name, no adjective
+            adjective = null;
         }
     }
     
-    if (!name) {
+    if (!baseName) {
         // Fallback: treat the entire heading as the name
-        name = heading.replace(/^#+\s*/, '').trim();
+        baseName = heading.replace(/^#+\s*/, '').trim();
+        displayName = baseName;
     }
     
     const roles = rolesString ? rolesString.split(';').map(r => r.trim()).filter(Boolean) : ['individual'];
     const nodeType = roles[0] || 'individual';
-    const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
-    const cleanAdjective = adjective ? adjective.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
-    const id = cleanAdjective ? `${cleanAdjective}_${cleanName}` : cleanName;
+    
+    // For ID generation, use the clean base name
+    const cleanName = baseName.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+    const id = cleanName; // Always use the clean name for ID, regardless of adjective
     
     return { 
         id, 
         type: nodeType, 
         payload: { 
-            base_name: name.trim(), 
+            base_name: baseName.trim(),
+            displayName: displayName.trim(),
             options: { 
                 id, 
                 role: nodeType, 
@@ -366,42 +350,41 @@ function processNeighborhood(nodeId, lines) {
     const neighborhoodOps = [];
     let content = lines.join('\n');
     
-    console.log(`[CNL Debug] Processing neighborhood for node ${nodeId}:`);
-    console.log(`[CNL Debug] Content: ${content}`);
+
     
     const descriptionMatch = content.match(DESCRIPTION_REGEX);
     if (descriptionMatch) {
         const description = descriptionMatch[1].trim();
-        console.log(`[CNL Debug] Found description: ${description}`);
+
         const id = `attr_${nodeId}_description_${crypto.createHash('sha1').update(description).digest('hex').slice(0, 6)}`;
         neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } }, id: `${nodeId}_description` });
         content = content.replace(DESCRIPTION_REGEX, '').trim();
     }
 
     const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];
-    console.log(`[CNL Debug] Found ${attributeMatches.length} attributes`);
+
     for (const match of attributeMatches) {
         const [, name, value] = match;
-        console.log(`[CNL Debug] Attribute: ${name} = ${value}`);
+
         const valueHash = crypto.createHash('sha1').update(String(value.trim())).digest('hex').slice(0, 6);
         const id = `attr_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
         neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim() }, id });
     }
 
     const functionMatches = [...content.matchAll(FUNCTION_REGEX)];
-    console.log(`[CNL Debug] Found ${functionMatches.length} functions`);
+
     for (const match of functionMatches) {
         const [, name] = match;
-        console.log(`[CNL Debug] Function: ${name}`);
+
         const id = `func_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}`;
         neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim() }, id });
     }
 
     const relationMatches = [...content.matchAll(RELATION_REGEX)];
-    console.log(`[CNL Debug] Found ${relationMatches.length} relations`);
+
     for (const match of relationMatches) {
         const [, relationName, targets] = match;
-        console.log(`[CNL Debug] Relation: ${relationName} -> ${targets}`);
+
         for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
             const targetId = target.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
             const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;

@@ -1,5 +1,3 @@
-# Test Node
-<is a> Type
-<has> Property
-has value: 42;
-has name: "Test";
+# Female Mathematician
+<is a> Scientist;
+<works in> Mathematics;

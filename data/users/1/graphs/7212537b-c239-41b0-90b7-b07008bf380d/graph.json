@@ -1,10 +1,10 @@
 {
   "nodes": [
     {
-      "id": "test_node",
-      "base_name": "Node",
-      "name": "Test Node",
-      "adjective": "Test",
+      "id": "female_mathematician",
+      "base_name": "Female Mathematician",
+      "name": "Female Mathematician",
+      "adjective": null,
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -13,27 +13,24 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "test_node_morph_1756607174086",
-          "node_id": "test_node",
+          "morph_id": "female_mathematician_morph_1756608356061",
+          "node_id": "female_mathematician",
           "name": "basic",
           "relationNode_ids": [
-            "rel_test_node_is_a_type",
-            "rel_test_node_has_property"
+            "rel_female_mathematician_is_a_scientist",
+            "rel_female_mathematician_works_in_mathematics"
           ],
-          "attributeNode_ids": [
-            "attr_test_node_value_92cfce",
-            "attr_test_node_name_4986f7"
-          ]
+          "attributeNode_ids": []
         }
       ],
-      "nbh": "test_node_morph_1756607174086"
+      "nbh": "female_mathematician_morph_1756608356061"
     }
   ],
   "relations": [
     {
-      "id": "rel_test_node_is_a_type",
-      "source_id": "test_node",
-      "target_id": "type",
+      "id": "rel_female_mathematician_is_a_scientist",
+      "source_id": "female_mathematician",
+      "target_id": "scientist",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -41,38 +38,15 @@
       "isDeleted": false
     },
     {
-      "id": "rel_test_node_has_property",
-      "source_id": "test_node",
-      "target_id": "property",
-      "name": "has",
+      "id": "rel_female_mathematician_works_in_mathematics",
+      "source_id": "female_mathematician",
+      "target_id": "mathematics",
+      "name": "works in",
       "adverb": null,
       "modality": null,
       "morph_ids": [],
       "isDeleted": false
     }
   ],
-  "attributes": [
-    {
-      "id": "attr_test_node_value_92cfce",
-      "source_id": "test_node",
-      "name": "value",
-      "value": "42",
-      "adverb": null,
-      "unit": null,
-      "modality": null,
-      "morph_ids": [],
-      "isDeleted": false
-    },
-    {
-      "id": "attr_test_node_name_4986f7",
-      "source_id": "test_node",
-      "name": "name",
-      "value": "\"Test\"",
-      "adverb": null,
-      "unit": null,
-      "modality": null,
-      "morph_ids": [],
-      "isDeleted": false
-    }
-  ]
+  "attributes": []
 }

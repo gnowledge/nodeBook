@@ -170,7 +170,18 @@ export class FileSystemStore extends DataStore {
         // First pass: create all nodes
         for (const op of operations) {
             if (op.type === 'addNode') {
-                const node = new PolyNode(op.payload.base_name, op.payload.options);
+                // Create node with custom name if provided in options
+                const nodeOptions = { ...op.payload.options };
+                if (op.payload.displayName) {
+                    nodeOptions.customName = op.payload.displayName;
+                }
+                const node = new PolyNode(op.payload.base_name, nodeOptions);
+                
+                // Override the name if we have a custom display name
+                if (op.payload.displayName) {
+                    node.name = op.payload.displayName;
+                }
+                
                 graphData.nodes.push(node);
             }
         }
