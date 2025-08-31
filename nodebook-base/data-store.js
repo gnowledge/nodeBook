@@ -253,10 +253,28 @@ export class FileSystemStore extends DataStore {
 
     async deleteGraph(userId, graphId) {
         const graphDir = this.getGraphDataDir(userId, graphId);
+        
         try {
+            // First, get the graph data to analyze what needs to be cleaned up
+            const graphData = await this.getGraph(userId, graphId);
+            
+            if (graphData && graphData.nodes) {
+                // Clean up node registry - remove nodes that are only in this graph
+                await this.cleanupNodeRegistry(userId, graphId, graphData.nodes);
+            }
+            
+            // Remove the graph directory
             await fsp.rm(graphDir, { recursive: true, force: true });
+            
+            // Clean up graph registry
+            await this.cleanupGraphRegistry(userId, graphId);
+            
+            console.log(`[DataStore] Graph ${graphId} deleted successfully for user ${userId}`);
         } catch (error) {
-            if (error.code !== 'ENOENT') throw error;
+            if (error.code !== 'ENOENT') {
+                console.error(`[DataStore] Error deleting graph ${graphId}:`, error);
+                throw error;
+            }
         }
     }
 
@@ -355,6 +373,60 @@ export class FileSystemStore extends DataStore {
         
         await this.saveGraphRegistry(userId, registry);
         return registry;
+    }
+
+    async cleanupNodeRegistry(userId, graphId, nodes) {
+        const nodeRegistry = await this.getNodeRegistry(userId);
+        const graphRegistry = await this.getGraphRegistry(userId);
+        
+        // For each node in the deleted graph
+        for (const node of nodes) {
+            const nodeId = node.id;
+            
+            // Check if this node exists in other graphs
+            let nodeExistsInOtherGraphs = false;
+            
+            for (const graph of graphRegistry) {
+                if (graph.id !== graphId) {
+                    try {
+                        const otherGraphData = await this.getGraph(userId, graph.id);
+                        if (otherGraphData && otherGraphData.nodes) {
+                            const nodeExists = otherGraphData.nodes.some(n => n.id === nodeId);
+                            if (nodeExists) {
+                                nodeExistsInOtherGraphs = true;
+                                break;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`[DataStore] Could not check graph ${graph.id} for node ${nodeId}:`, error);
+                    }
+                }
+            }
+            
+            // If node doesn't exist in other graphs, remove it from registry
+            if (!nodeExistsInOtherGraphs) {
+                const nodeIndex = nodeRegistry.findIndex(n => n.id === nodeId);
+                if (nodeIndex >= 0) {
+                    console.log(`[DataStore] Removing node ${nodeId} from registry (not used in other graphs)`);
+                    nodeRegistry.splice(nodeIndex, 1);
+                }
+            } else {
+                console.log(`[DataStore] Keeping node ${nodeId} in registry (used in other graphs)`);
+            }
+        }
+        
+        await this.saveNodeRegistry(userId, nodeRegistry);
+    }
+
+    async cleanupGraphRegistry(userId, graphId) {
+        const graphRegistry = await this.getGraphRegistry(userId);
+        const graphIndex = graphRegistry.findIndex(g => g.id === graphId);
+        
+        if (graphIndex >= 0) {
+            console.log(`[DataStore] Removing graph ${graphId} from registry`);
+            graphRegistry.splice(graphIndex, 1);
+            await this.saveGraphRegistry(userId, graphRegistry);
+        }
     }
 
     async registerNodeInGraph(userId, nodeId, graphId) {

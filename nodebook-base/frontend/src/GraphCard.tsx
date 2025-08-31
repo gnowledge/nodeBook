@@ -9,6 +9,8 @@ interface GraphCardProps {
   isPublic?: boolean;
   showPublicationControls?: boolean;
   onPublicationStateChange?: (graphId: string, newState: 'Private' | 'P2P' | 'Public') => void;
+  onDelete?: (graphId: string) => void;
+  showDeleteButton?: boolean;
 }
 
 export function GraphCard({ 
@@ -16,7 +18,9 @@ export function GraphCard({
   onClick, 
   isPublic = false, 
   showPublicationControls = false,
-  onPublicationStateChange 
+  onPublicationStateChange,
+  onDelete,
+  showDeleteButton = false
 }: GraphCardProps) {
   
   const handlePublicationToggle = () => {
@@ -115,6 +119,23 @@ export function GraphCard({
             title={`Current: ${graph.publication_state}. Click to cycle through states.`}
           >
             Change Publication State
+          </button>
+        </div>
+      )}
+      
+      {showDeleteButton && onDelete && !isPublic && (
+        <div className={styles.graphCardActions}>
+          <button 
+            className={styles.deleteBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete "${graph.name}"? This action cannot be undone.`)) {
+                onDelete(graph.id);
+              }
+            }}
+            title="Delete this graph"
+          >
+            🗑️ Delete
           </button>
         </div>
       )}

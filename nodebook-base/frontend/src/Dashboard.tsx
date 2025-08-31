@@ -88,6 +88,29 @@ export default function Dashboard({
     }
   };
 
+  const deleteGraph = async (graphId: string) => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch(`/api/graphs/${graphId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        // Remove the deleted graph from the local state
+        setGraphs(prevGraphs => prevGraphs.filter(g => g.id !== graphId));
+        console.log(`Graph ${graphId} deleted successfully`);
+      } else {
+        console.error('Failed to delete graph');
+      }
+    } catch (err) {
+      console.error('Error deleting graph:', err);
+    }
+  };
+
   const updatePublicationState = async (graphId: string, newState: 'Private' | 'P2P' | 'Public') => {
     try {
       const response = await fetch(`/api/graphs/${graphId}/publication`, {
@@ -202,6 +225,8 @@ export default function Dashboard({
                       }}
                       showPublicationControls={true}
                       onPublicationStateChange={updatePublicationState}
+                      showDeleteButton={true}
+                      onDelete={deleteGraph}
                     />
                   ))}
                 </div>

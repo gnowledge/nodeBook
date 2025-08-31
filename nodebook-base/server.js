@@ -1505,14 +1505,18 @@ Another service or function
     },
     preHandler: authenticateJWT
   }, async (request, reply) => {
-    const gm = fastify.graphManager; // Get instance from fastify
+    const dataStore = fastify.dataStore;
     const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
     try {
-      await gm.deleteGraph(userId, request.params.graphId);
+      console.log(`[DELETE /api/graphs/${graphId}] Deleting graph for user ${userId}`);
+      await dataStore.deleteGraph(userId, graphId);
       reply.code(204).send();
       return;
     } catch (error) {
-      reply.code(404).send({ error: error.message });
+      console.error(`[DELETE /api/graphs/${graphId}] Error:`, error);
+      reply.code(500).send({ error: error.message });
       return;
     }
   });

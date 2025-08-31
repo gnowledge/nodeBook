@@ -129,6 +129,28 @@
   background: #d1d5db;
 }
 
+.deleteBtn {
+  width: 100%;
+  padding: 8px 16px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.deleteBtn:hover {
+  background: #fecaca;
+  border-color: #f87171;
+}
+
+.deleteBtn:active {
+  background: #fca5a5;
+}
+
 .graphCardFooter {
   display: flex;
   justify-content: space-between;
