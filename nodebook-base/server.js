@@ -11,6 +11,7 @@ import { evaluate } from 'mathjs';
 import ScientificLibraryManager from './scientific-library-manager.js';
 import MediaManager from './media-manager.js';
 import { createDataStore } from './data-store.js';
+import CNLSuggestionService from './cnl-suggestion-service.js';
 
 // Note: auth is handled by separate auth-service container
 // Stub auth functions for server startup
@@ -1162,6 +1163,96 @@ Another service or function
     } catch (error) {
       console.error(`[CNL Processing] Error for graph ${graphId}:`, error);
       reply.code(400).send({ errors: [{ message: error.message }] });
+      return;
+    }
+  });
+
+  // --- CNL Suggestion API ---
+  fastify.post('/api/cnl/suggest', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string' },
+          userId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const { text } = request.body;
+    const userId = request.user.id;
+    
+    try {
+      console.log(`[CNL Suggestion] Generating suggestions for user ${userId}: "${text}"`);
+      
+      // Initialize CNL Suggestion Service
+      const cnlSuggestionService = new CNLSuggestionService();
+      
+      // Generate CNL suggestions
+      const suggestions = await cnlSuggestionService.generateSuggestions(text);
+      
+      console.log(`[CNL Suggestion] Generated ${suggestions.suggestions?.length || 0} suggestions`);
+      
+      return suggestions;
+      
+    } catch (error) {
+      console.error(`[CNL Suggestion] Error:`, error);
+      reply.code(500).send({ 
+        success: false, 
+        error: 'Failed to generate CNL suggestions',
+        details: error.message 
+      });
+      return;
+    }
+  });
+
+  // --- CNL Validation API ---
+  fastify.post('/api/cnl/validate', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['cnlText'],
+        properties: {
+          cnlText: { type: 'string' },
+          userId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const { cnlText } = request.body;
+    const userId = request.user.id;
+    
+    try {
+      console.log(`[CNL Validation] Validating CNL for user ${userId}`);
+      
+      // Initialize CNL Suggestion Service
+      const cnlSuggestionService = new CNLSuggestionService();
+      
+      // Analyze the CNL text for quality assessment
+      const nlpAnalysis = await cnlSuggestionService.analyzeWithNLP(cnlText);
+      
+      // Generate quality score and recommendations
+      const qualityScore = cnlSuggestionService.assessQuality([], nlpAnalysis);
+      const recommendations = cnlSuggestionService.generateRecommendations([], qualityScore);
+      
+      return {
+        success: true,
+        cnlText: cnlText,
+        qualityScore: qualityScore,
+        recommendations: recommendations,
+        nlpAnalysis: nlpAnalysis
+      };
+      
+    } catch (error) {
+      console.error(`[CNL Validation] Error:`, error);
+      reply.code(500).send({ 
+        success: false, 
+        error: 'Failed to validate CNL',
+        details: error.message 
+      });
       return;
     }
   });
