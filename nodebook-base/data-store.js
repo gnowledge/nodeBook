@@ -203,6 +203,7 @@ export class FileSystemStore extends DataStore {
                 if (op.payload.adverb) options.adverb = op.payload.adverb;
                 if (op.payload.unit) options.unit = op.payload.unit;
                 if (op.payload.modality) options.modality = op.payload.modality;
+                if (op.payload.quantifier) options.quantifier = op.payload.quantifier;
                 
                 const attribute = new AttributeNode(op.payload.source, op.payload.name, op.payload.value, options);
                 graphData.attributes.push(attribute);

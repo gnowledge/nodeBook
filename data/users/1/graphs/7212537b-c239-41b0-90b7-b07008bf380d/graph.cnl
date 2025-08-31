@@ -1,5 +1,5 @@
 ```graph-description
-Testing enhanced attribute syntax with adverbs, units, and modalities.
+Testing enhanced attribute syntax with priority on units.
 ```
 
 # Earth [Planet]
@@ -9,3 +9,4 @@ Our home planet with enhanced attribute examples.
 has mass: ++approximately++ 5.972e24 *kg* [certain];
 has color: *blue* [observed];
 has temperature: ++roughly++ 288 *K* [measured];
+has population: *some* 8 *billion* [estimated];

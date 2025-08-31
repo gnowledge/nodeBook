@@ -31,6 +31,7 @@ class RelationNode {
     this.name = name;
     this.adverb = options.adverb || null;
     this.modality = options.modality || null;
+    this.quantifier = options.quantifier || null;
     this.morph_ids = [];
     this.isDeleted = false;
   }
@@ -46,6 +47,7 @@ class AttributeNode {
     this.adverb = options.adverb || null;
     this.unit = options.unit || null;
     this.modality = options.modality || null;
+    this.quantifier = options.quantifier || null;
     this.morph_ids = [];
     this.isDeleted = false;
   }

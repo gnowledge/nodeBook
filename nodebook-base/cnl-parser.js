@@ -376,33 +376,69 @@ function processNeighborhood(nodeId, lines) {
         content = content.replace(DESCRIPTION_REGEX, '').trim();
     }
 
-    const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];
-
-    for (const match of attributeMatches) {
-        const [, name, adverb, value, unit, modality] = match;
+    // Process attributes with priority on unit extraction
+    const attributeLines = content.split('\n').filter(line => line.trim().startsWith('has '));
+    
+    for (const line of attributeLines) {
+        // Simple regex to extract basic parts
+        const basicMatch = line.match(/^\s*has\s+([^:]+):\s*([^;]+);?/);
+        if (!basicMatch) continue;
         
-        console.log(`[Attribute Debug] Match:`, { name, adverb, value, unit, modality });
-
-        const valueHash = crypto.createHash('sha1').update(String(value.trim())).digest('hex').slice(0, 6);
+        const [, name, fullValue] = basicMatch;
+        let value = fullValue.trim();
+        let unit = null;
+        let adverb = null;
+        let modality = null;
+        let quantifier = null;
+        
+        // Priority 1: Extract units (*unit*)
+        const unitMatch = value.match(/\*([^*]+)\*/);
+        if (unitMatch) {
+            unit = unitMatch[1].trim();
+            value = value.replace(/\*[^*]+\*/, '').trim();
+        }
+        
+        // Priority 2: Extract quantifiers (*quantifier*)
+        const quantifierMatch = value.match(/\*([^*]+)\*/);
+        if (quantifierMatch) {
+            quantifier = quantifierMatch[1].trim();
+            value = value.replace(/\*[^*]+\*/, '').trim();
+        }
+        
+        // Priority 3: Extract adverbs (++adverb++)
+        const adverbMatch = value.match(/\+\+([^+]+)\+\+/);
+        if (adverbMatch) {
+            adverb = adverbMatch[1].trim();
+            value = value.replace(/\+\+[^+]+\+\+/, '').trim();
+        }
+        
+        // Priority 4: Extract modalities [modality]
+        const modalityMatch = value.match(/\[([^\]]+)\]/);
+        if (modalityMatch) {
+            modality = modalityMatch[1].trim();
+            value = value.replace(/\[[^\]]+\]/, '').trim();
+        }
+        
+        // Clean up the final value
+        value = value.trim();
+        
+        console.log(`[Attribute Debug] Parsed:`, { name, value, unit, quantifier, adverb, modality });
+        
+        const valueHash = crypto.createHash('sha1').update(String(value)).digest('hex').slice(0, 6);
         const id = `attr_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
         
         // Build enhanced attribute payload with modifiers
         const attributePayload = { 
             source: nodeId, 
             name: name.trim(), 
-            value: value.trim() 
+            value: value
         };
         
-        // Add optional modifiers if present
-        if (adverb && adverb.trim()) {
-            attributePayload.adverb = adverb.trim();
-        }
-        if (unit && unit.trim()) {
-            attributePayload.unit = unit.trim();
-        }
-        if (modality && modality.trim()) {
-            attributePayload.modality = modality.trim();
-        }
+        // Add modifiers in priority order
+        if (unit) attributePayload.unit = unit;
+        if (quantifier) attributePayload.quantifier = quantifier;
+        if (adverb) attributePayload.adverb = adverb;
+        if (modality) attributePayload.modality = modality;
         
         neighborhoodOps.push({ type: 'addAttribute', payload: attributePayload, id });
     }
