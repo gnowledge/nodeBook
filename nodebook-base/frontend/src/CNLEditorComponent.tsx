@@ -56,8 +56,9 @@ const cnlCompletions = [
 ];
 
 // Smart context-aware auto-completion function
-function cnlCompletion(context: any, nodeTypes: any[] = [], relationTypes: any[] = [], attributeTypes: any[] = []) {
-  const line = context.state.doc.lineAt(context.pos);
+function createCnlCompletion(nodeTypes: any[] = [], relationTypes: any[] = [], attributeTypes: any[] = []) {
+  return function cnlCompletion(context: any) {
+    const line = context.state.doc.lineAt(context.pos);
   const lineText = line.text;
   const cursorPos = context.pos - line.from;
   
@@ -172,7 +173,8 @@ function cnlCompletion(context: any, nodeTypes: any[] = [], relationTypes: any[]
       options: filtered,
       validFor: /^\w*$/
     };
-  }
+  };
+  };
 }
 
 export function CNLEditor({ 
@@ -326,7 +328,7 @@ export function CNLEditor({
         // Auto-completion for CNL
         ...(language === 'cnl' ? [
           autocompletion({ 
-            override: [() => cnlCompletion({ ...arguments[0], nodeTypes, relationTypes, attributeTypes })],
+            override: [createCnlCompletion(nodeTypes, relationTypes, attributeTypes)],
             activateOnTyping: true, // Show automatically as you type
             defaultKeymap: true, // Enable default keyboard navigation
             maxRenderedOptions: 10, // Limit dropdown size
