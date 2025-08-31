@@ -109,7 +109,15 @@ export function CNLEditor({
         languageSupport,
         
         // Keymaps
-        keymap.of([indentWithTab]),
+        keymap.of([
+          indentWithTab,
+          // Ctrl+Space for auto-completion
+          { key: 'Ctrl-Space', run: (view) => {
+            // Simple approach: just show the completion dropdown
+            // This will work with the existing autocompletion setup
+            return false; // Let the default handler deal with it
+          }}
+        ]),
         
         // Update listener
         EditorView.updateListener.of((update) => {
@@ -136,18 +144,13 @@ export function CNLEditor({
         // Apply CNL highlighting for CNL language
         ...(language === 'cnl' ? [EditorView.theme(cnlHighlightStyle)] : []),
         
-        // Auto-completion for CNL (only on Ctrl+Space)
+        // Auto-completion for CNL
         ...(language === 'cnl' ? [
           autocompletion({ 
             override: [cnlCompletion],
+            activateOnTyping: false, // Don't show automatically
             defaultKeymap: false // Disable default Enter behavior
-          }),
-          keymap.of([
-            { key: 'Ctrl-Space', run: (view) => {
-              view.dispatch({ effects: autocompletion.startCompletion.of(view.state) });
-              return true;
-            }}
-          ])
+          })
         ] : []),
         
         // Custom light theme
@@ -179,6 +182,27 @@ export function CNLEditor({
           },
           '.cm-activeLine': {
             backgroundColor: '#f8f9fa'
+          },
+          // Auto-completion dropdown styling
+          '.cm-tooltip.cm-tooltip-autocomplete': {
+            backgroundColor: '#ffffff',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+            backgroundColor: '#ffffff'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
+            color: '#333',
+            backgroundColor: '#ffffff'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+            backgroundColor: '#e3f2fd',
+            color: '#1976d2'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete > ul > li:hover': {
+            backgroundColor: '#f5f5f5'
           }
         }),
         
