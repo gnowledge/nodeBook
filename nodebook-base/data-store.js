@@ -167,17 +167,40 @@ export class FileSystemStore extends DataStore {
             attributes: []
         };
 
-        // Process all operations to build complete graph
+        // First pass: create all nodes
         for (const op of operations) {
             if (op.type === 'addNode') {
                 const node = new PolyNode(op.payload.base_name, op.payload.options);
                 graphData.nodes.push(node);
-            } else if (op.type === 'addRelation') {
+            }
+        }
+
+        // Second pass: create relations and attributes, and link them to nodes
+        for (const op of operations) {
+            if (op.type === 'addRelation') {
                 const relation = new RelationNode(op.payload.source, op.payload.target, op.payload.name, op.payload.options || {});
                 graphData.relations.push(relation);
+                
+                // Link relation to source node's morph
+                const sourceNode = graphData.nodes.find(n => n.id === op.payload.source);
+                if (sourceNode && sourceNode.morphs.length > 0) {
+                    sourceNode.morphs[0].relationNode_ids.push(relation.id);
+                }
             } else if (op.type === 'addAttribute') {
                 const attribute = new AttributeNode(op.payload.source, op.payload.name, op.payload.value, op.payload.options || {});
                 graphData.attributes.push(attribute);
+                
+                // Link attribute to source node's morph
+                const sourceNode = graphData.nodes.find(n => n.id === op.payload.source);
+                if (sourceNode && sourceNode.morphs.length > 0) {
+                    sourceNode.morphs[0].attributeNode_ids.push(attribute.id);
+                }
+            } else if (op.type === 'updateNode') {
+                // Handle node updates (like descriptions)
+                const nodeIndex = graphData.nodes.findIndex(n => n.id === op.payload.id);
+                if (nodeIndex >= 0) {
+                    Object.assign(graphData.nodes[nodeIndex], op.payload.fields);
+                }
             }
         }
 

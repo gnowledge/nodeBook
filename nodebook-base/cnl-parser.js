@@ -4,7 +4,7 @@ import * as schemaManager from './schema-manager.js';
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
 const ADJECTIVE_HEADING_REGEX = /^\s*(#+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/;
 const SIMPLE_HEADING_REGEX = /^\s*(#+)\s*(.+?)$/;
-const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
+const RELATION_REGEX = /^\s*<(.+?)>\s*([^;\n]*?)(?:;|$)/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
 const DESCRIPTION_REGEX = /```description\n([\s\S]*?)\n```/;
@@ -366,32 +366,42 @@ function processNeighborhood(nodeId, lines) {
     const neighborhoodOps = [];
     let content = lines.join('\n');
     
+    console.log(`[CNL Debug] Processing neighborhood for node ${nodeId}:`);
+    console.log(`[CNL Debug] Content: ${content}`);
+    
     const descriptionMatch = content.match(DESCRIPTION_REGEX);
     if (descriptionMatch) {
         const description = descriptionMatch[1].trim();
+        console.log(`[CNL Debug] Found description: ${description}`);
         const id = `attr_${nodeId}_description_${crypto.createHash('sha1').update(description).digest('hex').slice(0, 6)}`;
         neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } }, id: `${nodeId}_description` });
         content = content.replace(DESCRIPTION_REGEX, '').trim();
     }
 
     const attributeMatches = [...content.matchAll(ATTRIBUTE_REGEX)];
+    console.log(`[CNL Debug] Found ${attributeMatches.length} attributes`);
     for (const match of attributeMatches) {
         const [, name, value] = match;
+        console.log(`[CNL Debug] Attribute: ${name} = ${value}`);
         const valueHash = crypto.createHash('sha1').update(String(value.trim())).digest('hex').slice(0, 6);
         const id = `attr_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
         neighborhoodOps.push({ type: 'addAttribute', payload: { source: nodeId, name: name.trim(), value: value.trim() }, id });
     }
 
     const functionMatches = [...content.matchAll(FUNCTION_REGEX)];
+    console.log(`[CNL Debug] Found ${functionMatches.length} functions`);
     for (const match of functionMatches) {
         const [, name] = match;
+        console.log(`[CNL Debug] Function: ${name}`);
         const id = `func_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}`;
         neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim() }, id });
     }
 
     const relationMatches = [...content.matchAll(RELATION_REGEX)];
+    console.log(`[CNL Debug] Found ${relationMatches.length} relations`);
     for (const match of relationMatches) {
         const [, relationName, targets] = match;
+        console.log(`[CNL Debug] Relation: ${relationName} -> ${targets}`);
         for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
             const targetId = target.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
             const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;

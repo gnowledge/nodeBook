@@ -1,4 +1,5 @@
-# Blue House
-<is a> Building;
-<located in> City;
-<has> Garden;
+# Test Node
+<is a> Type
+<has> Property
+has value: 42;
+has name: "Test";

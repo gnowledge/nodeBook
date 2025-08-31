@@ -1,10 +1,10 @@
 {
   "nodes": [
     {
-      "id": "blue_house",
-      "base_name": "House",
-      "name": "Blue House",
-      "adjective": "Blue",
+      "id": "test_node",
+      "base_name": "Node",
+      "name": "Test Node",
+      "adjective": "Test",
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -13,21 +13,27 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "blue_house_morph_1756605014651",
-          "node_id": "blue_house",
+          "morph_id": "test_node_morph_1756607174086",
+          "node_id": "test_node",
           "name": "basic",
-          "relationNode_ids": [],
-          "attributeNode_ids": []
+          "relationNode_ids": [
+            "rel_test_node_is_a_type",
+            "rel_test_node_has_property"
+          ],
+          "attributeNode_ids": [
+            "attr_test_node_value_92cfce",
+            "attr_test_node_name_4986f7"
+          ]
         }
       ],
-      "nbh": "blue_house_morph_1756605014651"
+      "nbh": "test_node_morph_1756607174086"
     }
   ],
   "relations": [
     {
-      "id": "rel_blue_house_is_a_building",
-      "source_id": "blue_house",
-      "target_id": "building",
+      "id": "rel_test_node_is_a_type",
+      "source_id": "test_node",
+      "target_id": "type",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -35,19 +41,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_blue_house_located_in_city",
-      "source_id": "blue_house",
-      "target_id": "city",
-      "name": "located in",
-      "adverb": null,
-      "modality": null,
-      "morph_ids": [],
-      "isDeleted": false
-    },
-    {
-      "id": "rel_blue_house_has_garden",
-      "source_id": "blue_house",
-      "target_id": "garden",
+      "id": "rel_test_node_has_property",
+      "source_id": "test_node",
+      "target_id": "property",
       "name": "has",
       "adverb": null,
       "modality": null,
@@ -55,5 +51,28 @@
       "isDeleted": false
     }
   ],
-  "attributes": []
+  "attributes": [
+    {
+      "id": "attr_test_node_value_92cfce",
+      "source_id": "test_node",
+      "name": "value",
+      "value": "42",
+      "adverb": null,
+      "unit": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "attr_test_node_name_4986f7",
+      "source_id": "test_node",
+      "name": "name",
+      "value": "\"Test\"",
+      "adverb": null,
+      "unit": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ]
 }
