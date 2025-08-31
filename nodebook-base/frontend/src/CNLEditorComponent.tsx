@@ -52,17 +52,83 @@ const cnlCompletions = [
   { label: 'seconds', type: 'unit', apply: '*s*' }
 ];
 
-// Auto-completion function
+// Smart context-aware auto-completion function
 function cnlCompletion(context: any) {
+  const line = context.state.doc.lineAt(context.pos);
+  const lineText = line.text;
+  const cursorPos = context.pos - line.from;
+  
+  // Check if we're at the first column (or very beginning of line)
+  const isFirstColumn = cursorPos <= 1;
+  
+  // Get the word being typed
   let word = context.matchBefore(/\w*/);
   if (!word) return null;
   
-  return {
-    from: word.from,
-    options: cnlCompletions.filter(completion => 
-      completion.label.toLowerCase().includes(word.text.toLowerCase())
-    )
-  };
+  // Context-aware suggestions based on position and content
+  if (isFirstColumn) {
+    // First column suggestions: # | < | has
+    const firstColumnSuggestions = [
+      { label: '#', type: 'node', apply: '# ', info: 'Start a node heading' },
+      { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
+      { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' }
+    ];
+    
+    // Filter based on what user is typing
+    const filtered = firstColumnSuggestions.filter(suggestion => 
+      suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
+    );
+    
+    return {
+      from: word.from,
+      options: filtered,
+      validFor: /^[#<has]*$/
+    };
+  } else {
+    // Middle of line - provide context-aware suggestions
+    const contextSuggestions = [];
+    
+    // If we're after a # (node heading), suggest node types
+    if (lineText.trim().startsWith('#')) {
+      contextSuggestions.push(
+        { label: 'Person', type: 'nodeType', apply: 'Person', info: 'Individual person' },
+        { label: 'Place', type: 'nodeType', apply: 'Place', info: 'Geographic location' },
+        { label: 'Concept', type: 'nodeType', apply: 'Concept', info: 'Abstract idea' },
+        { label: 'Object', type: 'nodeType', apply: 'Object', info: 'Physical object' }
+      );
+    }
+    
+    // If we're after a < (relation), suggest relation types
+    if (lineText.trim().startsWith('<')) {
+      contextSuggestions.push(
+        { label: 'is a', type: 'relationType', apply: 'is a', info: 'Type relationship' },
+        { label: 'contains', type: 'relationType', apply: 'contains', info: 'Containment' },
+        { label: 'located in', type: 'relationType', apply: 'located in', info: 'Location' },
+        { label: 'works for', type: 'relationType', apply: 'works for', info: 'Employment' }
+      );
+    }
+    
+    // If we're after 'has', suggest attribute types
+    if (lineText.trim().startsWith('has')) {
+      contextSuggestions.push(
+        { label: 'name', type: 'attributeType', apply: 'name', info: 'Name attribute' },
+        { label: 'age', type: 'attributeType', apply: 'age', info: 'Age attribute' },
+        { label: 'color', type: 'attributeType', apply: 'color', info: 'Color attribute' },
+        { label: 'size', type: 'attributeType', apply: 'size', info: 'Size attribute' }
+      );
+    }
+    
+    // Filter based on what user is typing
+    const filtered = contextSuggestions.filter(suggestion => 
+      suggestion.label.toLowerCase().includes(word.text.toLowerCase())
+    );
+    
+    return {
+      from: word.from,
+      options: filtered,
+      validFor: /^\w*$/
+    };
+  }
 }
 
 export function CNLEditor({ 
@@ -215,7 +281,33 @@ export function CNLEditor({
           autocompletion({ 
             override: [cnlCompletion],
             activateOnTyping: true, // Show automatically as you type
-            defaultKeymap: false // Disable default Enter behavior
+            defaultKeymap: false, // Disable default Enter behavior
+            maxRenderedOptions: 10, // Limit dropdown size
+            renderCompletionItem: (completion, state, view) => {
+              const dom = document.createElement('li');
+              dom.setAttribute('role', 'option');
+              
+              // Create label element
+              const label = dom.appendChild(document.createElement('span'));
+              label.className = 'completion-label';
+              label.textContent = completion.label;
+              
+              // Create info element if available
+              if (completion.info) {
+                const info = dom.appendChild(document.createElement('span'));
+                info.className = 'completion-info';
+                info.textContent = completion.info;
+              }
+              
+              // Create type badge if available
+              if (completion.type) {
+                const type = dom.appendChild(document.createElement('span'));
+                type.className = 'completion-type';
+                type.textContent = completion.type;
+              }
+              
+              return dom;
+            }
           }),
           // Custom keymap for Tab selection instead of Enter
           keymap.of([
@@ -280,23 +372,56 @@ export function CNLEditor({
           // Auto-completion dropdown styling
           '.cm-tooltip.cm-tooltip-autocomplete': {
             backgroundColor: '#ffffff',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            maxHeight: '300px',
+            overflow: 'hidden'
           },
           '.cm-tooltip.cm-tooltip-autocomplete > ul': {
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            maxHeight: '300px',
+            overflow: 'auto',
+            padding: '8px 0',
+            margin: '0'
           },
           '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
             color: '#333',
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            padding: '8px 16px',
+            cursor: 'pointer',
+            borderBottom: '1px solid #f3f4f6',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
           },
-          '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-            backgroundColor: '#e3f2fd',
-            color: '#1976d2'
+          '.cm-tooltip.cm-tooltip-autocomplete > ul > li:last-child': {
+            borderBottom: 'none'
           },
           '.cm-tooltip.cm-tooltip-autocomplete > ul > li:hover': {
-            backgroundColor: '#f5f5f5'
+            backgroundColor: '#f3f4f6'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+            backgroundColor: '#3b82f6',
+            color: '#ffffff'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete .completion-label': {
+            fontWeight: '500',
+            fontSize: '14px'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete .completion-info': {
+            fontSize: '12px',
+            color: '#6b7280',
+            fontStyle: 'italic'
+          },
+          '.cm-tooltip.cm-tooltip-autocomplete .completion-type': {
+            fontSize: '10px',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: '#e5e7eb',
+            color: '#374151',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
           }
         }),
         
