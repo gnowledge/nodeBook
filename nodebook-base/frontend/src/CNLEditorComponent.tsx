@@ -1,9 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
-import { basicSetup } from '@codemirror/basic-setup';
 import { cnl, cnlHighlightStyle } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
 import { javascript } from '@codemirror/lang-javascript';
@@ -104,14 +102,23 @@ export function CNLEditor({
     const state = EditorState.create({
       doc: value || placeholder,
       extensions: [
-        basicSetup,
+        // Basic editor features
+        lineNumbers(),
+        
+        // Language support
         languageSupport,
+        
+        // Keymaps
         keymap.of([indentWithTab]),
+        
+        // Update listener
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !readOnly) {
             onChange(update.state.doc.toString());
           }
         }),
+        
+        // Editor theme
         EditorView.theme({
           '&': {
             fontSize: '14px',
@@ -125,12 +132,16 @@ export function CNLEditor({
             fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
           }
         }),
+        
         // Apply CNL highlighting for CNL language
         ...(language === 'cnl' ? [EditorView.theme(cnlHighlightStyle)] : []),
+        
         // Auto-completion for CNL
         ...(language === 'cnl' ? [autocompletion({ override: [cnlCompletion] })] : []),
+        
         // Dark theme
         oneDark,
+        
         // Read-only mode
         ...(readOnly ? [EditorState.readOnly.of(true)] : [])
       ]
