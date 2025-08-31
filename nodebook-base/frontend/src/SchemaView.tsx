@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import type { RelationType, AttributeType, NodeType, FunctionType } from './types';
 import { SchemaEditModal } from './SchemaEditModal';
 import { ScientificLibraryTester } from './ScientificLibraryTester';
-import { API_BASE_URL } from './api-config';
 import styles from './SchemaView.module.css';
 
 interface SchemaViewProps {
@@ -32,7 +31,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
       'Content-Type': 'application/json',
     };
 
-    fetch(`${API_BASE_URL}/api/schema/nodetypes`, { headers })
+    fetch(`/api/schema/nodetypes`, { headers })
       .then(res => {
         if (!res.ok) {
           if (res.status === 401) {
@@ -43,13 +42,13 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(setNodeTypes)
+      .then(data => setNodeTypes(data.nodetypes || []))
       .catch(error => {
         console.error('Error fetching node types:', error);
         setNodeTypes([]);
       });
 
-    fetch(`${API_BASE_URL}/api/schema/relations`, { headers })
+    fetch(`/api/schema/relations`, { headers })
       .then(res => {
         if (!res.ok) {
           if (res.status === 401) {
@@ -59,13 +58,13 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(setRelationTypes)
+      .then(data => setRelationTypes(data.relations || []))
       .catch(error => {
         console.error('Error fetching relation types:', error);
         setRelationTypes([]);
       });
 
-    fetch(`${API_BASE_URL}/api/schema/attributes`, { headers })
+    fetch(`/api/schema/attributes`, { headers })
       .then(res => {
         if (!res.ok) {
           if (res.status === 401) {
@@ -75,13 +74,13 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(setAttributeTypes)
+      .then(data => setAttributeTypes(data.attributes || []))
       .catch(error => {
         console.error('Error fetching attribute types:', error);
         setAttributeTypes([]);
       });
 
-    fetch(`${API_BASE_URL}/api/schema/functions`, { headers })
+    fetch(`/api/schema/functions`, { headers })
       .then(res => {
         if (!res.ok) {
           if (res.status === 401) {
@@ -91,7 +90,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
         }
         return res.json();
       })
-      .then(setFunctionTypes)
+      .then(data => setFunctionTypes(data.functions || []))
       .catch(error => {
         console.error('Error fetching function types:', error);
         setFunctionTypes([]);
@@ -117,8 +116,8 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
     const isCreating = !item.originalName;
     const itemType = editingItem.itemType;
     const url = isCreating
-      ? `${API_BASE_URL}/api/schema/${itemType}`
-      : `${API_BASE_URL}/api/schema/${itemType}/${item.originalName}`;
+      ? `/api/schema/${itemType}`
+      : `/api/schema/${itemType}/${item.originalName}`;
     
     const method = isCreating ? 'POST' : 'PUT';
 
@@ -156,7 +155,7 @@ export function SchemaView({ onSchemaChange }: SchemaViewProps) {
     }
 
     if (window.confirm(`Are you sure you want to delete the type "${name}"?`)) {
-      const res = await fetch(`${API_BASE_URL}/api/schema/${type}/${name}`, { 
+      const res = await fetch(`/api/schema/${type}/${name}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

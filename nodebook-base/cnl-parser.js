@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import * as schemaManager from './schema-manager.js';
 
 const HEADING_REGEX = /^\s*(#+)\s*(?:\*\*(.+?)\*\*\s*)?(.+?)(?:\s*\[(.+?)\])?$/;
+const ADJECTIVE_HEADING_REGEX = /^\s*(#+)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/;
+const SIMPLE_HEADING_REGEX = /^\s*(#+)\s*(.+?)$/;
 const RELATION_REGEX = /^\s*<(.+?)>\s*([\s\S]*?);/gm;
 const ATTRIBUTE_REGEX = /^\s*has\s+([^:]+):\s*([\s\S]*?);/gm;
 const FUNCTION_REGEX = /^\s*has\s+function\s+\"([^\"]+)\"\s*;/gm;
@@ -278,7 +280,7 @@ function buildStructuralTree(cnlText) {
 
     for (const line of lines) {
         if (!line.trim()) continue;
-        const headingMatch = line.match(HEADING_REGEX);
+        const headingMatch = line.match(HEADING_REGEX) || line.match(SIMPLE_HEADING_REGEX);
         if (headingMatch) {
             currentNodeBlock = { heading: line.trim(), content: [] };
             tree.push(currentNodeBlock);
@@ -290,14 +292,74 @@ function buildStructuralTree(cnlText) {
 }
 
 function processNodeHeading(heading) {
-    const match = heading.match(HEADING_REGEX);
-    const [, , adjective, name, rolesString] = match;
+    // Try adjective format first (Adjective BaseName) - most common case
+    let match = heading.match(ADJECTIVE_HEADING_REGEX);
+    let adjective = null;
+    let name = null;
+    let rolesString = null;
+    
+    if (match) {
+        const fullText = match[2].trim();
+        // Check if the text contains multiple words (potential adjective + base name)
+        const words = fullText.split(/\s+/);
+        if (words.length > 1) {
+            // Assume first word is adjective, rest is base name
+            adjective = words[0];
+            name = words.slice(1).join(' ');
+        } else {
+            // Single word, no adjective
+            name = fullText;
+            adjective = null;
+        }
+    } else {
+        // Try the complex format (with **adjective** markers)
+        match = heading.match(HEADING_REGEX);
+        if (match) {
+            [, , adjective, name, rolesString] = match;
+        } else {
+            // Try simple format (any text)
+            match = heading.match(SIMPLE_HEADING_REGEX);
+            if (match) {
+                const fullText = match[2].trim();
+                // Check if the text contains multiple words (potential adjective + base name)
+                const words = fullText.split(/\s+/);
+                if (words.length > 1) {
+                    // Assume first word is adjective, rest is base name
+                    adjective = words[0];
+                    name = words.slice(1).join(' ');
+                } else {
+                    // Single word, no adjective
+                    name = fullText;
+                    adjective = null;
+                }
+            }
+        }
+    }
+    
+    if (!name) {
+        // Fallback: treat the entire heading as the name
+        name = heading.replace(/^#+\s*/, '').trim();
+    }
+    
     const roles = rolesString ? rolesString.split(';').map(r => r.trim()).filter(Boolean) : ['individual'];
     const nodeType = roles[0] || 'individual';
     const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
     const cleanAdjective = adjective ? adjective.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
     const id = cleanAdjective ? `${cleanAdjective}_${cleanName}` : cleanName;
-    return { id, type: nodeType, payload: { base_name: name.trim(), options: { id, role: nodeType, parent_types: roles.slice(1), adjective: adjective ? adjective.trim() : null } } };
+    
+    return { 
+        id, 
+        type: nodeType, 
+        payload: { 
+            base_name: name.trim(), 
+            options: { 
+                id, 
+                role: nodeType, 
+                parent_types: roles.slice(1), 
+                adjective: adjective ? adjective.trim() : null 
+            } 
+        } 
+    };
 }
 
 function processNeighborhood(nodeId, lines) {
@@ -342,4 +404,4 @@ function processNeighborhood(nodeId, lines) {
 
 
 
-export { diffCnl, validateOperations, getNodeOrderFromCnl };
+export { diffCnl, validateOperations, getNodeOrderFromCnl, getOperationsFromCnl };

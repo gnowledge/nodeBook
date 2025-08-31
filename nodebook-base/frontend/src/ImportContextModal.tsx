@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
 import Editor from '@monaco-editor/react';
+import React, { useState } from 'react';
+
+// Import Monaco Editor configuration
+import './monaco-config';
 import styles from './ImportContextModal.module.css';
 
 interface ImportContextModalProps {

@@ -53,7 +53,9 @@ export default function Dashboard({
       
       if (response.ok) {
         const data = await response.json();
-        setGraphs(data || []);
+        // Handle both array format and {success: true, graphs: [...]} format
+        const graphsArray = Array.isArray(data) ? data : (data.graphs || []);
+        setGraphs(graphsArray);
       } else {
         setError('Failed to fetch graphs');
       }
@@ -73,7 +75,9 @@ export default function Dashboard({
       
       if (response.ok) {
         const data = await response.json();
-        setPublicGraphs(data || []);
+        // Handle both array format and {success: true, graphs: [...]} format
+        const publicGraphsArray = Array.isArray(data) ? data : (data.graphs || []);
+        setPublicGraphs(publicGraphsArray);
       } else {
         setPublicError('Failed to fetch public graphs');
       }

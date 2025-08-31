@@ -10,7 +10,7 @@ services:
     volumes:
       - ./auth-service:/app
       - /app/node_modules
-      - nodebook-p2p-core-data:/app/user_data
+      # - nodebook-p2p-core-data:/app/user_data  # Temporarily commented out to test volume permissions
     environment:
       - NODE_ENV=development
       - PORT=3005

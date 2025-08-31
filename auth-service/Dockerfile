@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3005/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start authentication service
-CMD ["node", "server.js"]
+CMD ["node", "server-step1.js"]

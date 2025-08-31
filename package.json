@@ -20,7 +20,13 @@
     "dev:stop": "docker compose -f docker-compose.dev.yml down",
     "dev:restart": "docker compose -f docker-compose.dev.yml restart"
   },
-  "keywords": ["knowledge-graph", "p2p", "federated", "electron", "docker"],
+  "keywords": [
+    "knowledge-graph",
+    "p2p",
+    "federated",
+    "electron",
+    "docker"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -31,6 +37,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "axios": "^1.11.0",
     "marked": "^15.0.12",
     "react-markdown": "^10.1.0"
   }

@@ -1,7 +1,7 @@
 # India
-<is a> Country
-<located in> Asia
-has population: 1.4 *billion*
+<is a> Country;
+<located in> Asia;
+has population: 1.4 *billion*;
 
 ```description
 India, officially the Republic of India, is a country in South Asia.
@@ -14,7 +14,7 @@ For more information, see the [official government website](https://www.india.go
 ```
 
 # Asia
-<is a> Continent
+<is a> Continent;
 ```description
 Asia is Earth's largest and most populous continent, located primarily in the Eastern and Northern Hemispheres.
 ```
@@ -27,24 +27,24 @@ Oxygen (O2) is a colorless, odorless, and tasteless gas that is essential for mo
 ## basic
 
 
-<is_a> Element
-<part_of> Water
-<belongs to> Group 16
-<is_a> gass
-has number of protons: 8
-has number of neutrons: 8
-has number of electrons: 8
+<is_a> Element;
+<part_of> Water;
+<belongs to> Group 16;
+<is_a> gass;
+has number of protons: 8;
+has number of neutrons: 8;
+has number of electrons: 8;
 
 
 ## oxide ion
 
 
-<is_a> Element
-<part_of> Water
-<belongs to> Group 16
-has number of protons: 8
-has number of neutrons: 8
-has number of electrons: 10
+<is_a> Element;
+<part_of> Water;
+<belongs to> Group 16;
+has number of protons: 8;
+has number of neutrons: 8;
+has number of electrons: 10;
 
 
 # Element
@@ -54,8 +54,8 @@ has number of electrons: 10
 # Hydrogen
 
 
-<is_a> Element
-<part_of> Water
+<is_a> Element;
+<part_of> Water;
 
 
 # Group 16

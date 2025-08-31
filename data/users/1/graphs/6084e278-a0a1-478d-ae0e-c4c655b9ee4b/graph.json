@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "id": "simple_test",
+      "base_name": "Test",
+      "name": "Simple Test",
+      "adjective": "Simple",
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "simple_test_morph_1756605724827",
+          "node_id": "simple_test",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "simple_test_morph_1756605724827"
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel_simple_test_is_a_example",
+      "source_id": "simple_test",
+      "target_id": "example",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_simple_test_has_property",
+      "source_id": "simple_test",
+      "target_id": "property",
+      "name": "has",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ],
+  "attributes": []
+}

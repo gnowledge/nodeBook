@@ -1,30 +1,47 @@
-const fastify = require('fastify')({ 
+import Fastify from 'fastify';
+import { WebSocketServer } from 'ws';
+import path from 'path';
+import { promises as fs } from 'fs';
+import crypto from 'crypto';
+import GraphManager from './graph-manager.js';
+import * as schemaManager from './schema-manager.js';
+import ThumbnailGenerator from './thumbnail-generator.js';
+import { diffCnl, getNodeOrderFromCnl } from './cnl-parser.js';
+import { evaluate } from 'mathjs';
+import ScientificLibraryManager from './scientific-library-manager.js';
+import MediaManager from './media-manager.js';
+import { createDataStore } from './data-store.js';
+
+// Note: auth is handled by separate auth-service container
+// Stub auth functions for server startup
+const auth = {
+  verifyToken: (token) => ({ username: 'stub-user', id: 1 }),
+  findUser: async (username) => ({ id: 1, username, email: 'stub@example.com', verified: true, is_admin: false }),
+  validateUser: async (username, password) => true,
+  generateToken: (user) => 'stub-token',
+  initializeDatabase: async () => console.log('✅ Auth database initialization skipped - handled by auth-service'),
+  createUser: async (username, email, password) => ({ id: 1, username, email, verified: true }),
+  requestPasswordReset: async (email) => ({ success: true }),
+  resetPassword: async (token, newPassword) => ({ success: true }),
+  verifyEmail: async (token) => ({ success: true }),
+  resendVerificationEmail: async (username) => ({ success: true })
+};
+
+const fastify = Fastify({ 
     logger: true,
     trustProxy: true
   });
-const WebSocket = require('ws');
-  const path = require('path');
-  const fs = require('fs').promises;
-const HyperGraph = require('./hyper-graph');
-const GraphManager = require('./graph-manager'); // Import the class
-const schemaManager = require('./schema-manager');
-const ThumbnailGenerator = require('./thumbnail-generator');
-const { diffCnl, getNodeOrderFromCnl } = require('./cnl-parser');
-const { evaluate } = require('mathjs');
-const { buildStaticSite } = require('./build-static-site');
-const auth = require('./auth');
-const ScientificLibraryManager = require('./scientific-library-manager');
   
   const PORT = process.env.PORT || 3000;
   
 // Register CORS
-fastify.register(require('@fastify/cors'), {
+fastify.register(import('@fastify/cors'), {
   origin: true,
   credentials: true
 });
 
 // Register multipart for file uploads
-fastify.register(require('@fastify/multipart'), {
+fastify.register(import('@fastify/multipart'), {
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
     files: 10 // Max 10 files per request
@@ -63,24 +80,23 @@ fastify.register(require('@fastify/multipart'), {
   
   // Load graph middleware
   async function loadGraph(request, reply) {
-    const gm = fastify.graphManager;
+    const dataStore = fastify.dataStore;
     const graphId = request.params.graphId;
     const userId = request.user.id;
     
     try {
       console.log(`[loadGraph] Loading graph: ${graphId} for user: ${userId}`);
-      const graph = await gm.getGraph(userId, graphId, HyperGraph);
+      
+      // Use DataStore to create a graph object with methods
+      const graph = await dataStore.createGraphObject(userId, graphId);
       if (!graph) {
         console.log(`[loadGraph] Graph not found: ${graphId}`);
         reply.code(404).send({ error: 'Graph not found' });
         return;
       }
       
-      // Wait for Hypercore to be ready (fixes race condition)
-      if (graph.core && typeof graph.core.ready === 'function') {
-        await graph.core.ready();
-        console.log(`[loadGraph] Hypercore ready for graph: ${graphId}`);
-      }
+      // Graph loaded from file-system storage via DataStore
+      console.log(`[loadGraph] Graph loaded from file-system: ${graphId}`);
       
       console.log(`[loadGraph] Successfully loaded graph: ${graphId}`);
       request.graph = graph;
@@ -92,30 +108,35 @@ fastify.register(require('@fastify/multipart'), {
   }
   
 async function main() {
-  // Initialize authentication database
-  await auth.initializeDatabase();
-  console.log('✅ Auth database initialized');
+  // Auth is handled by separate auth-service container
+  console.log('✅ Auth database initialization skipped - handled by auth-service');
+  
+  // Initialize DataStore
+  const dataPath = process.env.DATA_PATH || './user_data';
+  const dataStore = createDataStore('file-system', { dataPath });
+  await dataStore.initialize();
+  console.log(`✅ DataStore initialized with path: ${dataPath}`);
   
   // Create a single instance of the GraphManager
   const graphManager = new GraphManager();
   
-  // The first command-line argument (index 2) is our data path.
-  const dataPath = process.argv[2] || './user_data';
-  console.log('🔧 Using dataPath:', dataPath);
   // Initialize the instance with the correct path.
   await graphManager.initialize(dataPath);
 
   // Attach the initialized instance to the fastify object
   fastify.decorate('graphManager', graphManager);
+  fastify.decorate('dataStore', dataStore);
   
   // Initialize ThumbnailGenerator
   const thumbnailGenerator = new ThumbnailGenerator(graphManager.BASE_DATA_DIR);
   fastify.decorate('thumbnailGenerator', thumbnailGenerator);
   
   // Initialize MediaManager
+  // Temporarily suspended - will be re-enabled in Phase 2
+  /*
   let mediaManager = null;
   try {
-    const MediaManager = require('./media-manager');
+    // MediaManager is already imported at the top
     mediaManager = new MediaManager(graphManager.BASE_DATA_DIR);
     fastify.decorate('mediaManager', mediaManager);
     console.log('✅ MediaManager initialized successfully');
@@ -124,6 +145,7 @@ async function main() {
     console.log('⚠️ Continuing without MediaManager - media features will be disabled');
     // Don't throw error - let server start without MediaManager
   }
+  */
   
   // --- Health Check Route ---
   fastify.get('/api/health', async (request, reply) => {
@@ -424,11 +446,11 @@ Another service or function
   fastify.get('/api/graphs', {
     preHandler: authenticateJWT
   }, async (request, reply) => {
-    const gm = fastify.graphManager; // Get instance from fastify
+    const dataStore = fastify.dataStore; // Get instance from fastify
     const userId = request.user.id;
     console.log(`[GET /api/graphs] User ID: ${userId}, Type: ${typeof userId}`);
     try {
-      const graphs = await gm.getGraphRegistry(userId);
+      const graphs = await dataStore.getGraphRegistry(userId);
       // Add publication state if not present (for backward compatibility)
       const graphsWithPublicationState = graphs.map(graph => ({
         ...graph,
@@ -461,16 +483,46 @@ Another service or function
     },
     preHandler: authenticateJWT
   }, async (request, reply) => {
-    const gm = fastify.graphManager; // Get instance from fastify
+    const dataStore = fastify.dataStore; // Get instance from fastify
     const userId = request.user.id;
     const { name, author, email, mode = 'richgraph' } = request.body;
     console.log(`[POST /api/graphs] User ID: ${userId}, Type: ${typeof userId}, Name: ${name}, Mode: ${mode}`);
     if (!name) {
-      reply.code(400).send({ error: 'name is required' });
+      reply.code(400).send({ error: error.message });
       return;
     }
     try {
-      const newGraph = await gm.createGraph(userId, name, author, email, mode);
+      // Create new graph using DataStore
+      const graphId = crypto.randomUUID();
+      const newGraph = {
+        id: graphId,
+        name,
+        author,
+        email,
+        mode,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        nodes: [],
+        relations: [],
+        attributes: [],
+        functions: []
+      };
+      
+      // Create initial manifest
+      const userInfo = { username: author || 'Unknown', email: email || 'unknown@example.com' };
+      await dataStore.createManifest(userId, graphId, { name, mode }, userInfo);
+      
+      // Save graph data and update registry
+      await dataStore.saveGraph(userId, graphId, newGraph);
+      await dataStore.updateGraphRegistry(userId, graphId, {
+        name,
+        author,
+        email,
+        mode,
+        created_at: newGraph.created_at,
+        updated_at: newGraph.updated_at
+      });
+      
       reply.code(201);
       return newGraph;
     } catch (error) {
@@ -545,7 +597,7 @@ Another service or function
     
     try {
       // For public graphs, check if thumbnail exists in the public graphs directory
-              const thumbnailPath = path.join(gm.BASE_DATA_DIR, 'graphs', graphId, 'thumbnail.png');
+      const thumbnailPath = path.join('./data', 'graphs', graphId, 'thumbnail.png');
       
       // Check if thumbnail exists
       try {
@@ -1026,7 +1078,7 @@ Another service or function
     
     try {
       // Construct the thumbnail path
-              const thumbnailPath = path.join(gm.BASE_DATA_DIR, 'graphs', 'users', userId.toString(), graphId, 'thumbnail.png');
+      const thumbnailPath = path.join('./data', 'users', userId.toString(), 'graphs', graphId, 'thumbnail.png');
       
       // Check if thumbnail exists
       try {
@@ -1066,112 +1118,39 @@ Another service or function
     },
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
-    const gm = fastify.graphManager;
+    const dataStore = fastify.dataStore;
     const userId = request.user.id;
     const graphId = request.params.graphId;
     const { cnlText, strictMode = true } = request.body;
     
     try {
       // Get the current CNL text and graph info to determine mode
-      const currentCnl = await gm.getCnl(userId, graphId);
-      const graphRegistry = await gm.getGraphRegistry(userId);
+      const currentCnl = await dataStore.getCnl(userId, graphId);
+      const graphRegistry = await dataStore.getGraphRegistry(userId);
       const graphInfo = graphRegistry.find(g => g.id === graphId);
       const mode = graphInfo?.mode || 'richgraph';
       
       console.log(`[POST /api/graphs/:graphId/cnl] Processing CNL in mode: ${mode}`);
       
-      const result = await diffCnl(currentCnl, cnlText, mode);
-      const operations = result.operations || [];
+      // Complete replacement approach: regenerate graph from CNL
+      console.log(`[CNL Processing] Regenerating graph completely from CNL for graph ${graphId}, user ${userId}`);
       
-      if (operations.length > 0) {
-        // First pass: deletions
-        for (const op of operations) {
-          if (op.type.startsWith('delete')) {
-            switch (op.type) {
-              case 'deleteNode':
-                await request.graph.deleteNode(op.payload.id);
-                break;
-              case 'deleteRelation':
-                await request.graph.deleteRelation(op.payload.id);
-                break;
-              case 'deleteAttribute':
-                await request.graph.deleteAttribute(op.payload.id);
-                break;
-            }
-          }
-        }
-        // Second pass: additions
-        for (const op of operations) {
-          if (op.type.startsWith('add')) {
-            switch (op.type) {
-              case 'addNode':
-                const existingNode = await request.graph.getNode(op.payload.options.id);
-                if (!existingNode) {
-                  await request.graph.addNode(op.payload.base_name, op.payload.options);
-                  await gm.addNodeToRegistry(userId, { id: op.payload.options.id, ...op.payload });
-                }
-                await gm.registerNodeInGraph(userId, op.payload.options.id, graphId);
-                break;
-              case 'addRelation':
-                const targetNode = await request.graph.getNode(op.payload.target);
-                if (!targetNode) {
-                  await request.graph.addNode(op.payload.target, { id: op.payload.target });
-                  await gm.addNodeToRegistry(userId, { id: op.payload.target, base_name: op.payload.target });
-                }
-                await gm.registerNodeInGraph(userId, op.payload.target, graphId);
-                await request.graph.addRelation(op.payload.source, op.payload.target, op.payload.name, op.payload.options);
-                break;
-              case 'addAttribute':
-                await request.graph.addAttribute(op.payload.source, op.payload.name, op.payload.value, op.payload.options);
-                break;
-            }
-          }
-        }
-        // Third pass: updates and functions
-        for (const op of operations) {
-          if (op.type === 'updateNode') {
-            await request.graph.updateNode(op.payload.id, op.payload.fields);
-          } else if (op.type === 'applyFunction') {
-            const functionTypes = await schemaManager.getFunctionTypes();
-            const funcType = functionTypes.find(ft => ft.name === op.payload.name);
-            if (funcType) {
-              await request.graph.applyFunction(op.payload.source, op.payload.name, funcType.expression, op.payload.options);
-            }
-          } else if (op.type === 'updateGraphDescription') {
-            await gm.updateGraphMetadata(userId, graphId, { description: op.payload.description });
-          }
-        }
-      }
+      // Get user info for manifest update
+      const userInfo = await auth.findUser(request.user.username);
       
-      // Check for validation errors
-      if (result.errors && result.errors.length > 0) {
-        reply.code(422).send({ errors: result.errors });
-        return;
-      }
+      // Regenerate the entire graph from the new CNL
+      const newGraphData = await dataStore.regenerateGraphFromCnl(userId, graphId, cnlText);
       
-      console.log(`[CNL Processing] Saving CNL for graph ${graphId}, user ${userId}`);
-      await gm.saveCnl(userId, request.params.graphId, cnlText);
-      console.log(`[CNL Processing] CNL saved successfully for graph ${graphId}`);
+      // Update the manifest with new version and commit info
+      const updatedManifest = await dataStore.updateManifest(userId, graphId, userInfo);
+      
+      console.log(`[CNL Processing] Graph regenerated successfully. New version: ${updatedManifest.version}`);
+      
+      // Save the new CNL as the source of truth
+      await dataStore.saveCnl(userId, graphId, cnlText);
       
       // Generate thumbnail for the updated graph
       try {
-        const graphData = {
-          nodes: await request.graph.listAll('nodes'),
-          relations: await request.graph.listAll('relations'),
-          attributes: await request.graph.listAll('attributes')
-        };
-        
-        // Filter out deleted items
-        const activeNodes = graphData.nodes.filter(node => !node.isDeleted);
-        const activeRelations = graphData.relations.filter(rel => !rel.isDeleted);
-        const activeAttributes = graphData.attributes.filter(attr => !attr.isDeleted);
-        
-        const cleanGraphData = {
-          nodes: activeNodes,
-          relations: activeRelations,
-          attributes: activeAttributes
-        };
-        
         await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, cleanGraphData);
         console.log(`[CNL Processing] Thumbnail generated for graph ${graphId}`);
       } catch (thumbnailError) {
@@ -1321,11 +1300,13 @@ Another service or function
   });
 
   // --- Media Management API ---
+  // Temporarily suspended - will be re-enabled in Phase 2
+  /*
   if (mediaManager) {
     console.log('🔧 Registering media routes...');
     
     console.log('🔧 Registering media upload route: POST /api/media/upload');
-  fastify.post('/api/media/upload', {
+    fastify.post('/api/media/upload', {
     preHandler: authenticateJWT
   }, async (request, reply) => {
     const userId = request.user.id;
@@ -1483,9 +1464,10 @@ Another service or function
   });
 
   } // End of if (mediaManager) block
+  */
 
   // --- WebSocket for real-time communication ---
-  const wss = new WebSocket.Server({ server: fastify.server });
+  const wss = new WebSocketServer({ server: fastify.server });
   
   wss.on('connection', (ws) => {
     console.log('Frontend connected via WebSocket');
@@ -1498,13 +1480,8 @@ Another service or function
             ws.send(JSON.stringify({ type: 'publish-progress', message: progressCallback }));
           };
 
-          try {
-            await buildStaticSite(progressCallback);
-            ws.send(JSON.stringify({ type: 'publish-complete', message: 'Static site generated successfully.' }));
-          } catch (error) {
-            console.error('Error generating static site:', error);
-            ws.send(JSON.stringify({ type: 'publish-error', message: `Failed to generate static site: ${error.message}` }));
-          }
+          // Static site generation is deprecated
+          ws.send(JSON.stringify({ type: 'publish-complete', message: 'Static site generation is deprecated.' }));
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);

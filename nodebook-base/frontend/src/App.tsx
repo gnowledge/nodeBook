@@ -60,7 +60,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!activeGraphId) return;
     if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
       try {
-        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}`, { method: 'DELETE' });
+        const res = await authenticatedFetch(`/api/graphs/${activeGraphId}`, { method: 'DELETE' });
         if (res.ok) {
           setActiveGraphId(null);
           setActiveGraphKey(null);
@@ -126,7 +126,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!graphId) return;
     
     // Fetch graph data (nodes, relations, attributes)
-    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/graph`)
+            authenticatedFetch(`/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
         const graphNodes = data.nodes || [];
@@ -143,21 +143,23 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       });
     
     // Fetch graph key
-    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/key`)
+            authenticatedFetch(`/api/graphs/${graphId}/key`)
       .then(res => res.json())
       .then(data => setActiveGraphKey(data.key || null));
     
     // Fetch CNL text
-    authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/cnl`)
+    authenticatedFetch(`/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
         setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
       });
     
     // Fetch graph metadata including publication state
-    authenticatedFetch(`${API_BASE_URL}/api/graphs`)
+    authenticatedFetch(`/api/graphs`)
       .then(res => res.json())
-      .then(graphs => {
+      .then((data: any) => {
+        // Handle both array format and {success: true, graphs: [...]} format
+        const graphs = Array.isArray(data) ? data : (data.graphs || []);
         const currentGraph = graphs.find((g: any) => g.id === graphId);
         if (currentGraph) {
           setActiveGraph(currentGraph);
@@ -171,9 +173,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   };
 
   const fetchSchemas = () => {
-    authenticatedFetch(`${API_BASE_URL}/api/schema/relations`).then(res => res.json()).then(data => setRelationTypes(data));
-    authenticatedFetch(`${API_BASE_URL}/api/schema/attributes`).then(res => res.json()).then(data => setAttributeTypes(data));
-    authenticatedFetch(`${API_BASE_URL}/api/schema/nodetypes`).then(res => res.json()).then(data => setNodeTypes(data));
+    authenticatedFetch(`/api/schema/relations`).then(res => res.json()).then(data => setRelationTypes(data));
+    authenticatedFetch(`/api/schema/attributes`).then(res => res.json()).then(data => setAttributeTypes(data));
+    authenticatedFetch(`/api/schema/nodetypes`).then(res => res.json()).then(data => setNodeTypes(data));
   };
 
   useEffect(() => {
@@ -207,7 +209,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
     
     setIsSubmitting(true);
-    const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/cnl`, {
+    const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
       body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
     });
@@ -224,7 +226,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   
   const handleDeleteNode = async (nodeId: string) => {
     if (window.confirm(`Are you sure you want to delete node ${nodeId}?`)) {
-      await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
+      await authenticatedFetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}`, { method: 'DELETE' });
       setSelectedNodeId(null);
       fetchGraph(activeGraphId!);
       // Score will be recalculated in fetchGraph
@@ -243,9 +245,11 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (activeGraphId) {
       // Small delay to ensure backend has processed the change
       setTimeout(() => {
-        authenticatedFetch(`${API_BASE_URL}/api/graphs`)
+        authenticatedFetch(`/api/graphs`)
           .then(res => res.json())
-          .then(graphs => {
+          .then((data: any) => {
+            // Handle both array format and {success: true, graphs: [...]} format
+            const graphs = Array.isArray(data) ? data : (data.graphs || []);
             const currentGraph = graphs.find((g: any) => g.id === activeGraphId);
             if (currentGraph) {
               setPublicationState(currentGraph.publication_state || 'Private');

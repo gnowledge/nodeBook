@@ -1,5 +1,5 @@
-const fsp = require('fs').promises;
-const path = require('path');
+import { promises as fsp } from 'fs';
+import path from 'path';
 
 const DEBUG_LOG_FILE = '/tmp/nodebook-debug.log';
 
@@ -590,5 +590,5 @@ class GraphManager {
     }
 }
 
-module.exports = GraphManager;
+export default GraphManager;
 

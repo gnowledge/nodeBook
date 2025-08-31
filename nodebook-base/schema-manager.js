@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SCHEMA_DIR = path.join(__dirname, 'schemas');
+const DATA_PATH = process.env.DATA_PATH || path.join(__dirname, 'data');
+const SCHEMA_DIR = path.join(DATA_PATH, 'schemas');
 const RELATION_TYPES_FILE = path.join(SCHEMA_DIR, 'relation_types.json');
 const ATTRIBUTE_TYPES_FILE = path.join(SCHEMA_DIR, 'attribute_types.json');
 const NODE_TYPES_FILE = path.join(SCHEMA_DIR, 'node_types.json');

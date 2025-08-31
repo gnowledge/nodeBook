@@ -82,7 +82,9 @@ export function DataView({
     if (activeGraphId) {
       authenticatedFetch(`${API_BASE_URL}/api/graphs`)
         .then(res => res.json())
-        .then((graphs: Graph[]) => {
+        .then((data: any) => {
+          // Handle both array format and {success: true, graphs: [...]} format
+          const graphs = Array.isArray(data) ? data : (data.graphs || []);
           const currentGraph = graphs.find(g => g.id === activeGraphId);
           setActiveGraph(currentGraph || null);
         })

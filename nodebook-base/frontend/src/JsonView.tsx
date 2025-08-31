@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import React, { useState, useEffect } from 'react';
+
+// Import Monaco Editor configuration
+import './monaco-config';
 
 interface JsonViewProps {
   data: object;

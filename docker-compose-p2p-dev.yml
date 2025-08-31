@@ -10,13 +10,14 @@ services:
     volumes:
       - ./auth-service:/app
       - /app/node_modules
-      - nodebook-p2p-data:/app/user_data
+      - ./data:/app/data
     environment:
       - NODE_ENV=development
       - PORT=3005
       - JWT_SECRET=dev-jwt-secret-change-in-production
       - JWT_EXPIRES_IN=7d
       - ADMIN_PASSWORD=admin123
+      - DATA_PATH=/app/data
     networks:
       - nodebook-p2p-net
     restart: unless-stopped
@@ -32,15 +33,14 @@ services:
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
-      - nodebook-p2p-data:/app/user_data
-      - nodebook-p2p-logs:/app/logs
-      - nodebook-p2p-media:/app/media
+      - ./data:/app/data
     environment:
       - NODE_ENV=development
       - P2P_ENABLED=true
       - COLLABORATION_ENABLED=true
       - LOG_LEVEL=info
       - AUTH_SERVICE_URL=http://auth-service:3005
+      - DATA_PATH=/app/data
     networks:
       - nodebook-p2p-net
     depends_on:
@@ -58,11 +58,12 @@ services:
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
-      - nodebook-p2p-data:/app/user_data
+      - ./data:/app/data
     environment:
       - NODE_ENV=development
       - MONITOR_PORT=3003
       - P2P_NETWORK_ID=nodebook-dev
+      - DATA_PATH=/app/data
     networks:
       - nodebook-p2p-net
     depends_on:
@@ -78,7 +79,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./media-backend/media-data:/app/media-data
+      - ./data/media:/app/media-data
     environment:
       - NODE_ENV=development
       - PORT=3001
@@ -165,12 +166,6 @@ networks:
     driver: bridge
 
 volumes:
-  # Persistent storage for P2P development
-  nodebook-p2p-data:
-    driver: local
-  nodebook-p2p-logs:
-    driver: local
-  nodebook-p2p-media:
-    driver: local
+  # Redis data only - all other data is now in host ./data directory
   redis-p2p-data:
     driver: local

@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "id": "blue_house",
+      "base_name": "House",
+      "name": "Blue House",
+      "adjective": "Blue",
+      "quantifier": null,
+      "role": "individual",
+      "description": null,
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "blue_house_morph_1756605014651",
+          "node_id": "blue_house",
+          "name": "basic",
+          "relationNode_ids": [],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "blue_house_morph_1756605014651"
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel_blue_house_is_a_building",
+      "source_id": "blue_house",
+      "target_id": "building",
+      "name": "is a",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_blue_house_located_in_city",
+      "source_id": "blue_house",
+      "target_id": "city",
+      "name": "located in",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_blue_house_has_garden",
+      "source_id": "blue_house",
+      "target_id": "garden",
+      "name": "has",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    }
+  ],
+  "attributes": []
+}

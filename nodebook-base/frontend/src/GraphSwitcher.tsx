@@ -45,12 +45,21 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
 
   const fetchGraphs = async () => {
     try {
-      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No authentication token, skipping graph fetch');
+        setGraphs([]);
+        return;
+      }
+
+      const res = await authenticatedFetch(`/api/graphs`);
       if (res.ok) {
         const data = await res.json();
-        setGraphs(Array.isArray(data) ? data : []);
-        if (!activeGraphId && Array.isArray(data) && data.length > 0) {
-          onGraphSelect(data[0].id);
+        // Handle both array format and {success: true, graphs: [...]} format
+        const graphsArray = Array.isArray(data) ? data : (data.graphs || []);
+        setGraphs(graphsArray);
+        if (!activeGraphId && graphsArray.length > 0) {
+          onGraphSelect(graphsArray[0].id);
         }
 
       } else {
@@ -70,7 +79,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const handleCreateGraph = async () => {
     if (!newGraphName.trim()) return;
     try {
-      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs`, {
+      const res = await authenticatedFetch(`/api/graphs`, {
         method: 'POST',
         body: JSON.stringify({ 
           name: newGraphName, 
@@ -84,7 +93,9 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
         setNewGraphName('');
         setShowModeSelector(false);
         await fetchGraphs();
-        onGraphSelect(newGraph.id);
+        // Fix: Access the graph ID from the correct structure {success: true, graph: {id: ...}}
+        const graphId = newGraph.graph?.id || newGraph.id;
+        onGraphSelect(graphId);
       } else {
         console.error('Failed to create graph:', res.status);
       }
@@ -96,7 +107,7 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
   const handleDeleteGraph = async (graphId: string) => {
     if (window.confirm(`Are you sure you want to delete graph "${graphId}"?`)) {
       try {
-        const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}`, { method: 'DELETE' });
+        const res = await authenticatedFetch(`/api/graphs/${graphId}`, { method: 'DELETE' });
         if (res.ok) {
           await fetchGraphs();
         } else {

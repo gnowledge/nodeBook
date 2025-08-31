@@ -9,6 +9,9 @@ import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } f
 import { WordNetService } from './services/wordnetService';
 import './CnlEditor.css';
 
+// Import Monaco Editor configuration
+import './monaco-config';
+
 interface CnlEditorProps {
   value: string;
   onChange: (value: string) => void;
