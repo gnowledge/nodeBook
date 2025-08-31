@@ -144,9 +144,38 @@ export function CNLEditor({
               const line = view.state.doc.lineAt(pos);
               const lineText = line.text;
               
-              // Show toolbar if we're in a description block
-              if (lineText.includes('```description') || 
-                  (lineText.startsWith('```') && !lineText.includes('description'))) {
+              // Find if we're inside a description block (not on the opening/closing lines)
+              let inDescriptionBlock = false;
+              let descriptionStart = -1;
+              
+              // Look backwards to find the start of description block
+              for (let i = line.number - 1; i >= 1; i--) {
+                const prevLine = view.state.doc.line(i);
+                if (prevLine.text.trim() === '```description') {
+                  descriptionStart = i;
+                  break;
+                } else if (prevLine.text.trim() === '```' && !prevLine.text.includes('description')) {
+                  // Found a code block, but not description
+                  break;
+                }
+              }
+              
+              // Look forwards to find the end of description block
+              if (descriptionStart > 0) {
+                for (let i = descriptionStart + 1; i <= view.state.doc.lines; i++) {
+                  const nextLine = view.state.doc.line(i);
+                  if (nextLine.text.trim() === '```') {
+                    // We're inside a description block
+                    if (line.number > descriptionStart && line.number < i) {
+                      inDescriptionBlock = true;
+                    }
+                    break;
+                  }
+                }
+              }
+              
+              // Show toolbar only if we're inside a description block (not on the boundary lines)
+              if (inDescriptionBlock && lineText.trim() !== '```description' && lineText.trim() !== '```') {
                 const coords = view.coordsAtPos(pos);
                 if (coords) {
                   setToolbarPosition({ 
@@ -155,6 +184,9 @@ export function CNLEditor({
                   });
                   setShowMarkdownToolbar(true);
                 }
+              } else {
+                // Hide toolbar if we're not in a description block
+                setShowMarkdownToolbar(false);
               }
             }
           }
@@ -182,15 +214,19 @@ export function CNLEditor({
         ...(language === 'cnl' ? [
           autocompletion({ 
             override: [cnlCompletion],
-            activateOnTyping: false, // Don't show automatically
+            activateOnTyping: true, // Show automatically as you type
             defaultKeymap: false // Disable default Enter behavior
           }),
-          // Manual trigger for Ctrl+Space
+          // Custom keymap for Tab selection instead of Enter
           keymap.of([
-            { key: 'Ctrl-Space', run: (view) => {
-              // Force show completion
-              view.dispatch({ effects: autocompletion.startCompletion.of(view.state) });
-              return true;
+            { key: 'Tab', run: (view) => {
+              // Use Tab to select completion instead of Enter
+              const completion = view.state.facet(autocompletion);
+              if (completion.length > 0) {
+                // Select the first completion
+                return false; // Let the default Tab handler work
+              }
+              return false; // Normal Tab behavior
             }}
           ])
         ] : []),
@@ -361,21 +397,21 @@ export function CNLEditor({
           <button
             onClick={() => insertMarkdown('**', '**')}
             title="Bold (Ctrl+B)"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             <strong>B</strong>
           </button>
           <button
             onClick={() => insertMarkdown('*', '*')}
             title="Italic (Ctrl+I)"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             <em>I</em>
           </button>
           <button
             onClick={() => insertMarkdown('`', '`')}
             title="Inline Code"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             <code>code</code>
           </button>
@@ -384,28 +420,28 @@ export function CNLEditor({
           <button
             onClick={() => insertMarkdownBlock('list')}
             title="Unordered List"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             • List
           </button>
           <button
             onClick={() => insertMarkdownBlock('numbered')}
             title="Ordered List"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             1. List
           </button>
           <button
             onClick={() => insertMarkdownBlock('quote')}
             title="Blockquote"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             Quote
           </button>
           <button
             onClick={() => insertMarkdownBlock('codeblock')}
             title="Code Block"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             Code
           </button>
@@ -414,7 +450,7 @@ export function CNLEditor({
           <button
             onClick={() => insertMarkdownBlock('link')}
             title="Link"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}
+            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
           >
             🔗
           </button>
