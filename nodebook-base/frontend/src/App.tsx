@@ -182,6 +182,16 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     fetchSchemas();
   }, []);
 
+  // Check for selected graph ID from Dashboard navigation
+  useEffect(() => {
+    const selectedGraphId = localStorage.getItem('selectedGraphId');
+    if (selectedGraphId && !activeGraphId) {
+      setActiveGraphId(selectedGraphId);
+      // Clear the stored ID to avoid conflicts
+      localStorage.removeItem('selectedGraphId');
+    }
+  }, [activeGraphId]);
+
   useEffect(() => {
     if (activeGraphId) {
       fetchGraph(activeGraphId);
@@ -205,8 +215,37 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
+  const handleCnlSave = async () => {
+    if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    
+    try {
+      const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
+        method: 'PUT',
+        body: JSON.stringify({ cnlText: cnlText[activeGraphId] }),
+      });
+      
+      if (!res.ok) {
+        const { errors } = await res.json();
+        alert(`Save Error:\n${errors.map((e: any) => `- ${e.message}`).join('\n')}`);
+      } else {
+        // Save successful, enable submit button
+        setCnlText(prev => ({ ...prev, [`${activeGraphId}_saved`]: cnlText[activeGraphId] }));
+      }
+    } catch (error) {
+      console.error('Error saving CNL:', error);
+      alert('Error saving CNL. Please try again.');
+    }
+  };
+
   const handleCnlSubmit = async () => {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    
+    // Check if CNL has been saved
+    const savedCnl = cnlText[`${activeGraphId}_saved`];
+    if (savedCnl !== cnlText[activeGraphId]) {
+      alert('Please save your CNL changes before submitting.');
+      return;
+    }
     
     setIsSubmitting(true);
     const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
@@ -349,6 +388,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           value={cnlText[activeGraphId] || ''}
                           onChange={handleCnlChange}
                           onSubmit={handleCnlSubmit}
+                          onSave={handleCnlSave}
                           disabled={!activeGraphId}
                           nodeTypes={nodeTypes}
                           relationTypes={relationTypes}

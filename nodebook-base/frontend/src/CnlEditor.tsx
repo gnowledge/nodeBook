@@ -12,13 +12,14 @@ interface CnlEditorProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onSave?: () => void;
   disabled: boolean;
   nodeTypes: NodeType[];
   relationTypes: RelationType[];
   attributeTypes: AttributeType[];
 }
 
-export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, relationTypes, attributeTypes }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTypes, relationTypes, attributeTypes }: CnlEditorProps) {
   // Undo functionality
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -231,6 +232,20 @@ export function CnlEditor({ value, onChange, onSubmit, disabled, nodeTypes, rela
           >
             {isNLPLoading ? '🔍 Analyzing...' : '🧠 Parse Descriptions'}
           </button>
+          
+          {onSave && (
+            <button 
+              className="toolbar-btn save-btn"
+              onClick={() => {
+                console.log('Save button clicked, calling onSave');
+                onSave();
+              }}
+              disabled={disabled || !value.trim()}
+              title="Save CNL changes (Ctrl+S)"
+            >
+              💾 Save CNL
+            </button>
+          )}
           
           <button 
             className="toolbar-btn submit-btn"

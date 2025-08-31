@@ -197,8 +197,8 @@ export default function Dashboard({
                       key={graph.id}
                       graph={graph}
                       onClick={(graphId) => {
-                        // Navigate to the graph in the app
-                        onGoToApp();
+                        // Navigate to the graph in the app with the selected graph ID
+                        onGoToApp(graphId);
                       }}
                       showPublicationControls={true}
                       onPublicationStateChange={updatePublicationState}

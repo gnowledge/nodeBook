@@ -66,8 +66,12 @@ function TestApp() {
     setShowAuthModal(false);
   };
 
-  const handleGoToApp = () => {
+  const handleGoToApp = (graphId?: string) => {
     setCurrentView('app');
+    // Store the selected graph ID to pass to App component
+    if (graphId) {
+      localStorage.setItem('selectedGraphId', graphId);
+    }
   };
 
   const handleGoToDashboard = () => {
