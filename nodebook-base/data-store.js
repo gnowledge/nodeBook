@@ -198,7 +198,13 @@ export class FileSystemStore extends DataStore {
                     sourceNode.morphs[0].relationNode_ids.push(relation.id);
                 }
             } else if (op.type === 'addAttribute') {
-                const attribute = new AttributeNode(op.payload.source, op.payload.name, op.payload.value, op.payload.options || {});
+                // Build options object with modifiers
+                const options = {};
+                if (op.payload.adverb) options.adverb = op.payload.adverb;
+                if (op.payload.unit) options.unit = op.payload.unit;
+                if (op.payload.modality) options.modality = op.payload.modality;
+                
+                const attribute = new AttributeNode(op.payload.source, op.payload.name, op.payload.value, options);
                 graphData.attributes.push(attribute);
                 
                 // Link attribute to source node's morph

@@ -1,16 +1,11 @@
 ```graph-description
-This is a test graph for exploring description blocks.
+Testing enhanced attribute syntax with adverbs, units, and modalities.
 ```
 
-# Test Node
+# Earth [Planet]
 ```description
-This is a test node with its own description.
+Our home planet with enhanced attribute examples.
 ```
-<is a> Type;
-<has> Property;
-
-# Another Node
-```description
-This is another node with a different description.
-```
-<relates to> Test Node;
+has mass: ++approximately++ 5.972e24 *kg* [certain];
+has color: *blue* [observed];
+has temperature: ++roughly++ 288 *K* [measured];

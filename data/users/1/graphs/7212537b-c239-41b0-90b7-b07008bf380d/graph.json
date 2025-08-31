@@ -1,87 +1,67 @@
 {
   "nodes": [
     {
-      "id": "test_node",
-      "base_name": "Test Node",
-      "name": "Test Node",
+      "id": "earth",
+      "base_name": "Earth",
+      "name": "Earth",
       "adjective": null,
       "quantifier": null,
-      "role": "individual",
-      "description": "This is a test node with its own description.",
+      "role": "Planet",
+      "description": "Our home planet with enhanced attribute examples.",
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "test_node_morph_1756609442624",
-          "node_id": "test_node",
+          "morph_id": "earth_morph_1756611515742",
+          "node_id": "earth",
           "name": "basic",
-          "relationNode_ids": [
-            "rel_test_node_is_a_type",
-            "rel_test_node_has_property"
-          ],
-          "attributeNode_ids": []
+          "relationNode_ids": [],
+          "attributeNode_ids": [
+            "attr_earth_mass_ac3478",
+            "attr_earth_color_da39a3",
+            "attr_earth_temperature_da4b92"
+          ]
         }
       ],
-      "nbh": "test_node_morph_1756609442624"
-    },
-    {
-      "id": "another_node",
-      "base_name": "Another Node",
-      "name": "Another Node",
-      "adjective": null,
-      "quantifier": null,
-      "role": "individual",
-      "description": "This is another node with a different description.",
-      "parent_types": [],
-      "publication_mode": "Private",
-      "isDeleted": false,
-      "morphs": [
-        {
-          "morph_id": "another_node_morph_1756609442624",
-          "node_id": "another_node",
-          "name": "basic",
-          "relationNode_ids": [
-            "rel_another_node_relates_to_test_node"
-          ],
-          "attributeNode_ids": []
-        }
-      ],
-      "nbh": "another_node_morph_1756609442624"
+      "nbh": "earth_morph_1756611515742"
     }
   ],
-  "relations": [
+  "relations": [],
+  "attributes": [
     {
-      "id": "rel_test_node_is_a_type",
-      "source_id": "test_node",
-      "target_id": "type",
-      "name": "is a",
-      "adverb": null,
+      "id": "attr_earth_mass_ac3478",
+      "source_id": "earth",
+      "name": "mass",
+      "value": "5",
+      "adverb": "approximately",
+      "unit": null,
       "modality": null,
       "morph_ids": [],
       "isDeleted": false
     },
     {
-      "id": "rel_test_node_has_property",
-      "source_id": "test_node",
-      "target_id": "property",
-      "name": "has",
+      "id": "attr_earth_color_da39a3",
+      "source_id": "earth",
+      "name": "color",
+      "value": "",
       "adverb": null,
-      "modality": null,
+      "unit": "blue",
+      "modality": "observed",
       "morph_ids": [],
       "isDeleted": false
     },
     {
-      "id": "rel_another_node_relates_to_test_node",
-      "source_id": "another_node",
-      "target_id": "test_node",
-      "name": "relates to",
-      "adverb": null,
+      "id": "attr_earth_temperature_da4b92",
+      "source_id": "earth",
+      "name": "temperature",
+      "value": "2",
+      "adverb": "roughly",
+      "unit": null,
       "modality": null,
       "morph_ids": [],
       "isDeleted": false
     }
   ],
-  "attributes": [],
-  "description": "This is a test graph for exploring description blocks."
+  "description": "Testing enhanced attribute syntax with adverbs, units, and modalities."
 }
