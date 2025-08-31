@@ -212,6 +212,9 @@ export class FileSystemStore extends DataStore {
                 if (nodeIndex >= 0) {
                     Object.assign(graphData.nodes[nodeIndex], op.payload.fields);
                 }
+            } else if (op.type === 'updateGraphDescription') {
+                // Handle graph description updates
+                graphData.description = op.payload.description;
             }
         }
 

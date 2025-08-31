@@ -1,36 +1,60 @@
 {
   "nodes": [
     {
-      "id": "female_mathematician",
-      "base_name": "Female Mathematician",
-      "name": "Female Mathematician",
+      "id": "test_node",
+      "base_name": "Test Node",
+      "name": "Test Node",
       "adjective": null,
       "quantifier": null,
       "role": "individual",
-      "description": null,
+      "description": "This is a test node with its own description.",
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "female_mathematician_morph_1756608356061",
-          "node_id": "female_mathematician",
+          "morph_id": "test_node_morph_1756609442624",
+          "node_id": "test_node",
           "name": "basic",
           "relationNode_ids": [
-            "rel_female_mathematician_is_a_scientist",
-            "rel_female_mathematician_works_in_mathematics"
+            "rel_test_node_is_a_type",
+            "rel_test_node_has_property"
           ],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "female_mathematician_morph_1756608356061"
+      "nbh": "test_node_morph_1756609442624"
+    },
+    {
+      "id": "another_node",
+      "base_name": "Another Node",
+      "name": "Another Node",
+      "adjective": null,
+      "quantifier": null,
+      "role": "individual",
+      "description": "This is another node with a different description.",
+      "parent_types": [],
+      "publication_mode": "Private",
+      "isDeleted": false,
+      "morphs": [
+        {
+          "morph_id": "another_node_morph_1756609442624",
+          "node_id": "another_node",
+          "name": "basic",
+          "relationNode_ids": [
+            "rel_another_node_relates_to_test_node"
+          ],
+          "attributeNode_ids": []
+        }
+      ],
+      "nbh": "another_node_morph_1756609442624"
     }
   ],
   "relations": [
     {
-      "id": "rel_female_mathematician_is_a_scientist",
-      "source_id": "female_mathematician",
-      "target_id": "scientist",
+      "id": "rel_test_node_is_a_type",
+      "source_id": "test_node",
+      "target_id": "type",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -38,15 +62,26 @@
       "isDeleted": false
     },
     {
-      "id": "rel_female_mathematician_works_in_mathematics",
-      "source_id": "female_mathematician",
-      "target_id": "mathematics",
-      "name": "works in",
+      "id": "rel_test_node_has_property",
+      "source_id": "test_node",
+      "target_id": "property",
+      "name": "has",
+      "adverb": null,
+      "modality": null,
+      "morph_ids": [],
+      "isDeleted": false
+    },
+    {
+      "id": "rel_another_node_relates_to_test_node",
+      "source_id": "another_node",
+      "target_id": "test_node",
+      "name": "relates to",
       "adverb": null,
       "modality": null,
       "morph_ids": [],
       "isDeleted": false
     }
   ],
-  "attributes": []
+  "attributes": [],
+  "description": "This is a test graph for exploring description blocks."
 }

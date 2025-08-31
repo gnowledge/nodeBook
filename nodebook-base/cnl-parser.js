@@ -40,6 +40,8 @@ function getOperationsFromCnl(cnlText, mode = 'richgraph') {
         const neighborhoodOps = processNeighborhood(nodeId, nodeBlock.content);
         operations.push(...neighborhoodOps);
     }
+    
+    console.log(`[CNL Debug] Generated operations:`, operations.map(op => ({ type: op.type, id: op.id })));
     return operations;
 }
 

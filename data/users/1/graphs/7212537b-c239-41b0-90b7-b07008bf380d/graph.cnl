@@ -1,3 +1,16 @@
-# Female Mathematician
-<is a> Scientist;
-<works in> Mathematics;
+```graph-description
+This is a test graph for exploring description blocks.
+```
+
+# Test Node
+```description
+This is a test node with its own description.
+```
+<is a> Type;
+<has> Property;
+
+# Another Node
+```description
+This is another node with a different description.
+```
+<relates to> Test Node;
