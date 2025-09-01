@@ -35,10 +35,9 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
   const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
   const [isWordNetLoading, setIsWordNetLoading] = useState(false);
   const [wordNetError, setWordNetError] = useState<string | null>(null);
-  
 
-  
-
+  // Dropdown menu state
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // Handle NLP Analysis
   const handleNLPParse = async () => {
@@ -102,21 +101,19 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
 
     setIsWordNetLoading(true);
     setWordNetError(null);
+    setWordNetTerms([]);
 
     try {
-      // Extract terms that need descriptions
       const terms = WordNetService.extractTermsFromCNL(value);
       
-      if (terms.length === 0) {
-        setWordNetError('All nodes already have descriptions. Great work!');
-        setIsWordNetLoading(false);
-        return;
+      if (terms.length > 0) {
+        setWordNetTerms(terms);
+        setIsWordNetPanelOpen(true);
+      } else {
+        setWordNetError('No terms found for WordNet lookup. Please add some nodes to your CNL.');
       }
-
-      setWordNetTerms(terms);
-      setIsWordNetPanelOpen(true);
     } catch (error) {
-      setWordNetError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setWordNetError(error instanceof Error ? error.message : 'Failed to extract terms from CNL');
     } finally {
       setIsWordNetLoading(false);
     }
@@ -124,20 +121,39 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
 
   // Handle definition selection from WordNet
   const handleDefinitionSelect = (term: string, definition: string) => {
-    try {
-      console.log('Before WordNet insertion:', value);
-      const updatedCnl = WordNetService.insertDescription(value, term, definition);
-      console.log('After WordNet insertion:', updatedCnl);
-      onChange(updatedCnl);
-    } catch (error) {
-      console.error('Error inserting definition:', error);
-      setWordNetError('Failed to insert definition. Please try again.');
+    // Find the node in the CNL and add the definition
+    const lines = value.split('\n');
+    const updatedLines = lines.map(line => {
+      if (line.trim().startsWith('#') && line.toLowerCase().includes(term.toLowerCase())) {
+        // Check if the node already has a description block
+        if (!line.includes('```description')) {
+          return `${line}\n\`\`\`description\n${definition}\n\`\`\``;
+        }
+      }
+      return line;
+    });
+    
+    onChange(updatedLines.join('\n'));
+  };
+
+  // Undo/Redo functionality
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      onChange(history[historyIndex - 1]);
     }
   };
 
-  // Track changes for undo functionality
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      onChange(history[historyIndex + 1]);
+    }
+  };
+
+  // Update history when value changes
   useEffect(() => {
-    if (value !== (history[historyIndex] || '')) {
+    if (value !== history[historyIndex]) {
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(value);
       setHistory(newHistory);
@@ -145,36 +161,28 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
     }
   }, [value]);
 
-  // Undo function
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      onChange(history[newIndex]);
-    }
-  };
-
-  // Redo function
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      onChange(history[newIndex]);
-    }
-  };
-
-  // Add Ctrl+Enter shortcut for submission and Ctrl+Z for undo
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === 'Enter') {
-        event.preventDefault();
-        onSubmit();
-      } else if (event.ctrlKey && event.key === 'z') {
-        event.preventDefault();
-        handleUndo();
-      } else if (event.ctrlKey && event.key === 'y') {
-        event.preventDefault();
-        handleRedo();
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 's':
+            event.preventDefault();
+            if (onSave) onSave();
+            break;
+          case 'Enter':
+            event.preventDefault();
+            onSubmit();
+            break;
+          case 'z':
+            event.preventDefault();
+            handleUndo();
+            break;
+          case 'y':
+            event.preventDefault();
+            handleRedo();
+            break;
+        }
       }
     };
     
@@ -185,57 +193,132 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
     };
   }, [onSubmit, handleUndo, handleRedo]);
 
+  // Dropdown menu component
+  const DropdownMenu = ({ title, icon, items, isOpen, onToggle }: {
+    title: string;
+    icon: string;
+    items: Array<{ label: string; icon: string; onClick: () => void; disabled?: boolean; title?: string }>;
+    isOpen: boolean;
+    onToggle: () => void;
+  }) => (
+    <div className="dropdown-container">
+      <button
+        className={`dropdown-trigger ${isOpen ? 'active' : ''}`}
+        onClick={onToggle}
+        title={title}
+      >
+        {icon} {title} ▼
+      </button>
+      {isOpen && (
+        <div className="dropdown-menu">
+          {items.map((item, index) => (
+            <button
+              key={index}
+              className={`dropdown-item ${item.disabled ? 'disabled' : ''}`}
+              onClick={() => {
+                if (!item.disabled) {
+                  item.onClick();
+                  onToggle();
+                }
+              }}
+              disabled={item.disabled}
+              title={item.title}
+            >
+              {item.icon} {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="cnl-editor-container">
       {/* Editor Toolbar */}
       <div className="cnl-editor-toolbar">
-                    <div className="toolbar-left">
-              <button
-                className="toolbar-btn undo-btn"
-                onClick={handleUndo}
-                disabled={historyIndex <= 0}
-                title="Undo (Ctrl+Z)"
-              >
-                ↩️ Undo
-              </button>
-              <button
-                className="toolbar-btn redo-btn"
-                onClick={handleRedo}
-                disabled={historyIndex >= history.length - 1}
-                title="Redo (Ctrl+Y)"
-              >
-                ↪️ Redo
-              </button>
-              <button
-                className="toolbar-btn auto-insert-btn"
-                onClick={handleAutoInsertDescriptions}
-                title="Automatically insert description blocks for nodes that don't have them"
-              >
-                📝 Auto-Insert Descriptions
-              </button>
-              <button
-                className="toolbar-btn wordnet-btn"
-                onClick={handleWordNetAutoDescription}
-                disabled={disabled || isWordNetLoading || !value.trim()}
-                title="Get WordNet definitions for nodes without descriptions"
-              >
-                {isWordNetLoading ? '🔍 Analyzing...' : '📚 WordNet Definitions'}
-              </button>
-            </div>
-        
+        <div className="toolbar-left">
+          {/* Edit Menu */}
+          <DropdownMenu
+            title="Edit"
+            icon="✏️"
+            isOpen={activeDropdown === 'edit'}
+            onToggle={() => setActiveDropdown(activeDropdown === 'edit' ? null : 'edit')}
+            items={[
+              {
+                label: 'Undo',
+                icon: '↩️',
+                onClick: handleUndo,
+                disabled: historyIndex <= 0,
+                title: 'Undo (Ctrl+Z)'
+              },
+              {
+                label: 'Redo',
+                icon: '↪️',
+                onClick: handleRedo,
+                disabled: historyIndex >= history.length - 1,
+                title: 'Redo (Ctrl+Y)'
+              }
+            ]}
+          />
+
+          {/* Tools Menu */}
+          <DropdownMenu
+            title="Tools"
+            icon="🔧"
+            isOpen={activeDropdown === 'tools'}
+            onToggle={() => setActiveDropdown(activeDropdown === 'tools' ? null : 'tools')}
+            items={[
+              {
+                label: 'Auto-Insert Descriptions',
+                icon: '📝',
+                onClick: handleAutoInsertDescriptions,
+                title: 'Automatically insert description blocks for nodes'
+              },
+              {
+                label: 'WordNet Definitions',
+                icon: '📚',
+                onClick: handleWordNetAutoDescription,
+                disabled: disabled || isWordNetLoading || !value.trim(),
+                title: 'Get WordNet definitions for nodes'
+              },
+              {
+                label: 'Parse Descriptions',
+                icon: '🧠',
+                onClick: handleNLPParse,
+                disabled: disabled || isNLPLoading || !value.trim(),
+                title: 'Analyze description blocks with NLP'
+              }
+            ]}
+          />
+
+          {/* Version Control Menu (placeholder for future) */}
+          <DropdownMenu
+            title="Version"
+            icon="📋"
+            isOpen={activeDropdown === 'version'}
+            onToggle={() => setActiveDropdown(activeDropdown === 'version' ? null : 'version')}
+            items={[
+              {
+                label: 'View History',
+                icon: '📜',
+                onClick: () => console.log('Version history - coming soon'),
+                title: 'View version history'
+              },
+              {
+                label: 'Compare Versions',
+                icon: '🔍',
+                onClick: () => console.log('Compare versions - coming soon'),
+                title: 'Compare different versions'
+              }
+            ]}
+          />
+        </div>
+
         <div className="toolbar-right">
-          <button 
-            className="toolbar-btn parse-btn"
-            onClick={handleNLPParse}
-            disabled={disabled || isNLPLoading || !value.trim()}
-            title="Analyze description blocks with NLP to help build your graph"
-          >
-            {isNLPLoading ? '🔍 Analyzing...' : '🧠 Parse Descriptions'}
-          </button>
-          
+          {/* Primary Actions */}
           {onSave && (
             <button 
-              className="toolbar-btn save-btn"
+              className="toolbar-btn primary-btn save-btn"
               onClick={() => {
                 console.log('Save button clicked, calling onSave');
                 onSave();
@@ -243,12 +326,12 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
               disabled={disabled || !value.trim()}
               title="Save CNL changes (Ctrl+S)"
             >
-              💾 Save CNL
+              💾 Save
             </button>
           )}
           
           <button 
-            className="toolbar-btn submit-btn"
+            className="toolbar-btn primary-btn submit-btn"
             onClick={() => {
               console.log('Submit button clicked, calling onSubmit with value:', value);
               onSubmit();
@@ -256,7 +339,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
             disabled={disabled}
             title="Submit CNL to build graph (Ctrl+Enter)"
           >
-            🚀 Submit to Build Graph
+            🚀 Submit
           </button>
         </div>
       </div>
@@ -275,24 +358,22 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
         />
       </div>
 
-                  {/* NLP Side Panel */}
-            <NLPSidePanel
-              isOpen={isNLPPanelOpen}
-              onClose={() => setIsNLPPanelOpen(false)}
-              analysisResults={nlpAnalysisResults}
-              isLoading={isNLPLoading}
-            />
+      {/* NLP Side Panel */}
+      <NLPSidePanel
+        isOpen={isNLPPanelOpen}
+        onClose={() => setIsNLPPanelOpen(false)}
+        analysisResults={nlpAnalysisResults}
+        isLoading={isNLPLoading}
+      />
 
-            {/* WordNet Definitions Panel */}
-            <WordNetDefinitionsPanel
-              isOpen={isWordNetPanelOpen}
-              onClose={() => setIsWordNetPanelOpen(false)}
-              terms={wordNetTerms}
-              onDefinitionSelect={handleDefinitionSelect}
-              isLoading={isWordNetLoading}
-            />
-      
-
+      {/* WordNet Definitions Panel */}
+      <WordNetDefinitionsPanel
+        isOpen={isWordNetPanelOpen}
+        onClose={() => setIsWordNetPanelOpen(false)}
+        terms={wordNetTerms}
+        onDefinitionSelect={handleDefinitionSelect}
+        isLoading={isWordNetLoading}
+      />
 
       {/* Error Display */}
       {nlpError && (
