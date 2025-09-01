@@ -546,7 +546,7 @@ export function CNLEditor({
       view.destroy();
       viewRef.current = null;
     };
-  }, [language, readOnly, onAutoSave]); // Add onAutoSave dependency
+  }, [language, readOnly]); // Remove onAutoSave dependency to prevent re-initialization
 
   // Update content when value changes externally
   useEffect(() => {

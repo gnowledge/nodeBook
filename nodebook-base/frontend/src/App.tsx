@@ -1,5 +1,5 @@
 import p2pIcon from './assets/p2p.svg';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import editorIcon from './assets/editor.svg';
 import visualizationIcon from './assets/visualization.svg';
 import jsonDataIcon from './assets/jsonData.svg';
@@ -267,7 +267,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
-  const handleCnlAutoSave = async (value: string) => {
+  const handleCnlAutoSave = useCallback(async (value: string) => {
     if (!activeGraphId) return;
     
     try {
@@ -296,7 +296,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       console.warn('[Auto-save] Auto-save error:', error);
       // Don't show error to user for auto-save failures
     }
-  };
+  }, [activeGraphId, cnlText]);
 
   const handleCnlSubmit = async () => {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
