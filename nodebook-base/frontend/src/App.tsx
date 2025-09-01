@@ -413,6 +413,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           nodeTypes={nodeTypes}
           relationTypes={relationTypes}
           attributeTypes={attributeTypes}
+          graphId={activeGraphId}
         />
                       </div>
                     )}

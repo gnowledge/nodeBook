@@ -1,0 +1,297 @@
+/* Version Control Overlay */
+.version-control-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+/* Version Control Panel */
+.version-control-panel {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.version-control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.version-control-header h2 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Content */
+.version-control-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* Commit Section */
+.commit-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.commit-section h3 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.commit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.commit-message-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+}
+
+.commit-message-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.commit-btn {
+  align-self: flex-start;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.commit-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.commit-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Versions Section */
+.versions-section h3 {
+  margin: 0 0 20px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Loading and Error Messages */
+.loading-message,
+.error-message,
+.empty-message {
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.loading-message {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.empty-message {
+  background: #f9fafb;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+/* Versions List */
+.versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.version-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.version-item:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.version-info {
+  flex: 1;
+}
+
+.version-message {
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+}
+
+.version-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.version-author,
+.version-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.version-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.revert-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.revert-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .version-control-overlay {
+    padding: 10px;
+  }
+  
+  .version-control-panel {
+    max-height: 95vh;
+  }
+  
+  .version-control-header {
+    padding: 16px 20px;
+  }
+  
+  .version-control-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .version-control-content {
+    padding: 20px;
+  }
+  
+  .version-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .version-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .commit-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .version-control-header {
+    padding: 12px 16px;
+  }
+  
+  .version-control-content {
+    padding: 16px;
+  }
+  
+  .commit-section {
+    padding: 16px;
+  }
+  
+  .version-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

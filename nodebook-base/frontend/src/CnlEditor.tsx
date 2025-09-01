@@ -3,6 +3,7 @@ import { CNLEditor } from './CNLEditorComponent';
 import type { RelationType, AttributeType, NodeType } from './types';
 import { NLPSidePanel } from './NLPSidePanel';
 import { WordNetDefinitionsPanel } from './WordNetDefinitionsPanel';
+import { VersionControl } from './components/VersionControl';
 import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescriptions } from './utils/cnlProcessor';
 import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
 import { WordNetService } from './services/wordnetService';
@@ -17,9 +18,10 @@ interface CnlEditorProps {
   nodeTypes: NodeType[];
   relationTypes: RelationType[];
   attributeTypes: AttributeType[];
+  graphId?: string;
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTypes, relationTypes, attributeTypes }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTypes, relationTypes, attributeTypes, graphId }: CnlEditorProps) {
   // Undo functionality
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -38,6 +40,9 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
 
   // Dropdown menu state
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  // Version control state
+  const [isVersionControlOpen, setIsVersionControlOpen] = useState(false);
 
   // Close dropdown when clicking outside or pressing ESC
   useEffect(() => {
@@ -317,7 +322,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
             ]}
           />
 
-          {/* Version Control Menu (placeholder for future) */}
+          {/* Version Control Menu */}
           <DropdownMenu
             title="Version"
             icon="📋"
@@ -327,14 +332,21 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
               {
                 label: 'View History',
                 icon: '📜',
-                onClick: () => console.log('Version history - coming soon'),
-                title: 'View version history'
+                onClick: () => {
+                  if (graphId) {
+                    setIsVersionControlOpen(true);
+                    setActiveDropdown(null);
+                  }
+                },
+                disabled: !graphId,
+                title: graphId ? 'View version history' : 'No graph selected'
               },
               {
                 label: 'Compare Versions',
                 icon: '🔍',
                 onClick: () => console.log('Compare versions - coming soon'),
-                title: 'Compare different versions'
+                disabled: !graphId,
+                title: graphId ? 'Compare different versions' : 'No graph selected'
               }
             ]}
           />
@@ -427,6 +439,15 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
             ×
           </button>
         </div>
+      )}
+
+      {/* Version Control Panel */}
+      {graphId && (
+        <VersionControl
+          graphId={graphId}
+          isOpen={isVersionControlOpen}
+          onClose={() => setIsVersionControlOpen(false)}
+        />
       )}
     </div>
   );
