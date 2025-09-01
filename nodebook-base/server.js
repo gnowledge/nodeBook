@@ -1493,33 +1493,7 @@ Another service or function
     }
   });
 
-  // DELETE route for graphs - must come AFTER more specific routes to avoid conflicts
-  fastify.delete('/api/graphs/:graphId', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: authenticateJWT
-  }, async (request, reply) => {
-    const dataStore = fastify.dataStore;
-    const userId = request.user.id;
-    const graphId = request.params.graphId;
-    
-    try {
-      console.log(`[DELETE /api/graphs/${graphId}] Deleting graph for user ${userId}`);
-      await dataStore.deleteGraph(userId, graphId);
-      reply.code(204).send();
-      return;
-    } catch (error) {
-      console.error(`[DELETE /api/graphs/${graphId}] Error:`, error);
-      reply.code(500).send({ error: error.message });
-      return;
-    }
-  });
+
 
   // --- Media Management API ---
   // Temporarily suspended - will be re-enabled in Phase 2
@@ -1687,6 +1661,34 @@ Another service or function
 
   } // End of if (mediaManager) block
   */
+
+  // DELETE route for graphs - must come AFTER all other graph routes to avoid conflicts
+  fastify.delete('/api/graphs/:graphId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
+    try {
+      console.log(`[DELETE /api/graphs/${graphId}] Deleting graph for user ${userId}`);
+      await dataStore.deleteGraph(userId, graphId);
+      reply.code(204).send();
+      return;
+    } catch (error) {
+      console.error(`[DELETE /api/graphs/${graphId}] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
 
   // --- WebSocket for real-time communication ---
   const wss = new WebSocketServer({ server: fastify.server });
