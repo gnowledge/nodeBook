@@ -2,6 +2,7 @@ import { promises as fsp } from 'fs';
 import path from 'path';
 import { PolyNode, RelationNode, AttributeNode, FunctionNode } from './models.js';
 import { getOperationsFromCnl } from './cnl-parser.js';
+import { GitVersionControl } from './version-control.js';
 
 /**
  * Abstract Data Store Interface
@@ -37,6 +38,7 @@ export class FileSystemStore extends DataStore {
     constructor(dataPath = './data') {
         super('file-system', { dataPath });
         this.dataPath = dataPath;
+        this.gitVersionControl = new GitVersionControl(dataPath);
     }
 
     async initialize() {
@@ -249,6 +251,13 @@ export class FileSystemStore extends DataStore {
         await this.ensureGraphDataDir(userId, graphId);
         const cnlPath = path.join(this.getGraphDataDir(userId, graphId), 'graph.cnl');
         await fsp.writeFile(cnlPath, cnlText);
+        
+        // Auto-commit CNL changes to version control
+        try {
+            await this.commitVersion(userId, graphId, 'Auto-commit: CNL saved');
+        } catch (error) {
+            console.warn(`[DataStore] Failed to auto-commit CNL save for graph ${graphId}:`, error);
+        }
     }
 
     async deleteGraph(userId, graphId) {
@@ -450,6 +459,96 @@ export class FileSystemStore extends DataStore {
             await this.saveGraphRegistry(userId, graphRegistry);
         } else {
             console.log(`[DataStore] Graph ${graphId} not found in registry`);
+        }
+    }
+
+    // Version Control Methods
+    async initializeVersionControl(userId, graphId, userName, userEmail) {
+        try {
+            const initialized = await this.gitVersionControl.initializeGit(userId, graphId);
+            if (initialized && userName && userEmail) {
+                await this.gitVersionControl.configureGit(userId, graphId, userName, userEmail);
+            }
+            return initialized;
+        } catch (error) {
+            console.error(`[DataStore] Failed to initialize version control for graph ${graphId}:`, error);
+            return false;
+        }
+    }
+
+    async commitVersion(userId, graphId, message, author = null) {
+        try {
+            // Add all files to staging
+            await this.gitVersionControl.addFiles(userId, graphId);
+            
+            // Commit the changes
+            const result = await this.gitVersionControl.commit(userId, graphId, message, author);
+            return result;
+        } catch (error) {
+            console.error(`[DataStore] Failed to commit version for graph ${graphId}:`, error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async getVersionHistory(userId, graphId, limit = 50) {
+        try {
+            return await this.gitVersionControl.getHistory(userId, graphId, limit);
+        } catch (error) {
+            console.error(`[DataStore] Failed to get version history for graph ${graphId}:`, error);
+            return [];
+        }
+    }
+
+    async getVersion(userId, graphId, commitId) {
+        try {
+            return await this.gitVersionControl.getVersion(userId, graphId, commitId);
+        } catch (error) {
+            console.error(`[DataStore] Failed to get version ${commitId} for graph ${graphId}:`, error);
+            return null;
+        }
+    }
+
+    async revertToVersion(userId, graphId, commitId) {
+        try {
+            const result = await this.gitVersionControl.revertToVersion(userId, graphId, commitId);
+            if (result.success) {
+                // Regenerate graph from the reverted CNL
+                const versionData = await this.getVersion(userId, graphId, commitId);
+                if (versionData && versionData.cnl) {
+                    await this.regenerateGraphFromCnl(userId, graphId, versionData.cnl);
+                }
+            }
+            return result;
+        } catch (error) {
+            console.error(`[DataStore] Failed to revert to version ${commitId} for graph ${graphId}:`, error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async compareVersions(userId, graphId, commitId1, commitId2) {
+        try {
+            return await this.gitVersionControl.compareVersions(userId, graphId, commitId1, commitId2);
+        } catch (error) {
+            console.error(`[DataStore] Failed to compare versions for graph ${graphId}:`, error);
+            return { error: error.message };
+        }
+    }
+
+    async createBranch(userId, graphId, branchName) {
+        try {
+            return await this.gitVersionControl.createBranch(userId, graphId, branchName);
+        } catch (error) {
+            console.error(`[DataStore] Failed to create branch for graph ${graphId}:`, error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async listBranches(userId, graphId) {
+        try {
+            return await this.gitVersionControl.listBranches(userId, graphId);
+        } catch (error) {
+            console.error(`[DataStore] Failed to list branches for graph ${graphId}:`, error);
+            return [];
         }
     }
 

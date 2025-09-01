@@ -10,28 +10,6 @@
     }
   },
   {
-    "id": "node",
-    "base_name": "node"
-  },
-  {
-    "id": "india",
-    "base_name": "India",
-    "options": {
-      "id": "india",
-      "role": "individual",
-      "parent_types": [],
-      "adjective": null
-    }
-  },
-  {
-    "id": "country",
-    "base_name": "country"
-  },
-  {
-    "id": "asia",
-    "base_name": "asia"
-  },
-  {
     "id": "red_car",
     "base_name": "Red Car",
     "name": "Red Car",

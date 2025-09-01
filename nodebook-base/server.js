@@ -515,6 +515,10 @@ Another service or function
       
       // Save graph data and update registry
       await dataStore.saveGraph(userId, graphId, newGraph);
+      
+      // Initialize version control for the new graph
+      await dataStore.initializeVersionControl(userId, graphId, author || 'Unknown', email || 'unknown@example.com');
+      
       await dataStore.updateGraphRegistry(userId, graphId, {
         name,
         author,
@@ -1661,6 +1665,174 @@ Another service or function
 
   } // End of if (mediaManager) block
   */
+
+  // --- Version Control API ---
+  fastify.get('/api/graphs/:graphId/versions', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', default: 50 }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const limit = request.query.limit || 50;
+    
+    try {
+      console.log(`[GET /api/graphs/${graphId}/versions] Getting version history for user ${userId}`);
+      const history = await dataStore.getVersionHistory(userId, graphId, limit);
+      return { versions: history };
+    } catch (error) {
+      console.error(`[GET /api/graphs/${graphId}/versions] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/graphs/:graphId/versions/:commitId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' },
+          commitId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const commitId = request.params.commitId;
+    
+    try {
+      console.log(`[GET /api/graphs/${graphId}/versions/${commitId}] Getting version for user ${userId}`);
+      const version = await dataStore.getVersion(userId, graphId, commitId);
+      if (!version) {
+        reply.code(404).send({ error: 'Version not found' });
+        return;
+      }
+      return version;
+    } catch (error) {
+      console.error(`[GET /api/graphs/${graphId}/versions/${commitId}] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.post('/api/graphs/:graphId/versions/:commitId/revert', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' },
+          commitId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const commitId = request.params.commitId;
+    
+    try {
+      console.log(`[POST /api/graphs/${graphId}/versions/${commitId}/revert] Reverting for user ${userId}`);
+      const result = await dataStore.revertToVersion(userId, graphId, commitId);
+      if (!result.success) {
+        reply.code(400).send({ error: result.error });
+        return;
+      }
+      return result;
+    } catch (error) {
+      console.error(`[POST /api/graphs/${graphId}/versions/${commitId}/revert] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.post('/api/graphs/:graphId/versions/commit', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['message'],
+        properties: {
+          message: { type: 'string' },
+          author: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { message, author } = request.body;
+    
+    try {
+      console.log(`[POST /api/graphs/${graphId}/versions/commit] Committing version for user ${userId}`);
+      const result = await dataStore.commitVersion(userId, graphId, message, author);
+      return result;
+    } catch (error) {
+      console.error(`[POST /api/graphs/${graphId}/versions/commit] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
+  fastify.get('/api/graphs/:graphId/versions/compare', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      querystring: {
+        type: 'object',
+        required: ['commit1', 'commit2'],
+        properties: {
+          commit1: { type: 'string' },
+          commit2: { type: 'string' }
+        }
+      }
+    },
+    preHandler: authenticateJWT
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { commit1, commit2 } = request.query;
+    
+    try {
+      console.log(`[GET /api/graphs/${graphId}/versions/compare] Comparing versions for user ${userId}`);
+      const result = await dataStore.compareVersions(userId, graphId, commit1, commit2);
+      return result;
+    } catch (error) {
+      console.error(`[GET /api/graphs/${graphId}/versions/compare] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
 
   // DELETE route for graphs - must come AFTER all other graph routes to avoid conflicts
   fastify.delete('/api/graphs/:graphId', {
