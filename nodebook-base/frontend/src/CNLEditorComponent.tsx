@@ -225,7 +225,7 @@ export function CNLEditor({
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [value, language, graphId]);
+  }, [value, language]);
 
   useEffect(() => {
     if (!editorRef.current) return;
