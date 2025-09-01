@@ -39,6 +39,32 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
   // Dropdown menu state
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
+  // Close dropdown when clicking outside or pressing ESC
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveDropdown(null);
+      }
+    };
+
+    if (activeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [activeDropdown]);
+
   // Handle NLP Analysis
   const handleNLPParse = async () => {
     if (!value.trim()) {
