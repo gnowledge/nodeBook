@@ -56,139 +56,155 @@ const cnlCompletions = [
   { label: 'seconds', type: 'unit', apply: '*s*' }
 ];
 
+// Markdown Auto-completion
+const markdownCompletions = [
+  // Headers
+  { label: 'H1', type: 'header', apply: '# ', info: 'Header 1' },
+  { label: 'H2', type: 'header', apply: '## ', info: 'Header 2' },
+  { label: 'H3', type: 'header', apply: '### ', info: 'Header 3' },
+  { label: 'H4', type: 'header', apply: '#### ', info: 'Header 4' },
+  
+  // Text formatting
+  { label: 'Bold', type: 'format', apply: '**bold text**', info: 'Bold text' },
+  { label: 'Italic', type: 'format', apply: '*italic text*', info: 'Italic text' },
+  { label: 'Code', type: 'format', apply: '`code`', info: 'Inline code' },
+  { label: 'Strikethrough', type: 'format', apply: '~~strikethrough~~', info: 'Strikethrough text' },
+  
+  // Lists
+  { label: 'Unordered List', type: 'list', apply: '- List item\n- Another item\n- Third item', info: 'Unordered list' },
+  { label: 'Ordered List', type: 'list', apply: '1. First item\n2. Second item\n3. Third item', info: 'Ordered list' },
+  { label: 'Task List', type: 'list', apply: '- [ ] Task 1\n- [x] Task 2\n- [ ] Task 3', info: 'Task list' },
+  
+  // Links and media
+  { label: 'Link', type: 'link', apply: '[Link text](url)', info: 'Create a link' },
+  { label: 'Image', type: 'media', apply: '![Alt text](image-url)', info: 'Insert an image' },
+  
+  // Code blocks
+  { label: 'Code Block', type: 'block', apply: '```\ncode here\n```', info: 'Code block' },
+  { label: 'Fenced Code', type: 'block', apply: '```javascript\n// JavaScript code\n```', info: 'Language-specific code block' },
+  
+  // Other
+  { label: 'Blockquote', type: 'block', apply: '> Quote text here', info: 'Blockquote' },
+  { label: 'Horizontal Rule', type: 'block', apply: '---', info: 'Horizontal rule' },
+  { label: 'Table', type: 'table', apply: '| Header 1 | Header 2 | Header 3 |\n|----------|----------|----------|\n| Cell 1   | Cell 2   | Cell 3   |', info: 'Create a table' }
+];
+
 // Smart context-aware auto-completion function
-function createCnlCompletion(nodeTypes: any[] | null = [], relationTypes: any[] | null = [], attributeTypes: any[] | null = []) {
-  return function cnlCompletion(context: any) {
+function createCompletion(language: string, nodeTypes: any[] | null = [], relationTypes: any[] | null = [], attributeTypes: any[] | null = []) {
+  return function completion(context: any) {
     // Ensure we have arrays, not null
     const safeNodeTypes = nodeTypes || [];
     const safeRelationTypes = relationTypes || [];
     const safeAttributeTypes = attributeTypes || [];
     
     // Debug logging
-    console.log('Auto-completion props:', { nodeTypes, relationTypes, attributeTypes });
+    console.log('Auto-completion props:', { language, nodeTypes, relationTypes, attributeTypes });
     console.log('Safe arrays:', { safeNodeTypes, safeRelationTypes, safeAttributeTypes });
-    const line = context.state.doc.lineAt(context.pos);
-  const lineText = line.text;
-  const cursorPos = context.pos - line.from;
-  
-      // Check if we're at the first column (or very beginning of line)
-    const isFirstColumn = cursorPos <= 1;
     
-    // Check if the line already contains a semicolon (indicating statement completion)
-    const hasSemicolon = lineText.includes(';');
-    if (hasSemicolon) return null; // Stop auto-completion for completed statements
+    const line = context.state.doc.lineAt(context.pos);
+    const lineText = line.text;
+    const cursorPos = context.pos - line.from;
+    
+    // Check if we're at the first column (or very beginning of line)
+    const isFirstColumn = cursorPos <= 1;
     
     // Get the word being typed
     let word = context.matchBefore(/\w*/);
     if (!word) return null;
-  
-  // Context-aware suggestions based on position and content
-  if (isFirstColumn) {
-    // First column suggestions: # | < | has | ```description | ```graph-description
-    const firstColumnSuggestions = [
-      { label: '#', type: 'node', apply: '# ', info: 'Start a node heading' },
-      { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
-      { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' },
-      { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Add description block' },
-      { label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Add graph description block' }
-    ];
     
-    // Filter based on what user is typing
-    const filtered = firstColumnSuggestions.filter(suggestion => 
-      suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
-    );
-    
-    return {
-      from: word.from,
-      options: filtered,
-      validFor: /^[#<has]*$/
-    };
-  } else {
-    // Middle of line - provide context-aware suggestions
-    const contextSuggestions = [];
-    
-    // If we're after a # (node heading), suggest node types
-    if (lineText.trim().startsWith('#')) {
-      if (safeNodeTypes.length > 0) {
-        // Use real schema data
-        safeNodeTypes.forEach(nodeType => {
-          contextSuggestions.push({
-            label: nodeType.name,
-            type: 'nodeType',
-            apply: `[${nodeType.name}]`,
-            info: nodeType.description || 'Node type'
-          });
-        });
-      } else {
-        // Fallback to default suggestions
-        contextSuggestions.push(
-          { label: 'Person', type: 'nodeType', apply: '[Person]', info: 'Individual person' },
-          { label: 'Place', type: 'nodeType', apply: '[Place]', info: 'Geographic location' },
-          { label: 'Concept', type: 'nodeType', apply: '[Concept]', info: 'Abstract idea' },
-          { label: 'Object', type: 'nodeType', apply: '[Object]', info: 'Physical object' }
+    // Language-specific logic
+    if (language === 'cnl') {
+      // CNL-specific logic
+      const hasSemicolon = lineText.includes(';');
+      if (hasSemicolon) return null; // Stop auto-completion for completed statements
+      
+      // CNL context-aware suggestions
+      if (isFirstColumn) {
+        const firstColumnSuggestions = [
+          { label: '#', type: 'node', apply: '# ', info: 'Start a node heading' },
+          { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
+          { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' },
+          { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Add description block' },
+          { label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Add graph description block' }
+        ];
+        
+        const filtered = firstColumnSuggestions.filter(suggestion => 
+          suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
         );
+        
+        return {
+          from: word.from,
+          options: filtered.map(suggestion => ({
+            label: suggestion.label,
+            type: suggestion.type,
+            apply: suggestion.apply,
+            info: suggestion.info
+          }))
+        };
       }
+      
+      // CNL completions for other contexts
+      const filtered = cnlCompletions.filter(completion => 
+        completion.label.toLowerCase().includes(word.text.toLowerCase())
+      );
+      
+      return {
+        from: word.from,
+        options: filtered.map(completion => ({
+          label: completion.label,
+          type: completion.type,
+          apply: completion.apply
+        }))
+      };
+    } else if (language === 'markdown') {
+      // Markdown-specific logic
+      if (isFirstColumn) {
+        const firstColumnSuggestions = [
+          { label: '#', type: 'header', apply: '# ', info: 'Header 1' },
+          { label: '##', type: 'header', apply: '## ', info: 'Header 2' },
+          { label: '###', type: 'header', apply: '### ', info: 'Header 3' },
+          { label: '-', type: 'list', apply: '- ', info: 'Unordered list item' },
+          { label: '1.', type: 'list', apply: '1. ', info: 'Ordered list item' },
+          { label: '>', type: 'block', apply: '> ', info: 'Blockquote' },
+          { label: '```', type: 'block', apply: '```\n\n```', info: 'Code block' }
+        ];
+        
+        const filtered = firstColumnSuggestions.filter(suggestion => 
+          suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
+        );
+        
+        return {
+          from: word.from,
+          options: filtered.map(suggestion => ({
+            label: suggestion.label,
+            type: suggestion.type,
+            apply: suggestion.apply,
+            info: suggestion.info
+          }))
+        };
+      }
+      
+      // Markdown completions for other contexts
+      const filtered = markdownCompletions.filter(completion => 
+        completion.label.toLowerCase().includes(word.text.toLowerCase())
+      );
+      
+      return {
+        from: word.from,
+        options: filtered.map(completion => ({
+          label: completion.label,
+          type: completion.type,
+          apply: completion.apply,
+          info: completion.info
+        }))
+      };
     }
     
-    // If we're after a < (relation), suggest relation types
-    if (lineText.trim().startsWith('<')) {
-      if (safeRelationTypes.length > 0) {
-        // Use real schema data
-        safeRelationTypes.forEach(relationType => {
-          contextSuggestions.push({
-            label: relationType.name,
-            type: 'relationType',
-            apply: `${relationType.name}>`,
-            info: relationType.description || 'Relation type'
-          });
-        });
-      } else {
-        // Fallback to default suggestions
-        contextSuggestions.push(
-          { label: 'is a', type: 'relationType', apply: 'is a>', info: 'Type relationship' },
-          { label: 'contains', type: 'relationType', apply: 'contains>', info: 'Containment' },
-          { label: 'located in', type: 'relationType', apply: 'located in>', info: 'Location' },
-          { label: 'works for', type: 'relationType', apply: 'works for>', info: 'Employment' }
-        );
-      }
-    }
-    
-    // If we're after 'has', suggest attribute types
-    if (lineText.trim().startsWith('has')) {
-      if (safeAttributeTypes.length > 0) {
-        // Use real schema data
-        safeAttributeTypes.forEach(attributeType => {
-          contextSuggestions.push({
-            label: attributeType.name,
-            type: 'attributeType',
-            apply: `${attributeType.name}: `,
-            info: attributeType.description || 'Attribute type'
-          });
-        });
-      } else {
-        // Fallback to default suggestions
-        contextSuggestions.push(
-          { label: 'name', type: 'attributeType', apply: 'name: ', info: 'Name attribute' },
-          { label: 'age', type: 'attributeType', apply: 'age: ', info: 'Age attribute' },
-          { label: 'color', type: 'attributeType', apply: 'color: ', info: 'Color attribute' },
-          { label: 'size', type: 'attributeType', apply: 'size: ', info: 'Size attribute' }
-        );
-      }
-    }
-    
-    // Filter based on what user is typing
-    const filtered = contextSuggestions.filter(suggestion => 
-      suggestion.label.toLowerCase().includes(word.text.toLowerCase())
-    );
-    
-    return {
-      from: word.from,
-      options: filtered,
-      validFor: /^\w*$/
-    };
-  };
+    return null;
   };
 }
+  
+
 
 export function CNLEditor({ 
   value, 
@@ -381,13 +397,12 @@ export function CNLEditor({
         // Apply CNL highlighting for CNL language
         ...(language === 'cnl' ? [EditorView.theme(cnlHighlightStyle)] : []),
         
-        // Auto-completion for CNL
-        ...(language === 'cnl' ? [
-          autocompletion({ 
-            override: [createCnlCompletion(nodeTypes, relationTypes, attributeTypes)],
-            activateOnTyping: true, // Show automatically as you type
-            defaultKeymap: true, // Enable default keyboard navigation
-            maxRenderedOptions: 10, // Limit dropdown size
+        // Auto-completion for CNL and Markdown
+        autocompletion({ 
+          override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
+          activateOnTyping: true, // Show automatically as you type
+          defaultKeymap: true, // Enable default keyboard navigation
+          maxRenderedOptions: 10, // Limit dropdown size
             renderCompletionItem: (completion, state, view) => {
               const dom = document.createElement('li');
               dom.setAttribute('role', 'option');
@@ -441,8 +456,7 @@ export function CNLEditor({
               }
               return false;
             }}
-          ])
-        ] : []),
+          ]),
         
         // Custom light theme
         EditorView.theme({

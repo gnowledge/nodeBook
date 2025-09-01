@@ -411,38 +411,103 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                   <>
                     {viewMode === 'editor' && (
                       <div className={styles.editorContainer}>
-                                <div className={styles.editorHeader}>
-          <div className={styles.editorTitle}>
-            <h3>Working on: {graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph'}</h3>
-          </div>
-        </div>
-        <CnlEditor
+                        {/* Desktop: Side-by-side layout */}
+                        <div className={styles.desktopLayout}>
+                          <div className={styles.editorSection}>
+                            <div className={styles.editorHeader}>
+                              <div className={styles.editorTitle}>
+                                <h3>Working on: {graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph'}</h3>
+                              </div>
+                            </div>
+                            <CnlEditor
+                              value={cnlText || ''}
+                              onChange={handleCnlChange}
+                              onSubmit={handleCnlSubmit}
+                              onSave={handleCnlSave}
+                              onAutoSave={handleCnlAutoSave}
+                              onClose={onGoToDashboard}
+                              disabled={!activeGraphId}
+                              nodeTypes={nodeTypes}
+                              relationTypes={relationTypes}
+                              attributeTypes={attributeTypes}
+                              graphId={activeGraphId}
+                              editStatus={{
+                                isModified: activeGraphId && cnlText ? true : false,
+                                isSaved: false // We'll need to track this properly later
+                              }}
+                            />
+                            
+                            {/* Score widget at bottom of Editor */}
+                            {activeGraphId && graphScore && (
+                              <div className={styles.editorScoreWidget}>
+                                <CompactScoreDisplay 
+                                  score={graphScore}
+                                  isVisible={true}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className={styles.graphSection}>
+                            <div className={styles.graphHeader}>
+                              <h3>Graph Visualization</h3>
+                            </div>
+                            <div className={styles.visualizationWrapper}>
+                              <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />
+                              {selectedNode && (
+                                <div className={styles.selectedNodeCard}>
+                                  <NodeCard
+                                    node={selectedNode}
+                                    allNodes={nodes}
+                                    allRelations={relations}
+                                    attributes={attributeTypes}
+                                    isActive={false}
+                                    onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
+                                    onImportContext={(nodeId) => console.log('Import context:', nodeId)}
+                                    nodeRegistry={{}}
+                                    isPublic={false}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Mobile: Tabbed layout (hidden on desktop) */}
+                        <div className={styles.mobileLayout}>
+                          <div className={styles.editorHeader}>
+                            <div className={styles.editorTitle}>
+                              <h3>Working on: {graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph'}</h3>
+                            </div>
+                          </div>
+                          <CnlEditor
                             value={cnlText || ''}
-          onChange={handleCnlChange}
-          onSubmit={handleCnlSubmit}
-          onSave={handleCnlSave}
-          onAutoSave={handleCnlAutoSave}
-          onClose={onGoToDashboard}
-          disabled={!activeGraphId}
-          nodeTypes={nodeTypes}
-          relationTypes={relationTypes}
-          attributeTypes={attributeTypes}
-          graphId={activeGraphId}
-          editStatus={{
-            isModified: activeGraphId && cnlText ? true : false,
-            isSaved: false // We'll need to track this properly later
-          }}
-        />
-        
-        {/* Score widget at bottom of Editor */}
-        {activeGraphId && graphScore && (
-          <div className={styles.editorScoreWidget}>
-            <CompactScoreDisplay 
-              score={graphScore}
-              isVisible={true}
-            />
-          </div>
-        )}
+                            onChange={handleCnlChange}
+                            onSubmit={handleCnlSubmit}
+                            onSave={handleCnlSave}
+                            onAutoSave={handleCnlAutoSave}
+                            onClose={onGoToDashboard}
+                            disabled={!activeGraphId}
+                            nodeTypes={nodeTypes}
+                            relationTypes={relationTypes}
+                            attributeTypes={attributeTypes}
+                            graphId={activeGraphId}
+                            editStatus={{
+                              isModified: activeGraphId && cnlText ? true : false,
+                              isSaved: false // We'll need to track this properly later
+                            }}
+                          />
+                          
+                          {/* Score widget at bottom of Editor */}
+                          {activeGraphId && graphScore && (
+                            <div className={styles.editorScoreWidget}>
+                              <CompactScoreDisplay 
+                                score={graphScore}
+                                isVisible={true}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                     {viewMode === 'visualization' && (
