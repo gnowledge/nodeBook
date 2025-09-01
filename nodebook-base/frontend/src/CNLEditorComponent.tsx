@@ -560,8 +560,9 @@ export function CNLEditor({
         valuesMatch: value === currentDoc
       });
       
+      // Always update editor content when value changes (especially when switching graphs)
       if (value !== currentDoc) {
-        console.log('[CNLEditor] Updating editor content');
+        console.log('[CNLEditor] Updating editor content from external value change');
         const transaction = viewRef.current.state.update({
           changes: {
             from: 0,
@@ -570,7 +571,9 @@ export function CNLEditor({
           }
         });
         viewRef.current.dispatch(transaction);
-        console.log('[CNLEditor] Editor content updated');
+        console.log('[CNLEditor] Editor content updated to match external value');
+      } else {
+        console.log('[CNLEditor] Editor content already matches external value, no update needed');
       }
     }
   }, [value]);
