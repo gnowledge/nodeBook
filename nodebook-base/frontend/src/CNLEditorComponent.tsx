@@ -216,8 +216,13 @@ export function CNLEditor({
     // Debug logging
     console.log('[CNLEditor] Initializing with value:', { value, valueLength: value?.length, language });
     
-    // Initialize current graph ID
-    setCurrentGraphId(graphId);
+    // Initialize current graph ID only if provided
+    if (graphId) {
+      setCurrentGraphId(graphId);
+      console.log('[CNLEditor] Initialized with graphId:', graphId);
+    } else {
+      console.log('[CNLEditor] No graphId provided during initialization');
+    }
     
     // Cleanup auto-save timeout on unmount
     return () => {
@@ -557,6 +562,12 @@ export function CNLEditor({
 
   // Update currentGraphId when graphId prop changes
   useEffect(() => {
+    // Only proceed if graphId is defined
+    if (!graphId) {
+      console.log('[CNLEditor] No graphId provided, skipping graph ID update');
+      return;
+    }
+    
     if (graphId !== currentGraphId) {
       console.log('[CNLEditor] Graph ID changed:', { oldGraphId: currentGraphId, newGraphId: graphId });
       
