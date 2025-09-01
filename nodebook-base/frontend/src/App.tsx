@@ -96,6 +96,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
+  // Track saved state for each graph (separate from current editor content)
+  const [savedCnlText, setSavedCnlText] = useState<{ [graphId: string]: string }>({});
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [activePage, setActivePage] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState(() => {
@@ -152,7 +154,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       .then(res => res.json())
       .then(data => {
         console.log('[App] Setting CNL text:', { graphId, cnlData: data.cnl, cnlLength: data.cnl?.length });
-        setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
+        const cnlContent = data.cnl || '';
+        setCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
+        // Also set as saved state initially
+        setSavedCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
       });
     
     // Fetch graph metadata including publication state
@@ -239,8 +244,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         
         alert(`Save Error:\n${errorMessage}`);
       } else {
-        // Save successful, enable submit button
-        setCnlText(prev => ({ ...prev, [`${activeGraphId}_saved`]: cnlText[activeGraphId] }));
+        // Save successful, update saved state
+        setSavedCnlText(prev => ({ ...prev, [activeGraphId]: cnlText[activeGraphId] }));
         console.log('CNL saved successfully');
       }
     } catch (error) {
@@ -262,7 +267,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       if (res.ok) {
         console.log('CNL auto-saved successfully');
         // Update the saved state silently (no user notification)
-        setCnlText(prev => ({
+        // BUT DON'T overwrite the current editor state!
+        setSavedCnlText(prev => ({
           ...prev,
           [activeGraphId]: value
         }));
@@ -279,7 +285,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
     
     // Check if CNL has been saved
-    const savedCnl = cnlText[`${activeGraphId}_saved`];
+    const savedCnl = savedCnlText[activeGraphId];
     if (savedCnl !== cnlText[activeGraphId]) {
       alert('Please save your CNL changes before submitting.');
       return;
