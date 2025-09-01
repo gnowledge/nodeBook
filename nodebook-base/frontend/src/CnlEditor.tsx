@@ -389,6 +389,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disab
       {/* CodeMirror CNL Editor */}
       <div className="cnl-editor-main">
         <CNLEditor
+          key={graphId} // Force re-mount when graph changes
           value={value}
           onChange={onChange}
           onAutoSave={onAutoSave}

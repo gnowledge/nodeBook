@@ -224,8 +224,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     });
     
     if (activeGraphId) {
+      console.log('[App] Setting cnlText for graph:', activeGraphId);
+      console.log('[App] Current cnlText state keys:', Object.keys(cnlText));
       setCnlText(prev => ({ ...prev, [activeGraphId]: value }));
       console.log('[App] Updated cnlText state for graph:', activeGraphId);
+      console.log('[App] New cnlText state keys:', Object.keys({ ...cnlText, [activeGraphId]: value }));
+    } else {
+      console.warn('[App] handleCnlChange called but no activeGraphId!');
     }
   };
 
@@ -266,25 +271,29 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!activeGraphId) return;
     
     try {
-      console.log('Auto-saving CNL...');
+      console.log('[Auto-save] Starting auto-save for graph:', activeGraphId);
+      console.log('[Auto-save] Current cnlText state keys:', Object.keys(cnlText));
+      console.log('[Auto-save] Value to save length:', value.length);
+      
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
         method: 'PUT',
         body: JSON.stringify({ cnlText: value })
       });
       
       if (res.ok) {
-        console.log('CNL auto-saved successfully');
+        console.log('[Auto-save] CNL auto-saved successfully for graph:', activeGraphId);
         // Update the saved state silently (no user notification)
         // BUT DON'T overwrite the current editor state!
         setCnlText(prev => ({
           ...prev,
           [activeGraphId]: value
         }));
+        console.log('[Auto-save] Updated cnlText state for graph:', activeGraphId);
       } else {
-        console.warn('Auto-save failed:', res.status);
+        console.warn('[Auto-save] Auto-save failed:', res.status);
       }
     } catch (error) {
-      console.warn('Auto-save error:', error);
+      console.warn('[Auto-save] Auto-save error:', error);
       // Don't show error to user for auto-save failures
     }
   };

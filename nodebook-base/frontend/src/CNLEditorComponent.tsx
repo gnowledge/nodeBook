@@ -245,7 +245,12 @@ export function CNLEditor({
     }
 
     // Create editor state
-    console.log('[CNLEditor] Creating EditorState with doc:', { doc: value || '', docLength: (value || '').length });
+    console.log('[CNLEditor] Creating EditorState with doc:', { 
+      doc: value || '', 
+      docLength: (value || '').length,
+      onAutoSave: !!onAutoSave,
+      timestamp: new Date().toISOString()
+    });
     const state = EditorState.create({
       doc: value || '',
       extensions: [
@@ -541,7 +546,7 @@ export function CNLEditor({
       view.destroy();
       viewRef.current = null;
     };
-  }, [language, readOnly]);
+  }, [language, readOnly, onAutoSave]); // Add onAutoSave dependency
 
   // Update content when value changes externally
   useEffect(() => {
