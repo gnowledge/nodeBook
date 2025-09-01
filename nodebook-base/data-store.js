@@ -249,8 +249,19 @@ export class FileSystemStore extends DataStore {
 
     async saveCnl(userId, graphId, cnlText) {
         await this.ensureGraphDataDir(userId, graphId);
-        const cnlPath = path.join(this.getGraphDataDir(userId, graphId), 'graph.cnl');
+        const graphDir = this.getGraphDataDir(userId, graphId);
+        const cnlPath = path.join(graphDir, 'graph.cnl');
         await fsp.writeFile(cnlPath, cnlText);
+        
+        // Ensure git repo exists (fallback in case init on create was skipped)
+        try {
+            const initialized = await this.initializeVersionControl(userId, graphId);
+            if (!initialized) {
+                console.warn(`[DataStore] Git initialization skipped or failed for graph ${graphId}`);
+            }
+        } catch (e) {
+            console.warn(`[DataStore] Error ensuring version control on save for ${graphId}:`, e);
+        }
         
         // Auto-commit CNL changes to version control
         try {

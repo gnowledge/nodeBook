@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     automake \
     libtool \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -54,6 +55,7 @@ RUN apt-get update && apt-get install -y \
     libpixman-1-0 \
     libfreetype6 \
     libsodium23 \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
