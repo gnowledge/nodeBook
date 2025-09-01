@@ -295,7 +295,7 @@ export function CNLEditor({
             onChange(newValue);
             
             // Auto-save after 2 seconds of inactivity
-            if (onAutoSave && currentGraphId === graphId) {
+            if (onAutoSave && currentGraphId) {
               if (autoSaveTimeoutRef.current) {
                 clearTimeout(autoSaveTimeoutRef.current);
               }
@@ -303,8 +303,8 @@ export function CNLEditor({
                 console.log('[CNLEditor] Auto-save timeout triggered for graph:', currentGraphId, 'calling onAutoSave');
                 onAutoSave(newValue);
               }, 2000);
-            } else if (onAutoSave && currentGraphId !== graphId) {
-              console.log('[CNLEditor] Skipping auto-save - graph ID mismatch:', { currentGraphId, graphId });
+            } else if (onAutoSave && !currentGraphId) {
+              console.log('[CNLEditor] Skipping auto-save - no current graph ID set');
             }
           }
         }),
