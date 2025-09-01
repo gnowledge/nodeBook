@@ -23,13 +23,31 @@ export function VersionControl({ graphId, isOpen, onClose }: VersionControlProps
   const [commitMessage, setCommitMessage] = useState('');
   const [isCommitting, setIsCommitting] = useState(false);
 
+  // Helper function for authenticated API calls
+  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    // Only set Content-Type for requests that have a body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  };
+
   // Load version history
   const loadVersions = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`/api/graphs/${graphId}/versions`);
+      const response = await authenticatedFetch(`/api/graphs/${graphId}/versions`);
       if (!response.ok) {
         throw new Error(`Failed to load versions: ${response.statusText}`);
       }
@@ -54,11 +72,8 @@ export function VersionControl({ graphId, isOpen, onClose }: VersionControlProps
     setError(null);
 
     try {
-      const response = await fetch(`/api/graphs/${graphId}/versions/commit`, {
+      const response = await authenticatedFetch(`/api/graphs/${graphId}/versions/commit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ message: commitMessage }),
       });
 
@@ -85,7 +100,7 @@ export function VersionControl({ graphId, isOpen, onClose }: VersionControlProps
     setError(null);
 
     try {
-      const response = await fetch(`/api/graphs/${graphId}/versions/${versionId}/revert`, {
+      const response = await authenticatedFetch(`/api/graphs/${graphId}/versions/${versionId}/revert`, {
         method: 'POST',
       });
 
