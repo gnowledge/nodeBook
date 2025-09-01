@@ -33,6 +33,8 @@ export default function Dashboard({
   const [error, setError] = useState('');
   const [publicError, setPublicError] = useState('');
   const [activePage, setActivePage] = useState<string | null>(null);
+  const [newGraphName, setNewGraphName] = useState('');
+  const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
 
   const fetchGraphs = async () => {
     if (!token) {
@@ -108,6 +110,37 @@ export default function Dashboard({
       }
     } catch (err) {
       console.error('Error deleting graph:', err);
+    }
+  };
+
+  const handleCreateGraph = async () => {
+    if (!newGraphName.trim() || !token) return;
+    
+    try {
+      const response = await fetch('/api/graphs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newGraphName,
+          author: user?.username || 'Unknown',
+          email: user?.email || '',
+          mode: graphMode
+        }),
+      });
+      
+      if (response.ok) {
+        const newGraph = await response.json();
+        setNewGraphName('');
+        await fetchGraphs();
+        console.log('Graph created successfully');
+      } else {
+        console.error('Failed to create graph');
+      }
+    } catch (err) {
+      console.error('Error creating graph:', err);
     }
   };
 
@@ -191,6 +224,34 @@ export default function Dashboard({
               <h2 className={styles.sectionTitle}>
                 Your Graphs
               </h2>
+              
+              {/* Graph Creation Section */}
+              <div className={styles.graphCreator}>
+                <div className={styles.graphCreatorInputs}>
+                  <input
+                    type="text"
+                    placeholder="New graph name..."
+                    value={newGraphName}
+                    onChange={(e) => setNewGraphName(e.target.value)}
+                    className={styles.graphNameInput}
+                  />
+                  <select
+                    value={graphMode}
+                    onChange={(e) => setGraphMode(e.target.value as 'richgraph' | 'mindmap')}
+                    className={styles.graphModeSelect}
+                  >
+                    <option value="richgraph">🔗 Rich Graph (Advanced)</option>
+                    <option value="mindmap">🧠 MindMap (Beginner)</option>
+                  </select>
+                  <button
+                    onClick={handleCreateGraph}
+                    disabled={!newGraphName.trim()}
+                    className={styles.createGraphButton}
+                  >
+                    Create Graph
+                  </button>
+                </div>
+              </div>
               
               {loading && (
                 <div className={styles.centerContent}>

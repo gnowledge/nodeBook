@@ -72,18 +72,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
       </div>
 
-      <div className={styles.topBarCenter}>
-        <nav className={styles.navigationMenu}>
-          {isAuthenticated && (
-            <button
-              onClick={onGoToApp}
-              className={`${styles.navItem} ${currentView === 'app' ? styles.active : ''}`}
-            >
-              Workspace
-            </button>
-          )}
-        </nav>
-      </div>
+      {/* Workspace switch removed - App is single-graph only */}
 
       {/* Desktop Navigation */}
       <div className={styles.topBarRight}>

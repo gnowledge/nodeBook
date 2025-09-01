@@ -58,9 +58,10 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
         // Handle both array format and {success: true, graphs: [...]} format
         const graphsArray = Array.isArray(data) ? data : (data.graphs || []);
         setGraphs(graphsArray);
-        if (!activeGraphId && graphsArray.length > 0) {
-          onGraphSelect(graphsArray[0].id);
-        }
+        // Don't automatically select the first graph - let the user choose
+        // if (!activeGraphId && graphsArray.length > 0) {
+        //   onGraphSelect(graphsArray[0].id);
+        // }
 
       } else {
         console.error('Failed to fetch graphs:', res.status);
@@ -93,9 +94,9 @@ export function GraphSwitcher({ activeGraphId, onGraphSelect, author, email }: G
         setNewGraphName('');
         setShowModeSelector(false);
         await fetchGraphs();
-        // Fix: Access the graph ID from the correct structure {success: true, graph: {id: ...}}
-        const graphId = newGraph.graph?.id || newGraph.id;
-        onGraphSelect(graphId);
+        // Don't automatically select the new graph - let the user choose
+        // const graphId = newGraph.graph?.id || newGraph.id;
+        // onGraphSelect(graphId);
       } else {
         console.error('Failed to create graph:', res.status);
       }

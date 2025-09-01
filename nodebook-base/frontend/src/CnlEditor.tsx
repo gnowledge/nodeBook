@@ -15,14 +15,19 @@ interface CnlEditorProps {
   onSubmit: () => void;
   onSave?: () => void;
   onAutoSave?: (value: string) => void;
+  onClose?: () => void;
   disabled: boolean;
   nodeTypes: NodeType[];
   relationTypes: RelationType[];
   attributeTypes: AttributeType[];
   graphId?: string;
+  editStatus?: {
+    isModified: boolean;
+    isSaved: boolean;
+  };
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disabled, nodeTypes, relationTypes, attributeTypes, graphId }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus }: CnlEditorProps) {
   // Debug logging
   console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
   
@@ -272,6 +277,15 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disab
       {/* Editor Toolbar */}
       <div className="cnl-editor-toolbar">
         <div className="toolbar-left">
+          {/* Edit Status Display */}
+          {editStatus && (
+            <div className="edit-status-display">
+              <span className={`status-indicator ${editStatus.isModified ? 'modified' : 'saved'}`}>
+                {editStatus.isModified ? '⚠️ Modified' : '✅ Saved'}
+              </span>
+            </div>
+          )}
+          
           {/* Edit Menu */}
           <DropdownMenu
             title="Edit"
@@ -383,6 +397,19 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disab
           >
             🚀 Submit
           </button>
+          
+          {onClose && (
+            <button 
+              className="toolbar-btn secondary-btn close-btn"
+              onClick={() => {
+                console.log('Close button clicked, calling onClose');
+                onClose();
+              }}
+              title="Close and return to Dashboard"
+            >
+              🏠 Close
+            </button>
+          )}
         </div>
       </div>
 

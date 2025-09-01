@@ -67,11 +67,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           setNodes([]);
           setRelations([]);
           setAttributes([]);
-          setCnlText(prev => {
-            const newCnlText = { ...prev };
-            delete newCnlText[activeGraphId];
-            return newCnlText;
-          });
+                  setCnlText(''); // Clear CNL text when deleting graph
           
           // Trigger a refresh of the graph list
           setRefreshKey(prev => prev + 1);
@@ -95,8 +91,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // Single source of truth for CNL text - both current editor content and saved state
-  const [cnlText, setCnlText] = useState<{ [graphId: string]: string }>({});
+  // Single CNL text for the current graph
+  const [cnlText, setCnlText] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [activePage, setActivePage] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState(() => {
@@ -104,6 +100,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     return saved !== null ? JSON.parse(saved) : true; // Default to true
   });
   const [activeGraph, setActiveGraph] = useState<any>(null);
+  const [graphs, setGraphs] = useState<any[]>([]);
   const [graphScore, setGraphScore] = useState<any>(null);
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [email, setEmail] = useState(() => localStorage.getItem('userEmail') || '');
@@ -154,9 +151,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       .then(data => {
         console.log('[App] Setting CNL text:', { graphId, cnlData: data.cnl, cnlLength: data.cnl?.length });
         const cnlContent = data.cnl || '';
-        setCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
-        // Also set as saved state initially
-        setCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
+        setCnlText(cnlContent);
       });
     
     // Fetch graph metadata including publication state
@@ -164,8 +159,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       .then(res => res.json())
       .then((data: any) => {
         // Handle both array format and {success: true, graphs: [...]} format
-        const graphs = Array.isArray(data) ? data : (data.graphs || []);
-        const currentGraph = graphs.find((g: any) => g.id === graphId);
+        const graphsArray = Array.isArray(data) ? data : (data.graphs || []);
+        setGraphs(graphsArray);
+        const currentGraph = graphsArray.find((g: any) => g.id === graphId);
         if (currentGraph) {
           setActiveGraph(currentGraph);
           setPublicationState(currentGraph.publication_state || 'Private');
@@ -219,28 +215,26 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       value: value.substring(0, 100) + '...', 
       valueLength: value.length,
       activeGraphId,
-      previousValue: activeGraphId ? (cnlText[activeGraphId]?.substring(0, 100) + '...') : 'N/A',
-      previousLength: activeGraphId ? cnlText[activeGraphId]?.length : 0
+      previousValue: cnlText.substring(0, 100) + '...',
+      previousLength: cnlText.length
     });
     
     if (activeGraphId) {
       console.log('[App] Setting cnlText for graph:', activeGraphId);
-      console.log('[App] Current cnlText state keys:', Object.keys(cnlText));
-      setCnlText(prev => ({ ...prev, [activeGraphId]: value }));
+      setCnlText(value);
       console.log('[App] Updated cnlText state for graph:', activeGraphId);
-      console.log('[App] New cnlText state keys:', Object.keys({ ...cnlText, [activeGraphId]: value }));
     } else {
       console.warn('[App] handleCnlChange called but no activeGraphId!');
     }
   };
 
   const handleCnlSave = async () => {
-    if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    if (!activeGraphId || !cnlText || !cnlText.trim()) return;
     
     try {
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
         method: 'PUT',
-        body: JSON.stringify({ cnlText: cnlText[activeGraphId] }),
+        body: JSON.stringify({ cnlText: cnlText }),
       });
       
       if (!res.ok) {
@@ -257,8 +251,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         
         alert(`Save Error:\n${errorMessage}`);
       } else {
-        // Save successful, update saved state
-        setCnlText(prev => ({ ...prev, [activeGraphId]: cnlText[activeGraphId] }));
+        // Save successful
         console.log('CNL saved successfully');
       }
     } catch (error) {
@@ -272,7 +265,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     
     try {
       console.log('[Auto-save] Starting auto-save for graph:', activeGraphId);
-      console.log('[Auto-save] Current cnlText state keys:', Object.keys(cnlText));
       console.log('[Auto-save] Value to save length:', value.length);
       
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
@@ -283,11 +275,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       if (res.ok) {
         console.log('[Auto-save] CNL auto-saved successfully for graph:', activeGraphId);
         // Update the saved state silently (no user notification)
-        // BUT DON'T overwrite the current editor state!
-        setCnlText(prev => ({
-          ...prev,
-          [activeGraphId]: value
-        }));
+        setCnlText(value);
         console.log('[Auto-save] Updated cnlText state for graph:', activeGraphId);
       } else {
         console.warn('[Auto-save] Auto-save failed:', res.status);
@@ -296,14 +284,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       console.warn('[Auto-save] Auto-save error:', error);
       // Don't show error to user for auto-save failures
     }
-  }, [activeGraphId, cnlText]);
+  }, [activeGraphId]);
 
   const handleCnlSubmit = async () => {
-    if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
+    if (!activeGraphId || !cnlText || !cnlText.trim()) return;
     
     // Check if CNL has been saved (compare with current state)
-    const currentCnl = cnlText[activeGraphId];
-    if (!currentCnl || !currentCnl.trim()) {
+    if (!cnlText || !cnlText.trim()) {
       alert('Please enter some CNL content before submitting.');
       return;
     }
@@ -311,7 +298,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     setIsSubmitting(true);
     const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
-      body: JSON.stringify({ cnlText: cnlText[activeGraphId], strictMode }),
+      body: JSON.stringify({ cnlText: cnlText, strictMode }),
     });
     setIsSubmitting(false);
     
@@ -333,10 +320,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
-  const handleSwitchGraph = (graphId: string) => {
-    setActiveGraphId(graphId);
-    setViewMode('nodes');
-  };
+  // Graph switching removed - App is single-graph only
 
   const handlePublicationStateChange = (newState: 'Private' | 'P2P' | 'Public') => {
     setPublicationState(newState);
@@ -378,24 +362,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       />
 
       <div className={styles.content}>
-        <div className={styles.topBar}>
-          <div className={styles.topBarLeft}>
-            <GraphSwitcher 
-              key={refreshKey}
-              activeGraphId={activeGraphId} 
-              onGraphSelect={setActiveGraphId} 
-              author={name} 
-              email={email}
-            />
-          </div>
-          <div className={styles.topBarRight}>
-            <CompactScoreDisplay 
-              score={graphScore}
-              isVisible={!!activeGraphId && !!graphScore}
-            />
-          </div>
-        </div>
-
         <main className={styles.mainContent}>
           <div className={styles.visualizationContainer}>
             <div className={styles.tabsContainer}>
@@ -446,26 +412,37 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     {viewMode === 'editor' && (
                       <div className={styles.editorContainer}>
                                 <div className={styles.editorHeader}>
-          <div className={styles.editorStatus}>
-            {activeGraphId && cnlText[activeGraphId] && (
-              <span className={cnlText[`${activeGraphId}_saved`] === cnlText[activeGraphId] ? styles.saved : styles.unsaved}>
-                {cnlText[`${activeGraphId}_saved`] === cnlText[activeGraphId] ? '✅ Saved' : '⚠️ Unsaved Changes'}
-              </span>
-            )}
+          <div className={styles.editorTitle}>
+            <h3>Working on: {graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph'}</h3>
           </div>
         </div>
         <CnlEditor
-          value={cnlText[activeGraphId] || ''}
+                            value={cnlText || ''}
           onChange={handleCnlChange}
           onSubmit={handleCnlSubmit}
           onSave={handleCnlSave}
           onAutoSave={handleCnlAutoSave}
+          onClose={onGoToDashboard}
           disabled={!activeGraphId}
           nodeTypes={nodeTypes}
           relationTypes={relationTypes}
           attributeTypes={attributeTypes}
           graphId={activeGraphId}
+          editStatus={{
+            isModified: activeGraphId && cnlText ? true : false,
+            isSaved: false // We'll need to track this properly later
+          }}
         />
+        
+        {/* Score widget at bottom of Editor */}
+        {activeGraphId && graphScore && (
+          <div className={styles.editorScoreWidget}>
+            <CompactScoreDisplay 
+              score={graphScore}
+              isVisible={true}
+            />
+          </div>
+        )}
                       </div>
                     )}
                     {viewMode === 'visualization' && (
@@ -493,7 +470,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                         nodes={nodes}
                         relations={relations}
                         attributes={attributeTypes}
-                        cnlText={cnlText[activeGraphId] || ''}
+                        cnlText={cnlText || ''}
                       />
                     )}
                     {viewMode === 'jsonData' && <JsonView data={{ nodes, relations, attributes }} />}
@@ -503,9 +480,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       relations={relations} 
                       attributes={attributes} 
                       onDataChange={() => fetchGraph(activeGraphId)} 
-                      cnlText={cnlText[activeGraphId] || ''} 
+                      cnlText={cnlText || ''} 
                       onCnlChange={handleCnlChange} 
-                      onSwitchGraph={handleSwitchGraph}
+                      // Graph switching removed
                       publication_state={publicationState}
                       onPublicationStateChange={handlePublicationStateChange}
                     />}

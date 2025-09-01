@@ -207,12 +207,15 @@ export function CNLEditor({
   const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Graph ID tracking removed - App is single-graph only
 
   useEffect(() => {
     if (!editorRef.current) return;
     
     // Debug logging
     console.log('[CNLEditor] Initializing with value:', { value, valueLength: value?.length, language });
+    
+            // Graph ID tracking removed - App is single-graph only
     
     // Cleanup auto-save timeout on unmount
     return () => {
@@ -547,6 +550,8 @@ export function CNLEditor({
       viewRef.current = null;
     };
   }, [language, readOnly]); // Remove onAutoSave dependency to prevent re-initialization
+
+  // Graph ID tracking removed - App is single-graph only
 
   // Update content when value changes externally
   useEffect(() => {
