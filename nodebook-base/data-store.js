@@ -3,7 +3,6 @@ import path from 'path';
 import { PolyNode, RelationNode, AttributeNode, FunctionNode } from './models.js';
 import { getOperationsFromCnl } from './cnl-parser.js';
 import { GitVersionControl } from './version-control.js';
-import { auth } from './auth-service.js';
 
 /**
  * Abstract Data Store Interface
@@ -488,15 +487,14 @@ export class FileSystemStore extends DataStore {
         }
     }
 
-    async commitVersion(userId, graphId, message, author = null) {
+    async commitVersion(userId, graphId, message, author = null, userName = null, userEmail = null) {
         try {
-            // Ensure Git is properly configured before committing
-            const userInfo = await auth.findUser(userId.toString());
-            const userName = userInfo?.name || 'Unknown';
-            const userEmail = userInfo?.email || 'unknown@example.com';
+            // Use provided user info or fallback to defaults
+            const finalUserName = userName || 'Unknown';
+            const finalUserEmail = userEmail || 'unknown@example.com';
             
             // Initialize version control if not already done
-            await this.initializeVersionControl(userId, graphId, userName, userEmail);
+            await this.initializeVersionControl(userId, graphId, finalUserName, finalUserEmail);
             
             // Add all files to staging
             await this.gitVersionControl.addFiles(userId, graphId);

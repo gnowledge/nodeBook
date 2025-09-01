@@ -1791,15 +1791,14 @@ Another service or function
     try {
       console.log(`[POST /api/graphs/${graphId}/versions/commit] Committing version for user ${userId}`);
       
-      // Ensure Git is properly configured before committing
-      const userInfo = await auth.findUser(request.user.username);
-      const userName = userInfo?.name || request.user.username || 'Unknown';
-      const userEmail = userInfo?.email || 'unknown@example.com';
+      // Get user info for Git configuration
+      const userName = request.user.name || request.user.username || 'Unknown';
+      const userEmail = request.user.email || 'unknown@example.com';
       
       // Initialize version control if not already done
       await dataStore.initializeVersionControl(userId, graphId, userName, userEmail);
       
-      const result = await dataStore.commitVersion(userId, graphId, message, author);
+      const result = await dataStore.commitVersion(userId, graphId, message, author, userName, userEmail);
       return result;
     } catch (error) {
       console.error(`[POST /api/graphs/${graphId}/versions/commit] Error:`, error);
