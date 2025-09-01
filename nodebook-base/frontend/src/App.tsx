@@ -248,6 +248,32 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
+  const handleCnlAutoSave = async (value: string) => {
+    if (!activeGraphId) return;
+    
+    try {
+      console.log('Auto-saving CNL...');
+      const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
+        method: 'PUT',
+        body: JSON.stringify({ cnl: value })
+      });
+      
+      if (res.ok) {
+        console.log('CNL auto-saved successfully');
+        // Update the saved state silently (no user notification)
+        setCnlText(prev => ({
+          ...prev,
+          [activeGraphId]: value
+        }));
+      } else {
+        console.warn('Auto-save failed:', res.status);
+      }
+    } catch (error) {
+      console.warn('Auto-save error:', error);
+      // Don't show error to user for auto-save failures
+    }
+  };
+
   const handleCnlSubmit = async () => {
     if (!activeGraphId || !cnlText[activeGraphId] || !cnlText[activeGraphId].trim()) return;
     
@@ -409,6 +435,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           onChange={handleCnlChange}
           onSubmit={handleCnlSubmit}
           onSave={handleCnlSave}
+          onAutoSave={handleCnlAutoSave}
           disabled={!activeGraphId}
           nodeTypes={nodeTypes}
           relationTypes={relationTypes}

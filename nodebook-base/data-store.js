@@ -151,8 +151,24 @@ export class FileSystemStore extends DataStore {
         manifest.modified_at = new Date().toISOString();
         manifest.modified_by = userInfo.username || 'Unknown';
         manifest.modified_by_id = userId;
-        manifest.version += 1;
-        manifest.commit_message = commitMessage || `CNL updated - version ${manifest.version}`;
+        
+        // Get the latest Git commit hash instead of incrementing version number
+        try {
+            const latestCommit = await this.gitVersionControl.getLatestCommit(userId, graphId);
+            if (latestCommit) {
+                manifest.version = latestCommit.hash;
+                manifest.commit_message = latestCommit.message || commitMessage || 'CNL processed and committed';
+            } else {
+                // Fallback to linear version if Git is not available
+                manifest.version = (manifest.version || 0) + 1;
+                manifest.commit_message = commitMessage || `CNL updated - version ${manifest.version}`;
+            }
+        } catch (error) {
+            console.warn(`[DataStore] Failed to get Git commit hash for manifest:`, error);
+            // Fallback to linear version
+            manifest.version = (manifest.version || 0) + 1;
+            manifest.commit_message = commitMessage || `CNL updated - version ${manifest.version}`;
+        }
 
         await this.saveManifest(userId, graphId, manifest);
         return manifest;
@@ -234,6 +250,24 @@ export class FileSystemStore extends DataStore {
 
         // Save the completely new graph data
         await this.saveGraph(userId, graphId, graphData);
+        
+        // Commit the processed CNL changes to Git
+        try {
+            const userInfo = await this.getUserInfo(userId);
+            const userName = userInfo?.name || 'Unknown';
+            const userEmail = userInfo?.email || 'unknown@example.com';
+            
+            // Initialize version control if not already done
+            await this.initializeVersionControl(userId, graphId, userName, userEmail);
+            
+            // Commit with descriptive message
+            const commitMessage = `Processed CNL: ${this.generateCommitMessage(cnlText)}`;
+            await this.commitVersion(userId, graphId, commitMessage, null, userName, userEmail);
+            console.log(`[DataStore] Git commit created for graph ${graphId}: ${commitMessage}`);
+        } catch (error) {
+            console.warn(`[DataStore] Failed to commit processed CNL for graph ${graphId}:`, error);
+        }
+        
         return graphData;
     }
 
@@ -263,12 +297,8 @@ export class FileSystemStore extends DataStore {
             console.warn(`[DataStore] Error ensuring version control on save for ${graphId}:`, e);
         }
         
-        // Auto-commit CNL changes to version control
-        try {
-            await this.commitVersion(userId, graphId, 'Auto-commit: CNL saved');
-        } catch (error) {
-            console.warn(`[DataStore] Failed to auto-commit CNL save for graph ${graphId}:`, error);
-        }
+        // No auto-commit on save - only on submit
+        console.log(`[DataStore] CNL saved for graph ${graphId} (no Git commit)`);
     }
 
     async deleteGraph(userId, graphId) {
@@ -657,6 +687,34 @@ export class FileSystemStore extends DataStore {
                 await self.saveGraph(userId, graphId, graphData);
             }
         };
+    }
+
+    // Helper method to get user info for Git commits
+    async getUserInfo(userId) {
+        // For now, return default values - this can be enhanced later
+        return {
+            name: 'User',
+            email: 'user@example.com'
+        };
+    }
+
+    // Helper method to generate descriptive commit messages
+    generateCommitMessage(cnlText) {
+        try {
+            const lines = cnlText.split('\n').filter(line => line.trim());
+            const nodeCount = lines.filter(line => line.startsWith('#')).length;
+            const relationCount = lines.filter(line => line.includes('<') && line.includes('>')).length;
+            const attributeCount = lines.filter(line => line.startsWith('has ')).length;
+            
+            let summary = [];
+            if (nodeCount > 0) summary.push(`${nodeCount} node${nodeCount > 1 ? 's' : ''}`);
+            if (relationCount > 0) summary.push(`${relationCount} relation${relationCount > 1 ? 's' : ''}`);
+            if (attributeCount > 0) summary.push(`${attributeCount} attribute${attributeCount > 1 ? 's' : ''}`);
+            
+            return summary.length > 0 ? summary.join(', ') : 'Updated graph structure';
+        } catch (error) {
+            return 'Updated graph structure';
+        }
     }
 }
 

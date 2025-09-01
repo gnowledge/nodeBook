@@ -122,6 +122,37 @@ export class GitVersionControl {
     }
 
     /**
+     * Get the latest commit for a graph
+     */
+    async getLatestCommit(userId, graphId) {
+        const graphPath = this.getGraphGitPath(userId, graphId);
+        
+        try {
+            const { stdout } = await execAsync(
+                `git log --pretty=format:"%H|%an|%ae|%ad|%s" --date=iso --max-count=1`,
+                { cwd: graphPath }
+            );
+
+            if (!stdout.trim()) {
+                return null;
+            }
+
+            const [hash, author, email, date, message] = stdout.trim().split('|');
+            return {
+                hash,
+                author,
+                email,
+                date: new Date(date),
+                message,
+                shortId: hash.substring(0, 7)
+            };
+        } catch (error) {
+            console.error(`[GitVersionControl] Failed to get latest commit for graph ${graphId}:`, error);
+            return null;
+        }
+    }
+
+    /**
      * Get version history for a graph
      */
     async getHistory(userId, graphId, limit = 50) {

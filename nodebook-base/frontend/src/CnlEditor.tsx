@@ -14,6 +14,7 @@ interface CnlEditorProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   onSave?: () => void;
+  onAutoSave?: (value: string) => void;
   disabled: boolean;
   nodeTypes: NodeType[];
   relationTypes: RelationType[];
@@ -21,7 +22,7 @@ interface CnlEditorProps {
   graphId?: string;
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTypes, relationTypes, attributeTypes, graphId }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disabled, nodeTypes, relationTypes, attributeTypes, graphId }: CnlEditorProps) {
   // Undo functionality
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -387,6 +388,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, disabled, nodeTyp
         <CNLEditor
           value={value}
           onChange={onChange}
+          onAutoSave={onAutoSave}
           language="cnl"
           readOnly={disabled}
           placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"

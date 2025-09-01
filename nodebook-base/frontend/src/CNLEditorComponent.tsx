@@ -12,6 +12,7 @@ import { autocompletion } from '@codemirror/autocomplete';
 interface CNLEditorProps {
   value: string;
   onChange: (value: string) => void;
+  onAutoSave?: (value: string) => void;
   language?: 'cnl' | 'markdown' | 'javascript' | 'json';
   placeholder?: string;
   readOnly?: boolean;
@@ -192,6 +193,7 @@ function createCnlCompletion(nodeTypes: any[] | null = [], relationTypes: any[] 
 export function CNLEditor({ 
   value, 
   onChange, 
+  onAutoSave,
   language = 'cnl', 
   placeholder = 'Start typing your CNL...',
   readOnly = false,
@@ -204,9 +206,17 @@ export function CNLEditor({
   const viewRef = useRef<EditorView | null>(null);
   const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!editorRef.current) return;
+    
+    // Cleanup auto-save timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
 
     // Determine language support
     let languageSupport;
@@ -258,7 +268,18 @@ export function CNLEditor({
         // Update listener
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !readOnly) {
-            onChange(update.state.doc.toString());
+            const newValue = update.state.doc.toString();
+            onChange(newValue);
+            
+            // Auto-save after 2 seconds of inactivity
+            if (onAutoSave) {
+              if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+              }
+              autoSaveTimeoutRef.current = setTimeout(() => {
+                onAutoSave(newValue);
+              }, 2000);
+            }
           }
         }),
         
