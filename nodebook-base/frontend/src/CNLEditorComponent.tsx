@@ -277,6 +277,12 @@ export function CNLEditor({
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !readOnly) {
             const newValue = update.state.doc.toString();
+            console.log('[CNLEditor] Document changed, calling onChange:', { 
+              newValue: newValue.substring(0, 100) + '...', 
+              newValueLength: newValue.length,
+              oldValue: value?.substring(0, 100) + '...',
+              oldValueLength: value?.length
+            });
             onChange(newValue);
             
             // Auto-save after 2 seconds of inactivity
@@ -285,6 +291,7 @@ export function CNLEditor({
                 clearTimeout(autoSaveTimeoutRef.current);
               }
               autoSaveTimeoutRef.current = setTimeout(() => {
+                console.log('[CNLEditor] Auto-save timeout triggered, calling onAutoSave');
                 onAutoSave(newValue);
               }, 2000);
             }
