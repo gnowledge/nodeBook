@@ -398,6 +398,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disab
           nodeTypes={nodeTypes}
           relationTypes={relationTypes}
           attributeTypes={attributeTypes}
+          graphId={graphId}
         />
       </div>
 

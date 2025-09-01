@@ -20,6 +20,7 @@ interface CNLEditorProps {
   nodeTypes?: any[];
   relationTypes?: any[];
   attributeTypes?: any[];
+  graphId?: string;
 }
 
 // CNL Auto-completion
