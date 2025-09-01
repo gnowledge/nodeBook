@@ -151,6 +151,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     authenticatedFetch(`/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
+        console.log('[App] Setting CNL text:', { graphId, cnlData: data.cnl, cnlLength: data.cnl?.length });
         setCnlText(prev => ({ ...prev, [graphId]: data.cnl || '' }));
       });
     
@@ -255,7 +256,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       console.log('Auto-saving CNL...');
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
         method: 'PUT',
-        body: JSON.stringify({ cnl: value })
+        body: JSON.stringify({ cnlText: value })
       });
       
       if (res.ok) {

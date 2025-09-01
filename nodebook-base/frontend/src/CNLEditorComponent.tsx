@@ -211,13 +211,20 @@ export function CNLEditor({
   useEffect(() => {
     if (!editorRef.current) return;
     
+    // Debug logging
+    console.log('[CNLEditor] Initializing with value:', { value, valueLength: value?.length, language });
+    
     // Cleanup auto-save timeout on unmount
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
+  }, [value, language]);
 
+  useEffect(() => {
+    if (!editorRef.current) return;
+    
     // Determine language support
     let languageSupport;
     switch (language) {
@@ -238,6 +245,7 @@ export function CNLEditor({
     }
 
     // Create editor state
+    console.log('[CNLEditor] Creating EditorState with doc:', { doc: value || '', docLength: (value || '').length });
     const state = EditorState.create({
       doc: value || '',
       extensions: [
@@ -519,23 +527,39 @@ export function CNLEditor({
     });
 
     viewRef.current = view;
+    console.log('[CNLEditor] Editor view created and attached to DOM');
 
     return () => {
+      console.log('[CNLEditor] Cleaning up editor view');
       view.destroy();
+      viewRef.current = null;
     };
   }, [language, readOnly]);
 
   // Update content when value changes externally
   useEffect(() => {
-    if (viewRef.current && value !== viewRef.current.state.doc.toString()) {
-      const transaction = viewRef.current.state.update({
-        changes: {
-          from: 0,
-          to: viewRef.current.state.doc.length,
-          insert: value
-        }
+    if (viewRef.current && value !== undefined) {
+      const currentDoc = viewRef.current.state.doc.toString();
+      console.log('[CNLEditor] Value change detected:', { 
+        newValue: value, 
+        newValueLength: value?.length, 
+        currentDoc: currentDoc, 
+        currentDocLength: currentDoc.length,
+        valuesMatch: value === currentDoc
       });
-      viewRef.current.dispatch(transaction);
+      
+      if (value !== currentDoc) {
+        console.log('[CNLEditor] Updating editor content');
+        const transaction = viewRef.current.state.update({
+          changes: {
+            from: 0,
+            to: currentDoc.length,
+            insert: value || ''
+          }
+        });
+        viewRef.current.dispatch(transaction);
+        console.log('[CNLEditor] Editor content updated');
+      }
     }
   }, [value]);
 

@@ -23,6 +23,9 @@ interface CnlEditorProps {
 }
 
 export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, disabled, nodeTypes, relationTypes, attributeTypes, graphId }: CnlEditorProps) {
+  // Debug logging
+  console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
+  
   // Undo functionality
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
