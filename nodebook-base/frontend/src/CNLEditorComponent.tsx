@@ -229,7 +229,7 @@ export function CNLEditor({
 
     // Create editor state
     const state = EditorState.create({
-      doc: value || placeholder,
+      doc: value || '',
       extensions: [
         // Basic editor features
         lineNumbers(),
