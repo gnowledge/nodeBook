@@ -13,7 +13,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "simple_test_morph_1756652114495",
+          "morph_id": "simple_test_morph_1756644801687",
           "node_id": "simple_test",
           "name": "basic",
           "relationNode_ids": [
@@ -23,7 +23,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "simple_test_morph_1756652114495"
+      "nbh": "simple_test_morph_1756644801687"
     },
     {
       "id": "example",
@@ -38,14 +38,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "example_morph_1756652114495",
+          "morph_id": "example_morph_1756644801687",
           "node_id": "example",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "example_morph_1756652114495"
+      "nbh": "example_morph_1756644801687"
     },
     {
       "id": "property",
@@ -60,62 +60,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "property_morph_1756652114495",
+          "morph_id": "property_morph_1756644801687",
           "node_id": "property",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "property_morph_1756652114495"
-    },
-    {
-      "id": "india",
-      "base_name": "India",
-      "name": "India",
-      "adjective": null,
-      "quantifier": null,
-      "role": "Agent",
-      "description": "here is some descrption text",
-      "parent_types": [],
-      "publication_mode": "Private",
-      "isDeleted": false,
-      "morphs": [
-        {
-          "morph_id": "india_morph_1756652114495",
-          "node_id": "india",
-          "name": "basic",
-          "relationNode_ids": [
-            "rel_india_is_a_type_of_place"
-          ],
-          "attributeNode_ids": [
-            "attr_india_gps_048b0c"
-          ]
-        }
-      ],
-      "nbh": "india_morph_1756652114495"
-    },
-    {
-      "id": "place",
-      "base_name": "place",
-      "name": "place",
-      "adjective": null,
-      "quantifier": null,
-      "role": "individual",
-      "description": null,
-      "parent_types": [],
-      "publication_mode": "Private",
-      "isDeleted": false,
-      "morphs": [
-        {
-          "morph_id": "place_morph_1756652114495",
-          "node_id": "place",
-          "name": "basic",
-          "relationNode_ids": [],
-          "attributeNode_ids": []
-        }
-      ],
-      "nbh": "place_morph_1756652114495"
+      "nbh": "property_morph_1756644801687"
     }
   ],
   "relations": [
@@ -140,31 +92,7 @@
       "quantifier": null,
       "morph_ids": [],
       "isDeleted": false
-    },
-    {
-      "id": "rel_india_is_a_type_of_place",
-      "source_id": "india",
-      "target_id": "place",
-      "name": "is a type of",
-      "adverb": null,
-      "modality": null,
-      "quantifier": null,
-      "morph_ids": [],
-      "isDeleted": false
     }
   ],
-  "attributes": [
-    {
-      "id": "attr_india_gps_048b0c",
-      "source_id": "india",
-      "name": "gps",
-      "value": "values",
-      "adverb": null,
-      "unit": null,
-      "modality": null,
-      "quantifier": null,
-      "morph_ids": [],
-      "isDeleted": false
-    }
-  ]
+  "attributes": []
 }

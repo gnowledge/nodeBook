@@ -13,7 +13,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "nodebook_morph_1756644482278",
+          "morph_id": "nodebook_morph_1756646421337",
           "node_id": "nodebook",
           "name": "basic",
           "relationNode_ids": [
@@ -23,7 +23,7 @@
             "rel_nodebook_processes_controlled_natural_language",
             "rel_nodebook_decodes_controlled_natural_language",
             "rel_nodebook_parses_controlled_natural_language",
-            "rel_nodebook_consists_of_polymorphic_nodes",
+            "rel_nodebook_consists_of_nodes",
             "rel_nodebook_consists_of_transitions",
             "rel_nodebook_consists_of_functions",
             "rel_nodebook_consists_of_attributes",
@@ -32,7 +32,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "nodebook_morph_1756644482278"
+      "nbh": "nodebook_morph_1756646421337"
     },
     {
       "id": "note_book",
@@ -47,14 +47,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "note_book_morph_1756644482278",
+          "morph_id": "note_book_morph_1756646421338",
           "node_id": "note_book",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "note_book_morph_1756644482278"
+      "nbh": "note_book_morph_1756646421338"
     },
     {
       "id": "p2p_app",
@@ -69,14 +69,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "p2p_app_morph_1756644482278",
+          "morph_id": "p2p_app_morph_1756646421338",
           "node_id": "p2p_app",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "p2p_app_morph_1756644482278"
+      "nbh": "p2p_app_morph_1756646421338"
     },
     {
       "id": "knoweldge_graph",
@@ -91,14 +91,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "knoweldge_graph_morph_1756644482278",
+          "morph_id": "knoweldge_graph_morph_1756646421338",
           "node_id": "knoweldge_graph",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "knoweldge_graph_morph_1756644482278"
+      "nbh": "knoweldge_graph_morph_1756646421338"
     },
     {
       "id": "controlled_natural_language",
@@ -113,14 +113,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "controlled_natural_language_morph_1756644482278",
+          "morph_id": "controlled_natural_language_morph_1756646421338",
           "node_id": "controlled_natural_language",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "controlled_natural_language_morph_1756644482278"
+      "nbh": "controlled_natural_language_morph_1756646421338"
     },
     {
       "id": "controlled_natural_language",
@@ -135,14 +135,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "controlled_natural_language_morph_1756644482278",
+          "morph_id": "controlled_natural_language_morph_1756646421338",
           "node_id": "controlled_natural_language",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "controlled_natural_language_morph_1756644482278"
+      "nbh": "controlled_natural_language_morph_1756646421338"
     },
     {
       "id": "controlled_natural_language",
@@ -157,36 +157,41 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "controlled_natural_language_morph_1756644482278",
+          "morph_id": "controlled_natural_language_morph_1756646421338",
           "node_id": "controlled_natural_language",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "controlled_natural_language_morph_1756644482278"
+      "nbh": "controlled_natural_language_morph_1756646421338"
     },
     {
-      "id": "*polymorphic*_nodes",
-      "base_name": "*polymorphic* Nodes",
+      "id": "nodes",
+      "base_name": "Nodes",
       "name": "*polymorphic* Nodes",
-      "adjective": null,
+      "adjective": "polymorphic",
       "quantifier": null,
       "role": "individual",
-      "description": null,
+      "description": "Any thing about which you want to talk about or describe. \nNodes are represented in nodeBook as polymorphic nodes: a very special\nimplementation of NodeBook's graph database. We allow a nodes to\nchange their state. We call them **morphs**, because their structure\nchanged due to change in properties. Whenever a node gains \na property or changes the value of a property, we represent them as\ntwo different states (morphs) of the same node. E.g., Oxygen when it\ngains two more electrons, it becomes an oxide ion. or Alice got\npregnant. Alice and Oxygen remain as the same node, but their property\nchanges. This helps us to represent changes of a node.",
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "*polymorphic*_nodes_morph_1756644482278",
-          "node_id": "*polymorphic*_nodes",
+          "morph_id": "nodes_morph_1756646421338",
+          "node_id": "nodes",
           "name": "basic",
-          "relationNode_ids": [],
+          "relationNode_ids": [
+            "rel_nodes_can_be_concepts",
+            "rel_nodes_can_be_people",
+            "rel_nodes_can_be_places",
+            "rel_nodes_can_be_substances"
+          ],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "*polymorphic*_nodes_morph_1756644482278"
+      "nbh": "nodes_morph_1756646421338"
     },
     {
       "id": "transitions",
@@ -201,18 +206,18 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "transitions_morph_1756644482278",
+          "morph_id": "transitions_morph_1756646421338",
           "node_id": "transitions",
           "name": "basic",
           "relationNode_ids": [
-            "rel_transitions_is_a_special_node",
+            "rel_transitions_is_a_node",
             "rel_transitions_have_prior_state",
             "rel_transitions_have_post_state"
           ],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "transitions_morph_1756644482278"
+      "nbh": "transitions_morph_1756646421338"
     },
     {
       "id": "functions",
@@ -227,17 +232,17 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "functions_morph_1756644482278",
+          "morph_id": "functions_morph_1756646421338",
           "node_id": "functions",
           "name": "basic",
           "relationNode_ids": [
-            "rel_functions_is_a_special_edge",
-            "rel_functions_is_a_derived_attribute"
+            "rel_functions_is_a_edge",
+            "rel_functions_is_a_attribute"
           ],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "functions_morph_1756644482278"
+      "nbh": "functions_morph_1756646421338"
     },
     {
       "id": "attributes",
@@ -252,7 +257,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "attributes_morph_1756644482278",
+          "morph_id": "attributes_morph_1756646421338",
           "node_id": "attributes",
           "name": "basic",
           "relationNode_ids": [
@@ -261,7 +266,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "attributes_morph_1756644482278"
+      "nbh": "attributes_morph_1756646421338"
     },
     {
       "id": "relations",
@@ -276,7 +281,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "relations_morph_1756644482278",
+          "morph_id": "relations_morph_1756646421338",
           "node_id": "relations",
           "name": "basic",
           "relationNode_ids": [
@@ -285,7 +290,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "relations_morph_1756644482278"
+      "nbh": "relations_morph_1756646421338"
     },
     {
       "id": "knowledge_graph",
@@ -300,7 +305,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "knowledge_graph_morph_1756644482278",
+          "morph_id": "knowledge_graph_morph_1756646421338",
           "node_id": "knowledge_graph",
           "name": "basic",
           "relationNode_ids": [
@@ -310,7 +315,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "knowledge_graph_morph_1756644482278"
+      "nbh": "knowledge_graph_morph_1756646421338"
     },
     {
       "id": "nodes",
@@ -319,25 +324,20 @@
       "adjective": null,
       "quantifier": null,
       "role": "individual",
-      "description": "Any thing about which you want to talk about or describe. \nNodes are represented in nodeBook as polymorphic nodes: a very special\nimplementation of NodeBook's graph database. We allow a nodes to\nchange their state. We call them **morphs**, because their structure\nchanged due to change in properties. Whenever a node gains \na property or changes the value of a property, we represent them as\ntwo different states (morphs) of the same node. E.g., Oxygen when it\ngains two more electrons, it becomes an oxide ion. or Alice got\npregnant. Alice and Oxygen remain as the same node, but their property\nchanges. This helps us to represent changes of a node.",
+      "description": null,
       "parent_types": [],
       "publication_mode": "Private",
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "nodes_morph_1756644482278",
+          "morph_id": "nodes_morph_1756646421338",
           "node_id": "nodes",
           "name": "basic",
-          "relationNode_ids": [
-            "rel_nodes_can_be_concepts",
-            "rel_nodes_can_be_people",
-            "rel_nodes_can_be_places",
-            "rel_nodes_can_be_substances"
-          ],
+          "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "nodes_morph_1756644482278"
+      "nbh": "nodes_morph_1756646421338"
     },
     {
       "id": "edges",
@@ -352,7 +352,7 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "edges_morph_1756644482278",
+          "morph_id": "edges_morph_1756646421338",
           "node_id": "edges",
           "name": "basic",
           "relationNode_ids": [
@@ -362,7 +362,7 @@
           "attributeNode_ids": []
         }
       ],
-      "nbh": "edges_morph_1756644482278"
+      "nbh": "edges_morph_1756646421338"
     },
     {
       "id": "cnl",
@@ -377,17 +377,17 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "cnl_morph_1756644482278",
+          "morph_id": "cnl_morph_1756646421338",
           "node_id": "cnl",
           "name": "basic",
           "relationNode_ids": [
             "rel_cnl_refers_to_controlled_natural_language",
-            "rel_cnl_is_a_special_language"
+            "rel_cnl_is_a_language"
           ],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "cnl_morph_1756644482278"
+      "nbh": "cnl_morph_1756646421338"
     },
     {
       "id": "controlled_natural_language",
@@ -402,20 +402,20 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "controlled_natural_language_morph_1756644482278",
+          "morph_id": "controlled_natural_language_morph_1756646421338",
           "node_id": "controlled_natural_language",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "controlled_natural_language_morph_1756644482278"
+      "nbh": "controlled_natural_language_morph_1756646421338"
     },
     {
-      "id": "*special*_language",
-      "base_name": "*special* Language",
+      "id": "language",
+      "base_name": "Language",
       "name": "*special* Language",
-      "adjective": null,
+      "adjective": "special",
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -424,14 +424,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "*special*_language_morph_1756644482278",
-          "node_id": "*special*_language",
+          "morph_id": "language_morph_1756646421338",
+          "node_id": "language",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "*special*_language_morph_1756644482278"
+      "nbh": "language_morph_1756646421338"
     },
     {
       "id": "nodes",
@@ -446,14 +446,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "nodes_morph_1756644482278",
+          "morph_id": "nodes_morph_1756646421338",
           "node_id": "nodes",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "nodes_morph_1756644482278"
+      "nbh": "nodes_morph_1756646421338"
     },
     {
       "id": "concepts",
@@ -468,14 +468,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "concepts_morph_1756644482278",
+          "morph_id": "concepts_morph_1756646421338",
           "node_id": "concepts",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "concepts_morph_1756644482278"
+      "nbh": "concepts_morph_1756646421338"
     },
     {
       "id": "people",
@@ -490,14 +490,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "people_morph_1756644482278",
+          "morph_id": "people_morph_1756646421338",
           "node_id": "people",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "people_morph_1756644482278"
+      "nbh": "people_morph_1756646421338"
     },
     {
       "id": "places",
@@ -512,14 +512,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "places_morph_1756644482278",
+          "morph_id": "places_morph_1756646421338",
           "node_id": "places",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "places_morph_1756644482278"
+      "nbh": "places_morph_1756646421338"
     },
     {
       "id": "substances",
@@ -534,14 +534,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "substances_morph_1756644482278",
+          "morph_id": "substances_morph_1756646421338",
           "node_id": "substances",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "substances_morph_1756644482278"
+      "nbh": "substances_morph_1756646421338"
     },
     {
       "id": "edges",
@@ -556,14 +556,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "edges_morph_1756644482278",
+          "morph_id": "edges_morph_1756646421338",
           "node_id": "edges",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "edges_morph_1756644482278"
+      "nbh": "edges_morph_1756646421338"
     },
     {
       "id": "relations",
@@ -578,14 +578,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "relations_morph_1756644482278",
+          "morph_id": "relations_morph_1756646421338",
           "node_id": "relations",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "relations_morph_1756644482278"
+      "nbh": "relations_morph_1756646421338"
     },
     {
       "id": "attributes",
@@ -600,14 +600,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "attributes_morph_1756644482278",
+          "morph_id": "attributes_morph_1756646421338",
           "node_id": "attributes",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "attributes_morph_1756644482278"
+      "nbh": "attributes_morph_1756646421338"
     },
     {
       "id": "relations",
@@ -622,14 +622,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "relations_morph_1756644482278",
+          "morph_id": "relations_morph_1756646421338",
           "node_id": "relations",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "relations_morph_1756644482278"
+      "nbh": "relations_morph_1756646421338"
     },
     {
       "id": "edge",
@@ -644,14 +644,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "edge_morph_1756644482278",
+          "morph_id": "edge_morph_1756646421338",
           "node_id": "edge",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "edge_morph_1756644482278"
+      "nbh": "edge_morph_1756646421338"
     },
     {
       "id": "attributes",
@@ -666,14 +666,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "attributes_morph_1756644482278",
+          "morph_id": "attributes_morph_1756646421338",
           "node_id": "attributes",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "attributes_morph_1756644482278"
+      "nbh": "attributes_morph_1756646421338"
     },
     {
       "id": "edges",
@@ -688,14 +688,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "edges_morph_1756644482278",
+          "morph_id": "edges_morph_1756646421338",
           "node_id": "edges",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "edges_morph_1756644482278"
+      "nbh": "edges_morph_1756646421338"
     },
     {
       "id": "functions",
@@ -710,20 +710,20 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "functions_morph_1756644482278",
+          "morph_id": "functions_morph_1756646421338",
           "node_id": "functions",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "functions_morph_1756644482278"
+      "nbh": "functions_morph_1756646421338"
     },
     {
-      "id": "*special*_edge",
-      "base_name": "*special* Edge",
+      "id": "edge",
+      "base_name": "Edge",
       "name": "*special* Edge",
-      "adjective": null,
+      "adjective": "special",
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -732,20 +732,20 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "*special*_edge_morph_1756644482278",
-          "node_id": "*special*_edge",
+          "morph_id": "edge_morph_1756646421338",
+          "node_id": "edge",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "*special*_edge_morph_1756644482278"
+      "nbh": "edge_morph_1756646421338"
     },
     {
-      "id": "*derived*_attribute",
-      "base_name": "*derived* Attribute",
+      "id": "attribute",
+      "base_name": "Attribute",
       "name": "*derived* Attribute",
-      "adjective": null,
+      "adjective": "derived",
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -754,14 +754,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "*derived*_attribute_morph_1756644482278",
-          "node_id": "*derived*_attribute",
+          "morph_id": "attribute_morph_1756646421338",
+          "node_id": "attribute",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "*derived*_attribute_morph_1756644482278"
+      "nbh": "attribute_morph_1756646421338"
     },
     {
       "id": "transitions",
@@ -776,20 +776,20 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "transitions_morph_1756644482278",
+          "morph_id": "transitions_morph_1756646421338",
           "node_id": "transitions",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "transitions_morph_1756644482278"
+      "nbh": "transitions_morph_1756646421338"
     },
     {
-      "id": "*special*_node",
-      "base_name": "*special* Node",
+      "id": "node",
+      "base_name": "Node",
       "name": "*special* Node",
-      "adjective": null,
+      "adjective": "special",
       "quantifier": null,
       "role": "individual",
       "description": null,
@@ -798,14 +798,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "*special*_node_morph_1756644482278",
-          "node_id": "*special*_node",
+          "morph_id": "node_morph_1756646421338",
+          "node_id": "node",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "*special*_node_morph_1756644482278"
+      "nbh": "node_morph_1756646421338"
     },
     {
       "id": "prior_state",
@@ -820,14 +820,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "prior_state_morph_1756644482278",
+          "morph_id": "prior_state_morph_1756646421338",
           "node_id": "prior_state",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "prior_state_morph_1756644482278"
+      "nbh": "prior_state_morph_1756646421338"
     },
     {
       "id": "post_state",
@@ -842,14 +842,14 @@
       "isDeleted": false,
       "morphs": [
         {
-          "morph_id": "post_state_morph_1756644482278",
+          "morph_id": "post_state_morph_1756646421338",
           "node_id": "post_state",
           "name": "basic",
           "relationNode_ids": [],
           "attributeNode_ids": []
         }
       ],
-      "nbh": "post_state_morph_1756644482278"
+      "nbh": "post_state_morph_1756646421338"
     }
   ],
   "relations": [
@@ -920,9 +920,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_nodebook_consists_of_polymorphic_nodes",
+      "id": "rel_nodebook_consists_of_nodes",
       "source_id": "nodebook",
-      "target_id": "polymorphic_nodes",
+      "target_id": "nodes",
       "name": "consists of",
       "adverb": null,
       "modality": null,
@@ -1008,9 +1008,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_cnl_is_a_special_language",
+      "id": "rel_cnl_is_a_language",
       "source_id": "cnl",
-      "target_id": "special_language",
+      "target_id": "language",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -1107,9 +1107,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_functions_is_a_special_edge",
+      "id": "rel_functions_is_a_edge",
       "source_id": "functions",
-      "target_id": "special_edge",
+      "target_id": "edge",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -1118,9 +1118,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_functions_is_a_derived_attribute",
+      "id": "rel_functions_is_a_attribute",
       "source_id": "functions",
-      "target_id": "derived_attribute",
+      "target_id": "attribute",
       "name": "is a",
       "adverb": null,
       "modality": null,
@@ -1129,9 +1129,9 @@
       "isDeleted": false
     },
     {
-      "id": "rel_transitions_is_a_special_node",
+      "id": "rel_transitions_is_a_node",
       "source_id": "transitions",
-      "target_id": "special_node",
+      "target_id": "node",
       "name": "is a",
       "adverb": null,
       "modality": null,

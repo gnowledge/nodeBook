@@ -258,9 +258,12 @@ export class FileSystemStore extends DataStore {
             // First, get the graph data to analyze what needs to be cleaned up
             const graphData = await this.getGraph(userId, graphId);
             
-            if (graphData && graphData.nodes) {
-                // Clean up node registry - remove nodes that are only in this graph
+            // Clean up node registry if graph data exists and has nodes
+            if (graphData && graphData.nodes && Array.isArray(graphData.nodes) && graphData.nodes.length > 0) {
+                console.log(`[DataStore] Cleaning up ${graphData.nodes.length} nodes for graph ${graphId}`);
                 await this.cleanupNodeRegistry(userId, graphId, graphData.nodes);
+            } else {
+                console.log(`[DataStore] No nodes to clean up for graph ${graphId}`);
             }
             
             // Remove the graph directory
@@ -379,9 +382,18 @@ export class FileSystemStore extends DataStore {
         const nodeRegistry = await this.getNodeRegistry(userId);
         const graphRegistry = await this.getGraphRegistry(userId);
         
+        console.log(`[DataStore] Starting cleanup for ${nodes.length} nodes from graph ${graphId}`);
+        
         // For each node in the deleted graph
         for (const node of nodes) {
+            // Ensure node has a valid ID
+            if (!node || !node.id) {
+                console.warn(`[DataStore] Skipping node without valid ID:`, node);
+                continue;
+            }
+            
             const nodeId = node.id;
+            console.log(`[DataStore] Processing node: ${nodeId}`);
             
             // Check if this node exists in other graphs
             let nodeExistsInOtherGraphs = false;
@@ -390,10 +402,11 @@ export class FileSystemStore extends DataStore {
                 if (graph.id !== graphId) {
                     try {
                         const otherGraphData = await this.getGraph(userId, graph.id);
-                        if (otherGraphData && otherGraphData.nodes) {
-                            const nodeExists = otherGraphData.nodes.some(n => n.id === nodeId);
+                        if (otherGraphData && otherGraphData.nodes && Array.isArray(otherGraphData.nodes)) {
+                            const nodeExists = otherGraphData.nodes.some(n => n && n.id === nodeId);
                             if (nodeExists) {
                                 nodeExistsInOtherGraphs = true;
+                                console.log(`[DataStore] Node ${nodeId} found in graph ${graph.id}`);
                                 break;
                             }
                         }
@@ -405,10 +418,12 @@ export class FileSystemStore extends DataStore {
             
             // If node doesn't exist in other graphs, remove it from registry
             if (!nodeExistsInOtherGraphs) {
-                const nodeIndex = nodeRegistry.findIndex(n => n.id === nodeId);
+                const nodeIndex = nodeRegistry.findIndex(n => n && n.id === nodeId);
                 if (nodeIndex >= 0) {
                     console.log(`[DataStore] Removing node ${nodeId} from registry (not used in other graphs)`);
                     nodeRegistry.splice(nodeIndex, 1);
+                } else {
+                    console.log(`[DataStore] Node ${nodeId} not found in registry`);
                 }
             } else {
                 console.log(`[DataStore] Keeping node ${nodeId} in registry (used in other graphs)`);
@@ -416,16 +431,25 @@ export class FileSystemStore extends DataStore {
         }
         
         await this.saveNodeRegistry(userId, nodeRegistry);
+        console.log(`[DataStore] Node registry cleanup completed for graph ${graphId}`);
     }
 
     async cleanupGraphRegistry(userId, graphId) {
         const graphRegistry = await this.getGraphRegistry(userId);
-        const graphIndex = graphRegistry.findIndex(g => g.id === graphId);
+        
+        if (!Array.isArray(graphRegistry)) {
+            console.warn(`[DataStore] Graph registry is not an array for user ${userId}`);
+            return;
+        }
+        
+        const graphIndex = graphRegistry.findIndex(g => g && g.id === graphId);
         
         if (graphIndex >= 0) {
             console.log(`[DataStore] Removing graph ${graphId} from registry`);
             graphRegistry.splice(graphIndex, 1);
             await this.saveGraphRegistry(userId, graphRegistry);
+        } else {
+            console.log(`[DataStore] Graph ${graphId} not found in registry`);
         }
     }
 

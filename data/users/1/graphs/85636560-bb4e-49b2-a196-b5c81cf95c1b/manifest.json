@@ -1,0 +1,18 @@
+{
+  "id": "85636560-bb4e-49b2-a196-b5c81cf95c1b",
+  "name": "intro6",
+  "author": "Unknown",
+  "author_id": 1,
+  "email": "unknown@example.com",
+  "mode": "richgraph",
+  "created_at": "2025-08-31T13:39:56.589Z",
+  "modified_at": "2025-08-31T13:39:56.589Z",
+  "modified_by": "Unknown",
+  "modified_by_id": 1,
+  "version": 1,
+  "commit_message": "Initial graph creation",
+  "description": null,
+  "publication_mode": "Private",
+  "tags": [],
+  "status": "active"
+}
