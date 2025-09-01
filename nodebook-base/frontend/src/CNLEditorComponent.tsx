@@ -20,7 +20,6 @@ interface CNLEditorProps {
   nodeTypes?: any[];
   relationTypes?: any[];
   attributeTypes?: any[];
-  graphId?: string;
 }
 
 // CNL Auto-completion
@@ -208,21 +207,12 @@ export function CNLEditor({
   const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [currentGraphId, setCurrentGraphId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editorRef.current) return;
     
     // Debug logging
     console.log('[CNLEditor] Initializing with value:', { value, valueLength: value?.length, language });
-    
-    // Initialize current graph ID only if provided
-    if (graphId) {
-      setCurrentGraphId(graphId);
-      console.log('[CNLEditor] Initialized with graphId:', graphId);
-    } else {
-      console.log('[CNLEditor] No graphId provided during initialization');
-    }
     
     // Cleanup auto-save timeout on unmount
     return () => {
@@ -301,16 +291,14 @@ export function CNLEditor({
             onChange(newValue);
             
             // Auto-save after 2 seconds of inactivity
-            if (onAutoSave && currentGraphId) {
+            if (onAutoSave) {
               if (autoSaveTimeoutRef.current) {
                 clearTimeout(autoSaveTimeoutRef.current);
               }
               autoSaveTimeoutRef.current = setTimeout(() => {
-                console.log('[CNLEditor] Auto-save timeout triggered for graph:', currentGraphId, 'calling onAutoSave');
+                console.log('[CNLEditor] Auto-save timeout triggered, calling onAutoSave');
                 onAutoSave(newValue);
               }, 2000);
-            } else if (onAutoSave && !currentGraphId) {
-              console.log('[CNLEditor] Skipping auto-save - no current graph ID set');
             }
           }
         }),
@@ -559,30 +547,6 @@ export function CNLEditor({
       viewRef.current = null;
     };
   }, [language, readOnly]); // Remove onAutoSave dependency to prevent re-initialization
-
-  // Update currentGraphId when graphId prop changes
-  useEffect(() => {
-    // Only proceed if graphId is defined
-    if (!graphId) {
-      console.log('[CNLEditor] No graphId provided, skipping graph ID update');
-      return;
-    }
-    
-    if (graphId !== currentGraphId) {
-      console.log('[CNLEditor] Graph ID changed:', { oldGraphId: currentGraphId, newGraphId: graphId });
-      
-      // Clear any pending auto-save for the old graph
-      if (autoSaveTimeoutRef.current) {
-        console.log('[CNLEditor] Clearing auto-save timeout for old graph:', currentGraphId);
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-      }
-      
-      // Update current graph ID
-      setCurrentGraphId(graphId);
-      console.log('[CNLEditor] Auto-save now initialized for new graph:', graphId);
-    }
-  }, [graphId, currentGraphId]);
 
   // Update content when value changes externally
   useEffect(() => {

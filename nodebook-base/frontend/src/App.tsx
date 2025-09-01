@@ -155,7 +155,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         console.log('[App] Setting CNL text:', { graphId, cnlData: data.cnl, cnlLength: data.cnl?.length });
         const cnlContent = data.cnl || '';
         setCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
-        console.log('[App] Updated cnlText state for graph:', graphId, 'Content length:', cnlContent.length);
+        // Also set as saved state initially
+        setCnlText(prev => ({ ...prev, [graphId]: cnlContent }));
       });
     
     // Fetch graph metadata including publication state
@@ -465,12 +466,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           attributeTypes={attributeTypes}
           graphId={activeGraphId}
         />
-        {/* Debug info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div style={{ fontSize: '12px', color: '#666', padding: '8px', backgroundColor: '#f5f5f5' }}>
-            Debug: activeGraphId={activeGraphId}, cnlText length={cnlText[activeGraphId]?.length || 0}
-          </div>
-        )}
                       </div>
                     )}
                     {viewMode === 'visualization' && (
