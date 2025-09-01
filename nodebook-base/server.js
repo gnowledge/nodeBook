@@ -317,7 +317,7 @@ Another service or function
   });
   
   fastify.get('/api/auth/me', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const user = request.user;
     return {
@@ -416,7 +416,7 @@ Another service or function
 
   // Resend verification email
   fastify.post('/api/auth/resend-verification', {
-    preHandler: authenticateJWT,
+    preHandler: [authenticateJWT],
     schema: {
       body: {
         type: 'object',
@@ -445,7 +445,7 @@ Another service or function
   
   // --- Graph Management API ---
   fastify.get('/api/graphs', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore; // Get instance from fastify
     const userId = request.user.id;
@@ -482,7 +482,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore; // Get instance from fastify
     const userId = request.user.id;
@@ -541,7 +541,7 @@ Another service or function
 
   // --- Node Registry API ---
   fastify.get('/api/noderegistry', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
     const userId = request.user.id;
@@ -625,7 +625,7 @@ Another service or function
 
   // --- Schema CRUD API ---
   fastify.get('/api/schema/relations', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     return await schemaManager.getRelationTypes();
   });
@@ -639,7 +639,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const relationTypes = await schemaManager.getRelationTypes();
@@ -666,7 +666,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const newType = await schemaManager.addRelationType(request.body);
@@ -687,7 +687,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const updatedType = await schemaManager.updateRelationType(request.params.name, request.body);
@@ -707,7 +707,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       await schemaManager.deleteRelationType(request.params.name);
@@ -720,7 +720,7 @@ Another service or function
   });
 
   fastify.get('/api/schema/attributes', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     return await schemaManager.getAttributeTypes();
   });
@@ -734,7 +734,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const attributeTypes = await schemaManager.getAttributeTypes();
@@ -761,7 +761,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const newType = await schemaManager.addAttributeType(request.body);
@@ -782,7 +782,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const updatedType = await schemaManager.updateAttributeType(request.params.name, request.body);
@@ -802,7 +802,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       await schemaManager.deleteAttributeType(request.params.name);
@@ -815,7 +815,7 @@ Another service or function
   });
 
   fastify.get('/api/schema/nodetypes', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     return await schemaManager.getNodeTypes();
   });
@@ -829,7 +829,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const nodeTypes = await schemaManager.getNodeTypes();
@@ -846,7 +846,7 @@ Another service or function
   });
 
   fastify.get('/api/schema/functions', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     return await schemaManager.getFunctionTypes();
   });
@@ -860,7 +860,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const functionTypes = await schemaManager.getFunctionTypes();
@@ -878,14 +878,14 @@ Another service or function
 
   // --- Scientific Library API ---
   fastify.get('/api/scientific/libraries', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     return scientificManager.getAvailableLibraries();
   });
 
   fastify.get('/api/scientific/libraries/:library', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     const library = request.params.library;
@@ -898,7 +898,7 @@ Another service or function
   });
 
   fastify.get('/api/scientific/functions', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     const { library, category, search } = request.query;
@@ -915,7 +915,7 @@ Another service or function
   });
 
   fastify.get('/api/scientific/functions/:library/:name', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     const { library, name } = request.params;
@@ -937,7 +937,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     const { expression } = request.body;
@@ -956,7 +956,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const scientificManager = new ScientificLibraryManager();
     const { expression, scope = {} } = request.body;
@@ -983,7 +983,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const newFunctionType = await schemaManager.addFunctionType(request.body);
@@ -1004,7 +1004,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const updatedFunctionType = await schemaManager.updateFunctionType(request.params.name, request.body);
@@ -1024,7 +1024,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       await schemaManager.deleteFunctionType(request.params.name);
@@ -1047,7 +1047,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const newType = await schemaManager.addNodeType(request.body);
@@ -1068,7 +1068,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       const updatedType = await schemaManager.updateNodeType(request.params.name, request.body);
@@ -1088,7 +1088,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     try {
       await schemaManager.deleteNodeType(request.params.name);
@@ -1416,7 +1416,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
     const userId = request.user.id;
@@ -1456,7 +1456,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
     const userId = request.user.id;
@@ -1482,7 +1482,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const gm = fastify.graphManager;
     const userId = request.user.id;
@@ -1507,7 +1507,7 @@ Another service or function
     
     console.log('🔧 Registering media upload route: POST /api/media/upload');
     fastify.post('/api/media/upload', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     
@@ -1556,7 +1556,7 @@ Another service or function
 
   console.log('🔧 Registering media files route: GET /api/media/files');
   fastify.get('/api/media/files', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     const { type, search, limit, offset } = request.query;
@@ -1579,7 +1579,7 @@ Another service or function
   });
 
   fastify.get('/api/media/files/:fileId', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     const fileId = request.params.fileId;
@@ -1602,7 +1602,7 @@ Another service or function
   });
 
   fastify.delete('/api/media/files/:fileId', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     const fileId = request.params.fileId;
@@ -1630,7 +1630,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     const fileId = request.params.fileId;
@@ -1648,7 +1648,7 @@ Another service or function
   });
 
   fastify.get('/api/media/stats', {
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const userId = request.user.id;
     
@@ -1682,7 +1682,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
@@ -1710,7 +1710,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
@@ -1742,7 +1742,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
@@ -1781,7 +1781,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
@@ -1816,7 +1816,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
@@ -1844,7 +1844,7 @@ Another service or function
         }
       }
     },
-    preHandler: authenticateJWT
+    preHandler: [authenticateJWT]
   }, async (request, reply) => {
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
