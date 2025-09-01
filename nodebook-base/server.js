@@ -1790,6 +1790,15 @@ Another service or function
     
     try {
       console.log(`[POST /api/graphs/${graphId}/versions/commit] Committing version for user ${userId}`);
+      
+      // Ensure Git is properly configured before committing
+      const userInfo = await auth.findUser(request.user.username);
+      const userName = userInfo?.name || request.user.username || 'Unknown';
+      const userEmail = userInfo?.email || 'unknown@example.com';
+      
+      // Initialize version control if not already done
+      await dataStore.initializeVersionControl(userId, graphId, userName, userEmail);
+      
       const result = await dataStore.commitVersion(userId, graphId, message, author);
       return result;
     } catch (error) {
