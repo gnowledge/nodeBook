@@ -65,8 +65,8 @@ The P2P development environment consists of several interconnected services:
   - Real-time collaboration UI
 
 ### **6. Supporting Services**
-- **Redis**: Session management
-- **PostgreSQL**: Advanced data storage
+- **Keycloak**: Authentication and session management
+- **PostgreSQL**: Advanced data storage (future)
 
 ## 🚀 **Quick Start**
 

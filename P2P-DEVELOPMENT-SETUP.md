@@ -31,7 +31,7 @@ The P2P development environment is now organized at the project root level, inte
 ### **Core P2P Services (Always Available)**
 - **P2P Server**: `nodebook-p2p` on port 3000
 - **P2P Monitor**: `p2p-monitor` on port 3004  
-- **Redis**: `redis` on port 6379
+- **Keycloak**: `keycloak` on port 8080
 
 ### **External Microservices (Conditional)**
 - **Media Backend**: `media-backend` on port 3001

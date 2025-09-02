@@ -3,17 +3,20 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0.0
     container_name: nodebook-keycloak-p2p-dev
-    ports:
-      - "8080:8080"
+    # No external ports - only accessible via nginx proxy
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin123
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN_USER:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
       - KC_DB=dev-file
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
-      - KC_HOSTNAME=keycloak
-      - KC_HOSTNAME_PORT=8080
+      - KC_HOSTNAME=${DOMAIN_NAME}
+      - KC_HOSTNAME_PORT=443
+      - KC_HOSTNAME_STRICT_HTTPS=true
+      - KC_HOSTNAME_STRICT_BACKCHANNEL=true
+      - KC_PROXY=edge
+      - KC_PROXY_ADDRESS_FORWARDING=true
     volumes:
       - keycloak-data:/opt/keycloak/data
     networks:
@@ -27,8 +30,7 @@ services:
       context: ./nodebook-base
       dockerfile: Dockerfile.p2p
     container_name: nodebook-p2p-dev
-    ports:
-      - "3000:3000"
+    # No external ports - only accessible via nginx proxy
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
@@ -53,8 +55,7 @@ services:
       context: ./nodebook-base
       dockerfile: Dockerfile.p2p-monitor
     container_name: nodebook-p2p-monitor-dev
-    ports:
-      - "3004:3003"
+    # No external ports - only accessible via nginx proxy
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
@@ -76,8 +77,7 @@ services:
       context: ./media-backend
       dockerfile: Dockerfile
     container_name: nodebook-media-backend-p2p-dev
-    ports:
-      - "3001:3001"
+    # No external ports - only accessible via nginx proxy
     volumes:
       - ./data/media:/app/media-data
     environment:
@@ -94,8 +94,7 @@ services:
       context: ./nodebook-base
       dockerfile: Dockerfile.p2p
     container_name: nodebook-signaling-server-dev
-    ports:
-      - "4444:4444"
+    # No external ports - only accessible via nginx proxy
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
@@ -113,8 +112,7 @@ services:
       context: ./nlp-service
       dockerfile: Dockerfile
     container_name: nodebook-nlp-service-p2p-dev
-    ports:
-      - "3002:3002"
+    # No external ports - only accessible via nginx proxy
     environment:
       - NODE_ENV=development
       - PORT=3002
@@ -128,8 +126,7 @@ services:
       context: ./wordnet-service
       dockerfile: Dockerfile
     container_name: nodebook-wordnet-service-p2p-dev
-    ports:
-      - "3003:3003"
+    # No external ports - only accessible via nginx proxy
     environment:
       - NODE_ENV=development
       - PORT=3003
@@ -148,19 +145,24 @@ services:
     volumes:
       - ./nodebook-base:/app/nodebook-base
       - /app/nodebook-base/node_modules
-    ports:
-      - "5173:5173"
+    # No external ports - only accessible via nginx proxy
     environment:
-      - VITE_API_TARGET=http://nodebook-p2p:3000
-      - VITE_KEYCLOAK_URL=http://localhost:8080
+      - VITE_API_TARGET=https://${DOMAIN_NAME}/api
+      - VITE_KEYCLOAK_URL=https://${DOMAIN_NAME}/auth
       - VITE_KEYCLOAK_REALM=nodebook
       - VITE_KEYCLOAK_CLIENT_ID=nodebook-frontend
-      - VITE_KEYCLOAK_CLIENT_SECRET=nodebook-frontend-secret
-      - VITE_MEDIA_BACKEND_URL=http://localhost:3001
-      - VITE_NLP_SERVICE_URL=http://localhost:3002
-      - VITE_WORDNET_SERVICE_URL=http://localhost:3003
+      - VITE_KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - VITE_MEDIA_BACKEND_URL=https://${DOMAIN_NAME}/media
+      - VITE_NLP_SERVICE_URL=https://${DOMAIN_NAME}/nlp
+      - VITE_WORDNET_SERVICE_URL=https://${DOMAIN_NAME}/wordnet
       - VITE_P2P_ENABLED=true
-      - VITE_DEV_MODE=true
+      - VITE_DEV_MODE=false
+      # Internal service URLs for development
+      - VITE_INTERNAL_API_TARGET=http://nodebook-p2p:3000
+      - VITE_INTERNAL_KEYCLOAK_URL=http://keycloak:8080
+      - VITE_INTERNAL_MEDIA_BACKEND_URL=http://media-backend:3001
+      - VITE_INTERNAL_NLP_SERVICE_URL=http://nlp-service:3002
+      - VITE_INTERNAL_WORDNET_SERVICE_URL=http://wordnet-service:3003
     networks:
       - nodebook-p2p-net
     depends_on:
@@ -171,6 +173,41 @@ services:
       - wordnet-service
     restart: unless-stopped
 
+  # Main Nginx for Let's Encrypt and reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nodebook-nginx
+    ports:
+      - '80:80'      # HTTP (for Let's Encrypt challenges)
+      - '443:443'    # HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - nginx-letsencrypt:/etc/letsencrypt
+      - nginx-data:/var/www/html
+    networks:
+      - nodebook-p2p-net
+    depends_on:
+      - frontend
+      - nodebook-p2p
+      - keycloak
+    restart: unless-stopped
+
+  # Nginx Proxy Manager for SSL certificate management
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nodebook-nginx-proxy-manager
+    ports:
+      - '81:81'      # Admin interface (temporary for initial setup)
+    volumes:
+      - nginx-proxy-data:/data
+      - nginx-letsencrypt:/etc/letsencrypt
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
 networks:
   nodebook-p2p-net:
     driver: bridge
@@ -178,4 +215,12 @@ networks:
 volumes:
   # Keycloak data persistence
   keycloak-data:
+    driver: local
+  # Nginx data
+  nginx-data:
+    driver: local
+  nginx-letsencrypt:
+    driver: local
+  # Nginx Proxy Manager data
+  nginx-proxy-data:
     driver: local

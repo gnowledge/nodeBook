@@ -20,7 +20,7 @@ if [ ! -f "docker-compose.dev.yml" ]; then
     echo -e "${RED}❌ Error: Please run this script from the NodeBook project root directory${NC}"
     exit 1
 fi
-
+ 
 # Function to generate secure password
 generate_password() {
     # Generate a 16-character password with mixed characters
@@ -151,5 +151,6 @@ else
     echo
     echo -e "${GREEN}✅ Password updated in docker-compose.dev.yml${NC}"
 fi
+
 
 

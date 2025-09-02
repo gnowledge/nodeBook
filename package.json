@@ -39,6 +39,7 @@
     "@monaco-editor/react": "^4.7.0",
     "axios": "^1.11.0",
     "marked": "^15.0.12",
+    "node-fetch": "^3.3.2",
     "react-markdown": "^10.1.0"
   }
 }

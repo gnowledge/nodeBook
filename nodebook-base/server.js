@@ -13,79 +13,60 @@ import MediaManager from './media-manager.js';
 import { createDataStore } from './data-store.js';
 import CNLSuggestionService from './cnl-suggestion-service.js';
 
-// Enhanced stub auth for collaboration testing
-let userCounter = 1;
-const users = new Map();
+// Keycloak authentication integration
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'nodebook';
 
 const auth = {
-  verifyToken: (token) => {
-    // Simple token validation - any non-empty token is valid
-    if (!token || token === 'stub-token') {
-      return { username: 'stub-user', id: 1 };
-    }
-    // Extract user ID from token if it's a real token
-    const userId = parseInt(token.replace('user-', ''));
-    const user = users.get(userId);
-    return user ? { username: user.username, id: user.id } : null;
-  },
-  
-  findUser: async (username) => {
-    // Find user by username
-    for (const user of users.values()) {
-      if (user.username === username) {
-        return user;
+  async verifyToken(token) {
+    try {
+      // Verify JWT token with Keycloak
+      const response = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        return null;
       }
-    }
-    
-    // Special case: if admin user is not found, create it with ID 1
-    if (username === 'admin') {
-      const adminUser = {
-        id: 1,
-        username: 'admin',
-        email: 'admin@nodebook.local',
-        verified: true,
-        is_admin: true
+      
+      const userInfo = await response.json();
+      
+      return {
+        id: userInfo.sub,
+        username: userInfo.preferred_username || userInfo.email,
+        email: userInfo.email,
+        isAdmin: userInfo.realm_access?.roles?.includes('admin') || false
       };
-      users.set(1, adminUser);
-      return adminUser;
+    } catch (error) {
+      console.error('Keycloak token verification error:', error);
+      return null;
     }
-    
-    // Return stub user if not found
-    return { id: 1, username: 'stub-user', email: 'stub@example.com', verified: true, is_admin: false };
   },
   
-  validateUser: async (username, password) => {
-    // Simple validation - any non-empty password is valid
-    return password && password.length > 0;
+  async findUser(username) {
+    // Keycloak handles user management - we don't need this for JWT validation
+    return null;
   },
   
-  generateToken: (user) => {
-    // Generate a simple token based on user ID
-    return `user-${user.id}`;
+  async validateUser(username, password) {
+    // Keycloak handles authentication - we don't need this for JWT validation
+    return false;
   },
   
-  createUser: async (username, email, password) => {
-    // Create a new user
-    let userId = userCounter++;
-    
-    // Special case: admin user should get ID 1 to access existing graphs
-    if (username === 'admin') {
-      userId = 1;
-      userCounter = Math.max(userCounter, 2); // Ensure next user gets ID 2 or higher
-    }
-    
-    const newUser = {
-      id: userId,
-      username,
-      email,
-      verified: true,
-      is_admin: username === 'admin'
-    };
-    users.set(newUser.id, newUser);
-    return newUser;
+  async generateToken(user) {
+    // Keycloak generates tokens - we don't need this
+    return null;
   },
   
-  initializeDatabase: async () => console.log('✅ Enhanced stub auth initialized for collaboration testing'),
+  async createUser(username, email, password) {
+    // Keycloak handles user creation - we don't need this
+    throw new Error('User creation handled by Keycloak');
+  },
+  
+  initializeDatabase: async () => console.log('✅ Keycloak authentication integration initialized'),
   requestPasswordReset: async (email) => ({ success: true }),
   resetPassword: async (token, newPassword) => ({ success: true }),
   verifyEmail: async (token) => ({ success: true }),
@@ -123,16 +104,10 @@ fastify.register(import('@fastify/multipart'), {
     
     const token = authHeader.substring(7);
     try {
-      const payload = auth.verifyToken(token);
-      if (!payload || !payload.username) {
-        reply.code(401).send({ error: 'Invalid token payload' });
-        return reply;
-      }
-      
-      // Get the full user object from the database using the username
-      const user = await auth.findUser(payload.username);
-      if (!user) {
-        reply.code(401).send({ error: 'User not found' });
+      // Verify token with Keycloak
+      const user = await auth.verifyToken(token);
+      if (!user || !user.username) {
+        reply.code(401).send({ error: 'Invalid token' });
         return reply;
       }
       
@@ -316,23 +291,21 @@ Another service or function
     try {
       const { username, password } = request.body;
       
-      // Use our auth module
-      const user = await auth.findUser(username);
-      if (!user || !(await auth.validateUser(username, password))) {
-        reply.code(401).send({ error: 'Invalid credentials' });
+      // Forward to Keycloak
+      const response = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        reply.code(response.status).send({ error: errorData.error || 'Login failed' });
         return;
       }
       
-      const token = auth.generateToken(user);
-      return {
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          isAdmin: user.is_admin,
-          email: user.email
-        }
-      };
+      const data = await response.json();
+      return data;
     } catch (error) {
       fastify.log.error('Login error:', error);
       reply.code(500).send({ error: 'Login failed' });
@@ -361,19 +334,22 @@ Another service or function
         return;
       }
   
-      const user = await auth.createUser(username, email, password);
-      const token = auth.generateToken(user);
+      // Forward to Keycloak
+      const response = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
       
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        reply.code(response.status).send({ error: errorData.error || 'Registration failed' });
+        return;
+      }
+      
+      const data = await response.json();
       reply.code(201);
-      return {
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          isAdmin: user.is_admin,
-          email: user.email
-        }
-      };
+      return data;
     } catch (error) {
       reply.code(400).send({ error: error.message });
       return;
@@ -1353,8 +1329,12 @@ Another service or function
       // Complete replacement approach: regenerate graph from CNL
       console.log(`[CNL Processing] Regenerating graph completely from CNL for graph ${graphId}, user ${userId}`);
       
-      // Get user info for manifest update
-      const userInfo = await auth.findUser(request.user.username);
+      // Use user info from JWT token (already validated by Keycloak)
+      const userInfo = {
+        username: request.user.username,
+        email: request.user.email,
+        id: request.user.id
+      };
       
       // Regenerate the entire graph from the new CNL
       const newGraphData = await dataStore.regenerateGraphFromCnl(userId, graphId, cnlText);
@@ -1369,7 +1349,7 @@ Another service or function
       
       // Generate thumbnail for the updated graph
       try {
-        await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, cleanGraphData);
+        await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, newGraphData);
         console.log(`[CNL Processing] Thumbnail generated for graph ${graphId}`);
       } catch (thumbnailError) {
         console.error(`[CNL Processing] Failed to generate thumbnail for graph ${graphId}:`, thumbnailError);

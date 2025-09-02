@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './AuthModal.module.css';
+import { keycloakAuth } from './services/keycloakAuth';
 
 interface User {
   id: string;
@@ -28,29 +29,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
     setError('');
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const body = isLogin 
-        ? { username, password }
-        : { username, password, email };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        onLogin(data.token, data.user);
+      if (isLogin) {
+        const result = await keycloakAuth.login(username, password);
+        keycloakAuth.storeAuth(result.token, result.user);
+        onLogin(result.token, result.user);
         onClose();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        setError(errorData.error || `Failed to ${isLogin ? 'login' : 'register'}`);
+        // For registration, redirect to Keycloak
+        await keycloakAuth.register();
       }
-    } catch (err) {
-      setError('Network error. Please try again.');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Network error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

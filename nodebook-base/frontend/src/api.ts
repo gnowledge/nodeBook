@@ -13,57 +13,35 @@ export interface CnlDiffResult { message?: string; errors?: { line: number; mess
 
 
 // --- Auth API ---
+// Note: Authentication is now handled by Keycloak
+// These functions are kept for backward compatibility but redirect to Keycloak
+
+import { keycloakAuth, type AuthResult } from './services/keycloakAuth';
 
 export async function register(username: string, password: string, email: string): Promise<{ token: string; user: User }> {
-  const response = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, email }),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Registration failed');
-  }
-  return response.json();
+  // Redirect to Keycloak registration
+  await keycloakAuth.register();
+  throw new Error('Redirecting to registration...');
 }
 
 export async function login(username: string, password: string): Promise<{ token: string; user: User }> {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Login failed');
-  }
-  return response.json();
+  const result: AuthResult = await keycloakAuth.login(username, password);
+  keycloakAuth.storeAuth(result.token, result.user);
+  return result;
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch('/api/auth/logout', {
-    method: 'POST',
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Logout failed');
-  }
+  keycloakAuth.logout();
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  try {
-    const response = await fetch('/api/auth/user');
-    if (response.status === 401) {
-      return null;
-    }
-    if (!response.ok) {
-      throw new Error('Failed to fetch user');
-    }
-    return response.json();
-  } catch (error) {
-    console.error('Error fetching current user:', error);
+  const token = keycloakAuth.getToken();
+  if (!token) {
     return null;
   }
+  
+  // Validate token with backend
+  return await keycloakAuth.validateToken(token);
 }
 
 // --- Graph API ---

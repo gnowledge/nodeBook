@@ -74,7 +74,7 @@ dmypy.json
 # Local data - exclude users directory but allow global schemas
 graph_data/users/
 graph_data/*.db
-
+data/
 # VS Code and other editor configs
 .vscode/
 .idea/

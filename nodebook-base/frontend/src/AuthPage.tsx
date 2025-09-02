@@ -1,6 +1,6 @@
 // src/AuthPage.tsx
 import React, { useState } from 'react';
-import { login, register } from './api';
+import { keycloakAuth } from './services/keycloakAuth';
 import type { User } from './api';
 
 interface AuthPageProps {
@@ -18,10 +18,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     e.preventDefault();
     setError(null);
     try {
-      const result = isLogin
-        ? await login(username, password)
-        : await register(username, password, email);
-      onAuthSuccess(result.token, result.user);
+      if (isLogin) {
+        const result = await keycloakAuth.login(username, password);
+        keycloakAuth.storeAuth(result.token, result.user);
+        onAuthSuccess(result.token, result.user);
+      } else {
+        // For registration, redirect to Keycloak
+        await keycloakAuth.register();
+      }
     } catch (err: unknown) {
         if (err instanceof Error) {
             setError(err.message);

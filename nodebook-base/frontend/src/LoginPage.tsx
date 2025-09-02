@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './LoginPage.css';
+import { keycloakAuth } from './services/keycloakAuth';
 
 interface LoginPageProps {
   onLogin: (token: string, user: any) => void;
@@ -17,23 +18,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        onLogin(data.token, data.user);
+      const result = await keycloakAuth.login(username, password);
+      keycloakAuth.storeAuth(result.token, result.user);
+      onLogin(result.token, result.user);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Login failed');
+        setError('Network error. Please try again.');
       }
-    } catch (err) {
-      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +92,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <div className="credentials-info">
             <p>Default credentials:</p>
             <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> admin123</p>
+            <p><strong>Password:</strong> Admin123</p>
           </div>
         </form>
       </div>
