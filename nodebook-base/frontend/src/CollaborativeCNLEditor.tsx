@@ -234,20 +234,16 @@ export function CollaborativeCNLEditor({
     const provider = new WebrtcProvider(`nodebook-graph-${graphId}`, ydoc, {
       signaling: ['wss://signaling.yjs.dev'], // Use public signaling server for now
       password: null, // No password for now
-      awareness: {
-        user: {
-          name: userName,
-          color: `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color
-        }
-      }
     });
 
     providerRef.current = provider;
 
     // Set up awareness (user presence)
-    provider.awareness.setLocalStateField('user', {
-      name: userName,
-      color: `#${Math.floor(Math.random()*16777215).toString(16)}`
+    provider.awareness.setLocalState({
+      user: {
+        name: userName,
+        color: `#${Math.floor(Math.random()*16777215).toString(16)}`
+      }
     });
 
     // Listen for connection status
