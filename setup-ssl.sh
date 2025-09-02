@@ -12,9 +12,9 @@ EMAIL=${ADMIN_EMAIL:-"admin@yourdomain.com"}
 echo "🔐 Setting up SSL certificates for $DOMAIN_NAME"
 
 # Check if domain is provided
-if [ "$DOMAIN_NAME" = "yourdomain.com" ]; then
+if [ -z "$DOMAIN_NAME" ] || [ "$DOMAIN_NAME" = "yourdomain.com" ]; then
     echo "❌ Please set DOMAIN_NAME environment variable"
-    echo "   Example: DOMAIN_NAME=yourdomain.com ./setup-ssl.sh"
+    echo "   Example: DOMAIN_NAME=nodebook.co.in ./setup-ssl.sh"
     exit 1
 fi
 

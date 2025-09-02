@@ -1,0 +1,26 @@
+# Production Dockerfile for NodeBook Frontend
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY nodebook-base/frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY nodebook-base/frontend/ ./
+
+# Build the application
+RUN npm run build
+
+# Install serve for static file serving
+RUN npm install -g serve
+
+# Expose port 3004
+EXPOSE 3004
+
+# Start the static file server
+CMD ["npx", "serve", "-s", "dist", "-l", "3004"]

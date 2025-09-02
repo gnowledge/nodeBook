@@ -129,18 +129,18 @@ services:
     # No external ports - only accessible via nginx proxy
     environment:
       - NODE_ENV=development
-      - PORT=3003
+      - PORT=3005
     networks:
       - nodebook-p2p-net
     restart: unless-stopped
 
-  # Frontend service with PWA development
+  # Frontend service - static build for production
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.prod
     container_name: nodebook-frontend-p2p-dev
-    command: sh -c "cd nodebook-base/frontend && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "cd nodebook-base/frontend && npm run build && npx serve -s dist -l 3004"
     working_dir: /app
     volumes:
       - ./nodebook-base:/app/nodebook-base
@@ -157,12 +157,6 @@ services:
       - VITE_WORDNET_SERVICE_URL=https://${DOMAIN_NAME}/wordnet
       - VITE_P2P_ENABLED=true
       - VITE_DEV_MODE=false
-      # Internal service URLs for development
-      - VITE_INTERNAL_API_TARGET=http://nodebook-p2p:3000
-      - VITE_INTERNAL_KEYCLOAK_URL=http://keycloak:8080
-      - VITE_INTERNAL_MEDIA_BACKEND_URL=http://media-backend:3001
-      - VITE_INTERNAL_NLP_SERVICE_URL=http://nlp-service:3002
-      - VITE_INTERNAL_WORDNET_SERVICE_URL=http://wordnet-service:3003
     networks:
       - nodebook-p2p-net
     depends_on:
@@ -173,32 +167,16 @@ services:
       - wordnet-service
     restart: unless-stopped
 
-  # Main Nginx for Let's Encrypt and reverse proxy
-  nginx:
-    image: nginx:alpine
-    container_name: nodebook-nginx
-    ports:
-      - '80:80'      # HTTP (for Let's Encrypt challenges)
-      - '443:443'    # HTTPS
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - nginx-letsencrypt:/etc/letsencrypt
-      - nginx-data:/var/www/html
-    networks:
-      - nodebook-p2p-net
-    depends_on:
-      - frontend
-      - nodebook-p2p
-      - keycloak
-    restart: unless-stopped
 
-  # Nginx Proxy Manager for SSL certificate management
+
+  # Nginx Proxy Manager for SSL certificate management and reverse proxy
   nginx-proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
     container_name: nodebook-nginx-proxy-manager
     ports:
-      - '81:81'      # Admin interface (temporary for initial setup)
+      - '80:80'      # HTTP (for Let's Encrypt challenges)
+      - '443:443'    # HTTPS
+      - '81:81'      # Admin interface
     volumes:
       - nginx-proxy-data:/data
       - nginx-letsencrypt:/etc/letsencrypt
@@ -216,9 +194,7 @@ volumes:
   # Keycloak data persistence
   keycloak-data:
     driver: local
-  # Nginx data
-  nginx-data:
-    driver: local
+  # Let's Encrypt certificates
   nginx-letsencrypt:
     driver: local
   # Nginx Proxy Manager data
