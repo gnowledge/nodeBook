@@ -3,7 +3,7 @@
 // All necessary types are temporarily inlined here to unblock development.
 
 // --- Inlined Types ---
-export interface User { id: string; username: string; }
+export interface User { id: string; username: string; email?: string; isAdmin?: boolean; }
 export interface Graph { id: string; name: string; description: string; author: string; email: string; createdAt: string; updatedAt: string; }
 export interface Node { id: string; base_name: string; name: string; adjective: string | null; quantifier: string | null; role: string; description: string | null; parent_types: string[]; }
 export interface Edge { id: string; source_id: string; target_id: string; name: string; }
@@ -14,11 +14,11 @@ export interface CnlDiffResult { message?: string; errors?: { line: number; mess
 
 // --- Auth API ---
 
-export async function register(username: string, password: string): Promise<User> {
+export async function register(username: string, password: string, email: string): Promise<{ token: string; user: User }> {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, email }),
   });
   if (!response.ok) {
     const error = await response.json();
@@ -27,7 +27,7 @@ export async function register(username: string, password: string): Promise<User
   return response.json();
 }
 
-export async function login(username: string, password: string): Promise<User> {
+export async function login(username: string, password: string): Promise<{ token: string; user: User }> {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

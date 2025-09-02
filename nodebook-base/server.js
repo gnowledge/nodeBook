@@ -13,15 +13,57 @@ import MediaManager from './media-manager.js';
 import { createDataStore } from './data-store.js';
 import CNLSuggestionService from './cnl-suggestion-service.js';
 
-// Note: auth is handled by separate auth-service container
-// Stub auth functions for server startup
+// Enhanced stub auth for collaboration testing
+let userCounter = 1;
+const users = new Map();
+
 const auth = {
-  verifyToken: (token) => ({ username: 'stub-user', id: 1 }),
-  findUser: async (username) => ({ id: 1, username, email: 'stub@example.com', verified: true, is_admin: false }),
-  validateUser: async (username, password) => true,
-  generateToken: (user) => 'stub-token',
-  initializeDatabase: async () => console.log('✅ Auth database initialization skipped - handled by auth-service'),
-  createUser: async (username, email, password) => ({ id: 1, username, email, verified: true }),
+  verifyToken: (token) => {
+    // Simple token validation - any non-empty token is valid
+    if (!token || token === 'stub-token') {
+      return { username: 'stub-user', id: 1 };
+    }
+    // Extract user ID from token if it's a real token
+    const userId = parseInt(token.replace('user-', ''));
+    const user = users.get(userId);
+    return user ? { username: user.username, id: user.id } : null;
+  },
+  
+  findUser: async (username) => {
+    // Find user by username
+    for (const user of users.values()) {
+      if (user.username === username) {
+        return user;
+      }
+    }
+    // Return stub user if not found
+    return { id: 1, username: 'stub-user', email: 'stub@example.com', verified: true, is_admin: false };
+  },
+  
+  validateUser: async (username, password) => {
+    // Simple validation - any non-empty password is valid
+    return password && password.length > 0;
+  },
+  
+  generateToken: (user) => {
+    // Generate a simple token based on user ID
+    return `user-${user.id}`;
+  },
+  
+  createUser: async (username, email, password) => {
+    // Create a new user
+    const newUser = {
+      id: userCounter++,
+      username,
+      email,
+      verified: true,
+      is_admin: false
+    };
+    users.set(newUser.id, newUser);
+    return newUser;
+  },
+  
+  initializeDatabase: async () => console.log('✅ Enhanced stub auth initialized for collaboration testing'),
   requestPasswordReset: async (email) => ({ success: true }),
   resetPassword: async (token, newPassword) => ({ success: true }),
   verifyEmail: async (token) => ({ success: true }),
@@ -306,7 +348,7 @@ Another service or function
         user: {
           id: user.id,
           username: user.username,
-          isAdmin: user.isAdmin,
+          isAdmin: user.is_admin,
           email: user.email
         }
       };

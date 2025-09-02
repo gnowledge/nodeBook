@@ -6,10 +6,10 @@ import { PublicGraphViewer } from './PublicGraphViewer';
 import styles from './TestApp.module.css';
 
 interface User {
-  id: number;
+  id: string;
   username: string;
-  isAdmin: boolean;
-  email: string;
+  isAdmin?: boolean;
+  email?: string;
 }
 
 function TestApp() {

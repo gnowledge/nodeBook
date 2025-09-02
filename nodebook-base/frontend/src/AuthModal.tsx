@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import styles from './AuthModal.module.css';
 
 interface User {
-  id: number;
+  id: string;
   username: string;
-  isAdmin: boolean;
-  email: string;
+  isAdmin?: boolean;
+  email?: string;
 }
 
 interface AuthModalProps {

@@ -1,26 +1,27 @@
 // src/AuthPage.tsx
 import React, { useState } from 'react';
 import { login, register } from './api';
-import type { User } from './types';
+import type { User } from './api';
 
 interface AuthPageProps {
-  onAuthSuccess: (user: User) => void;
+  onAuthSuccess: (token: string, user: User) => void;
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      const user = isLogin
+      const result = isLogin
         ? await login(username, password)
-                : await register(username, password);
-      onAuthSuccess(user);
+        : await register(username, password, email);
+      onAuthSuccess(result.token, result.user);
     } catch (err: unknown) {
         if (err instanceof Error) {
             setError(err.message);
@@ -56,6 +57,19 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
           />
         </div>
+        {!isLogin && (
+          <div>
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
+            />
+          </div>
+        )}
         {error && <p style={{ color: 'red' }}>{error}</p>}
         <button type="submit" style={{ width: '100%', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
           {isLogin ? 'Login' : 'Register'}
