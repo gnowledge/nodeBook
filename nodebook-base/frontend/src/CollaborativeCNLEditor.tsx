@@ -228,15 +228,27 @@ export function CollaborativeCNLEditor({
 
     // Clean up any existing instances first
     if (bindingRef.current) {
-      bindingRef.current.destroy();
+      try {
+        bindingRef.current.destroy();
+      } catch (error) {
+        console.warn('Error destroying binding:', error);
+      }
       bindingRef.current = null;
     }
     if (providerRef.current) {
-      providerRef.current.destroy();
+      try {
+        providerRef.current.destroy();
+      } catch (error) {
+        console.warn('Error destroying provider:', error);
+      }
       providerRef.current = null;
     }
     if (ydocRef.current) {
-      ydocRef.current.destroy();
+      try {
+        ydocRef.current.destroy();
+      } catch (error) {
+        console.warn('Error destroying ydoc:', error);
+      }
       ydocRef.current = null;
     }
 
@@ -277,14 +289,26 @@ export function CollaborativeCNLEditor({
     // Cleanup function
     return () => {
       if (bindingRef.current) {
-        bindingRef.current.destroy();
+        try {
+          bindingRef.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying binding in cleanup:', error);
+        }
         bindingRef.current = null;
       }
       if (provider) {
-        provider.destroy();
+        try {
+          provider.destroy();
+        } catch (error) {
+          console.warn('Error destroying provider in cleanup:', error);
+        }
       }
       if (ydoc) {
-        ydoc.destroy();
+        try {
+          ydoc.destroy();
+        } catch (error) {
+          console.warn('Error destroying ydoc in cleanup:', error);
+        }
       }
     };
   }, [graphId, userId, userName]);
@@ -317,10 +341,11 @@ export function CollaborativeCNLEditor({
     }
 
     // Create editor state with minimal extensions to avoid conflicts
+    // Remove cnlHighlightStyle to prevent extension conflicts with Y.js
     const extensions = [
       lineNumbers(),
       languageSupport,
-      cnlHighlightStyle,
+      // cnlHighlightStyle, // Removed to prevent conflicts
       autocompletion({ 
         override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
         activateOnTyping: true,
@@ -374,10 +399,18 @@ export function CollaborativeCNLEditor({
     // Cleanup function
     return () => {
       if (view) {
-        view.destroy();
+        try {
+          view.destroy();
+        } catch (error) {
+          console.warn('Error destroying view:', error);
+        }
       }
       if (bindingRef.current) {
-        bindingRef.current.destroy();
+        try {
+          bindingRef.current.destroy();
+        } catch (error) {
+          console.warn('Error destroying binding in view cleanup:', error);
+        }
         bindingRef.current = null;
       }
     };
