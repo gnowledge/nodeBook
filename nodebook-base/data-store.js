@@ -175,8 +175,14 @@ export class FileSystemStore extends DataStore {
     }
 
     async regenerateGraphFromCnl(userId, graphId, cnlText) {
+        // Get the graph mode from the manifest
+        const manifest = await this.getManifest(userId, graphId);
+        const graphMode = manifest?.mode || 'richgraph';
+        
+        console.log(`[DataStore] Regenerating graph ${graphId} in mode: ${graphMode}`);
+        
         // Parse CNL completely to get all operations
-        const operations = getOperationsFromCnl(cnlText, 'richgraph');
+        const operations = getOperationsFromCnl(cnlText, graphMode);
         
         // Initialize empty graph data
         const graphData = {

@@ -7,7 +7,7 @@ The text is parsed by cnl-parser, while the description blocks are rendered by U
 
 For the description blocks we will use a full featured standard mardown format, including insertion of links and images, supported by the floating menu.  If possible, let the floating menu be placed above the line where the block begins, and moves down as the user scrolls down. 
 
-CNL base text editor will have a non-floating Menu at the top of the CNLEditor, supporting the special requirements.  It will have buttons to insert based on the context of where the cursor position is:
+CNL base text editor will have a non-floating Menu at the top of the CNLEditor, supporting the special requirements.  It will have buttons  for choosing options, wordnet, nlp, adn submit buttons.  after version control is implemented, the menu bar could also show buttons to see past versions, compare two version etc. 
 
     - when the cursor is in the first row, first column describes the graph mode in a commented text
 

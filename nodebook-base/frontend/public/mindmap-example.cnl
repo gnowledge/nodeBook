@@ -1,0 +1,55 @@
+<! MindMap Mode: contains>
+```graph-description
+A simple example of NodeBook's MindMap mode for beginners.
+This demonstrates hierarchical organization using simple markdown headings.
+```
+
+# NodeBook Features
+```description
+The main features and capabilities of NodeBook
+```
+
+## Graph Creation
+```description
+Tools for creating and managing knowledge graphs
+```
+### CNL Editor
+### Auto-completion
+### Syntax Highlighting
+
+## Data Management
+```description
+How NodeBook handles and stores your data
+```
+### File-based Storage
+### Version Control
+### Export/Import
+
+## User Interface
+```description
+The user experience and interface design
+```
+### Dashboard
+### Graph Visualization
+### Responsive Design
+
+# Getting Started
+```description
+How to begin using NodeBook effectively
+```
+
+## First Steps
+```description
+Essential first steps for new users
+```
+### Create Account
+### Choose Mode
+### Write First CNL
+
+## Learning Path
+```description
+Recommended learning progression
+```
+### Start with MindMap
+### Progress to Rich Graphs
+### Explore Advanced Features
