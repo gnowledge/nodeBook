@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { indentWithTab } from '@codemirror/commands';
-import { cnl, cnlHighlightStyle } from './cnl-language';
+import { cnl } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
@@ -11,7 +11,6 @@ import { autocompletion } from '@codemirror/autocomplete';
 // Y.js imports
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
-import { CodemirrorBinding } from 'y-codemirror';
 
 interface CollaborativeCNLEditorProps {
   value: string;
@@ -218,23 +217,15 @@ export function CollaborativeCNLEditor({
   const viewRef = useRef<EditorView | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebrtcProvider | null>(null);
-  const bindingRef = useRef<CodemirrorBinding | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<Array<{ name: string; color: string }>>([]);
+  const [localValue, setLocalValue] = useState(value);
 
   // Initialize Y.js document and WebRTC provider
   useEffect(() => {
     if (!graphId || !userId) return;
 
     // Clean up any existing instances first
-    if (bindingRef.current) {
-      try {
-        bindingRef.current.destroy();
-      } catch (error) {
-        console.warn('Error destroying binding:', error);
-      }
-      bindingRef.current = null;
-    }
     if (providerRef.current) {
       try {
         providerRef.current.destroy();
@@ -257,7 +248,6 @@ export function CollaborativeCNLEditor({
     ydocRef.current = ydoc;
 
     // Create WebRTC provider with room name based on graphId
-    // Use localhost signaling server for development
     const provider = new WebrtcProvider(`nodebook-graph-${graphId}`, ydoc, {
       signaling: ['ws://localhost:4444'], // Local signaling server
       password: null, // No password for now
@@ -286,16 +276,25 @@ export function CollaborativeCNLEditor({
       setConnectedUsers(states);
     });
 
+    // Set up Y.js text synchronization
+    const yText = ydoc.getText('content');
+    
+    // Listen for remote changes
+    yText.observe((event: any) => {
+      const newValue = yText.toString();
+      if (newValue !== localValue) {
+        setLocalValue(newValue);
+        onChange(newValue);
+      }
+    });
+
+    // Set initial content
+    if (value && yText.length === 0) {
+      yText.insert(0, value);
+    }
+
     // Cleanup function
     return () => {
-      if (bindingRef.current) {
-        try {
-          bindingRef.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying binding in cleanup:', error);
-        }
-        bindingRef.current = null;
-      }
       if (provider) {
         try {
           provider.destroy();
@@ -311,19 +310,11 @@ export function CollaborativeCNLEditor({
         }
       }
     };
-  }, [graphId, userId, userName]);
+  }, [graphId, userId, userName, value, onChange, localValue]);
 
-  // Initialize CodeMirror with Y.js binding
+  // Initialize CodeMirror editor
   useEffect(() => {
-    if (!editorRef.current || !ydocRef.current || !providerRef.current) return;
-
-    // Get Y.js text type
-    const yText = ydocRef.current.getText('codemirror');
-
-    // Set initial content if provided
-    if (value && yText.length === 0) {
-      yText.insert(0, value);
-    }
+    if (!editorRef.current) return;
 
     // Create language support
     let languageSupport;
@@ -340,12 +331,10 @@ export function CollaborativeCNLEditor({
         languageSupport = cnl();
     }
 
-    // Create editor state with minimal extensions to avoid conflicts
-    // Remove cnlHighlightStyle to prevent extension conflicts with Y.js
+    // Create editor state with minimal extensions
     const extensions = [
       lineNumbers(),
       languageSupport,
-      // cnlHighlightStyle, // Removed to prevent conflicts
       autocompletion({ 
         override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
         activateOnTyping: true,
@@ -376,11 +365,33 @@ export function CollaborativeCNLEditor({
           fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
         }
       }),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const newValue = update.state.doc.toString();
+          setLocalValue(newValue);
+          onChange(newValue);
+          
+          // Auto-save if callback provided
+          if (onAutoSave) {
+            onAutoSave(newValue);
+          }
+          
+          // Update Y.js document if available
+          if (ydocRef.current) {
+            const yText = ydocRef.current.getText('content');
+            const currentYText = yText.toString();
+            if (newValue !== currentYText) {
+              yText.delete(0, yText.length);
+              yText.insert(0, newValue);
+            }
+          }
+        }
+      }),
       readOnly ? EditorView.editable.of(false) : []
     ];
 
     const state = EditorState.create({
-      doc: yText.toString(),
+      doc: localValue,
       extensions: extensions
     });
 
@@ -392,10 +403,6 @@ export function CollaborativeCNLEditor({
 
     viewRef.current = view;
 
-    // Create Y.js binding
-    const binding = new CodemirrorBinding(yText, view, providerRef.current.awareness);
-    bindingRef.current = binding;
-
     // Cleanup function
     return () => {
       if (view) {
@@ -405,30 +412,15 @@ export function CollaborativeCNLEditor({
           console.warn('Error destroying view:', error);
         }
       }
-      if (bindingRef.current) {
-        try {
-          bindingRef.current.destroy();
-        } catch (error) {
-          console.warn('Error destroying binding in view cleanup:', error);
-        }
-        bindingRef.current = null;
-      }
     };
-  }, [language, nodeTypes, relationTypes, attributeTypes, readOnly, onChange, onAutoSave]);
+  }, [language, nodeTypes, relationTypes, attributeTypes, readOnly, onChange, onAutoSave, localValue]);
 
   // Update editor content when value prop changes (from external sources)
   useEffect(() => {
-    if (viewRef.current && ydocRef.current && value !== viewRef.current.state.doc.toString()) {
-      const yText = ydocRef.current.getText('codemirror');
-      const currentContent = yText.toString();
-      
-      if (value !== currentContent) {
-        // Update Y.js document
-        yText.delete(0, yText.length);
-        yText.insert(0, value);
-      }
+    if (value !== localValue) {
+      setLocalValue(value);
     }
-  }, [value]);
+  }, [value, localValue]);
 
   return (
     <div className={`collaborative-cnl-editor ${className}`}>
