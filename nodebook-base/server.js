@@ -36,6 +36,20 @@ const auth = {
         return user;
       }
     }
+    
+    // Special case: if admin user is not found, create it with ID 1
+    if (username === 'admin') {
+      const adminUser = {
+        id: 1,
+        username: 'admin',
+        email: 'admin@nodebook.local',
+        verified: true,
+        is_admin: true
+      };
+      users.set(1, adminUser);
+      return adminUser;
+    }
+    
     // Return stub user if not found
     return { id: 1, username: 'stub-user', email: 'stub@example.com', verified: true, is_admin: false };
   },
@@ -52,12 +66,20 @@ const auth = {
   
   createUser: async (username, email, password) => {
     // Create a new user
+    let userId = userCounter++;
+    
+    // Special case: admin user should get ID 1 to access existing graphs
+    if (username === 'admin') {
+      userId = 1;
+      userCounter = Math.max(userCounter, 2); // Ensure next user gets ID 2 or higher
+    }
+    
     const newUser = {
-      id: userCounter++,
+      id: userId,
       username,
       email,
       verified: true,
-      is_admin: false
+      is_admin: username === 'admin'
     };
     users.set(newUser.id, newUser);
     return newUser;
