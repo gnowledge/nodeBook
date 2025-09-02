@@ -1113,14 +1113,23 @@ Another service or function
     preHandler: [authenticateJWT, loadGraph]
   }, async (request, reply) => {
     const graph = request.graph;
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
     const nodes = await graph.listAll('nodes');
     const relations = await graph.listAll('relations');
     const attributes = await graph.listAll('attributes');
     
+    // Get the graph mode from the manifest
+    const manifest = await dataStore.getManifest(userId, graphId);
+    const mode = manifest?.mode || 'richgraph';
+    
     return {
       nodes: nodes.filter(node => !node.isDeleted),
       relations: relations.filter(rel => !rel.isDeleted),
-      attributes: attributes.filter(attr => !attr.isDeleted)
+      attributes: attributes.filter(attr => !attr.isDeleted),
+      mode: mode
     };
   });
 

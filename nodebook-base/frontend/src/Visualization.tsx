@@ -14,9 +14,10 @@ interface VisualizationProps {
   relations: Edge[];
   attributes: Attribute[];
   onNodeSelect: (nodeId: string | null) => void;
+  graphMode?: 'richgraph' | 'mindmap';
 }
 
-export function Visualization({ nodes, relations, attributes, onNodeSelect }: VisualizationProps) {
+export function Visualization({ nodes, relations, attributes, onNodeSelect, graphMode = 'richgraph' }: VisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
 
@@ -40,7 +41,12 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect }: Vi
     }));
 
     const cyEdges = relations.map(edge => ({
-      data: { id: edge.id, source: edge.source_id, target: edge.target_id, label: edge.name }
+      data: { 
+        id: edge.id, 
+        source: edge.source_id, 
+        target: edge.target_id, 
+        label: graphMode === 'mindmap' ? '' : edge.name // Hide edge labels in MindMap mode
+      }
     }));
 
     const attributeEdges = attributes.map(attr => ({

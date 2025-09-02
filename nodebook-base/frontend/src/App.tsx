@@ -91,6 +91,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
   // Single CNL text for the current graph
   const [cnlText, setCnlText] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
@@ -130,10 +131,12 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         const graphNodes = data.nodes || [];
         const graphRelations = data.relations || [];
         const graphAttributes = data.attributes || [];
+        const graphMode = data.mode || 'richgraph';
         
         setNodes(graphNodes);
         setRelations(graphRelations);
         setAttributes(graphAttributes);
+        setGraphMode(graphMode);
         
         // Calculate graph score
         const score = calculateGraphScore(graphNodes, graphRelations, graphAttributes);
@@ -453,7 +456,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               <h3>Graph Visualization</h3>
                             </div>
                             <div className={styles.visualizationWrapper}>
-                              <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />
+                              <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode} />
                               {selectedNode && (
                                 <div className={styles.selectedNodeCard}>
                                   <NodeCard
@@ -512,7 +515,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     )}
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
-                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} />
+                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode} />
                         {selectedNode && (
                           <div className={styles.selectedNodeCard}>
                             <NodeCard
