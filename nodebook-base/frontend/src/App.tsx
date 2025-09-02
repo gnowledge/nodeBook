@@ -94,6 +94,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
   // Single CNL text for the current graph
   const [cnlText, setCnlText] = useState<string>('');
+  // Collaboration state
+  const [enableCollaboration, setEnableCollaboration] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [activePage, setActivePage] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState(() => {
@@ -325,6 +328,23 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
 
   // Graph switching removed - App is single-graph only
 
+  // Get current user info for collaboration
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUser({
+          id: payload.id || payload.userId || 'anonymous',
+          name: payload.name || payload.username || 'Anonymous'
+        });
+      } catch (error) {
+        console.error('Error parsing token:', error);
+        setCurrentUser({ id: 'anonymous', name: 'Anonymous' });
+      }
+    }
+  }, []);
+
   const handlePublicationStateChange = (newState: 'Private' | 'P2P' | 'Public') => {
     setPublicationState(newState);
     // The publication state change is handled transparently by the backend
@@ -347,6 +367,11 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           });
       }, 100);
     }
+  };
+
+  const handleCollaborationToggle = (enabled: boolean) => {
+    setEnableCollaboration(enabled);
+    console.log(`Collaboration ${enabled ? 'enabled' : 'disabled'}`);
   };
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
@@ -438,6 +463,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 isModified: activeGraphId && cnlText ? true : false,
                                 isSaved: false // We'll need to track this properly later
                               }}
+                              enableCollaboration={enableCollaboration}
+                              userId={currentUser?.id}
+                              userName={currentUser?.name}
+                              onCollaborationToggle={handleCollaborationToggle}
                             />
                             
                             {/* Score widget at bottom of Editor */}
@@ -499,6 +528,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               isModified: activeGraphId && cnlText ? true : false,
                               isSaved: false // We'll need to track this properly later
                             }}
+                            enableCollaboration={enableCollaboration}
+                            userId={currentUser?.id}
+                            userName={currentUser?.name}
+                            onCollaborationToggle={handleCollaborationToggle}
                           />
                           
                           {/* Score widget at bottom of Editor */}

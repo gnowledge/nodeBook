@@ -31,7 +31,10 @@
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "y-codemirror": "^3.0.1",
+    "y-webrtc": "^10.3.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@types/cytoscape": "^3.21.9",

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CNLEditor } from './CNLEditorComponent';
+import { CollaborativeCNLEditor } from './CollaborativeCNLEditor';
 import type { RelationType, AttributeType, NodeType } from './types';
 import { NLPSidePanel } from './NLPSidePanel';
 import { WordNetDefinitionsPanel } from './WordNetDefinitionsPanel';
@@ -25,9 +26,14 @@ interface CnlEditorProps {
     isModified: boolean;
     isSaved: boolean;
   };
+  // Collaboration props
+  enableCollaboration?: boolean;
+  userId?: string;
+  userName?: string;
+  onCollaborationToggle?: (enabled: boolean) => void;
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle }: CnlEditorProps) {
   // Debug logging
   console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
   
@@ -286,6 +292,31 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             </div>
           )}
           
+          {/* Collaboration Toggle */}
+          {graphId && userId && (
+            <button
+              className={`collaboration-toggle ${enableCollaboration ? 'active' : ''}`}
+              onClick={() => {
+                if (onCollaborationToggle) {
+                  onCollaborationToggle(!enableCollaboration);
+                }
+              }}
+              title={enableCollaboration ? 'Disable collaboration' : 'Enable live collaboration'}
+              style={{
+                padding: '4px 8px',
+                margin: '0 8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: enableCollaboration ? '#e3f2fd' : '#fff',
+                color: enableCollaboration ? '#1976d2' : '#666',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              {enableCollaboration ? '👥 Live' : '👤 Solo'}
+            </button>
+          )}
+          
           {/* Edit Menu */}
           <DropdownMenu
             title="Edit"
@@ -415,17 +446,34 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
 
       {/* CodeMirror CNL Editor */}
       <div className="cnl-editor-main">
-        <CNLEditor
-          value={value}
-          onChange={onChange}
-          onAutoSave={onAutoSave}
-          language="cnl"
-          readOnly={disabled}
-          placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
-          nodeTypes={nodeTypes}
-          relationTypes={relationTypes}
-          attributeTypes={attributeTypes}
-        />
+        {enableCollaboration && graphId && userId ? (
+          <CollaborativeCNLEditor
+            value={value}
+            onChange={onChange}
+            onAutoSave={onAutoSave}
+            language="cnl"
+            readOnly={disabled}
+            placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
+            nodeTypes={nodeTypes}
+            relationTypes={relationTypes}
+            attributeTypes={attributeTypes}
+            graphId={graphId}
+            userId={userId}
+            userName={userName || 'Anonymous'}
+          />
+        ) : (
+          <CNLEditor
+            value={value}
+            onChange={onChange}
+            onAutoSave={onAutoSave}
+            language="cnl"
+            readOnly={disabled}
+            placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
+            nodeTypes={nodeTypes}
+            relationTypes={relationTypes}
+            attributeTypes={attributeTypes}
+          />
+        )}
       </div>
 
       {/* NLP Side Panel */}
