@@ -226,13 +226,28 @@ export function CollaborativeCNLEditor({
   useEffect(() => {
     if (!graphId || !userId) return;
 
+    // Clean up any existing instances first
+    if (bindingRef.current) {
+      bindingRef.current.destroy();
+      bindingRef.current = null;
+    }
+    if (providerRef.current) {
+      providerRef.current.destroy();
+      providerRef.current = null;
+    }
+    if (ydocRef.current) {
+      ydocRef.current.destroy();
+      ydocRef.current = null;
+    }
+
     // Create Y.js document
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
 
     // Create WebRTC provider with room name based on graphId
+    // Use localhost signaling server for development
     const provider = new WebrtcProvider(`nodebook-graph-${graphId}`, ydoc, {
-      signaling: ['wss://signaling.yjs.dev'], // Use public signaling server for now
+      signaling: ['ws://localhost:4444'], // Local signaling server
       password: null, // No password for now
     });
 
@@ -263,6 +278,7 @@ export function CollaborativeCNLEditor({
     return () => {
       if (bindingRef.current) {
         bindingRef.current.destroy();
+        bindingRef.current = null;
       }
       if (provider) {
         provider.destroy();
@@ -300,83 +316,47 @@ export function CollaborativeCNLEditor({
         languageSupport = cnl();
     }
 
-    // Create editor state
+    // Create editor state with minimal extensions to avoid conflicts
+    const extensions = [
+      lineNumbers(),
+      languageSupport,
+      cnlHighlightStyle,
+      autocompletion({ 
+        override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
+        activateOnTyping: true,
+        defaultKeymap: true,
+        maxRenderedOptions: 10
+      }),
+      keymap.of([indentWithTab]),
+      EditorView.theme({
+        '&': {
+          fontSize: '14px',
+          fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
+        },
+        '.cm-content': {
+          padding: '12px',
+          minHeight: '200px',
+          backgroundColor: '#ffffff',
+          color: '#333333'
+        },
+        '.cm-focused': {
+          outline: 'none'
+        },
+        '.cm-editor': {
+          backgroundColor: '#ffffff',
+          border: '1px solid #e1e5e9',
+          borderRadius: '6px'
+        },
+        '.cm-scroller': {
+          fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
+        }
+      }),
+      readOnly ? EditorView.editable.of(false) : []
+    ];
+
     const state = EditorState.create({
       doc: yText.toString(),
-      extensions: [
-        lineNumbers(),
-        languageSupport,
-        cnlHighlightStyle,
-        autocompletion({ 
-          override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
-          activateOnTyping: true,
-          defaultKeymap: true,
-          maxRenderedOptions: 10,
-          renderCompletionItem: (completion, state, view) => {
-            const div = document.createElement('div');
-            div.textContent = completion.label;
-            div.className = 'cm-completion-item';
-            return div;
-          }
-        }),
-        keymap.of([
-          indentWithTab,
-          {
-            key: 'Tab',
-            run: (target) => {
-              // Handle Tab for completion selection
-              const completions = target.state.field(autocompletion);
-              if (completions && completions.open) {
-                return false; // Let autocompletion handle it
-              }
-              return false; // Default tab behavior
-            }
-          }
-        ]),
-        EditorView.theme({
-          '&': {
-            fontSize: '14px',
-            fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
-          },
-          '.cm-content': {
-            padding: '12px',
-            minHeight: '200px',
-            backgroundColor: '#ffffff',
-            color: '#333333'
-          },
-          '.cm-focused': {
-            outline: 'none'
-          },
-          '.cm-editor': {
-            backgroundColor: '#ffffff',
-            border: '1px solid #e1e5e9',
-            borderRadius: '6px'
-          },
-          '.cm-scroller': {
-            fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
-          },
-          '.cm-completion-item': {
-            padding: '4px 8px',
-            cursor: 'pointer'
-          },
-          '.cm-completion-item[aria-selected]': {
-            backgroundColor: '#e3f2fd'
-          }
-        }),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            // Handle local changes (Y.js will handle sync automatically)
-            const newValue = update.state.doc.toString();
-            onChange(newValue);
-            
-            // Auto-save if callback provided
-            if (onAutoSave) {
-              onAutoSave(newValue);
-            }
-          }
-        }),
-        readOnly ? EditorView.editable.of(false) : []
-      ]
+      extensions: extensions
     });
 
     // Create editor view
@@ -395,6 +375,10 @@ export function CollaborativeCNLEditor({
     return () => {
       if (view) {
         view.destroy();
+      }
+      if (bindingRef.current) {
+        bindingRef.current.destroy();
+        bindingRef.current = null;
       }
     };
   }, [language, nodeTypes, relationTypes, attributeTypes, readOnly, onChange, onAutoSave]);
