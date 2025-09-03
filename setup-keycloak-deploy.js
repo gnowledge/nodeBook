@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://your-domain.com/auth';
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://auth.your-domain.com';
 const ADMIN_USER = process.env.KEYCLOAK_ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.KEYCLOAK_ADMIN_PASSWORD || 'Admin123';
 const REALM_NAME = 'nodebook';
@@ -55,10 +55,12 @@ async function setupKeycloak() {
       clientAuthenticatorType: 'client-secret',
       secret: CLIENT_SECRET,
       redirectUris: [
-        'https://your-domain.com/*'
+        'https://nodebook.co.in/*',
+        'https://auth.nodebook.co.in/*'
       ],
       webOrigins: [
-        'https://your-domain.com'
+        'https://nodebook.co.in',
+        'https://auth.nodebook.co.in'
       ],
       defaultClientScopes: ['openid', 'profile', 'email'],
       protocol: 'openid-connect'
@@ -133,7 +135,7 @@ async function setupKeycloak() {
     console.log('✅ Admin role assigned');
     
     console.log('🎉 Keycloak setup completed successfully!');
-    console.log(`📋 Admin Console: https://your-domain.com/auth/admin`);
+    console.log(`📋 Admin Console: https://auth.nodebook.co.in/admin`);
     console.log(`🔑 Admin Login: admin / Admin123`);
     
   } catch (error) {
