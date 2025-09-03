@@ -49,27 +49,7 @@ services:
       - keycloak
     restart: unless-stopped
 
-  # P2P Network Monitor Service
-  p2p-monitor:
-    build:
-      context: ./nodebook-base
-      dockerfile: Dockerfile.p2p-monitor
-    container_name: nodebook-p2p-monitor-dev
-    # No external ports - only accessible via nginx proxy
-    volumes:
-      - ./nodebook-base:/app
-      - /app/node_modules
-      - ./data:/app/data
-    environment:
-      - NODE_ENV=development
-      - MONITOR_PORT=3003
-      - P2P_NETWORK_ID=nodebook-dev
-      - DATA_PATH=/app/data
-    networks:
-      - nodebook-p2p-net
-    depends_on:
-      - nodebook-p2p
-    restart: unless-stopped
+
 
   # Media backend service for file uploads and management
   media-backend:
