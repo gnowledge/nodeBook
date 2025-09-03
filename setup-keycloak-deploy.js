@@ -31,85 +31,163 @@ async function setupKeycloak() {
     const accessToken = tokenResponse.data.access_token;
     console.log('✅ Admin token obtained');
     
-    // Create realm
-    console.log('🏗️ Creating realm...');
-    await axios.post(`${KEYCLOAK_URL}/admin/realms`, {
-      realm: REALM_NAME,
-      enabled: true,
-      displayName: 'NodeBook',
-      displayNameHtml: '<div class="kc-logo-text"><span>NodeBook</span></div>'
-    }, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('✅ Realm created');
-    
-    // Create client
-    console.log('🔧 Creating client...');
-    await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients`, {
-      clientId: CLIENT_ID,
-      enabled: true,
-      publicClient: false,
-      clientAuthenticatorType: 'client-secret',
-      secret: CLIENT_SECRET,
-      redirectUris: [
-        'https://nodebook.co.in/*',
-        'https://auth.nodebook.co.in/*'
-      ],
-      webOrigins: [
-        'https://nodebook.co.in',
-        'https://auth.nodebook.co.in'
-      ],
-      defaultClientScopes: ['openid', 'profile', 'email'],
-      protocol: 'openid-connect'
-    }, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('✅ Client created');
-    
-    // Create roles
-    console.log('👥 Creating roles...');
-    const roles = ['admin', 'user', 'collaborator'];
-    
-    for (const roleName of roles) {
-      await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/roles`, {
-        name: roleName,
-        description: `${roleName} role for NodeBook`
+    // Create realm (or update if exists)
+    console.log('🏗️ Creating/updating realm...');
+    try {
+      await axios.post(`${KEYCLOAK_URL}/admin/realms`, {
+        realm: REALM_NAME,
+        enabled: true,
+        displayName: 'NodeBook',
+        displayNameHtml: '<div class="kc-logo-text"><span>NodeBook</span></div>'
       }, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
-    }
-    console.log('✅ Roles created');
-    
-    // Create admin user
-    console.log('👤 Creating admin user...');
-    await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/users`, {
-      username: 'admin',
-      email: 'admin@your-domain.com',
-      firstName: 'Admin',
-      lastName: 'User',
-      enabled: true,
-      emailVerified: true,
-      credentials: [{
-        type: 'password',
-        value: 'Admin123',
-        temporary: false
-      }]
-    }, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+      console.log('✅ Realm created');
+    } catch (error) {
+      if (error.response?.status === 409) {
+        console.log('✅ Realm already exists, updating...');
+        await axios.put(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}`, {
+          realm: REALM_NAME,
+          enabled: true,
+          displayName: 'NodeBook',
+          displayNameHtml: '<div class="kc-logo-text"><span>NodeBook</span></div>'
+        }, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('✅ Realm updated');
+      } else {
+        throw error;
       }
-    });
-    console.log('✅ Admin user created');
+    }
+    
+    // Create client (or update if exists)
+    console.log('🔧 Creating/updating client...');
+    try {
+      await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients`, {
+        clientId: CLIENT_ID,
+        enabled: true,
+        publicClient: false,
+        clientAuthenticatorType: 'client-secret',
+        secret: CLIENT_SECRET,
+        redirectUris: [
+          'https://nodebook.co.in/*',
+          'https://auth.nodebook.co.in/*'
+        ],
+        webOrigins: [
+          'https://nodebook.co.in',
+          'https://auth.nodebook.co.in'
+        ],
+        defaultClientScopes: ['openid', 'profile', 'email'],
+        protocol: 'openid-connect'
+      }, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('✅ Client created');
+    } catch (error) {
+      if (error.response?.status === 409) {
+        console.log('✅ Client already exists, updating...');
+        // Get existing client ID
+        const clientsResponse = await axios.get(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients?clientId=${CLIENT_ID}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        const clientId = clientsResponse.data[0].id;
+        
+        // Update client
+        await axios.put(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/clients/${clientId}`, {
+          clientId: CLIENT_ID,
+          enabled: true,
+          publicClient: false,
+          clientAuthenticatorType: 'client-secret',
+          secret: CLIENT_SECRET,
+          redirectUris: [
+            'https://nodebook.co.in/*',
+            'https://auth.nodebook.co.in/*'
+          ],
+          webOrigins: [
+            'https://nodebook.co.in',
+            'https://auth.nodebook.co.in'
+          ],
+          defaultClientScopes: ['openid', 'profile', 'email'],
+          protocol: 'openid-connect'
+        }, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('✅ Client updated');
+      } else {
+        throw error;
+      }
+    }
+    
+    // Create roles (or skip if exists)
+    console.log('👥 Creating roles...');
+    const roles = ['admin', 'user', 'collaborator'];
+    
+    for (const roleName of roles) {
+      try {
+        await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/roles`, {
+          name: roleName,
+          description: `${roleName} role for NodeBook`
+        }, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log(`✅ Role ${roleName} created`);
+      } catch (error) {
+        if (error.response?.status === 409) {
+          console.log(`✅ Role ${roleName} already exists`);
+        } else {
+          throw error;
+        }
+      }
+    }
+    console.log('✅ Roles setup completed');
+    
+    // Create admin user (or skip if exists)
+    console.log('👤 Creating admin user...');
+    try {
+      await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/users`, {
+        username: 'admin',
+        email: 'admin@nodebook.co.in',
+        firstName: 'Admin',
+        lastName: 'User',
+        enabled: true,
+        emailVerified: true,
+        credentials: [{
+          type: 'password',
+          value: 'Admin123',
+          temporary: false
+        }]
+      }, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('✅ Admin user created');
+    } catch (error) {
+      if (error.response?.status === 409) {
+        console.log('✅ Admin user already exists');
+      } else {
+        throw error;
+      }
+    }
     
     // Assign admin role to admin user
     console.log('🔗 Assigning admin role...');
