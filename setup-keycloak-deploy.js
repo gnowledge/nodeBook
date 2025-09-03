@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'https://your-domain.com/auth';
 const ADMIN_USER = process.env.KEYCLOAK_ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.KEYCLOAK_ADMIN_PASSWORD || 'Admin123';
 const REALM_NAME = 'nodebook';
