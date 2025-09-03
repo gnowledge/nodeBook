@@ -38,47 +38,48 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px' }}>
       <h2>{isLogin ? 'Login' : 'Register'}</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
-          />
-        </div>
-        {!isLogin && (
+      
+      {isLogin ? (
+        <form onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email">Email</label>
+            <label htmlFor="username">Username</label>
             <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
             />
           </div>
-        )}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" style={{ width: '100%', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
-          {isLogin ? 'Login' : 'Register'}
-        </button>
-      </form>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ width: '100%', padding: '8px', margin: '8px 0', boxSizing: 'border-box' }}
+            />
+          </div>
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+          <button type="submit" style={{ width: '100%', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Login
+          </button>
+        </form>
+      ) : (
+        <div>
+          <p>Click the button below to register a new account:</p>
+          <button 
+            onClick={handleSubmit}
+            style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}
+          >
+            Register New Account
+          </button>
+        </div>
+      )}
+      
       <button onClick={() => setIsLogin(!isLogin)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', marginTop: '1rem' }}>
         {isLogin ? 'Need an account? Register' : 'Have an account? Login'}
       </button>
