@@ -11,7 +11,7 @@ services:
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
-      - KC_HOSTNAME=${DOMAIN_NAME}
+      - KC_HOSTNAME=auth.${DOMAIN_NAME}
       - KC_HOSTNAME_PORT=443
       - KC_HOSTNAME_STRICT_HTTPS=true
       - KC_HOSTNAME_STRICT_BACKCHANNEL=true
