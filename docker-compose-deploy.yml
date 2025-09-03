@@ -40,7 +40,7 @@ services:
       - P2P_ENABLED=true
       - COLLABORATION_ENABLED=true
       - LOG_LEVEL=info
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=https://auth.${DOMAIN_NAME}
       - KEYCLOAK_REALM=nodebook
       - DATA_PATH=/app/data
     networks:
@@ -128,7 +128,7 @@ services:
     # No external ports - only accessible via nginx proxy
     environment:
       - VITE_API_TARGET=https://${DOMAIN_NAME}/api
-      - VITE_KEYCLOAK_URL=https://${DOMAIN_NAME}/auth
+      - VITE_KEYCLOAK_URL=https://auth.${DOMAIN_NAME}
       - VITE_KEYCLOAK_REALM=nodebook
       - VITE_KEYCLOAK_CLIENT_ID=nodebook-frontend
       - VITE_KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}

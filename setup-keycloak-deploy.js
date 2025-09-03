@@ -119,20 +119,26 @@ async function setupKeycloak() {
       }
     });
     
-    const adminUser = usersResponse.data[0];
-    const adminRoleResponse = await axios.get(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/roles/admin`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-    
-    await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/users/${adminUser.id}/role-mappings/realm`, [adminRoleResponse.data], {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('✅ Admin role assigned');
+    if (!usersResponse.data || usersResponse.data.length === 0) {
+      console.log('⚠️ Admin user not found, skipping role assignment');
+    } else {
+      const adminUser = usersResponse.data[0];
+      console.log(`📋 Found admin user with ID: ${adminUser.id}`);
+      
+      const adminRoleResponse = await axios.get(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/roles/admin`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      await axios.post(`${KEYCLOAK_URL}/admin/realms/${REALM_NAME}/users/${adminUser.id}/role-mappings/realm`, [adminRoleResponse.data], {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('✅ Admin role assigned');
+    }
     
     console.log('🎉 Keycloak setup completed successfully!');
     console.log(`📋 Admin Console: https://auth.nodebook.co.in/admin`);
