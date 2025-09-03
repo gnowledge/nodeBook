@@ -75,6 +75,77 @@ class KeycloakAuthService {
   }
 
   /**
+   * Login using Keycloak's login page (redirects to Keycloak)
+   */
+  async loginWithKeycloak(): Promise<void> {
+    const loginUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?client_id=${this.clientId}&response_type=code&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = loginUrl;
+  }
+
+  /**
+   * Forgot password (redirects to Keycloak)
+   */
+  async forgotPassword(): Promise<void> {
+    const forgotPasswordUrl = `${this.keycloakUrl}/realms/${this.realm}/login-actions/reset-credentials?client_id=${this.clientId}&redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = forgotPasswordUrl;
+  }
+
+  /**
+   * Handle OAuth callback and extract token
+   */
+  async handleCallback(): Promise<AuthResult | null> {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+
+    if (error) {
+      console.error('OAuth error:', error);
+      return null;
+    }
+
+    if (!code) {
+      return null;
+    }
+
+    try {
+      // Exchange code for token
+      const response = await fetch(`${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          code: code,
+          redirect_uri: window.location.origin
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to exchange code for token');
+      }
+
+      const tokenData = await response.json();
+      
+      // Get user info from the token
+      const userInfo = await this.getUserInfo(tokenData.access_token);
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      return {
+        token: tokenData.access_token,
+        user: userInfo
+      };
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get user information from token
    */
   async getUserInfo(token: string): Promise<User> {

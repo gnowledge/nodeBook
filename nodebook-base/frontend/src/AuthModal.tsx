@@ -16,45 +16,42 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
+  const handleLogin = async () => {
     try {
-      if (isLogin) {
-        const result = await keycloakAuth.login(username, password);
-        keycloakAuth.storeAuth(result.token, result.user);
-        onLogin(result.token, result.user);
-        onClose();
-      } else {
-        // For registration, redirect to Keycloak
-        await keycloakAuth.register();
-      }
+      await keycloakAuth.loginWithKeycloak();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Network error. Please try again.');
       }
-    } finally {
-      setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setUsername('');
-    setPassword('');
-    setEmail('');
+  const handleRegister = async () => {
+    try {
+      await keycloakAuth.register();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Network error. Please try again.');
+      }
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    try {
+      await keycloakAuth.forgotPassword();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Network error. Please try again.');
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -63,50 +60,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
     <div className={styles.authModalOverlay} onClick={onClose}>
       <div className={styles.authModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.authModalHeader}>
-          <h2>{isLogin ? 'Sign In' : 'Create Account'}</h2>
+          <h2>Authentication</h2>
           <button className={styles.authModalClose} onClick={onClose}>
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.authForm}>
-          <div className={styles.formGroup}>
-            <label htmlFor="username">Username</label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          {!isLogin && (
-            <div className={styles.formGroup}>
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-          )}
+        <div className={styles.authForm}>
+          <p style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#666' }}>
+            Please choose an option to continue:
+          </p>
 
           {error && (
             <div className={styles.authError}>
@@ -114,24 +77,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin }) => {
             </div>
           )}
 
-          <button 
-            type="submit" 
-            className={styles.authSubmitBtn}
-            disabled={loading}
-          >
-            {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
-          </button>
-        </form>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <button 
+              onClick={handleLogin}
+              className={styles.authSubmitBtn}
+              style={{ background: '#007bff' }}
+            >
+              🔐 Login to Existing Account
+            </button>
+
+            <button 
+              onClick={handleRegister}
+              className={styles.authSubmitBtn}
+              style={{ background: '#28a745' }}
+            >
+              ✨ Create New Account
+            </button>
+
+            <button 
+              onClick={handleForgotPassword}
+              className={styles.authToggleBtn}
+            >
+              🔑 Forgot Password?
+            </button>
+          </div>
+        </div>
 
         <div className={styles.authModalFooter}>
-          <button 
-            type="button" 
-            className={styles.authToggleBtn}
-            onClick={toggleMode}
-            disabled={loading}
-          >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-          </button>
+          <p style={{ fontSize: '12px', color: '#666', textAlign: 'center' }}>
+            All authentication is handled securely by Keycloak
+          </p>
         </div>
       </div>
     </div>
