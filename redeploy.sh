@@ -24,6 +24,29 @@ fi
 
 echo "🔧 Using compose: ${COMPOSE_CMD[*]}"
 
+# Ensure we operate from project root so default .env is picked up
+cd "$ROOT_DIR"
+
+# Load env file (prefer .env.deploy), export into current shell
+ENV_FILE=""
+if [[ -f "$ROOT_DIR/.env.deploy" ]]; then
+  echo "🔑 Loading .env.deploy"
+  set -a; . "$ROOT_DIR/.env.deploy"; set +a
+  ENV_FILE="$ROOT_DIR/.env.deploy"
+elif [[ -f "$ROOT_DIR/.env" ]]; then
+  echo "🔑 Loading .env"
+  set -a; . "$ROOT_DIR/.env"; set +a
+  ENV_FILE="$ROOT_DIR/.env"
+fi
+
+# If compose supports --env-file, pass it explicitly
+ENV_ARGS=()
+if [[ -n "$ENV_FILE" ]]; then
+  if "${COMPOSE_CMD[@]}" --help 2>&1 | grep -q -- "--env-file"; then
+    ENV_ARGS=(--env-file "$ENV_FILE")
+  fi
+fi
+
 echo "🗂  Working directory: $ROOT_DIR"
 
 read -r -p "🔄 Pull latest from GitHub (git pull --rebase)? [Y/n] " PULL
@@ -35,7 +58,7 @@ fi
 
 echo
 echo "📦 Detecting services in docker-compose-deploy.yml..."
-SERVICES=$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" config --services)
+SERVICES=$("${COMPOSE_CMD[@]}" "${ENV_ARGS[@]}" -f "$COMPOSE_FILE" config --services)
 if [[ -z "$SERVICES" ]]; then
   echo "❌ No services found in compose file"
   exit 1
@@ -80,7 +103,7 @@ read -r -p "🛠  Run docker compose build for selected services? [Y/n] " RUN_BU
 RUN_BUILD=${RUN_BUILD:-Y}
 if [[ "$RUN_BUILD" =~ ^[Yy]$ ]]; then
   echo "➡️  Building: ${SELECTED[*]}"
-  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build "${SELECTED[@]}"
+  "${COMPOSE_CMD[@]}" "${ENV_ARGS[@]}" -f "$COMPOSE_FILE" build "${SELECTED[@]}"
 fi
 
 echo
@@ -88,19 +111,19 @@ read -r -p "🚀 Restart containers (up -d) for selected services? [Y/n] " RUN_U
 RUN_UP=${RUN_UP:-Y}
 if [[ "$RUN_UP" =~ ^[Yy]$ ]]; then
   echo "➡️  Starting: ${SELECTED[*]}"
-  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d "${SELECTED[@]}"
+  "${COMPOSE_CMD[@]}" "${ENV_ARGS[@]}" -f "$COMPOSE_FILE" up -d "${SELECTED[@]}"
 fi
 
 echo
 read -r -p "🧹 Remove orphan containers? (--remove-orphans) [y/N] " RM_ORPH
 RM_ORPH=${RM_ORPH:-N}
 if [[ "$RM_ORPH" =~ ^[Yy]$ ]]; then
-  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d --remove-orphans
+  "${COMPOSE_CMD[@]}" "${ENV_ARGS[@]}" -f "$COMPOSE_FILE" up -d --remove-orphans
 fi
 
 echo
 echo "📋 Current container status:"
-"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps
+"${COMPOSE_CMD[@]}" "${ENV_ARGS[@]}" -f "$COMPOSE_FILE" ps
 
 echo
 echo "✅ Done."
