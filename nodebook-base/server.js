@@ -16,6 +16,8 @@ import CNLSuggestionService from './cnl-suggestion-service.js';
 // Keycloak authentication integration
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'nodebook';
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'nodebook-frontend';
+const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'nodebook-frontend-secret';
 
 const auth = {
   async verifyToken(token) {
@@ -353,6 +355,69 @@ Another service or function
     } catch (error) {
       reply.code(400).send({ error: error.message });
       return;
+    }
+  });
+  
+  // OAuth callback - exchange authorization code for token
+  fastify.post('/api/auth/callback', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['code'],
+        properties: {
+          code: { type: 'string' },
+          redirect_uri: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { code, redirect_uri } = request.body;
+      const finalRedirect = redirect_uri || (process.env.DOMAIN_NAME ? `https://${process.env.DOMAIN_NAME}` : 'http://localhost:5173');
+
+      const tokenResponse = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: KEYCLOAK_CLIENT_ID,
+          client_secret: KEYCLOAK_CLIENT_SECRET,
+          code: code,
+          redirect_uri: finalRedirect
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        const text = await tokenResponse.text();
+        request.log.error({ text }, 'Keycloak token exchange failed');
+        reply.code(400).send({ error: 'Token exchange failed' });
+        return;
+      }
+
+      const tokenData = await tokenResponse.json();
+
+      // Get user info
+      const userInfoRes = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`, {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      if (!userInfoRes.ok) {
+        reply.code(400).send({ error: 'Failed to fetch user info' });
+        return;
+      }
+      const userInfo = await userInfoRes.json();
+
+      reply.send({
+        token: tokenData.access_token,
+        user: {
+          id: userInfo.sub,
+          username: userInfo.preferred_username || userInfo.email,
+          email: userInfo.email,
+          isAdmin: userInfo.realm_access?.roles?.includes('admin') || false
+        }
+      });
+    } catch (err) {
+      request.log.error(err, 'OAuth callback error');
+      reply.code(500).send({ error: 'OAuth callback error' });
     }
   });
   

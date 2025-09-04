@@ -3,6 +3,7 @@ import Dashboard from './Dashboard';
 import App from './App';
 import AuthModal from './AuthModal';
 import { PublicGraphViewer } from './PublicGraphViewer';
+import { keycloakAuth } from './services/keycloakAuth';
 import styles from './TestApp.module.css';
 
 interface User {
@@ -22,39 +23,64 @@ function TestApp() {
   const [publicGraphId, setPublicGraphId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      // Verify token is still valid
-      fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${storedToken}`,
-        },
-      })
-        .then((res) => {
-          if (res.ok) {
+    const handleAuthOnLoad = async () => {
+      // If redirected from Keycloak with ?code=..., complete OAuth flow
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+
+      if (error) {
+        // Failed auth redirect; just continue to unauthenticated state
+        setLoading(false);
+        return;
+      }
+
+      if (code) {
+        try {
+          const result = await keycloakAuth.handleCallback();
+          if (result) {
+            keycloakAuth.storeAuth(result.token, result.user);
             setIsAuthenticated(true);
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-          } else {
-            // Token is invalid, clear storage
+            setToken(result.token);
+            setUser(result.user);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // Fall through to stored token check
+        }
+      }
+
+      // No OAuth code in URL; fall back to stored token check
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedToken && storedUser) {
+        // Verify token is still valid
+        fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${storedToken}` },
+        })
+          .then((res) => {
+            if (res.ok) {
+              setIsAuthenticated(true);
+              setToken(storedToken);
+              setUser(JSON.parse(storedUser));
+            } else {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            }
+          })
+          .catch(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-          }
-        })
-        .catch(() => {
-          // Network error, clear storage
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+          })
+          .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    };
+
+    handleAuthOnLoad();
   }, []);
 
   const handleLogin = (newToken: string, userData: User) => {
