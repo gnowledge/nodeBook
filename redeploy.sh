@@ -12,6 +12,18 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
+# Detect compose command (plugin vs legacy)
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD=(docker-compose)
+else
+  echo "❌ Neither 'docker compose' nor 'docker-compose' found in PATH"
+  exit 1
+fi
+
+echo "🔧 Using compose: ${COMPOSE_CMD[*]}"
+
 echo "🗂  Working directory: $ROOT_DIR"
 
 read -r -p "🔄 Pull latest from GitHub (git pull --rebase)? [Y/n] " PULL
@@ -23,7 +35,7 @@ fi
 
 echo
 echo "📦 Detecting services in docker-compose-deploy.yml..."
-SERVICES=$(docker compose -f "$COMPOSE_FILE" config --services)
+SERVICES=$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" config --services)
 if [[ -z "$SERVICES" ]]; then
   echo "❌ No services found in compose file"
   exit 1
@@ -68,7 +80,7 @@ read -r -p "🛠  Run docker compose build for selected services? [Y/n] " RUN_BU
 RUN_BUILD=${RUN_BUILD:-Y}
 if [[ "$RUN_BUILD" =~ ^[Yy]$ ]]; then
   echo "➡️  Building: ${SELECTED[*]}"
-  docker compose -f "$COMPOSE_FILE" build "${SELECTED[@]}"
+  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build "${SELECTED[@]}"
 fi
 
 echo
@@ -76,19 +88,19 @@ read -r -p "🚀 Restart containers (up -d) for selected services? [Y/n] " RUN_U
 RUN_UP=${RUN_UP:-Y}
 if [[ "$RUN_UP" =~ ^[Yy]$ ]]; then
   echo "➡️  Starting: ${SELECTED[*]}"
-  docker compose -f "$COMPOSE_FILE" up -d "${SELECTED[@]}"
+  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d "${SELECTED[@]}"
 fi
 
 echo
 read -r -p "🧹 Remove orphan containers? (--remove-orphans) [y/N] " RM_ORPH
 RM_ORPH=${RM_ORPH:-N}
 if [[ "$RM_ORPH" =~ ^[Yy]$ ]]; then
-  docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d --remove-orphans
 fi
 
 echo
 echo "📋 Current container status:"
-docker compose -f "$COMPOSE_FILE" ps
+"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps
 
 echo
 echo "✅ Done."
