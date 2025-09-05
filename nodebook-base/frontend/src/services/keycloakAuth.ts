@@ -18,12 +18,14 @@ class KeycloakAuthService {
   private realm: string;
   private clientId: string;
   private clientSecret: string;
+  private pkceVerifierStorageKey: string;
 
   constructor() {
     this.keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080';
     this.realm = import.meta.env.VITE_KEYCLOAK_REALM || 'nodebook';
     this.clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'nodebook-frontend';
     this.clientSecret = import.meta.env.VITE_KEYCLOAK_CLIENT_SECRET || 'nodebook-frontend-secret';
+    this.pkceVerifierStorageKey = 'keycloak_pkce_code_verifier';
   }
 
   /**
@@ -70,7 +72,17 @@ class KeycloakAuthService {
    * Register a new user (redirects to Keycloak registration page)
    */
   async register(): Promise<void> {
-    const registrationUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/registrations?client_id=${this.clientId}&response_type=code&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    const { verifier, challenge } = await this.createPkcePair();
+    sessionStorage.setItem(this.pkceVerifierStorageKey, verifier);
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      response_type: 'code',
+      scope: 'openid profile email',
+      redirect_uri: window.location.origin,
+      code_challenge: challenge,
+      code_challenge_method: 'S256'
+    });
+    const registrationUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/registrations?${params.toString()}`;
     window.location.href = registrationUrl;
   }
 
@@ -78,7 +90,17 @@ class KeycloakAuthService {
    * Login using Keycloak's login page (redirects to Keycloak)
    */
   async loginWithKeycloak(): Promise<void> {
-    const loginUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?client_id=${this.clientId}&response_type=code&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    const { verifier, challenge } = await this.createPkcePair();
+    sessionStorage.setItem(this.pkceVerifierStorageKey, verifier);
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      response_type: 'code',
+      scope: 'openid profile email',
+      redirect_uri: window.location.origin,
+      code_challenge: challenge,
+      code_challenge_method: 'S256'
+    });
+    const loginUrl = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/auth?${params.toString()}`;
     window.location.href = loginUrl;
   }
 
@@ -108,41 +130,78 @@ class KeycloakAuthService {
     }
 
     try {
-      // Exchange code for token
-      const response = await fetch(`${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`, {
+      const storedVerifier = sessionStorage.getItem(this.pkceVerifierStorageKey) || '';
+      // Exchange code for token via backend to avoid CORS and unify logic
+      const response = await fetch('/api/auth/callback', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
+        body: JSON.stringify({
           code: code,
-          redirect_uri: window.location.origin
+          redirect_uri: window.location.origin,
+          code_verifier: storedVerifier || undefined
         }),
       });
 
       if (!response.ok) {
+        const text = await response.text();
+        console.error('Callback HTTP error:', response.status, text);
         throw new Error('Failed to exchange code for token');
       }
 
-      const tokenData = await response.json();
-      
-      // Get user info from the token
-      const userInfo = await this.getUserInfo(tokenData.access_token);
-      
+      const result = await response.json();
+
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
-      
+      if (storedVerifier) {
+        sessionStorage.removeItem(this.pkceVerifierStorageKey);
+      }
+
       return {
-        token: tokenData.access_token,
-        user: userInfo
+        token: result.token,
+        user: result.user
       };
     } catch (error) {
       console.error('OAuth callback error:', error);
       return null;
     }
+  }
+
+  /**
+   * Generate a PKCE pair (verifier, challenge)
+   */
+  private async createPkcePair(): Promise<{ verifier: string; challenge: string }> {
+    const verifier = this.generateCodeVerifier();
+    const challenge = await this.generateCodeChallenge(verifier);
+    return { verifier, challenge };
+  }
+
+  /**
+   * Generate a high-entropy URL-safe code verifier
+   */
+  private generateCodeVerifier(length: number = 64): string {
+    const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    let result = '';
+    for (let i = 0; i < array.length; i++) {
+      result += validChars.charAt(array[i] % validChars.length);
+    }
+    return result;
+  }
+
+  /**
+   * Generate a code challenge from a verifier using SHA-256 and base64url encoding
+   */
+  private async generateCodeChallenge(verifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(digest));
+    const base64 = btoa(String.fromCharCode.apply(null, hashArray as unknown as number[]));
+    // base64url
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
   /**

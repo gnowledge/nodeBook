@@ -17,7 +17,8 @@ import CNLSuggestionService from './cnl-suggestion-service.js';
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'nodebook';
 const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'nodebook-frontend';
-const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'nodebook-frontend-secret';
+const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || '';
+const DISABLE_AUTH = process.env.DISABLE_AUTH === 'true';
 
 const auth = {
   async verifyToken(token) {
@@ -98,6 +99,15 @@ fastify.register(import('@fastify/multipart'), {
   
   // Custom authentication hook
   async function authenticateJWT(request, reply) {
+    if (DISABLE_AUTH) {
+      request.user = {
+        id: 'dev-user-id',
+        username: 'dev-user',
+        email: 'dev@example.com',
+        isAdmin: true
+      };
+      return;
+    }
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       reply.code(401).send({ error: 'No token provided' });
@@ -366,31 +376,64 @@ Another service or function
         required: ['code'],
         properties: {
           code: { type: 'string' },
-          redirect_uri: { type: 'string' }
+          redirect_uri: { type: 'string' },
+          code_verifier: { type: 'string' }
         }
       }
     }
   }, async (request, reply) => {
     try {
+      if (DISABLE_AUTH) {
+        return reply.send({
+          token: 'dev-token',
+          user: {
+            id: 'dev-user-id',
+            username: 'dev-user',
+            email: 'dev@example.com',
+            isAdmin: true
+          }
+        });
+      }
       const { code, redirect_uri } = request.body;
+      request.log.info({
+        route: '/api/auth/callback',
+        hasCode: Boolean(code),
+        hasRedirect: Boolean(redirect_uri),
+        hasVerifier: Boolean(request.body?.code_verifier),
+        keycloakRealm: KEYCLOAK_REALM,
+        keycloakUrl: KEYCLOAK_URL
+      }, 'Received OAuth callback request');
       const finalRedirect = redirect_uri || (process.env.DOMAIN_NAME ? `https://${process.env.DOMAIN_NAME}` : 'http://localhost:5173');
 
       const tokenResponse = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: KEYCLOAK_CLIENT_ID,
-          client_secret: KEYCLOAK_CLIENT_SECRET,
-          code: code,
-          redirect_uri: finalRedirect
-        })
+        body: (() => {
+          const params = new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: KEYCLOAK_CLIENT_ID,
+            code: code,
+            redirect_uri: finalRedirect
+          });
+          if (KEYCLOAK_CLIENT_SECRET) {
+            params.set('client_secret', KEYCLOAK_CLIENT_SECRET);
+          }
+          if (request.body.code_verifier) {
+            params.set('code_verifier', request.body.code_verifier);
+          }
+          return params;
+        })()
       });
 
       if (!tokenResponse.ok) {
         const text = await tokenResponse.text();
-        request.log.error({ text }, 'Keycloak token exchange failed');
-        reply.code(400).send({ error: 'Token exchange failed' });
+        request.log.error({ status: tokenResponse.status, text }, 'Keycloak token exchange failed');
+        const errorPayload = { error: 'Token exchange failed' };
+        if (process.env.NODE_ENV !== 'production') {
+          errorPayload.status = tokenResponse.status;
+          errorPayload.details = text;
+        }
+        reply.code(400).send(errorPayload);
         return;
       }
 
