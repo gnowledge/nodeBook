@@ -113,3 +113,8 @@ nodebook-base/frontend/.parcel-cache/
 # Temporary test files
 test-server.js
 data/
+
+# Config files with secrets
+.env
+.env.dev
+.env.deploy
