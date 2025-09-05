@@ -18,14 +18,17 @@ if (import.meta.env.DEV) {
   console.log('🔧 Development mode: Using relative paths with Vite proxy');
   console.log('🔧 API_BASE_URL set to:', apiBaseUrl);
 } else {
-  // In the packaged Electron app, the port is exposed by the preload script.
-  const port = window.electronAPI?.getBackendPort();
+  // Production: if running inside Electron, use preload-provided port; otherwise, use relative paths
+  const port = window.electronAPI && typeof window.electronAPI.getBackendPort === 'function'
+    ? window.electronAPI.getBackendPort()
+    : undefined;
   if (port) {
     apiBaseUrl = `http://localhost:${port}`;
+    console.log('🔧 Production (Electron): Using preload port for API base URL:', apiBaseUrl);
   } else {
-    console.error('Could not determine backend port from preload script.');
-    // Fallback to a default port if something goes wrong
-    apiBaseUrl = 'http://localhost:3000';
+    // Browser (deployed site): rely on same-origin reverse proxy (relative paths)
+    apiBaseUrl = '';
+    console.log('🔧 Production (Web): Using relative paths for API base URL');
   }
 }
 
