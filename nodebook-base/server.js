@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import GraphManager from './graph-manager.js';
 import * as schemaManager from './schema-manager.js';
 import ThumbnailGenerator from './thumbnail-generator.js';
-import { diffCnl, getNodeOrderFromCnl } from './cnl-parser.js';
+import { diffCnl, getNodeOrderFromCnl, getOperationsFromCnl, validateOperations } from './cnl-parser.js';
 import { evaluate } from 'mathjs';
 import ScientificLibraryManager from './scientific-library-manager.js';
 import MediaManager from './media-manager.js';
@@ -18,6 +18,7 @@ const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'nodebook';
 const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'nodebook-frontend';
 const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'nodebook-frontend-secret';
+const DISABLE_AUTH = process.env.DISABLE_AUTH === 'true';
 
 const auth = {
   async verifyToken(token) {
@@ -98,6 +99,15 @@ fastify.register(import('@fastify/multipart'), {
   
   // Custom authentication hook
   async function authenticateJWT(request, reply) {
+    if (DISABLE_AUTH) {
+      request.user = {
+        id: 'dev-user-id',
+        username: 'dev-user',
+        email: 'dev@example.com',
+        isAdmin: true
+      };
+      return;
+    }
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       reply.code(401).send({ error: 'No token provided' });
@@ -581,7 +591,7 @@ Another service or function
           email: { type: 'string' },
           mode: { 
             type: 'string', 
-            enum: ['mindmap', 'richgraph'],
+            enum: ['markdown', 'mindmap', 'richgraph', 'strictgraph'],
             default: 'richgraph'
           }
         }
@@ -1380,7 +1390,7 @@ Another service or function
     const dataStore = fastify.dataStore;
     const userId = request.user.id;
     const graphId = request.params.graphId;
-    const { cnlText, strictMode = true } = request.body;
+    const { cnlText } = request.body;
     
     try {
       // Get the current CNL text and graph info to determine mode
@@ -1390,6 +1400,16 @@ Another service or function
       const mode = graphInfo?.mode || 'richgraph';
       
       console.log(`[POST /api/graphs/:graphId/cnl] Processing CNL in mode: ${mode}`);
+
+      // StrictGraph mode: validate against schema definitions before processing
+      if (mode === 'strictgraph') {
+        const operations = getOperationsFromCnl(cnlText, mode);
+        const errors = await validateOperations(operations);
+        if (errors.length > 0) {
+          reply.code(400).send({ errors });
+          return;
+        }
+      }
       
       // Complete replacement approach: regenerate graph from CNL
       console.log(`[CNL Processing] Regenerating graph completely from CNL for graph ${graphId}, user ${userId}`);

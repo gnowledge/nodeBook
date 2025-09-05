@@ -31,9 +31,9 @@ function TestApp() {
       const error = urlParams.get('error');
 
       if (error) {
-        // Failed auth redirect; just continue to unauthenticated state
-        setLoading(false);
-        return;
+        // Clear error params from URL and continue with fallback/auth checks
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Do not return; proceed to dev auto-login or stored token checks
       }
 
       if (code) {
@@ -87,7 +87,23 @@ function TestApp() {
           })
           .finally(() => setLoading(false));
       } else {
-        setLoading(false);
+        // Dev auth auto-detect: try /api/auth/me without Authorization header
+        try {
+          const res = await fetch('/api/auth/me');
+          if (res.ok) {
+            const devUser = await res.json();
+            // Store a placeholder token so existing fetch helpers include a header
+            localStorage.setItem('token', 'dev');
+            localStorage.setItem('user', JSON.stringify(devUser));
+            setIsAuthenticated(true);
+            setToken('dev');
+            setUser(devUser);
+          }
+        } catch {
+          // ignore
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
