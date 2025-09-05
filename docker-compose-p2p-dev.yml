@@ -12,7 +12,7 @@ services:
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
-      - KC_HOSTNAME=keycloak
+      - KC_HOSTNAME=localhost
       - KC_HOSTNAME_PORT=8080
     volumes:
       - keycloak-data:/opt/keycloak/data
@@ -27,8 +27,6 @@ services:
       context: ./nodebook-base
       dockerfile: Dockerfile.p2p
     container_name: nodebook-p2p-dev
-    ports:
-      - "3000:3000"
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules
@@ -41,6 +39,7 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=nodebook
       - DATA_PATH=/app/data
+      - DISABLE_AUTH=true
     networks:
       - nodebook-p2p-net
     depends_on:
