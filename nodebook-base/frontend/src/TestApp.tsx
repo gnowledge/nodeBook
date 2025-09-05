@@ -3,6 +3,7 @@ import Dashboard from './Dashboard';
 import App from './App';
 import AuthModal from './AuthModal';
 import { PublicGraphViewer } from './PublicGraphViewer';
+import PublicWorkspace from './PublicWorkspace';
 import { keycloakAuth } from './services/keycloakAuth';
 import styles from './TestApp.module.css';
 
@@ -19,7 +20,7 @@ function TestApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'app' | 'public-graph'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'app' | 'public-graph' | 'public-workspace'>('dashboard');
   const [publicGraphId, setPublicGraphId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,7 +52,17 @@ function TestApp() {
         }
       }
 
-      // No OAuth code in URL; fall back to stored token check
+      // Handle hash-based public workspace navigation (e.g., #public-workspace:GRAPH_ID)
+      const hash = window.location.hash || '';
+      const match = hash.match(/^#public-workspace:(.+)$/);
+      if (match) {
+        setPublicGraphId(match[1]);
+        setCurrentView('public-workspace');
+        setLoading(false);
+        return;
+      }
+
+      // No OAuth code in URL or public-workspace hash; fall back to stored token check
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
@@ -107,7 +118,7 @@ function TestApp() {
 
   const handleViewPublicGraph = (graphId: string) => {
     setPublicGraphId(graphId);
-    setCurrentView('public-graph');
+    setCurrentView('public-workspace');
   };
 
   const handleLogout = () => {
@@ -169,6 +180,16 @@ function TestApp() {
   if (currentView === 'public-graph' && publicGraphId) {
     return (
       <PublicGraphViewer
+        graphId={publicGraphId}
+        onGoToDashboard={handleGoToDashboard}
+        onShowAuth={() => setShowAuthModal(true)}
+      />
+    );
+  }
+
+  if (currentView === 'public-workspace' && publicGraphId) {
+    return (
+      <PublicWorkspace
         graphId={publicGraphId}
         onGoToDashboard={handleGoToDashboard}
         onShowAuth={() => setShowAuthModal(true)}

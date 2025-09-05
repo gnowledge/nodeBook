@@ -34,7 +34,7 @@ export function DataView({
   const [searchTerm, setSearchTerm] = useState('');
   const [nodeRegistry, setNodeRegistry] = useState<any>({});
   const [activeGraph, setActiveGraph] = useState<Graph | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
+  // Publishing flow deprecated; publication_state alone governs visibility
   
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
@@ -199,30 +199,7 @@ export function DataView({
     }
   };
 
-  const handlePublish = async () => {
-    if (!activeGraphId) return;
-    
-    setIsPublishing(true);
-    try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${activeGraphId}/publish`, {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        alert('Graph published successfully! It is now accessible to anonymous users.');
-        // Refresh the graph data
-        onDataChange();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(`Failed to publish graph: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error publishing graph:', error);
-      alert('Failed to publish graph. Please try again.');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
+  // Removed publish handler
 
 
 
@@ -283,21 +260,7 @@ export function DataView({
             </div>
           </div>
           
-          {publication_state === 'Public' && (
-            <div className="publish-section">
-              <button 
-                className="publish-button"
-                onClick={handlePublish}
-                disabled={isPublishing}
-                title="Publish this graph to make it accessible to anonymous users"
-              >
-                {isPublishing ? 'Publishing...' : '📢 Publish Graph'}
-              </button>
-              <small className="publish-hint">
-                Publishing exports graph data for public viewing
-              </small>
-            </div>
-          )}
+          {/* Publish step removed: Public state alone controls exposure */}
         </div>
       </div>
       <div className="data-view-grid">
