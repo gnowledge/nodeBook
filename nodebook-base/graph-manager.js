@@ -1,6 +1,5 @@
 import { promises as fsp } from 'fs';
 import path from 'path';
-import { getOperationsFromCnl } from './cnl-parser.js';
 
 const DEBUG_LOG_FILE = '/tmp/nodebook-debug.log';
 
@@ -389,7 +388,31 @@ class GraphManager {
     async getPublicGraphs() {
         const publicGraphs = [];
         
-        // List graphs marked Public directly from user registries (no published folder needed)
+        // First, try to read from the public folder (published graphs)
+        const publicDir = path.join(this.BASE_DATA_DIR, 'public', 'graphs');
+        try {
+            if (await fsp.access(publicDir).then(() => true).catch(() => false)) {
+                const graphDirs = await fsp.readdir(publicDir);
+                
+                for (const graphDir of graphDirs) {
+                    const metadataPath = path.join(publicDir, graphDir, 'metadata.json');
+                    try {
+                        const metadata = await readJsonFile(metadataPath);
+                        publicGraphs.push({
+                            ...metadata,
+                            isPublic: true,
+                            isPublished: true
+                        });
+                    } catch (error) {
+                        logDebug(`[getPublicGraphs] Could not read metadata for ${graphDir}: ${error.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            logDebug(`[getPublicGraphs] Error reading public directory: ${error.message}`);
+        }
+        
+        // Fallback: also check user directories for graphs marked as Public but not yet published
         const usersDir = path.join(this.BASE_DATA_DIR, 'users');
         try {
             const userDirs = await fsp.readdir(usersDir);
@@ -406,13 +429,16 @@ class GraphManager {
                     const userRegistry = await readJsonFile(userRegistryPath);
                     const publicGraphsInUser = userRegistry.filter(g => g.publication_state === 'Public');
                     
-                    // Add user context to public graphs
+                    // Add user context to public graphs (only if not already in public folder)
                     publicGraphsInUser.forEach(graph => {
-                        publicGraphs.push({
-                            ...graph,
-                            owner: userDir, // User ID of the owner
-                            isPublic: true
-                        });
+                        if (!publicGraphs.find(pg => pg.id === graph.id)) {
+                            publicGraphs.push({
+                                ...graph,
+                                owner: userDir, // User ID of the owner
+                                isPublic: true,
+                                isPublished: false
+                            });
+                        }
                     });
                 } catch (error) {
                     // Skip if user registry can't be read
@@ -438,78 +464,38 @@ class GraphManager {
         try {
             let graphData;
             
-            {
-                // Fallback: read directly from the owner's user folder for graphs marked Public
-                const userGraphDir = path.join(this.BASE_DATA_DIR, 'users', publicGraph.owner, 'graphs', graphId);
-                const jsonPath = path.join(userGraphDir, 'graph.json');
-                const cnlPath = path.join(userGraphDir, 'graph.cnl');
-                const manifestPath = path.join(userGraphDir, 'manifest.json');
+            if (publicGraph.isPublished) {
+                // Read from public folder - this contains the actual parsed data
+                const publicDir = path.join(this.BASE_DATA_DIR, 'public', 'graphs', graphId);
+                const publicJsonPath = path.join(publicDir, 'graph.json');
+                const publicCnlPath = path.join(publicDir, 'graph.cnl');
                 
-                // Read stored parsed data and CNL
-                const [jsonDataRaw, cnl, manifest] = await Promise.all([
-                    fsp.readFile(jsonPath, 'utf-8').catch(() => null),
-                    fsp.readFile(cnlPath, 'utf-8').catch(() => ''),
-                    readJsonFile(manifestPath)
+                // Read the published graph data (already parsed, no re-parsing needed)
+                const [jsonData, cnl] = await Promise.all([
+                    fsp.readFile(publicJsonPath, 'utf-8').then(JSON.parse),
+                    fsp.readFile(publicCnlPath, 'utf-8')
                 ]);
-                
-                let jsonData = { nodes: [], relations: [], attributes: [] };
-                if (jsonDataRaw) {
-                    try { jsonData = JSON.parse(jsonDataRaw); } catch { jsonData = { nodes: [], relations: [], attributes: [] }; }
-                }
-                
-                // If parsed data is empty but we have CNL, derive a lightweight graph from CNL (no disk writes)
-                if ((!jsonData.nodes || jsonData.nodes.length === 0) && cnl) {
-                    const mode = manifest?.mode || 'richgraph';
-                    const operations = getOperationsFromCnl(cnl, mode);
-                    const nodes = [];
-                    const relations = [];
-                    const attributes = [];
-                    const nodeIds = new Set();
-                    
-                    for (const op of operations) {
-                        if (op.type === 'addNode') {
-                            const id = op.payload.options?.id || op.id;
-                            if (!nodeIds.has(id)) {
-                                nodeIds.add(id);
-                                nodes.push({
-                                    id,
-                                    name: op.payload.displayName || op.payload.base_name,
-                                    role: op.payload.options?.role || 'individual',
-                                    description: ''
-                                });
-                            }
-                        } else if (op.type === 'addRelation') {
-                            relations.push({
-                                id: op.id,
-                                source_id: op.payload.source,
-                                target_id: op.payload.target,
-                                name: op.payload.name
-                            });
-                        } else if (op.type === 'addAttribute') {
-                            attributes.push({
-                                id: op.id,
-                                source_id: op.payload.source,
-                                name: op.payload.name,
-                                value: op.payload.value,
-                                unit: op.payload.unit,
-                                quantifier: op.payload.quantifier,
-                                adverb: op.payload.adverb,
-                                modality: op.payload.modality
-                            });
-                        } else if (op.type === 'updateNode') {
-                            const n = nodes.find(n => n.id === op.payload.id);
-                            if (n && op.payload.fields?.description) {
-                                n.description = op.payload.fields.description;
-                            }
-                        }
-                    }
-                    jsonData = { nodes, relations, attributes };
-                }
                 
                 graphData = {
                     ...publicGraph,
                     ...jsonData,
-                    cnl
+                    cnl: cnl
+                };
+            } else {
+                // Fallback: read from user's private folder (for graphs marked Public but not published)
+                // This should rarely happen since we now require publishing to make data accessible
+                const userDir = path.join(this.BASE_DATA_DIR, 'users', publicGraph.owner);
+                const cnlPath = path.join(userDir, graphId, 'graph.cnl');
+                const cnl = await fsp.readFile(cnlPath, 'utf-8');
+                
+                // For unpublished public graphs, we can't provide the full data
+                // since it requires authentication to access the parsed data
+                graphData = {
+                    ...publicGraph,
+                    cnl: cnl,
+                    nodes: [],
+                    relations: [],
+                    attributes: []
                 };
             }
             
