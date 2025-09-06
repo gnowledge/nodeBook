@@ -150,6 +150,26 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
           cnlText={graph.cnl || ''}
           onGoToDashboard={onGoToDashboard}
         />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px' }}>
+          <button
+            onClick={() => {
+              // Navigate to public workspace preview via URL hash to keep state simple in TestApp
+              window.location.hash = `#public-workspace:${graphId}`;
+              window.location.reload();
+            }}
+            style={{
+              background: '#111827',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+            title="Open read-only workspace preview"
+          >
+            🔍 Open Workspace Preview (Read-only)
+          </button>
+        </div>
       </div>
     </div>
   );
