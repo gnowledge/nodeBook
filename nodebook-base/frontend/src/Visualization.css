@@ -30,3 +30,64 @@
 .export-buttons button:hover {
   background-color: #f0f0f0;
 }
+
+/* Export modal */
+.export-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.export-modal {
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #333);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  width: 360px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.export-modal h4 {
+  margin: 0 0 8px 0;
+  color: var(--text-color, #333);
+}
+
+.export-modal input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #333);
+}
+
+.export-modal label {
+  color: var(--text-color, #333);
+}
+
+.export-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.export-modal-actions button {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: #111827;
+  font-weight: 600;
+}
+
+.export-modal-actions button:hover {
+  background: #f3f4f6;
+}
