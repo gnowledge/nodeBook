@@ -14,18 +14,13 @@ interface GraphPreviewProps {
   isPublic?: boolean;
 }
 
-export function GraphPreview({ graph, width = 200, height = 120 }: GraphPreviewProps) {
+export function GraphPreview({ graph }: GraphPreviewProps) {
   const previewUrl = graph.preview_url || '';
 
   return (
-    <div className={styles.thumbnailContainer} style={{ width, height }}>
+    <div className={styles.thumbnailContainer} style={{ width: '100%' }}>
       {previewUrl ? (
-        // Render external preview
-        previewUrl.endsWith('.svg') ? (
-          <object data={previewUrl} type="image/svg+xml" className={styles.thumbnailImage} aria-label={`Graph preview for ${graph.name}`} />
-        ) : (
-          <img src={previewUrl} alt={`Graph preview for ${graph.name}`} width={width} height={height} className={styles.thumbnailImage} loading="lazy" />
-        )
+        <img src={previewUrl} alt={`Graph preview for ${graph.name}`} className={styles.thumbnailImage} loading="lazy" />
       ) : (
         <div className={styles.thumbnailError}>
           <span>📊</span>

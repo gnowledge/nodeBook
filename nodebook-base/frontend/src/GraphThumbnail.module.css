@@ -19,7 +19,8 @@
 .thumbnailImage {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* show full image */
+  background: #ffffff; /* contrast behind SVG */
   border-radius: 6px;
 }
 

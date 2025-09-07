@@ -499,6 +499,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                     onImportContext={(nodeId) => console.log('Import context:', nodeId)}
                                     nodeRegistry={{}}
                                     isPublic={false}
+                                    graphId={activeGraphId || undefined}
                                   />
                                 </div>
                               )}

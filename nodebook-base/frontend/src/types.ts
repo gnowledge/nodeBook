@@ -66,6 +66,7 @@ export interface Graph {
   publication_state: 'Private' | 'P2P' | 'Public';
   createdAt: string;
   updatedAt: string;
+  preview_url?: string;
 }
 
 // Extended interface for public graphs (includes owner information)

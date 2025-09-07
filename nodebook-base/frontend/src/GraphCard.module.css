@@ -53,14 +53,12 @@
 }
 
 .graphThumbnail {
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  margin-bottom: 8px;
+  display: block;
   background: #ffffff;
   border-radius: 8px;
-  padding: 6px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
 }
 
 .graphCardContent {
@@ -80,17 +78,14 @@
 }
 
 .graphMetadata {
+  color: #6b7280;
+  font-size: 0.8rem;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.metadataItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.8rem;
-}
+.metadataItem { display: inline; }
 
 .metadataItem .label {
   color: #6b7280;
@@ -103,14 +98,16 @@
 }
 
 .graphCardActions {
-  margin-bottom: 12px;
-  padding-top: 12px;
+  margin-bottom: 8px;
+  padding-top: 8px;
   border-top: 1px solid #f3f4f6;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .publicationToggleBtn {
-  width: 100%;
-  padding: 8px 16px;
+  padding: 6px 10px;
   background: #f3f4f6;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -131,8 +128,7 @@
 }
 
 .deleteBtn {
-  width: 100%;
-  padding: 8px 16px;
+  padding: 6px 10px;
   background: #fee2e2;
   border: 1px solid #fecaca;
   border-radius: 8px;

@@ -108,20 +108,7 @@ export function GraphCard({
         </div>
       </div>
       
-      {showPublicationControls && onPublicationStateChange && (
-        <div className={styles.graphCardActions}>
-          <button 
-            className={styles.publicationToggleBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePublicationToggle();
-            }}
-            title={`Current: ${graph.publication_state}. Click to cycle through states.`}
-          >
-            Change Publication State
-          </button>
-        </div>
-      )}
+      {/* Publication state changes are managed within the Workspace, not on the Dashboard */}
       
       {showDeleteButton && onDelete && !isPublic && (
         <div className={styles.graphCardActions}>

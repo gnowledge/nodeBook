@@ -349,6 +349,7 @@ export function DataView({
               onSelectNode={setActiveNodeId}
               onImportContext={handleImportContext}
               nodeRegistry={nodeRegistry}
+              graphId={activeGraphId}
             />
           ))}
         </div>

@@ -18,10 +18,12 @@ interface NodeCardProps {
   onImportContext: (nodeId: string) => void;
   nodeRegistry: any;
   isPublic?: boolean; // Optional prop for public view mode
+  graphId?: string; // Explicit graph id for actions
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
+  const subgraphSvgRef = React.useRef<string | null>(null);
   const registryEntry = nodeRegistry[node.id];
   
   // NLP parsing state
@@ -111,6 +113,40 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     });
   };
 
+  const handleSetPreview = async () => {
+    try {
+      if (!subgraphSvgRef.current) {
+        alert('Preview not ready yet. Try again in a moment.');
+        return;
+      }
+      const MEDIA_BACKEND_URL = import.meta.env.VITE_MEDIA_BACKEND_URL || 'http://localhost:3001';
+      const targetGraphId = graphId || (node as any).graphId;
+      if (!targetGraphId) {
+        throw new Error('Missing graphId for preview update');
+      }
+      const svgBlob = new Blob([subgraphSvgRef.current], { type: 'image/svg+xml' });
+      const file = new File([svgBlob], `${targetGraphId}-${node.id}-${Date.now()}-preview.svg`, { type: 'image/svg+xml' });
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('description', `Preview for graph ${node.graphId} node ${node.id}`);
+      const uploadRes = await fetch(`${MEDIA_BACKEND_URL}/api/media/upload`, { method: 'POST', body: formData });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const uploadJson = await uploadRes.json();
+      const fileId = uploadJson.fileId;
+      const previewUrl = `${MEDIA_BACKEND_URL}/api/media/files/${fileId}`;
+
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${targetGraphId}/preview`, {
+        method: 'PUT',
+        body: JSON.stringify({ preview_url: previewUrl, node_id: node.id })
+      });
+      if (!res.ok) throw new Error('Failed to set preview');
+      alert('Preview set for graph. It will show on the Dashboard.');
+    } catch (e) {
+      console.error('Set preview failed:', e);
+      alert('Failed to set preview. See console for details.');
+    }
+  };
+
   const renderMorphSection = (morph: Morph) => {
     const morphRelations = allRelations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
     const morphAttributes = attributes.filter(a => a.source_id === node.id && a.morph_ids.includes(morph.morph_id));
@@ -182,20 +218,34 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       </div>
       
       <div className="node-card-image">
-        <Subgraph nodes={subgraphNodes} relations={subgraphRelations} attributes={attributes.filter(a => a.source_id === node.id)} />
+        <Subgraph 
+          nodes={subgraphNodes} 
+          relations={subgraphRelations} 
+          attributes={attributes.filter(a => a.source_id === node.id)}
+          onReady={({ exportSvg }) => { subgraphSvgRef.current = exportSvg(); }}
+        />
       </div>
 
       {node.description && (
         <div className="node-description">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{node.description}</ReactMarkdown>
           {!isPublic && (
-            <button 
-              className="parse-btn-small" 
-              onClick={openNLPModal}
-              title="Analyze text and get graph building suggestions"
-            >
-              🧠 Parse Text
-            </button>
+            <>
+              <button 
+                className="parse-btn-small" 
+                onClick={openNLPModal}
+                title="Analyze text and get graph building suggestions"
+              >
+                🧠 Parse Text
+              </button>
+              <button 
+                className="parse-btn-small" 
+                onClick={handleSetPreview}
+                title="Set this subgraph as the Dashboard preview"
+              >
+                🌄 Set as Preview
+              </button>
+            </>
           )}
         </div>
       )}
