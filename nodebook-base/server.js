@@ -5,7 +5,6 @@ import { promises as fs } from 'fs';
 import crypto from 'crypto';
 import GraphManager from './graph-manager.js';
 import * as schemaManager from './schema-manager.js';
-import ThumbnailGenerator from './thumbnail-generator.js';
 import { diffCnl, getNodeOrderFromCnl, getOperationsFromCnl, validateOperations } from './cnl-parser.js';
 import { evaluate } from 'mathjs';
 import ScientificLibraryManager from './scientific-library-manager.js';
@@ -179,9 +178,7 @@ async function main() {
   fastify.decorate('graphManager', graphManager);
   fastify.decorate('dataStore', dataStore);
   
-  // Initialize ThumbnailGenerator
-  const thumbnailGenerator = new ThumbnailGenerator(graphManager.BASE_DATA_DIR);
-  fastify.decorate('thumbnailGenerator', thumbnailGenerator);
+  // Thumbnails deprecated — previews are user-selected SVGs via media-backend
   
   // Initialize MediaManager
   // Temporarily suspended - will be re-enabled in Phase 2
@@ -571,8 +568,8 @@ Another service or function
       const graphsWithPublicationState = graphs.map(graph => ({
         ...graph,
         publication_state: graph.publication_state || 'Private',
-        // Ensure description is populated from graph.json when missing
         description: graph.description || null,
+        preview_url: graph.preview_url || null
       }));
       return graphsWithPublicationState;
     } catch (error) {
@@ -712,33 +709,7 @@ Another service or function
     }
   });
 
-  // --- Public Thumbnail Endpoint (No Authentication Required) ---
-  fastify.get('/api/public/graphs/:graphId/thumbnail', async (request, reply) => {
-    const gm = fastify.graphManager;
-    const graphId = request.params.graphId;
-    
-    try {
-      // For public graphs, check if thumbnail exists in the public graphs directory
-      const thumbnailPath = path.join('./data', 'graphs', graphId, 'thumbnail.png');
-      
-      // Check if thumbnail exists
-      try {
-        await fs.access(thumbnailPath);
-        // Set proper headers for PNG image
-        reply.header('Content-Type', 'image/png');
-        reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-        return reply.sendFile(thumbnailPath);
-      } catch (accessError) {
-        // Thumbnail doesn't exist, return 404
-        reply.code(404).send({ error: 'Thumbnail not found' });
-        return;
-      }
-    } catch (error) {
-      console.error(`[getPublicThumbnail] Error getting thumbnail for public graph ${graphId}:`, error);
-      reply.code(500).send({ error: 'Failed to get thumbnail' });
-      return;
-    }
-  });
+  // Thumbnails removed; previews handled via media-backed preview_url
 
   // --- Schema CRUD API ---
   fastify.get('/api/schema/relations', {
@@ -1291,100 +1262,7 @@ Another service or function
     }
   });
 
-  // --- Thumbnail Endpoint ---
-  fastify.get('/api/graphs/:graphId/thumbnail', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          graphId: { type: 'string' }
-        }
-      }
-    },
-    preHandler: [authenticateJWT, loadGraph]
-  }, async (request, reply) => {
-    const gm = fastify.graphManager;
-    const userId = request.user.id;
-    const graphId = request.params.graphId;
-    
-    try {
-      // Construct the thumbnail path
-      const thumbnailPath = path.join('./data', 'users', userId.toString(), 'graphs', graphId, 'thumbnail.png');
-
-      // If exists, serve it
-      try {
-        await fs.access(thumbnailPath);
-        reply.header('Content-Type', 'image/png');
-        reply.header('Cache-Control', 'public, max-age=3600');
-        return reply.sendFile(thumbnailPath);
-      } catch {}
-
-      // Fallback: attempt on-the-fly generation from current graph data (first node neighborhood)
-      try {
-        const dataStore = fastify.dataStore;
-        const graphJson = await dataStore.getGraph(userId, graphId) || { nodes: [], relations: [], attributes: [] };
-        const nodes = graphJson?.nodes || [];
-        const relations = graphJson?.relations || [];
-        const attributes = graphJson?.attributes || [];
-
-        // Build a minimal neighborhood around the first node encountered in CNL order or registry order
-        let firstNodeId = null;
-        try {
-          const cnlText = await dataStore.getCnl(userId, graphId);
-          const firstHeading = (cnlText.split('\n').find(l => l.startsWith('# ')) || '').replace(/^#\s+/, '').trim();
-          const matchNode = nodes.find((n) => (n.name === firstHeading));
-          firstNodeId = matchNode?.id || null;
-        } catch {}
-        if (!firstNodeId && nodes.length > 0) firstNodeId = nodes[0].id;
-
-        const neighborhoodNodes = new Set();
-        const neighborhoodEdges = [];
-        if (firstNodeId) {
-          neighborhoodNodes.add(firstNodeId);
-          for (const e of relations) {
-            if (e.source_id === firstNodeId || e.target_id === firstNodeId) {
-              neighborhoodEdges.push(e);
-              neighborhoodNodes.add(e.source_id);
-              neighborhoodNodes.add(e.target_id);
-            }
-          }
-        }
-
-        const minimalGraph = {
-          nodes: nodes.filter(n => neighborhoodNodes.has(n.id)).slice(0, 12),
-          relations: neighborhoodEdges.slice(0, 16),
-          attributes: attributes.filter(a => neighborhoodNodes.has(a.source_id)).slice(0, 12)
-        };
-
-        // Generate placeholder SVG/PNG via thumbnailGenerator (will create SVG; PNG conversion TODO)
-        await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, minimalGraph);
-
-        // Serve newly created (likely SVG fallback not PNG); try PNG first, else serve SVG
-        try {
-          await fs.access(thumbnailPath);
-          reply.header('Content-Type', 'image/png');
-          reply.header('Cache-Control', 'public, max-age=300');
-          return reply.sendFile(thumbnailPath);
-        } catch {
-          const svgPath = thumbnailPath.replace('.png', '.svg');
-          await fs.access(svgPath);
-          reply.header('Content-Type', 'image/svg+xml');
-          reply.header('Cache-Control', 'public, max-age=300');
-          return reply.sendFile(svgPath);
-        }
-      } catch (genErr) {
-        // Serve a built-in default placeholder
-        const defaultSvg = `<svg width="400" height="240" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="240" fill="#f8fafc" rx="8"/><text x="200" y="120" text-anchor="middle" fill="#6b7280" font-size="16">No Preview</text></svg>`;
-        reply.header('Content-Type', 'image/svg+xml');
-        reply.header('Cache-Control', 'no-cache');
-        return reply.send(defaultSvg);
-      }
-    } catch (error) {
-      console.error(`[getThumbnail] Error getting thumbnail for graph ${graphId}:`, error);
-      reply.code(500).send({ error: 'Failed to get thumbnail' });
-      return;
-    }
-  });
+  // Thumbnails removed; previews handled via media-backed preview_url
 
   // --- CNL Save API (without processing) ---
   fastify.put('/api/graphs/:graphId/cnl', {
@@ -1710,6 +1588,41 @@ Another service or function
     } catch (error) {
       reply.code(400).send({ error: error.message });
       return;
+    }
+  });
+
+  // Set graph preview (URL to SVG/PNG hosted via media backend)
+  fastify.put('/api/graphs/:graphId/preview', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['preview_url'],
+        properties: {
+          preview_url: { type: 'string' },
+          node_id: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { preview_url, node_id } = request.body;
+    try {
+      const updates = { preview_url };
+      if (node_id) Object.assign(updates, { preview_node_id: node_id });
+      const updated = await dataStore.updateGraphRegistry(userId, graphId, updates);
+      const info = updated.find(g => g.id === graphId) || { id: graphId, preview_url };
+      reply.code(200).send(info);
+    } catch (error) {
+      reply.code(400).send({ error: error.message });
     }
   });
 

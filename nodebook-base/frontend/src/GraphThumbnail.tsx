@@ -1,88 +1,38 @@
-import React, { useState } from 'react';
+import React from 'react';
 import styles from './GraphThumbnail.module.css';
 
-interface GraphThumbnailProps {
+interface GraphPreviewProps {
   graph: {
     id: string;
     name: string;
     description?: string;
     publication_state: string;
-    thumbnail_url?: string; // optional explicit thumbnail (media backend)
+    preview_url?: string; // preferred SVG/PNG preview URL (media backend)
   };
   width?: number;
   height?: number;
+  isPublic?: boolean;
 }
 
-export function GraphThumbnail({ 
-  graph, 
-  width = 200, 
-  height = 120 
-}: GraphThumbnailProps) {
-  const [imageError, setImageError] = useState(false);
-  const [trySvg, setTrySvg] = useState(false);
-  const [svgContent, setSvgContent] = useState<string | null>(null);
-  
-  // Prefer explicit media thumbnail if present
-  const explicitUrl = graph.thumbnail_url || '';
-  const apiUrl = `/api/graphs/${graph.id}/thumbnail`;
-  
-  const handleImageError = async () => {
-    if (!trySvg) {
-      try {
-        const res = await fetch(apiUrl, { headers: { Accept: 'image/svg+xml,image/png;q=0.9,*/*;q=0.8' } });
-        const contentType = res.headers.get('Content-Type') || '';
-        if (res.ok && contentType.includes('image/svg')) {
-          const text = await res.text();
-          setSvgContent(text);
-          setTrySvg(true);
-          return;
-        }
-      } catch {}
-    }
-    setImageError(true);
-  };
+export function GraphPreview({ graph, width = 200, height = 120 }: GraphPreviewProps) {
+  const previewUrl = graph.preview_url || '';
 
-  if (imageError) {
-    return (
-      <div className={styles.thumbnailContainer} style={{ width, height }}>
+  return (
+    <div className={styles.thumbnailContainer} style={{ width, height }}>
+      {previewUrl ? (
+        // Render external preview
+        previewUrl.endsWith('.svg') ? (
+          <object data={previewUrl} type="image/svg+xml" className={styles.thumbnailImage} aria-label={`Graph preview for ${graph.name}`} />
+        ) : (
+          <img src={previewUrl} alt={`Graph preview for ${graph.name}`} width={width} height={height} className={styles.thumbnailImage} loading="lazy" />
+        )
+      ) : (
         <div className={styles.thumbnailError}>
           <span>📊</span>
           <small>No Preview</small>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.thumbnailContainer} style={{ width, height }}>
-      {trySvg && svgContent ? (
-        <div
-          className={styles.thumbnailImage}
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-          style={{ width: '100%', height: '100%' }}
-        />
-      ) : explicitUrl ? (
-        <img
-          src={explicitUrl}
-          alt={`Graph preview for ${graph.name}`}
-          width={width}
-          height={height}
-          className={styles.thumbnailImage}
-          onError={handleImageError}
-          loading="lazy"
-        />
-      ) : (
-        <img
-          src={apiUrl}
-          alt={`Graph preview for ${graph.name}`}
-          width={width}
-          height={height}
-          className={styles.thumbnailImage}
-          onError={handleImageError}
-          loading="lazy"
-        />
       )}
-      
+
       {/* Publication state indicator overlay */}
       <div className={styles.publicationIndicator}>
         <div 

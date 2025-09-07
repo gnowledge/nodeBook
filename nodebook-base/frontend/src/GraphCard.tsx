@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Graph, PublicGraph } from './types';
-import { GraphThumbnail } from './GraphThumbnail';
+import { GraphPreview } from './GraphThumbnail';
 import styles from './GraphCard.module.css';
 
 interface GraphCardProps {
@@ -73,9 +73,9 @@ export function GraphCard({
         </div>
       </div>
       
-      {/* Graph Thumbnail */}
+      {/* Graph Preview (SVG) */}
       <div className={styles.graphThumbnail}>
-        <GraphThumbnail graph={graph} width={200} height={120} />
+        <GraphPreview graph={graph} width={200} height={120} isPublic={isPublic} />
       </div>
       
       <div className={styles.graphCardContent}>
