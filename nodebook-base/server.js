@@ -570,7 +570,9 @@ Another service or function
       // Add publication state if not present (for backward compatibility)
       const graphsWithPublicationState = graphs.map(graph => ({
         ...graph,
-        publication_state: graph.publication_state || 'Private'
+        publication_state: graph.publication_state || 'Private',
+        // Ensure description is populated from graph.json when missing
+        description: graph.description || null,
       }));
       return graphsWithPublicationState;
     } catch (error) {
@@ -1495,6 +1497,15 @@ Another service or function
       } catch (thumbnailError) {
         console.error(`[CNL Processing] Failed to generate thumbnail for graph ${graphId}:`, thumbnailError);
         // Don't fail the CNL update if thumbnail generation fails
+      }
+      
+      // Update registry with latest description for Dashboard cards
+      try {
+        const latestGraph = await dataStore.getGraph(userId, graphId);
+        const latestDescription = latestGraph?.description || null;
+        await dataStore.updateGraphRegistry(userId, graphId, { description: latestDescription });
+      } catch (regErr) {
+        console.warn(`[CNL Processing] Failed to update registry description for graph ${graphId}:`, regErr);
       }
       
       return { message: 'CNL processed successfully.' };

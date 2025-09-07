@@ -7,6 +7,7 @@ interface GraphThumbnailProps {
     name: string;
     description?: string;
     publication_state: string;
+    thumbnail_url?: string; // optional explicit thumbnail (media backend)
   };
   width?: number;
   height?: number;
@@ -21,14 +22,14 @@ export function GraphThumbnail({
   const [trySvg, setTrySvg] = useState(false);
   const [svgContent, setSvgContent] = useState<string | null>(null);
   
-  // Construct the thumbnail URL based on graph ID
-  const thumbnailUrl = `/api/graphs/${graph.id}/thumbnail`;
+  // Prefer explicit media thumbnail if present
+  const explicitUrl = graph.thumbnail_url || '';
+  const apiUrl = `/api/graphs/${graph.id}/thumbnail`;
   
   const handleImageError = async () => {
     if (!trySvg) {
       try {
-        // Attempt to fetch SVG fallback explicitly
-        const res = await fetch(thumbnailUrl, { headers: { Accept: 'image/svg+xml,image/png;q=0.9,*/*;q=0.8' } });
+        const res = await fetch(apiUrl, { headers: { Accept: 'image/svg+xml,image/png;q=0.9,*/*;q=0.8' } });
         const contentType = res.headers.get('Content-Type') || '';
         if (res.ok && contentType.includes('image/svg')) {
           const text = await res.text();
@@ -55,15 +56,24 @@ export function GraphThumbnail({
   return (
     <div className={styles.thumbnailContainer} style={{ width, height }}>
       {trySvg && svgContent ? (
-        // Render inline SVG when server returns SVG fallback
         <div
           className={styles.thumbnailImage}
           dangerouslySetInnerHTML={{ __html: svgContent }}
           style={{ width: '100%', height: '100%' }}
         />
+      ) : explicitUrl ? (
+        <img
+          src={explicitUrl}
+          alt={`Graph preview for ${graph.name}`}
+          width={width}
+          height={height}
+          className={styles.thumbnailImage}
+          onError={handleImageError}
+          loading="lazy"
+        />
       ) : (
         <img
-          src={thumbnailUrl}
+          src={apiUrl}
           alt={`Graph preview for ${graph.name}`}
           width={width}
           height={height}
