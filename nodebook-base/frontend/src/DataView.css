@@ -229,6 +229,11 @@
   border-radius: 6px;
   overflow: auto;
 }
+.markdown-document pre code {
+  background: transparent; /* remove light background inside dark pre */
+  color: inherit; /* use pre color for readability */
+  padding: 0; /* avoid extra inner padding */
+}
 .markdown-document a { color: #2563eb; text-decoration: none; }
 .markdown-document a:hover { text-decoration: underline; }
 

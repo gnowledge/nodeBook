@@ -148,6 +148,29 @@
   overflow: hidden;
 }
 
+/* Ensure code blocks in markdown are readable in the editor preview areas */
+.cnl-editor .cm-content pre, .markdown-toolbar + .cnl-editor .cm-content pre {
+  background-color: #111827;
+  color: #f9fafb;
+  padding: 12px;
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.cnl-editor .cm-content code {
+  background: #f3f4f6;
+  color: #111827;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* Ensure inline code inside block keeps dark scheme readable */
+.cnl-editor .cm-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
 /* Error Banner */
 .nlp-error-banner {
   position: fixed;

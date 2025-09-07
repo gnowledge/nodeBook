@@ -272,7 +272,9 @@ export function CNLEditor({
           { key: 'Ctrl-i', run: (view) => { insertMarkdown('*', '*'); return true; }},
           { key: 'Ctrl-k', run: (view) => { insertMarkdownBlock('link'); return true; }},
           { key: 'Ctrl-l', run: (view) => { insertMarkdownBlock('list'); return true; }},
-          { key: 'Ctrl-q', run: (view) => { insertMarkdownBlock('quote'); return true; }},
+          // Remapped to avoid browser quit/close conflicts
+          { key: 'Ctrl-Shift-q', run: (view) => { insertMarkdownBlock('quote'); return true; }},
+          { key: 'Alt-q', run: (view) => { insertMarkdownBlock('quote'); return true; }},
           { key: 'Ctrl-`', run: (view) => { insertMarkdown('`', '`'); return true; }}
         ]),
         
