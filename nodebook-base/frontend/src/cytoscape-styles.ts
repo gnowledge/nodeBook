@@ -53,7 +53,7 @@ export const cytoscapeStylesheet = [
       "background-color": "#fef3c7",
       "color": "#92400e",
       "border-color": "#92400e",
-      "shape": "roundrectangle",
+      "shape": "rectangle",
       "font-size": 12,
       'width': (ele: any) => {
         const label: string = String(ele.data('label') || '');

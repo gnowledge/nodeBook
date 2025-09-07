@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import svg from 'cytoscape-svg';
-import type { Node, Edge, AttributeType } from './types';
-import { cytoscapeStylesheet, cytoscapeLayouts } from './cytoscape-styles';
+import type { Node, Edge, Attribute } from './types';
+import { cytoscapeStylesheet } from './cytoscape-styles';
 
 cytoscape.use(dagre);
 cytoscape.use(svg);
@@ -11,7 +11,7 @@ cytoscape.use(svg);
 interface SubgraphProps {
   nodes: Node[];
   relations: Edge[];
-  attributes?: AttributeType[];
+  attributes?: Attribute[];
   onReady?: (api: { exportSvg: () => string }) => void;
 }
 
@@ -22,53 +22,64 @@ export function Subgraph({ nodes, relations, attributes = [], onReady }: Subgrap
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return;
 
+    const attributeValueNodes = (attributes || []).map(a => ({
+      data: {
+        id: a.id,
+        label: `${a.value}${(a as any).unit ? ' ' + (a as any).unit : ''}`,
+        type: 'attribute_value'
+      }
+    }));
+
+    const relationEdges = relations.map(r => ({
+      data: {
+        source: r.source_id,
+        target: r.target_id,
+        label: r.name
+      }
+    }));
+
+    const attributeEdges = (attributes || []).map(a => ({
+      data: {
+        source: a.source_id,
+        target: a.id,
+        label: a.name
+      }
+    }));
+
     cyRef.current = cytoscape({
       container: containerRef.current,
       elements: {
-        nodes: nodes.map(n => ({ 
-          data: { 
-            id: n.id, 
-            label: n.name, 
-            type: n.role === 'Transition' ? 'transition' : 'polynode' 
-          } 
-        })),
-        edges: [
-          ...relations.map(r => ({ 
-            data: { 
-              source: r.source_id, 
-              target: r.target_id, 
-              label: r.name 
-            } 
+        nodes: [
+          ...nodes.map(n => ({
+            data: {
+              id: n.id,
+              label: n.name,
+              type: n.role === 'Transition' ? 'transition' : 'polynode'
+            }
           })),
-          // Render attributes as small labeled self-loop-like edges to the source node
-          ...attributes
-            .filter(a => nodes.find(n => n.id === a.source_id))
-            .map(a => ({
-              data: {
-                source: a.source_id,
-                target: a.source_id,
-                label: `${a.name}: ${a.value}${a.unit ? ' ' + a.unit : ''}`
-              }
-            }))
+          ...attributeValueNodes
+        ],
+        edges: [
+          ...relationEdges,
+          ...attributeEdges
         ]
       },
-      style: cytoscapeStylesheet,
-      layout: { name: 'dagre', rankDir: 'TB' },
+      style: cytoscapeStylesheet as any,
+      layout: { name: 'dagre', rankDir: 'TB' } as any,
       userZoomingEnabled: false,
       userPanningEnabled: false,
     });
 
     const cy = cyRef.current;
-    const layout = cy.layout({ name: 'dagre', rankDir: 'TB' });
+    const layout = cy.layout({ name: 'dagre', rankDir: 'TB' } as any);
 
     layout.on('layoutstop', () => {
       cy.resize();
-      cy.fit(10); // Fit with a padding of 10
+      cy.fit(undefined, 10);
     });
 
     layout.run();
 
-    // Expose export API to parent
     if (onReady && cyRef.current) {
       const api = {
         exportSvg: () => (cyRef.current as any).svg({ full: true }) as string
@@ -79,7 +90,7 @@ export function Subgraph({ nodes, relations, attributes = [], onReady }: Subgrap
     return () => {
       cy.destroy();
     };
-  }, [nodes, relations]);
+  }, [nodes, relations, attributes]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '200px' }} />;
 }
