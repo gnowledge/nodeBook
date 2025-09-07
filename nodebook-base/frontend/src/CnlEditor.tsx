@@ -31,9 +31,10 @@ interface CnlEditorProps {
   userId?: string;
   userName?: string;
   onCollaborationToggle?: (enabled: boolean) => void;
+  editorLanguage?: 'cnl' | 'markdown';
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle, editorLanguage = 'cnl' }: CnlEditorProps) {
   // Debug logging
   console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
   
@@ -402,7 +403,23 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
         </div>
 
         <div className="toolbar-right">
-          {/* Primary Actions */}
+          {/* Primary Actions & Mode switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
+            <label style={{ fontSize: 12, color: '#6b7280' }}>Editor mode:</label>
+            <select
+              value={editorLanguage}
+              onChange={(e) => {
+                // Switch editor language locally; actual graph mode change is handled elsewhere
+                // Parent can pass editorLanguage based on graph mode
+              }}
+              style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', color: '#374151' }}
+              disabled
+              title="Graph mode determines editor; change mode in Nodes/Data view"
+            >
+              <option value="cnl">CNL</option>
+              <option value="markdown">Markdown</option>
+            </select>
+          </div>
           {onSave && (
             <button 
               className="toolbar-btn primary-btn save-btn"
@@ -451,7 +468,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             value={value}
             onChange={onChange}
             onAutoSave={onAutoSave}
-            language="cnl"
+            language={editorLanguage}
             readOnly={disabled}
             placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
             nodeTypes={nodeTypes}
@@ -466,7 +483,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             value={value}
             onChange={onChange}
             onAutoSave={onAutoSave}
-            language="cnl"
+            language={editorLanguage}
             readOnly={disabled}
             placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"
             nodeTypes={nodeTypes}

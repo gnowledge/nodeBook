@@ -91,7 +91,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
+  const [graphMode, setGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>('richgraph');
   // Single CNL text for the current graph
   const [cnlText, setCnlText] = useState<string>('');
   // Collaboration state
@@ -160,7 +160,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         setCnlText(cnlContent);
       });
     
-    // Fetch graph metadata including publication state
+    // Fetch graph metadata including publication state and mode
     authenticatedFetch(`/api/graphs`)
       .then(res => res.json())
       .then((data: any) => {
@@ -171,6 +171,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         if (currentGraph) {
           setActiveGraph(currentGraph);
           setPublicationState(currentGraph.publication_state || 'Private');
+          if (currentGraph.mode) setGraphMode(currentGraph.mode);
         }
       })
       .catch(error => {
@@ -586,6 +587,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       // Graph switching removed
                       publication_state={publicationState}
                       onPublicationStateChange={handlePublicationStateChange}
+                      graphMode={graphMode}
                     />}
                     {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                     {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}

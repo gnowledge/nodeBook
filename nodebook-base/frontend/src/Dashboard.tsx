@@ -34,7 +34,7 @@ export default function Dashboard({
   const [publicError, setPublicError] = useState('');
   const [activePage, setActivePage] = useState<string | null>(null);
   const [newGraphName, setNewGraphName] = useState('');
-  const [graphMode, setGraphMode] = useState<'richgraph' | 'mindmap'>('richgraph');
+  const [graphMode, setGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>('richgraph');
 
   const fetchGraphs = async () => {
     if (!token) {
@@ -237,11 +237,13 @@ export default function Dashboard({
                   />
                   <select
                     value={graphMode}
-                    onChange={(e) => setGraphMode(e.target.value as 'richgraph' | 'mindmap')}
+                    onChange={(e) => setGraphMode(e.target.value as 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph')}
                     className={styles.graphModeSelect}
                   >
+                    <option value="markdown">📝 Markdown (Document)</option>
                     <option value="richgraph">🔗 Rich Graph (Advanced)</option>
                     <option value="mindmap">🧠 MindMap (Beginner)</option>
+                    <option value="strictgraph">✅ StrictGraph (Schema-checked)</option>
                   </select>
                   <button
                     onClick={handleCreateGraph}

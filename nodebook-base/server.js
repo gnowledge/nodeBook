@@ -1610,6 +1610,42 @@ Another service or function
     }
   });
 
+  // Update graph mode
+  fastify.put('/api/graphs/:graphId/mode', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['mode'],
+        properties: {
+          mode: {
+            type: 'string',
+            enum: ['markdown', 'mindmap', 'richgraph', 'strictgraph']
+          }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const { mode } = request.body;
+    try {
+      const updatedRegistry = await dataStore.updateGraphRegistry(userId, graphId, { mode });
+      const updated = updatedRegistry.find(g => g.id === graphId);
+      return updated || { id: graphId, mode };
+    } catch (error) {
+      reply.code(400).send({ error: error.message });
+      return;
+    }
+  });
+
   // Publish graph (export to public folder)
   fastify.post('/api/graphs/:graphId/publish', {
     schema: {

@@ -157,45 +157,24 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
         }))
       };
     } else if (language === 'markdown') {
-      // Markdown-specific logic
-      if (isFirstColumn) {
-        const firstColumnSuggestions = [
-          { label: '#', type: 'header', apply: '# ', info: 'Header 1' },
-          { label: '##', type: 'header', apply: '## ', info: 'Header 2' },
-          { label: '###', type: 'header', apply: '### ', info: 'Header 3' },
-          { label: '-', type: 'list', apply: '- ', info: 'Unordered list item' },
-          { label: '1.', type: 'list', apply: '1. ', info: 'Ordered list item' },
-          { label: '>', type: 'block', apply: '> ', info: 'Blockquote' },
-          { label: '```', type: 'block', apply: '```\n\n```', info: 'Code block' }
-        ];
-        
-        const filtered = firstColumnSuggestions.filter(suggestion => 
-          suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
-        );
-        
-        return {
-          from: word.from,
-          options: filtered.map(suggestion => ({
-            label: suggestion.label,
-            type: suggestion.type,
-            apply: suggestion.apply,
-            info: suggestion.info
-          }))
-        };
-      }
-      
-      // Markdown completions for other contexts
-      const filtered = markdownCompletions.filter(completion => 
-        completion.label.toLowerCase().includes(word.text.toLowerCase())
+      // Markdown-specific minimal completions: headings and description/graph-description
+      const firstColumnSuggestions = [
+        { label: '#', type: 'header', apply: '# ', info: 'Header 1' },
+        { label: '##', type: 'header', apply: '## ', info: 'Header 2' },
+        { label: '###', type: 'header', apply: '### ', info: 'Header 3' },
+        { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Description block' },
+        { label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Graph description block' }
+      ];
+      const filtered = firstColumnSuggestions.filter(suggestion => 
+        suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
       );
-      
       return {
         from: word.from,
-        options: filtered.map(completion => ({
-          label: completion.label,
-          type: completion.type,
-          apply: completion.apply,
-          info: completion.info
+        options: filtered.map(suggestion => ({
+          label: suggestion.label,
+          type: suggestion.type,
+          apply: suggestion.apply,
+          info: suggestion.info
         }))
       };
     }

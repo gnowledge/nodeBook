@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { NodeCard } from './NodeCard';
 import { ImportContextModal } from './ImportContextModal';
 import { SelectGraphModal } from './SelectGraphModal';
@@ -17,6 +19,7 @@ interface DataViewProps {
   onCnlChange: (cnl: string) => void;
   publication_state?: 'Private' | 'P2P' | 'Public';
   onPublicationStateChange?: (newState: 'Private' | 'P2P' | 'Public') => void;
+  graphMode?: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph';
 }
 
 export function DataView({ 
@@ -28,7 +31,8 @@ export function DataView({
   cnlText, 
   onCnlChange,
   publication_state = 'Private',
-  onPublicationStateChange 
+  onPublicationStateChange,
+  graphMode = 'richgraph'
 }: DataViewProps) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -176,6 +180,85 @@ export function DataView({
     alert("The selected CNL has been copied to the editor. Please review and parse the CNL to apply the changes.");
   };
 
+  // Compose a single markdown document by extracting description blocks from CNL
+  const composeMarkdownFromCnl = (cnl: string): string => {
+    if (!cnl) return '';
+    const lines = cnl.split('\n');
+    const blocks: string[] = [];
+    let introBlock: string[] = [];
+    let currentDesc: string[] = [];
+    let lastHeading: string | null = null;
+    let inDesc = false;
+    let inGraphDesc = false;
+    for (const raw of lines) {
+      const line = raw;
+      // Track latest heading (preserve level and text)
+      const headingMatch = line.match(/^\s*(#+)\s*(.+)$/);
+      if (headingMatch && !inDesc) {
+        // Normalize to H3 to match NodeCard visual weight
+        lastHeading = `### ${headingMatch[2].trim()}`;
+        continue;
+      }
+      // Graph description block (top intro)
+      if (line.trim() === '```graph-description') {
+        inGraphDesc = true;
+        introBlock = [];
+        continue;
+      }
+      if (inGraphDesc && line.trim() === '```') {
+        inGraphDesc = false;
+        continue;
+      }
+      if (inGraphDesc) {
+        introBlock.push(line);
+        continue;
+      }
+      if (line.trim() === '```description') {
+        inDesc = true;
+        currentDesc = [];
+        continue;
+      }
+      if (inDesc && line.trim() === '```') {
+        inDesc = false;
+        const parts: string[] = [];
+        if (lastHeading) parts.push(lastHeading);
+        if (currentDesc.length > 0) parts.push(currentDesc.join('\n'));
+        if (parts.length > 0) blocks.push(parts.join('\n\n'));
+        currentDesc = [];
+        continue;
+      }
+      if (inDesc) {
+        currentDesc.push(line);
+      }
+    }
+    const intro = introBlock.length > 0 ? introBlock.join('\n') : '';
+    // Fallback: if no description blocks, render entire CNL as document prefixed by intro if present
+    if (blocks.length === 0) {
+      const prefix = intro ? `${intro}\n\n` : '';
+      return `${prefix}${cnl}`;
+    }
+    const body = blocks.join('\n\n');
+    return intro ? `${intro}\n\n${body}` : body;
+  };
+
+  // Mode switcher (post-creation): allow user to change graph mode
+  const handleModeChange = async (newMode: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph') => {
+    try {
+      const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
+        method: 'PUT',
+        body: JSON.stringify({ mode: newMode })
+      });
+      if (res.ok) {
+        onDataChange();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to change mode: ${err.error || 'Unknown error'}`);
+      }
+    } catch (e) {
+      console.error('Failed to change mode', e);
+    }
+  };
+
   const handlePublicationStateChange = async (newState: 'Private' | 'P2P' | 'Public') => {
     if (!onPublicationStateChange) return;
     
@@ -207,14 +290,29 @@ export function DataView({
     <div className="data-view-container">
       <GraphDetail graph={activeGraph} />
       <div className="data-view-header">
-        <input
-          type="text"
-          placeholder="Search nodes..."
-          className="search-input"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        {graphMode !== 'markdown' && (
+          <input
+            type="text"
+            placeholder="Search nodes..."
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        )}
         <div className="publication-controls">
+          <div className="publication-status-widget">
+            <label className="publication-status-label">Mode:</label>
+            <select
+              value={graphMode}
+              onChange={(e) => handleModeChange(e.target.value as any)}
+              className="graph-mode-select"
+            >
+              <option value="markdown">Markdown</option>
+              <option value="mindmap">MindMap</option>
+              <option value="richgraph">RichGraph</option>
+              <option value="strictgraph">StrictGraph</option>
+            </select>
+          </div>
           <div className="publication-status-widget">
             <label className="publication-status-label">Publication Status:</label>
             <div className="publication-status-options">
@@ -263,21 +361,27 @@ export function DataView({
           {/* Publish step removed: Public state alone controls exposure */}
         </div>
       </div>
-      <div className="data-view-grid">
-        {filteredNodes.map(node => (
-          <NodeCard
-            key={node.id}
-            node={node}
-            allNodes={nodes}
-            allRelations={relations}
-            attributes={attributes}
-            isActive={node.id === activeNodeId}
-            onSelectNode={setActiveNodeId}
-            onImportContext={handleImportContext}
-            nodeRegistry={nodeRegistry}
-          />
-        ))}
-      </div>
+      {graphMode === 'markdown' ? (
+        <div className="markdown-document" style={{ padding: '16px' }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{composeMarkdownFromCnl(cnlText)}</ReactMarkdown>
+        </div>
+      ) : (
+        <div className="data-view-grid">
+          {filteredNodes.map(node => (
+            <NodeCard
+              key={node.id}
+              node={node}
+              allNodes={nodes}
+              allRelations={relations}
+              attributes={attributes}
+              isActive={node.id === activeNodeId}
+              onSelectNode={setActiveNodeId}
+              onImportContext={handleImportContext}
+              nodeRegistry={nodeRegistry}
+            />
+          ))}
+        </div>
+      )}
       {selectingGraph && (
         <SelectGraphModal
           graphIds={selectingGraph.graphIds}
