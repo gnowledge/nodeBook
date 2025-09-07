@@ -258,6 +258,9 @@ export function CNLEditor({
         // Language support
         languageSupport,
         
+        // Soft-wrap lines to editor width
+        EditorView.lineWrapping,
+        
         // Keymaps
         keymap.of([
           indentWithTab,
