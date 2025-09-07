@@ -1320,10 +1320,10 @@ Another service or function
       // Fallback: attempt on-the-fly generation from current graph data (first node neighborhood)
       try {
         const dataStore = fastify.dataStore;
-        const graphData = await dataStore.getGraph(userId, graphId, fastify.HyperGraph);
-        const nodes = await graphData.listAll('nodes');
-        const relations = await graphData.listAll('relations');
-        const attributes = await graphData.listAll('attributes');
+        const graphJson = await dataStore.getGraph(userId, graphId);
+        const nodes = graphJson?.nodes || [];
+        const relations = graphJson?.relations || [];
+        const attributes = graphJson?.attributes || [];
 
         // Build a minimal neighborhood around the first node encountered in CNL order or registry order
         let firstNodeId = null;

@@ -182,7 +182,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       </div>
       
       <div className="node-card-image">
-        <Subgraph nodes={subgraphNodes} relations={subgraphRelations} />
+        <Subgraph nodes={subgraphNodes} relations={subgraphRelations} attributes={attributes.filter(a => a.source_id === node.id)} />
       </div>
 
       {node.description && (
