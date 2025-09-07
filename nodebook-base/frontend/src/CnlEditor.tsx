@@ -32,9 +32,12 @@ interface CnlEditorProps {
   userName?: string;
   onCollaborationToggle?: (enabled: boolean) => void;
   editorLanguage?: 'cnl' | 'markdown';
+  // Graph mode props (for unified toolbar control)
+  graphMode?: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph';
+  onGraphModeChange?: (mode: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph') => void;
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle, editorLanguage = 'cnl' }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle, editorLanguage = 'cnl', graphMode = 'richgraph', onGraphModeChange }: CnlEditorProps) {
   // Debug logging
   console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
   
@@ -241,14 +244,15 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
   }, [onSubmit, handleUndo, handleRedo]);
 
   // Dropdown menu component
-  const DropdownMenu = ({ title, icon, items, isOpen, onToggle }: {
+  const DropdownMenu = ({ title, icon, items, isOpen, onToggle, align = 'left' }: {
     title: string;
     icon: string;
     items: Array<{ label: string; icon: string; onClick: () => void; disabled?: boolean; title?: string }>;
     isOpen: boolean;
     onToggle: () => void;
+    align?: 'left' | 'right';
   }) => (
-    <div className="dropdown-container">
+    <div className={`dropdown-container ${align === 'right' ? 'align-right' : ''}`}>
       <button
         className={`dropdown-trigger ${isOpen ? 'active' : ''}`}
         onClick={onToggle}
@@ -284,142 +288,66 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
       {/* Editor Toolbar */}
       <div className="cnl-editor-toolbar">
         <div className="toolbar-left">
+          {/* Unified Menu - first on the left */}
+          <DropdownMenu
+            title="Menu"
+            icon="☰"
+            isOpen={activeDropdown === 'menu'}
+            onToggle={() => setActiveDropdown(activeDropdown === 'menu' ? null : 'menu')}
+            align="left"
+            items={[
+              { label: '— Mode —', icon: '', onClick: () => {}, disabled: true },
+              { label: `${graphMode === 'markdown' ? '✓ ' : ''}Markdown`, icon: '📝', onClick: () => onGraphModeChange && onGraphModeChange('markdown'), disabled: !graphId },
+              { label: `${graphMode === 'mindmap' ? '✓ ' : ''}MindMap`, icon: '🧠', onClick: () => onGraphModeChange && onGraphModeChange('mindmap'), disabled: !graphId },
+              { label: `${graphMode === 'richgraph' ? '✓ ' : ''}RichGraph`, icon: '🔗', onClick: () => onGraphModeChange && onGraphModeChange('richgraph'), disabled: !graphId },
+              { label: `${graphMode === 'strictgraph' ? '✓ ' : ''}StrictGraph`, icon: '✅', onClick: () => onGraphModeChange && onGraphModeChange('strictgraph'), disabled: !graphId },
+              { label: '— Version —', icon: '', onClick: () => {}, disabled: true },
+              { label: 'View History', icon: '📜', onClick: () => { if (graphId) { setIsVersionControlOpen(true); setActiveDropdown(null); } }, disabled: !graphId, title: graphId ? 'View version history' : 'No graph selected' },
+              { label: 'Compare Versions', icon: '🔍', onClick: () => console.log('Compare versions - coming soon'), disabled: !graphId },
+              { label: '— Tools —', icon: '', onClick: () => {}, disabled: true },
+              { label: 'Auto-Insert Descriptions', icon: '📝', onClick: handleAutoInsertDescriptions },
+              { label: 'WordNet Definitions', icon: '📚', onClick: handleWordNetAutoDescription, disabled: disabled || isWordNetLoading || !value.trim() },
+              { label: 'Parse Descriptions', icon: '🧠', onClick: handleNLPParse, disabled: disabled || isNLPLoading || !value.trim() },
+              { label: '— Collaboration —', icon: '', onClick: () => {}, disabled: true },
+              { label: enableCollaboration ? 'Disable Live' : 'Enable Live', icon: '👥', onClick: () => { if (onCollaborationToggle) onCollaborationToggle(!enableCollaboration); }, disabled: !(graphId && userId) }
+            ]}
+          />
+
           {/* Edit Status Display */}
           {editStatus && (
             <div className="edit-status-display">
-              <span className={`status-indicator ${editStatus.isModified ? 'modified' : 'saved'}`}>
-                {editStatus.isModified ? '⚠️ Modified' : '✅ Saved'}
+              <span 
+                className={`status-indicator ${editStatus.isModified ? 'modified' : 'saved'}`}
+                aria-label={editStatus.isModified ? 'Modified' : 'Saved'}
+              >
+                {editStatus.isModified ? '⚠️' : '✅'}
               </span>
             </div>
           )}
-          
-          {/* Collaboration Toggle */}
-          {graphId && userId && (
+
+          {/* Iconized Undo/Redo */}
+          <div style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
             <button
-              className={`collaboration-toggle ${enableCollaboration ? 'active' : ''}`}
-              onClick={() => {
-                if (onCollaborationToggle) {
-                  onCollaborationToggle(!enableCollaboration);
-                }
-              }}
-              title={enableCollaboration ? 'Disable collaboration' : 'Enable live collaboration'}
-              style={{
-                padding: '4px 8px',
-                margin: '0 8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: enableCollaboration ? '#e3f2fd' : '#fff',
-                color: enableCollaboration ? '#1976d2' : '#666',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
+              className="toolbar-icon-btn"
+              onClick={handleUndo}
+              disabled={historyIndex <= 0}
+              title="Undo (Ctrl+Z)"
             >
-              {enableCollaboration ? '👥 Live' : '👤 Solo'}
+              ↩️
             </button>
-          )}
-          
-          {/* Edit Menu */}
-          <DropdownMenu
-            title="Edit"
-            icon="✏️"
-            isOpen={activeDropdown === 'edit'}
-            onToggle={() => setActiveDropdown(activeDropdown === 'edit' ? null : 'edit')}
-            items={[
-              {
-                label: 'Undo',
-                icon: '↩️',
-                onClick: handleUndo,
-                disabled: historyIndex <= 0,
-                title: 'Undo (Ctrl+Z)'
-              },
-              {
-                label: 'Redo',
-                icon: '↪️',
-                onClick: handleRedo,
-                disabled: historyIndex >= history.length - 1,
-                title: 'Redo (Ctrl+Y)'
-              }
-            ]}
-          />
-
-          {/* Tools Menu */}
-          <DropdownMenu
-            title="Tools"
-            icon="🔧"
-            isOpen={activeDropdown === 'tools'}
-            onToggle={() => setActiveDropdown(activeDropdown === 'tools' ? null : 'tools')}
-            items={[
-              {
-                label: 'Auto-Insert Descriptions',
-                icon: '📝',
-                onClick: handleAutoInsertDescriptions,
-                title: 'Automatically insert description blocks for nodes'
-              },
-              {
-                label: 'WordNet Definitions',
-                icon: '📚',
-                onClick: handleWordNetAutoDescription,
-                disabled: disabled || isWordNetLoading || !value.trim(),
-                title: 'Get WordNet definitions for nodes'
-              },
-              {
-                label: 'Parse Descriptions',
-                icon: '🧠',
-                onClick: handleNLPParse,
-                disabled: disabled || isNLPLoading || !value.trim(),
-                title: 'Analyze description blocks with NLP'
-              }
-            ]}
-          />
-
-          {/* Version Control Menu */}
-          <DropdownMenu
-            title="Version"
-            icon="📋"
-            isOpen={activeDropdown === 'version'}
-            onToggle={() => setActiveDropdown(activeDropdown === 'version' ? null : 'version')}
-            items={[
-              {
-                label: 'View History',
-                icon: '📜',
-                onClick: () => {
-                  if (graphId) {
-                    setIsVersionControlOpen(true);
-                    setActiveDropdown(null);
-                  }
-                },
-                disabled: !graphId,
-                title: graphId ? 'View version history' : 'No graph selected'
-              },
-              {
-                label: 'Compare Versions',
-                icon: '🔍',
-                onClick: () => console.log('Compare versions - coming soon'),
-                disabled: !graphId,
-                title: graphId ? 'Compare different versions' : 'No graph selected'
-              }
-            ]}
-          />
+            <button
+              className="toolbar-icon-btn"
+              onClick={handleRedo}
+              disabled={historyIndex >= history.length - 1}
+              title="Redo (Ctrl+Y)"
+            >
+              ↪️
+            </button>
+          </div>
         </div>
 
         <div className="toolbar-right">
-          {/* Primary Actions & Mode switcher */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
-            <label style={{ fontSize: 12, color: '#6b7280' }}>Editor mode:</label>
-            <select
-              value={editorLanguage}
-              onChange={(e) => {
-                // Switch editor language locally; actual graph mode change is handled elsewhere
-                // Parent can pass editorLanguage based on graph mode
-              }}
-              style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', color: '#374151' }}
-              disabled
-              title="Graph mode determines editor; change mode in Nodes/Data view"
-            >
-              <option value="cnl">CNL</option>
-              <option value="markdown">Markdown</option>
-            </select>
-          </div>
+          {/* Primary Actions */}
           {onSave && (
             <button 
               className="toolbar-btn primary-btn save-btn"
@@ -448,7 +376,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
           
           {onClose && (
             <button 
-              className="toolbar-btn secondary-btn close-btn"
+              className="toolbar-btn secondary-btn"
               onClick={() => {
                 console.log('Close button clicked, calling onClose');
                 onClose();

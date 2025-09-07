@@ -533,6 +533,44 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             userId={currentUser?.id}
                             userName={currentUser?.name}
                             onCollaborationToggle={handleCollaborationToggle}
+                            graphMode={graphMode}
+                            onGraphModeChange={async (newMode) => {
+                              if (!activeGraphId) return;
+                              try {
+                                const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
+                                  method: 'PUT',
+                                  body: JSON.stringify({ mode: newMode })
+                                });
+                                if (res.ok) {
+                                  setGraphMode(newMode);
+                                  fetchGraph(activeGraphId);
+                                } else {
+                                  const err = await res.json().catch(() => ({}));
+                                  alert(`Failed to change mode: ${err.error || 'Unknown error'}`);
+                                }
+                              } catch (e) {
+                                console.error('Failed to change mode', e);
+                              }
+                            }}
+                            graphMode={graphMode}
+                            onGraphModeChange={async (newMode) => {
+                              if (!activeGraphId) return;
+                              try {
+                                const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
+                                  method: 'PUT',
+                                  body: JSON.stringify({ mode: newMode })
+                                });
+                                if (res.ok) {
+                                  setGraphMode(newMode);
+                                  fetchGraph(activeGraphId);
+                                } else {
+                                  const err = await res.json().catch(() => ({}));
+                                  alert(`Failed to change mode: ${err.error || 'Unknown error'}`);
+                                }
+                              } catch (e) {
+                                console.error('Failed to change mode', e);
+                              }
+                            }}
                           />
                           
                           {/* Score widget at bottom of Editor */}

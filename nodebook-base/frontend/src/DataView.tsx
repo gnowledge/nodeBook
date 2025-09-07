@@ -241,23 +241,7 @@ export function DataView({
     return intro ? `${intro}\n\n${body}` : body;
   };
 
-  // Mode switcher (post-creation): allow user to change graph mode
-  const handleModeChange = async (newMode: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph') => {
-    try {
-      const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
-        method: 'PUT',
-        body: JSON.stringify({ mode: newMode })
-      });
-      if (res.ok) {
-        onDataChange();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(`Failed to change mode: ${err.error || 'Unknown error'}`);
-      }
-    } catch (e) {
-      console.error('Failed to change mode', e);
-    }
-  };
+  // Mode switching moved to Editor menu for single source of truth
 
   const handlePublicationStateChange = async (newState: 'Private' | 'P2P' | 'Public') => {
     if (!onPublicationStateChange) return;
@@ -300,19 +284,6 @@ export function DataView({
           />
         )}
         <div className="publication-controls">
-          <div className="publication-status-widget">
-            <label className="publication-status-label">Mode:</label>
-            <select
-              value={graphMode}
-              onChange={(e) => handleModeChange(e.target.value as any)}
-              className="graph-mode-select"
-            >
-              <option value="markdown">Markdown</option>
-              <option value="mindmap">MindMap</option>
-              <option value="richgraph">RichGraph</option>
-              <option value="strictgraph">StrictGraph</option>
-            </select>
-          </div>
           <div className="publication-status-widget">
             <label className="publication-status-label">Publication Status:</label>
             <div className="publication-status-options">

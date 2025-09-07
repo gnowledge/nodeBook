@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection } from '@codemirror/state';
 import { indentWithTab } from '@codemirror/commands';
 import { cnl, cnlHighlightStyle } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
@@ -199,7 +199,7 @@ export function CNLEditor({
 }: CNLEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(false);
+  const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(true);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Graph ID tracking removed - App is single-graph only
@@ -301,62 +301,7 @@ export function CNLEditor({
           }
         }),
         
-        // Click listener for markdown toolbar
-        EditorView.domEventHandlers({
-          click: (event, view) => {
-            // Check if we're in a description block
-            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-            if (pos !== null) {
-              const line = view.state.doc.lineAt(pos);
-              const lineText = line.text;
-              
-              // Find if we're inside a description block (not on the opening/closing lines)
-              let inDescriptionBlock = false;
-              let descriptionStart = -1;
-              
-              // Look backwards to find the start of description block
-              for (let i = line.number - 1; i >= 1; i--) {
-                const prevLine = view.state.doc.line(i);
-                if (prevLine.text.trim() === '```description') {
-                  descriptionStart = i;
-                  break;
-                } else if (prevLine.text.trim() === '```' && !prevLine.text.includes('description')) {
-                  // Found a code block, but not description
-                  break;
-                }
-              }
-              
-              // Look forwards to find the end of description block
-              if (descriptionStart > 0) {
-                for (let i = descriptionStart + 1; i <= view.state.doc.lines; i++) {
-                  const nextLine = view.state.doc.line(i);
-                  if (nextLine.text.trim() === '```') {
-                    // We're inside a description block
-                    if (line.number > descriptionStart && line.number < i) {
-                      inDescriptionBlock = true;
-                    }
-                    break;
-                  }
-                }
-              }
-              
-              // Show toolbar only if we're inside a description block (not on the boundary lines)
-              if (inDescriptionBlock && lineText.trim() !== '```description' && lineText.trim() !== '```') {
-                const coords = view.coordsAtPos(pos);
-                if (coords) {
-                  setToolbarPosition({ 
-                    top: coords.top + window.scrollY, 
-                    left: coords.left + window.scrollX 
-                  });
-                  setShowMarkdownToolbar(true);
-                }
-              } else {
-                // Hide toolbar if we're not in a description block
-                setShowMarkdownToolbar(false);
-              }
-            }
-          }
-        }),
+        // Docked toolbar: no click listener needed
         
         // Editor theme
         EditorView.theme({
@@ -578,60 +523,75 @@ export function CNLEditor({
 
   // Markdown formatting functions
   const insertMarkdown = (before: string, after: string = '') => {
-    if (!viewRef.current) return;
-    
-    const { from, to } = viewRef.current.state.selection;
-    const selectedText = viewRef.current.state.sliceDoc(from, to);
-    const newText = before + selectedText + after;
-    
-    viewRef.current.dispatch({
-      changes: { from, to, insert: newText },
-      selection: { anchor: from + before.length, head: from + before.length + selectedText.length }
-    });
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    try {
+      view.focus();
+      const state = view.state;
+      const from = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const to = Math.max(0, Math.min(state.selection.main.to, state.doc.length));
+      const selectedText = state.sliceDoc(from, to) || '';
+      const newText = `${before}${selectedText}${after}`;
+      const anchor = Math.max(0, Math.min(from + before.length, view.state.doc.length));
+      const head = Math.max(0, Math.min(from + before.length + selectedText.length, view.state.doc.length));
+      view.dispatch({
+        changes: { from, to, insert: newText },
+        selection: EditorSelection.single(anchor, head)
+      });
+    } catch (err) {
+      console.error('Failed to apply markdown insertion', err);
+    }
   };
 
   const insertMarkdownBlock = (blockType: string) => {
-    if (!viewRef.current) return;
-    
-    const { from } = viewRef.current.state.selection;
-    const line = viewRef.current.state.doc.lineAt(from);
-    const lineStart = line.from;
-    
-    let insertText = '';
-    switch (blockType) {
-      case 'heading':
-        insertText = '## Section Heading';
-        break;
-      case 'bold':
-        insertText = '**bold text**';
-        break;
-      case 'italic':
-        insertText = '*italic text*';
-        break;
-      case 'code':
-        insertText = '`code`';
-        break;
-      case 'link':
-        insertText = '[link text](url)';
-        break;
-      case 'list':
-        insertText = '- list item';
-        break;
-      case 'numbered':
-        insertText = '1. numbered item';
-        break;
-      case 'quote':
-        insertText = '> quoted text';
-        break;
-      case 'codeblock':
-        insertText = '```\ncode block\n```';
-        break;
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    try {
+      view.focus();
+      const state = view.state;
+      const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const line = state.doc.lineAt(fromPos);
+      const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
+      let insertText = '';
+      switch (blockType) {
+        case 'heading':
+          insertText = '## Section Heading';
+          break;
+        case 'bold':
+          insertText = '**bold text**';
+          break;
+        case 'italic':
+          insertText = '*italic text*';
+          break;
+        case 'code':
+          insertText = '`code`';
+          break;
+        case 'link':
+          insertText = '[link text](url)';
+          break;
+        case 'list':
+          insertText = '- list item';
+          break;
+        case 'numbered':
+          insertText = '1. numbered item';
+          break;
+        case 'quote':
+          insertText = '> quoted text';
+          break;
+        case 'codeblock':
+          insertText = '```\ncode block\n```';
+          break;
+      }
+      const insertWithNewline = insertText + '\n';
+      const sel = lineStart + insertText.length;
+      const safeSel = Math.max(0, Math.min(sel, view.state.doc.length));
+      view.dispatch({
+        changes: { from: lineStart, to: lineStart, insert: insertWithNewline },
+        selection: EditorSelection.single(safeSel, safeSel)
+      });
+    } catch (err) {
+      console.error('Failed to apply markdown block insertion', err);
     }
-    
-    viewRef.current.dispatch({
-      changes: { from: lineStart, insert: insertText + '\n' },
-      selection: { anchor: lineStart + insertText.length, head: lineStart + insertText.length }
-    });
   };
 
   return (
@@ -641,19 +601,17 @@ export function CNLEditor({
         <div 
           className="markdown-toolbar"
           style={{
-            position: 'absolute',
-            top: toolbarPosition.top - 50,
-            left: toolbarPosition.left,
-            zIndex: 1000,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
             backgroundColor: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '8px',
+            borderBottom: '1px solid #e5e7eb',
+            padding: '6px 8px',
             display: 'flex',
-            gap: '4px',
-            flexWrap: 'wrap',
-            maxWidth: '400px'
+            gap: '6px',
+            alignItems: 'center',
+            borderTopLeftRadius: '8px',
+            borderTopRightRadius: '8px'
           }}
         >
           {/* Text Formatting */}
@@ -727,13 +685,7 @@ export function CNLEditor({
             🔗
           </button>
           
-          {/* Close Button */}
-          <button
-            onClick={() => setShowMarkdownToolbar(false)}
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#f3f4f6', cursor: 'pointer', marginLeft: 'auto', color: '#dc2626', fontWeight: 'bold' }}
-          >
-            ✕
-          </button>
+          {/* Docked toolbar stays visible; no close button */}
         </div>
       )}
       
