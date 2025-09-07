@@ -19,17 +19,26 @@ export function GraphThumbnail({
 }: GraphThumbnailProps) {
   const [imageError, setImageError] = useState(false);
   const [trySvg, setTrySvg] = useState(false);
+  const [svgContent, setSvgContent] = useState<string | null>(null);
   
   // Construct the thumbnail URL based on graph ID
-  const thumbnailUrl = trySvg ? `/api/graphs/${graph.id}/thumbnail`.replace('thumbnail', 'thumbnail').replace('.png','') : `/api/graphs/${graph.id}/thumbnail`;
+  const thumbnailUrl = `/api/graphs/${graph.id}/thumbnail`;
   
-  const handleImageError = () => {
+  const handleImageError = async () => {
     if (!trySvg) {
-      // Try fetching SVG fallback by setting <img src> to the same URL; server may return SVG
-      setTrySvg(true);
-    } else {
-      setImageError(true);
+      try {
+        // Attempt to fetch SVG fallback explicitly
+        const res = await fetch(thumbnailUrl, { headers: { Accept: 'image/svg+xml,image/png;q=0.9,*/*;q=0.8' } });
+        const contentType = res.headers.get('Content-Type') || '';
+        if (res.ok && contentType.includes('image/svg')) {
+          const text = await res.text();
+          setSvgContent(text);
+          setTrySvg(true);
+          return;
+        }
+      } catch {}
     }
+    setImageError(true);
   };
 
   if (imageError) {
@@ -45,15 +54,24 @@ export function GraphThumbnail({
 
   return (
     <div className={styles.thumbnailContainer} style={{ width, height }}>
-      <img
-        src={thumbnailUrl}
-        alt={`Graph preview for ${graph.name}`}
-        width={width}
-        height={height}
-        className={styles.thumbnailImage}
-        onError={handleImageError}
-        loading="lazy"
-      />
+      {trySvg && svgContent ? (
+        // Render inline SVG when server returns SVG fallback
+        <div
+          className={styles.thumbnailImage}
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+          style={{ width: '100%', height: '100%' }}
+        />
+      ) : (
+        <img
+          src={thumbnailUrl}
+          alt={`Graph preview for ${graph.name}`}
+          width={width}
+          height={height}
+          className={styles.thumbnailImage}
+          onError={handleImageError}
+          loading="lazy"
+        />
+      )}
       
       {/* Publication state indicator overlay */}
       <div className={styles.publicationIndicator}>
