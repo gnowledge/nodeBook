@@ -1322,7 +1322,7 @@ Another service or function
       // Fallback: attempt on-the-fly generation from current graph data (first node neighborhood)
       try {
         const dataStore = fastify.dataStore;
-        const graphJson = await dataStore.getGraph(userId, graphId);
+        const graphJson = await dataStore.getGraph(userId, graphId) || { nodes: [], relations: [], attributes: [] };
         const nodes = graphJson?.nodes || [];
         const relations = graphJson?.relations || [];
         const attributes = graphJson?.attributes || [];

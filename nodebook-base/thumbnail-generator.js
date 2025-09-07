@@ -20,7 +20,8 @@ class ThumbnailGenerator {
    */
   async generateUserGraphThumbnail(userId, graphId, graphData) {
     try {
-      const thumbnailDir = path.join(this.dataPath, 'graphs', 'users', userId.toString(), graphId);
+      // Store under users/<uid>/graphs/<graphId>/ to match server endpoint
+      const thumbnailDir = path.join(this.dataPath, 'users', userId.toString(), 'graphs', graphId);
       const thumbnailPath = path.join(thumbnailDir, 'thumbnail.png');
       
       // Ensure directory exists
