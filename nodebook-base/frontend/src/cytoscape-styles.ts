@@ -16,8 +16,15 @@ export const cytoscapeStylesheet = [
       "border-color": "#2563eb",
       "border-style": "solid",
       "shape": "roundrectangle",
-      'width': (ele: any) => Math.max(ele.data('label').length * 8 + 20, 60),
-      'height': 35
+      // Auto-size width to label length with padding
+      'width': (ele: any) => {
+        const label: string = String(ele.data('label') || '');
+        const charWidth = 9; // approximate px per character for font-size 14
+        const horizontalPadding = 32; // px padding total (left+right)
+        return Math.max(label.length * charWidth + horizontalPadding, 60);
+      },
+      // Slightly taller to ensure full enclosure of text
+      'height': 40
     }
   },
   // Transition node styling - MUST come before default node selector
@@ -48,8 +55,13 @@ export const cytoscapeStylesheet = [
       "border-color": "#92400e",
       "shape": "roundrectangle",
       "font-size": 12,
-      'width': (ele: any) => Math.max(ele.data('label').length * 7 + 16, 50),
-      'height': 30,
+      'width': (ele: any) => {
+        const label: string = String(ele.data('label') || '');
+        const charWidth = 8;
+        const horizontalPadding = 24;
+        return Math.max(label.length * charWidth + horizontalPadding, 50);
+      },
+      'height': 34,
       "text-outline-width": 0
     }
   },
@@ -120,8 +132,14 @@ export const cytoscapeStylesheet = [
       "border-color": "#2563eb",
       "border-style": "solid",
       "shape": "roundrectangle",
-      'width': 60,
-      'height': 35
+      // Fallback autosize for any node type not matched above
+      'width': (ele: any) => {
+        const label: string = String(ele.data('label') || '');
+        const charWidth = 9;
+        const horizontalPadding = 28;
+        return Math.max(label.length * charWidth + horizontalPadding, 60);
+      },
+      'height': 40
     }
   }
 ];
@@ -133,6 +151,7 @@ export const cytoscapeLayouts = {
     rankDir: 'LR',
     fit: true,
     padding: 30,
+    nodeDimensionsIncludeLabels: true,
     nodeSep: 50,
     edgeSep: 20,
     rankSep: 80
