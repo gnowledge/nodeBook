@@ -18,12 +18,18 @@ export function GraphThumbnail({
   height = 120 
 }: GraphThumbnailProps) {
   const [imageError, setImageError] = useState(false);
+  const [trySvg, setTrySvg] = useState(false);
   
   // Construct the thumbnail URL based on graph ID
-  const thumbnailUrl = `/api/graphs/${graph.id}/thumbnail`;
+  const thumbnailUrl = trySvg ? `/api/graphs/${graph.id}/thumbnail`.replace('thumbnail', 'thumbnail').replace('.png','') : `/api/graphs/${graph.id}/thumbnail`;
   
   const handleImageError = () => {
-    setImageError(true);
+    if (!trySvg) {
+      // Try fetching SVG fallback by setting <img src> to the same URL; server may return SVG
+      setTrySvg(true);
+    } else {
+      setImageError(true);
+    }
   };
 
   if (imageError) {

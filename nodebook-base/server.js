@@ -1308,18 +1308,74 @@ Another service or function
     try {
       // Construct the thumbnail path
       const thumbnailPath = path.join('./data', 'users', userId.toString(), 'graphs', graphId, 'thumbnail.png');
-      
-      // Check if thumbnail exists
+
+      // If exists, serve it
       try {
         await fs.access(thumbnailPath);
-        // Set proper headers for PNG image
         reply.header('Content-Type', 'image/png');
-        reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        reply.header('Cache-Control', 'public, max-age=3600');
         return reply.sendFile(thumbnailPath);
-      } catch (accessError) {
-        // Thumbnail doesn't exist, return 404
-        reply.code(404).send({ error: 'Thumbnail not found' });
-        return;
+      } catch {}
+
+      // Fallback: attempt on-the-fly generation from current graph data (first node neighborhood)
+      try {
+        const dataStore = fastify.dataStore;
+        const graphData = await dataStore.getGraph(userId, graphId, fastify.HyperGraph);
+        const nodes = await graphData.listAll('nodes');
+        const relations = await graphData.listAll('relations');
+        const attributes = await graphData.listAll('attributes');
+
+        // Build a minimal neighborhood around the first node encountered in CNL order or registry order
+        let firstNodeId = null;
+        try {
+          const cnlText = await dataStore.getCnl(userId, graphId);
+          const firstHeading = (cnlText.split('\n').find(l => l.startsWith('# ')) || '').replace(/^#\s+/, '').trim();
+          const matchNode = nodes.find((n) => (n.name === firstHeading));
+          firstNodeId = matchNode?.id || null;
+        } catch {}
+        if (!firstNodeId && nodes.length > 0) firstNodeId = nodes[0].id;
+
+        const neighborhoodNodes = new Set();
+        const neighborhoodEdges = [];
+        if (firstNodeId) {
+          neighborhoodNodes.add(firstNodeId);
+          for (const e of relations) {
+            if (e.source_id === firstNodeId || e.target_id === firstNodeId) {
+              neighborhoodEdges.push(e);
+              neighborhoodNodes.add(e.source_id);
+              neighborhoodNodes.add(e.target_id);
+            }
+          }
+        }
+
+        const minimalGraph = {
+          nodes: nodes.filter(n => neighborhoodNodes.has(n.id)).slice(0, 12),
+          relations: neighborhoodEdges.slice(0, 16),
+          attributes: attributes.filter(a => neighborhoodNodes.has(a.source_id)).slice(0, 12)
+        };
+
+        // Generate placeholder SVG/PNG via thumbnailGenerator (will create SVG; PNG conversion TODO)
+        await fastify.thumbnailGenerator.generateUserGraphThumbnail(userId, graphId, minimalGraph);
+
+        // Serve newly created (likely SVG fallback not PNG); try PNG first, else serve SVG
+        try {
+          await fs.access(thumbnailPath);
+          reply.header('Content-Type', 'image/png');
+          reply.header('Cache-Control', 'public, max-age=300');
+          return reply.sendFile(thumbnailPath);
+        } catch {
+          const svgPath = thumbnailPath.replace('.png', '.svg');
+          await fs.access(svgPath);
+          reply.header('Content-Type', 'image/svg+xml');
+          reply.header('Cache-Control', 'public, max-age=300');
+          return reply.sendFile(svgPath);
+        }
+      } catch (genErr) {
+        // Serve a built-in default placeholder
+        const defaultSvg = `<svg width="400" height="240" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="240" fill="#f8fafc" rx="8"/><text x="200" y="120" text-anchor="middle" fill="#6b7280" font-size="16">No Preview</text></svg>`;
+        reply.header('Content-Type', 'image/svg+xml');
+        reply.header('Cache-Control', 'no-cache');
+        return reply.send(defaultSvg);
       }
     } catch (error) {
       console.error(`[getThumbnail] Error getting thumbnail for graph ${graphId}:`, error);
