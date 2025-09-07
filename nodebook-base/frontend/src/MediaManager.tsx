@@ -29,7 +29,7 @@ export function MediaManager({
   onFileSelect, 
   showUpload = true, 
   showList = true,
-  showUsageInstructions = true
+  showUsageInstructions = false
 }: MediaManagerProps) {
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -216,41 +216,7 @@ export function MediaManager({
     }
   };
 
-  const copyImageHtml = async (file: MediaFile) => {
-    const imageUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
-    const html = `<img src="${imageUrl}" alt="${file.name}" />`;
-    try {
-      await navigator.clipboard.writeText(html);
-      alert('Image HTML copied to clipboard!');
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = html;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Image HTML copied to clipboard!');
-    }
-  };
-
-  const copyImageAttribute = async (file: MediaFile) => {
-    const imageUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
-    const attribute = `has Image: ${imageUrl}`;
-    try {
-      await navigator.clipboard.writeText(attribute);
-      alert('Image attribute copied to clipboard!');
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = attribute;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Image attribute copied to clipboard!');
-    }
-  };
+  // Removed HTML and Attr copy helpers per UX simplification
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -455,11 +421,20 @@ export function MediaManager({
                       <small>{formatFileSize(file.size)} • {formatDate(file.uploadedAt)}</small>
                     </div>
                   </div>
-                  
+
+                  {/* Inline preview for images including SVG */}
+                  {file.type.startsWith('image/') && (
+                    <img
+                      src={`${MEDIA_BACKEND_URL}/api/media/files/${file.id}`}
+                      alt={file.name}
+                      style={{ width: '100%', height: 180, objectFit: 'contain', background: '#fff' }}
+                    />
+                  )}
+
                   {file.description && (
                     <p className={styles.fileDescription}>{file.description}</p>
                   )}
-                  
+
                   {file.tags && file.tags.length > 0 && (
                     <div className={styles.fileTags}>
                       {file.tags.map(tag => (
@@ -467,7 +442,7 @@ export function MediaManager({
                       ))}
                     </div>
                   )}
-                  
+
                   <div className={styles.fileActions}>
                     <button
                       onClick={() => viewFile(file)}
@@ -493,20 +468,6 @@ export function MediaManager({
                           title="Copy markdown"
                         >
                           📝 MD
-                        </button>
-                        <button
-                          onClick={() => copyImageHtml(file)}
-                          className={styles.copyBtn}
-                          title="Copy HTML"
-                        >
-                          🌐 HTML
-                        </button>
-                        <button
-                          onClick={() => copyImageAttribute(file)}
-                          className={styles.copyBtn}
-                          title="Copy Attribute"
-                        >
-                          📝 Attr
                         </button>
                       </>
                     )}
