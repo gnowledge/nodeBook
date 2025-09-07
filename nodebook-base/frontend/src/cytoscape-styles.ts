@@ -15,7 +15,7 @@ export const cytoscapeStylesheet = [
       "border-width": 0.5,
       "border-color": "#2563eb",
       "border-style": "solid",
-      "shape": "roundrectangle",
+      "shape": "round-rectangle",
       // Auto-size width to label length with padding
       'width': (ele: any) => {
         const label: string = String(ele.data('label') || '');
@@ -124,22 +124,9 @@ export const cytoscapeStylesheet = [
       label: "data(label)",
       "text-valign": "center",
       "text-halign": "center",
-      "background-color": "#f3f4f6",
-      "color": "#2563eb",
       "text-outline-width": 0,
       "font-size": 14,
-      "border-width": 0.5,
-      "border-color": "#2563eb",
-      "border-style": "solid",
-      "shape": "roundrectangle",
-      // Fallback autosize for any node type not matched above
-      'width': (ele: any) => {
-        const label: string = String(ele.data('label') || '');
-        const charWidth = 9;
-        const horizontalPadding = 28;
-        return Math.max(label.length * charWidth + horizontalPadding, 60);
-      },
-      'height': 40
+      // Keep defaults minimal so typed selectors can override
     }
   }
 ];
