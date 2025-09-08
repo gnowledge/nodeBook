@@ -122,6 +122,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [enableCollaboration, setEnableCollaboration] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [isMobile, setIsMobile] = useState(false);
   const [activePage, setActivePage] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState<boolean>(false);
   const [defaultGraphMode, setDefaultGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(() => {
@@ -136,10 +137,33 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [publicationState, setPublicationState] = useState<'Private' | 'P2P' | 'Public'>('Private');
+  const [collabRole, setCollabRole] = useState<'view' | 'edit' | null>(null);
 
   useEffect(() => {
     localStorage.setItem('defaultGraphMode', defaultGraphMode);
   }, [defaultGraphMode]);
+
+  // Track mobile breakpoint to render a single editor instance
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  // Resolve collaboration role from token (if present)
+  useEffect(() => {
+    const token = localStorage.getItem('collabToken');
+    if (!token) {
+      setCollabRole(null);
+      return;
+    }
+    fetch(`/api/collab/resolve/${token}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setCollabRole((data && (data.role === 'view' || data.role === 'edit')) ? data.role : null))
+      .catch(() => setCollabRole(null));
+  }, [activeGraphId]);
 
   useEffect(() => {
     localStorage.setItem('userName', name);
@@ -478,6 +502,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     {viewMode === 'editor' && (
                       <div className={styles.editorContainer}>
                         {/* Desktop: Side-by-side layout */}
+                        {!isMobile && (
                         <div className={styles.desktopLayout}>
                           <div className={styles.editorSection}>
                             <div className={styles.editorHeader}>
@@ -498,7 +523,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               onSave={handleCnlSave}
                               onAutoSave={handleCnlAutoSave}
                               onClose={onGoToDashboard}
-                              disabled={!activeGraphId}
+                              disabled={!activeGraphId || collabRole === 'view'}
                               nodeTypes={nodeTypes}
                               relationTypes={relationTypes}
                               attributeTypes={attributeTypes}
@@ -568,8 +593,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             </div>
                           </div>
                         </div>
+                        )}
                         
                         {/* Mobile: Tabbed layout (hidden on desktop) */}
+                        {isMobile && (
                         <div className={styles.mobileLayout}>
                           <div className={styles.editorHeader}>
                             <div className={styles.editorTitle}>
@@ -583,7 +610,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             onSave={handleCnlSave}
                             onAutoSave={handleCnlAutoSave}
                             onClose={onGoToDashboard}
-                            disabled={!activeGraphId}
+                            disabled={!activeGraphId || collabRole === 'view'}
                             nodeTypes={nodeTypes}
                             relationTypes={relationTypes}
                             attributeTypes={attributeTypes}
@@ -627,6 +654,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             </div>
                           )}
                         </div>
+                        )}
                       </div>
                     )}
                     {viewMode === 'visualization' && (
