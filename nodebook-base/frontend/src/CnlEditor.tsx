@@ -435,11 +435,11 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
 
       {/* CodeMirror CNL Editor */}
       <div className="cnl-editor-main">
-        {enableCollaboration && graphId && userId ? (
+        {( (enableCollaboration || typeof window !== 'undefined' && !!localStorage.getItem('collabToken')) ) && graphId && userId ? (
           <CollaborativeCNLEditor
             value={value}
             onChange={onChange}
-            onAutoSave={onAutoSave}
+            onAutoSave={undefined}
             language={editorLanguage}
             readOnly={disabled}
             placeholder="Start typing your CNL... Use # for nodes, < > for relations, has for attributes"

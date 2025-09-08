@@ -294,8 +294,11 @@ export function CollaborativeCNLEditor({
       const currentDoc = view.state.doc.toString();
       if (newValue !== currentDoc) {
         isApplyingRemoteRef.current = true;
+        // Preserve selection head where possible
         const sel = view.state.selection;
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue }, selection: sel });
+        const head = sel.main.head;
+        const nextHead = Math.min(head, newValue.length);
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue }, selection: { anchor: nextHead } });
         isApplyingRemoteRef.current = false;
         setLocalValue(newValue);
       }
@@ -388,12 +391,12 @@ export function CollaborativeCNLEditor({
           const yText = ydocRef.current.getText('content');
           const currentY = yText.toString();
           if (newValue !== currentY) {
+            // Apply diff-like replace to reduce selection jumps
             yText.delete(0, yText.length);
             yText.insert(0, newValue);
           }
           // Notify outer handlers (auto-save) only for local edits
           onChange(newValue);
-          if (onAutoSave) onAutoSave(newValue);
         }
       }),
       readOnly ? EditorView.editable.of(false) : []
