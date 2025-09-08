@@ -1,74 +1,95 @@
 # NodeBook
 
-A federated, cross-platform knowledge graph application built with Node.js, React, and Fastify.
+Federated, cross-platform knowledge graph application. This branch (libp2p-migration) runs on a file-system datastore; libp2p integration will land next by implementing the same `DataStore` interface.
 
-## 🚫 **Electron Builds Suspended**
+## Highlights
 
-**Note**: Electron desktop app builds are currently suspended due to packaging issues. The application is fully functional as a web service and can be deployed using Docker.
+- Keycloak authentication (OIDC + PKCE), delegated login/registration/forgot-password
+- Public graphs with a read-only Workspace preview (Graph, CNL, JSON tabs)
+- Graph Modes: `markdown`, `mindmap`, `richgraph`, `strictgraph`
+  - `markdown`: renders document-style DataView
+  - `strictgraph`: validates against schemas; NDF export includes `schemas/`
+- Editor UX: unified toolbar, markdown shortcuts, line wrapping, docked toolbar
+- GraphPreview: set any NodeCard subgraph as dashboard preview; stored via media backend
+- Media Library: upload/manage images and use them in Markdown/CNL
+- NDF export/import: portable graph package (ZIP with `NDF.MAGIC`, `graph/*`, optional `schemas/`, and a thumbnail)
 
-## 🚀 **Quick Start**
+## Quick start (Development)
 
-### 1. Environment Setup (Recommended)
+Prereqs: Docker, Docker Compose plugin.
 
-To ensure you are using the correct version of Node.js, it is recommended to use [nvm](https://github.com/nvm-sh/nvm).
+1) Configure env
+- Create `.env.dev` (or use the provided `env.dev` as a base). Typical dev values:
+  - `DISABLE_AUTH=true` (backend injects a dev user; frontend auto-login)
+  - `KEYCLOAK_*` for local Keycloak if you want full auth flow
 
-Once you have `nvm` installed, you can run the following command in the project root to automatically switch to the correct Node.js version:
-
+2) Start the dev stack
 ```bash
-nvm use
+./redev.sh
 ```
+Choose services, build, and start. Frontend will be at `http://localhost:5173`.
 
-### 2. Install Dependencies
+Notes:
+- Dev uses relative API paths in the frontend; Vite proxies to the backend container.
+- Keycloak runs at `http://localhost:8080` in dev (configured in the compose).
 
-You need to install dependencies for both the backend server and the frontend application.
+## Quick start (Deployment)
 
-**Backend:**
+Prereqs: A VM with Docker + Docker Compose, and Nginx Proxy Manager (NPM) handling ports 80/443 for your domain.
+
+1) Create `.env.deploy` from the templates and set at least:
+- `DOMAIN_NAME`, `KEYCLOAK_ADMIN_USER`, `KEYCLOAK_ADMIN_PASSWORD`
+- `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`
+- Optional: `EMAIL_FEATURES_ENABLED=true` if SMTP configured
+
+2) Deploy
 ```bash
-cd nodebook-base
-npm install
+./redeploy.sh
 ```
 
-**Frontend:**
-```bash
-cd nodebook-base/frontend
-npm install
+3) In Nginx Proxy Manager, configure one Proxy Host for the main domain and add path-based locations to route:
+- `/` → frontend service
+- `/api` → NodeBook backend
+- `/auth` → Keycloak
+- `/media` → media backend
+- `/nlp` → nlp service
+- `/wordnet` → wordnet service
+
+## Project layout
+
+```
+nodeBook/
+├─ docker-compose-p2p-dev.yml      # dev stack
+├─ docker-compose-deploy.yml       # deploy stack
+├─ redev.sh / redeploy.sh          # interactive helpers
+├─ nodebook-base/                  # backend + shared libs
+│  ├─ server.js                    # Fastify backend
+│  ├─ data-store.js                # DataStore (file-system)
+│  ├─ graph-manager.js             # Graph/public APIs
+│  └─ frontend/                    # React + Vite UI
+├─ media-backend/                  # uploads and serving
+├─ nlp-service/, wordnet-service/  # auxiliary services
+└─ data/                           # runtime data (prod)
 ```
 
-### 3. Run the Application
+## Data model and storage
 
-Use the provided scripts to start the backend and frontend servers. It is recommended to run them in separate terminal windows.
+- Each graph lives at `data/users/<uid>/graphs/<graphId>/` with:
+  - `manifest.json`, `graph.json`, `graph.cnl`, optional `preview.svg|png|jpg`
+- Registries per user: `data/users/<uid>/registry.json` (graphs), `node_registry.json` (nodes across graphs)
+- Global schemas (for `strictgraph`): `data/schemas/*.json`
+- Git per-graph repository is initialized to track CNL/graph evolution
 
-**Start the Backend:**
-```bash
-./scripts/start_backend.sh
-```
+## NDF export/import
 
-**Start the Frontend:**
-```bash
-./scripts/start_frontend.sh
-```
+- Export: Dashboard → GraphCard → Export (NDF)
+  - Produces `*.ndf.zip` with marker `NDF.MAGIC`, `graph/` folder (including `.git`), a root thumbnail, and `schemas/` if `strictgraph`
+- Import: Dashboard → Import NDF → pick `*.ndf.zip` and name the new graph
 
-Once running, you can access the application in your browser, typically at `http://localhost:5173`.
+## License
 
-## How to Use
+AGPL-3.0-only
 
-The primary way to interact with the graph is through the CNL (Controlled Natural Language) input panel.
+## Roadmap (libp2p phase)
 
-- **Define a Node:** Use a markdown heading (`# Node Name`).
-- **Define a Relation:** `<relation name> Target Node Name`
-- **Define an Attribute:** `has attribute name: value`
-- **Define a Unit:** `has attribute name: value *unit*`
-- **Add a Description:** Use a fenced code block with the `description` tag.
-
-### Example
-
-```cnl
-# India
-<is a> Country
-<located in> Asia
-has population: 1.4 *billion*
-
-```description
-India is a country in South Asia.
-```
-```
+- Implement a `LibP2PStore` that satisfies `DataStore` to back graphs with libp2p while keeping all current APIs/UX unchanged.
