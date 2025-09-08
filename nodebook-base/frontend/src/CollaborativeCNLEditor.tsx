@@ -220,6 +220,7 @@ export function CollaborativeCNLEditor({
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<Array<{ name: string; color: string }>>([]);
   const [localValue, setLocalValue] = useState(value);
+  const isApplyingRemoteRef = useRef(false);
 
   // Initialize Y.js document and WebRTC provider
   useEffect(() => {
@@ -284,14 +285,18 @@ export function CollaborativeCNLEditor({
     // Set up Y.js text synchronization
     const yText = ydoc.getText('content');
     
-    // Listen for remote changes (apply to editor directly to avoid onChange loops)
-    yText.observe(() => {
+    // Listen for remote changes (apply to editor; ignore local transactions)
+    yText.observe((event: any) => {
+      if (event?.transaction?.local) return;
       const newValue = yText.toString();
       const view = viewRef.current;
       if (!view) return;
       const currentDoc = view.state.doc.toString();
       if (newValue !== currentDoc) {
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue } });
+        isApplyingRemoteRef.current = true;
+        const sel = view.state.selection;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue }, selection: sel });
+        isApplyingRemoteRef.current = false;
         setLocalValue(newValue);
       }
     });
@@ -378,18 +383,18 @@ export function CollaborativeCNLEditor({
         if (!update.docChanged) return;
         const newValue = update.state.doc.toString();
         setLocalValue(newValue);
-        // Update Y document; suppress re-entrancy by comparing content
-        if (ydocRef.current) {
+        // Update Y document only for local edits
+        if (!isApplyingRemoteRef.current && ydocRef.current) {
           const yText = ydocRef.current.getText('content');
           const currentY = yText.toString();
           if (newValue !== currentY) {
             yText.delete(0, yText.length);
             yText.insert(0, newValue);
           }
+          // Notify outer handlers (auto-save) only for local edits
+          onChange(newValue);
+          if (onAutoSave) onAutoSave(newValue);
         }
-        // Notify outer handlers (auto-save) without re-applying back
-        onChange(newValue);
-        if (onAutoSave) onAutoSave(newValue);
       }),
       readOnly ? EditorView.editable.of(false) : []
     ];
