@@ -248,8 +248,11 @@ export function CollaborativeCNLEditor({
     ydocRef.current = ydoc;
 
     // Create WebRTC provider with room name based on graphId
+    const signalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL || (window.location.protocol === 'https:'
+      ? `wss://${window.location.host}/signaling`
+      : 'ws://localhost:4444');
     const provider = new WebrtcProvider(`nodebook-graph-${graphId}`, ydoc, {
-      signaling: ['ws://localhost:4444'], // Local signaling server
+      signaling: [signalingUrl],
       password: null, // No password for now
     });
 

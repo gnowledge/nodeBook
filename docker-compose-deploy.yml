@@ -143,6 +143,7 @@ services:
       - VITE_WORDNET_SERVICE_URL=https://${DOMAIN_NAME}/wordnet
       - VITE_P2P_ENABLED=true
       - VITE_DEV_MODE=false
+      - VITE_SIGNALING_URL=wss://signal.${DOMAIN_NAME}
     networks:
       - nodebook-p2p-net
     depends_on:

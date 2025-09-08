@@ -1258,11 +1258,15 @@ Another service or function
     // Include mode for frontend
     const manifest = await dataStore.getManifest(ownerId, graphId);
     const mode = manifest?.mode || 'richgraph';
+    const name = manifest?.name || graph.name || graphId;
+    const description = manifest?.description || graph.description || null;
     reply.send({
       nodes: (graph.nodes || []).filter(n => !n.isDeleted),
       relations: (graph.relations || []).filter(r => !r.isDeleted),
       attributes: (graph.attributes || []).filter(a => !a.isDeleted),
-      mode
+      mode,
+      name,
+      description
     });
   });
 

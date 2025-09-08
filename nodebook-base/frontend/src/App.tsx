@@ -197,6 +197,18 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           setActiveGraph(currentGraph);
           setPublicationState(currentGraph.publication_state || 'Private');
           if (currentGraph.mode) setGraphMode(currentGraph.mode);
+        } else {
+          // If in collab mode, try to set activeGraph name from collab graph fetch
+          const collabToken = localStorage.getItem('collabToken');
+          if (collabToken) {
+            collabFetch(`/api/graphs/${graphId}/graph`)
+              .then(res => res.json())
+              .then(info => {
+                setActiveGraph({ id: graphId, name: info?.name || 'Shared Graph', mode: info?.mode || 'richgraph' });
+                if (info?.mode) setGraphMode(info.mode);
+              })
+              .catch(() => {});
+          }
         }
       })
       .catch(error => {
@@ -470,7 +482,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           <div className={styles.editorSection}>
                             <div className={styles.editorHeader}>
                               <div className={styles.editorTitle}>
-                                <h3>Working on: {graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph'}</h3>
+                                <h3>Working on: {(() => {
+                                  const collabToken = localStorage.getItem('collabToken');
+                                  if (collabToken) {
+                                    return activeGraph?.name || 'Shared Graph';
+                                  }
+                                  return graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph';
+                                })()}</h3>
                               </div>
                             </div>
                             <CnlEditor
