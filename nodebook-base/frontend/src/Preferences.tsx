@@ -2,28 +2,30 @@ import React, { useState, useEffect } from 'react';
 import styles from './Preferences.module.css';
 
 interface PreferencesProps {
-  strictMode: boolean;
-  onStrictModeChange: (enabled: boolean) => void;
   name: string;
   onNameChange: (name: string) => void;
   email: string;
   onEmailChange: (email: string) => void;
+  defaultGraphMode: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph';
+  onDefaultGraphModeChange: (mode: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph') => void;
   onClose: () => void;
 }
 
 export function Preferences({ 
-  strictMode, onStrictModeChange, 
   name, onNameChange,
   email, onEmailChange,
+  defaultGraphMode, onDefaultGraphModeChange,
   onClose 
 }: PreferencesProps) {
   const [currentName, setCurrentName] = useState(name);
   const [currentEmail, setCurrentEmail] = useState(email);
+  const [currentDefaultMode, setCurrentDefaultMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(defaultGraphMode);
 
   useEffect(() => {
     setCurrentName(name);
     setCurrentEmail(email);
-  }, [name, email]);
+    setCurrentDefaultMode(defaultGraphMode);
+  }, [name, email, defaultGraphMode]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentName(e.target.value);
@@ -57,23 +59,25 @@ export function Preferences({
         </div>
 
         <div className={styles.preferencesSection}>
-          <h3>Editor Settings</h3>
-          <div className={styles.toggleSwitch}>
-            <label className={styles.toggleLabel}>
-              Strict Schema Mode
-            </label>
-            <label className={styles.toggleContainer}>
-              <input
-                type="checkbox"
-                checked={strictMode}
-                onChange={(e) => onStrictModeChange(e.target.checked)}
-                className={styles.toggleInput}
-              />
-              <span className={styles.slider}></span>
-            </label>
-          </div>
+          <h3>Defaults</h3>
+          <label>
+            Default Graph Mode:
+            <select
+              value={currentDefaultMode}
+              onChange={(e) => {
+                const mode = e.target.value as 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph';
+                setCurrentDefaultMode(mode);
+                onDefaultGraphModeChange(mode);
+              }}
+            >
+              <option value="markdown">📝 Markdown (Document)</option>
+              <option value="richgraph">🔗 Rich Graph (Advanced)</option>
+              <option value="mindmap">🧠 MindMap (Beginner)</option>
+              <option value="strictgraph">✅ StrictGraph (Schema-checked)</option>
+            </select>
+          </label>
           <p className={styles.settingDescription}>
-            When enabled, you can only create relations and attributes that are defined in the Schema.
+            Used as the default when creating new graphs. You can change it per graph in the editor later.
           </p>
         </div>
 

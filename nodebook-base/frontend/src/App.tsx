@@ -56,6 +56,30 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     });
   };
 
+  // Collab-aware fetch: if a collaboration token exists, route to collab endpoints for graph reads/writes
+  const collabFetch = (path: string, options: RequestInit = {}) => {
+    const collabToken = localStorage.getItem('collabToken');
+    const graphIdForPath = activeGraphId || localStorage.getItem('selectedGraphId') || '';
+    if (collabToken && graphIdForPath) {
+      if (path.endsWith(`/graphs/${graphIdForPath}/graph`)) {
+        return fetch(`/api/collab/${collabToken}/graphs/${graphIdForPath}/graph`, options);
+      }
+      if (path.endsWith(`/graphs/${graphIdForPath}/cnl`)) {
+        const method = (options.method || 'GET').toUpperCase();
+        if (method === 'GET') {
+          return fetch(`/api/collab/${collabToken}/graphs/${graphIdForPath}/cnl`, options);
+        }
+        if (method === 'POST') {
+          return fetch(`/api/collab/${collabToken}/graphs/${graphIdForPath}/cnl`, {
+            ...options,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    return authenticatedFetch(path, options);
+  };
+
   const handleDeleteGraph = async () => {
     if (!activeGraphId) return;
     if (window.confirm(`Are you sure you want to delete graph "${activeGraphId}"? This action cannot be undone.`)) {
@@ -99,9 +123,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [activePage, setActivePage] = useState<string | null>(null);
-  const [strictMode, setStrictMode] = useState(() => {
-    const saved = localStorage.getItem('strictMode');
-    return saved !== null ? JSON.parse(saved) : true; // Default to true
+  const [strictMode, setStrictMode] = useState<boolean>(false);
+  const [defaultGraphMode, setDefaultGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(() => {
+    const saved = localStorage.getItem('defaultGraphMode');
+    return (saved as any) || 'richgraph';
   });
   const [activeGraph, setActiveGraph] = useState<any>(null);
   const [graphs, setGraphs] = useState<any[]>([]);
@@ -113,8 +138,8 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [publicationState, setPublicationState] = useState<'Private' | 'P2P' | 'Public'>('Private');
 
   useEffect(() => {
-    localStorage.setItem('strictMode', JSON.stringify(strictMode));
-  }, [strictMode]);
+    localStorage.setItem('defaultGraphMode', defaultGraphMode);
+  }, [defaultGraphMode]);
 
   useEffect(() => {
     localStorage.setItem('userName', name);
@@ -128,7 +153,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!graphId) return;
     
     // Fetch graph data (nodes, relations, attributes)
-            authenticatedFetch(`/api/graphs/${graphId}/graph`)
+            collabFetch(`/api/graphs/${graphId}/graph`)
       .then(res => res.json())
       .then(data => {
         const graphNodes = data.nodes || [];
@@ -152,7 +177,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       .then(data => setActiveGraphKey(data.key || null));
     
     // Fetch CNL text
-    authenticatedFetch(`/api/graphs/${graphId}/cnl`)
+    collabFetch(`/api/graphs/${graphId}/cnl`)
       .then(res => res.json())
       .then(data => {
         console.log('[App] Setting CNL text:', { graphId, cnlData: data.cnl, cnlLength: data.cnl?.length });
@@ -303,9 +328,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
     
     setIsSubmitting(true);
-    const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
+    const res = await collabFetch(`/api/graphs/${activeGraphId}/cnl`, {
       method: 'POST',
-      body: JSON.stringify({ cnlText: cnlText, strictMode }),
+      body: JSON.stringify({ cnlText: cnlText }),
     });
     setIsSubmitting(false);
     
@@ -468,6 +493,25 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               userId={currentUser?.id}
                               userName={currentUser?.name}
                               onCollaborationToggle={handleCollaborationToggle}
+                              graphMode={graphMode}
+                              onGraphModeChange={async (newMode) => {
+                                if (!activeGraphId) return;
+                                try {
+                                  const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
+                                    method: 'PUT',
+                                    body: JSON.stringify({ mode: newMode })
+                                  });
+                                  if (res.ok) {
+                                    setGraphMode(newMode);
+                                    fetchGraph(activeGraphId);
+                                  } else {
+                                    const err = await res.json().catch(() => ({}));
+                                    alert(`Failed to set mode: ${err?.error || res.status}`);
+                                  }
+                                } catch (e) {
+                                  alert('Network error while setting mode');
+                                }
+                              }}
                             />
                             
                             {/* Score widget at bottom of Editor */}
@@ -658,12 +702,12 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
 
         {activePage === 'Preferences' ? (
           <Preferences 
-            strictMode={strictMode}
-            onStrictModeChange={setStrictMode}
             name={name}
             onNameChange={setName}
             email={email}
             onEmailChange={setEmail}
+            defaultGraphMode={defaultGraphMode}
+            onDefaultGraphModeChange={setDefaultGraphMode}
             onClose={() => setActivePage(null)} 
           />
         ) : activePage && (

@@ -62,6 +62,19 @@ function TestApp() {
         return;
       }
 
+      // Handle collaboration link: #collab:TOKEN:GRAPH_ID
+      const collab = hash.match(/^#collab:([^:]+):([^:]+)$/);
+      if (collab) {
+        const token = collab[1];
+        const graphId = collab[2];
+        // Store for App to pick and use collab endpoints
+        localStorage.setItem('collabToken', token);
+        localStorage.setItem('selectedGraphId', graphId);
+        setCurrentView('app');
+        setLoading(false);
+        return;
+      }
+
       // No OAuth code in URL or public-workspace hash; fall back to stored token check
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');

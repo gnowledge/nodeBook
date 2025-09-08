@@ -34,7 +34,10 @@ export default function Dashboard({
   const [publicError, setPublicError] = useState('');
   const [activePage, setActivePage] = useState<string | null>(null);
   const [newGraphName, setNewGraphName] = useState('');
-  const [graphMode, setGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>('richgraph');
+  const [graphMode, setGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(() => {
+    const saved = localStorage.getItem('defaultGraphMode') as 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph' | null;
+    return saved || 'richgraph';
+  });
 
   const fetchGraphs = async () => {
     if (!token) {

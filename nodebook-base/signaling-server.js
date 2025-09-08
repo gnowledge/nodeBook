@@ -5,8 +5,17 @@ import { createServer } from 'http';
 
 const PORT = 4444;
 
-// Create HTTP server
-const server = createServer();
+// Create HTTP server with basic health endpoint
+const server = createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', rooms: rooms.size }));
+    return;
+  }
+  // Default
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('NodeBook signaling server');
+});
 
 // Create WebSocket server
 const wss = new WebSocketServer({ 

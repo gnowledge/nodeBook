@@ -1,5 +1,6 @@
 import { promises as fsp } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { PolyNode, RelationNode, AttributeNode, FunctionNode } from './models.js';
 import { getOperationsFromCnl } from './cnl-parser.js';
 import { GitVersionControl } from './version-control.js';
@@ -432,6 +433,80 @@ export class FileSystemStore extends DataStore {
         
         await this.saveGraphRegistry(userId, registry);
         return registry;
+    }
+
+    // --- Collaboration (Invites) ---
+    getCollabInvitesPath(ownerId) {
+        return path.join(this.getUserDataDir(ownerId), 'collab_invites.json');
+    }
+
+    async getCollabInvites(ownerId) {
+        const file = this.getCollabInvitesPath(ownerId);
+        try {
+            const raw = await fsp.readFile(file, 'utf-8');
+            if (!raw || raw.trim() === '') return {};
+            return JSON.parse(raw);
+        } catch (e) {
+            if (e.code === 'ENOENT') return {};
+            throw e;
+        }
+    }
+
+    async saveCollabInvites(ownerId, invitesByGraph) {
+        await this.ensureUserDataDir(ownerId);
+        const file = this.getCollabInvitesPath(ownerId);
+        await fsp.writeFile(file, JSON.stringify(invitesByGraph, null, 2));
+    }
+
+    async addCollabInvite(ownerId, graphId, role = 'view', expiresAt = null) {
+        if (!['view', 'edit'].includes(role)) {
+            throw new Error('Invalid collaboration role');
+        }
+        const invites = await this.getCollabInvites(ownerId);
+        const token = crypto.randomBytes(16).toString('hex');
+        const invite = {
+            token,
+            role,
+            createdAt: new Date().toISOString(),
+            expiresAt
+        };
+        if (!invites[graphId]) invites[graphId] = [];
+        invites[graphId].push(invite);
+        await this.saveCollabInvites(ownerId, invites);
+        return invite;
+    }
+
+    async validateCollabInvite(ownerId, graphId, token) {
+        if (!token) return null;
+        const invites = await this.getCollabInvites(ownerId);
+        const list = invites[graphId] || [];
+        const found = list.find(i => i && i.token === token);
+        if (!found) return null;
+        if (found.expiresAt && new Date(found.expiresAt).getTime() < Date.now()) return null;
+        return { role: found.role, token: found.token };
+    }
+
+    async findCollabByToken(token) {
+        if (!token) return null;
+        // Scan all users for the token (small scale acceptable)
+        const usersDir = path.join(this.dataPath, 'users');
+        let userIds = [];
+        try {
+            userIds = await fsp.readdir(usersDir);
+        } catch (e) {
+            return null;
+        }
+        for (const uid of userIds) {
+            const invites = await this.getCollabInvites(uid).catch(() => ({}));
+            for (const [graphId, list] of Object.entries(invites)) {
+                const found = Array.isArray(list) ? list.find(i => i && i.token === token) : null;
+                if (found) {
+                    if (found.expiresAt && new Date(found.expiresAt).getTime() < Date.now()) continue;
+                    return { ownerId: uid, graphId, role: found.role };
+                }
+            }
+        }
+        return null;
     }
 
     async cleanupNodeRegistry(userId, graphId, nodes) {

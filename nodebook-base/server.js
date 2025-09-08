@@ -1193,6 +1193,133 @@ Another service or function
   });
 
   // --- Graph Operations API ---
+  // Collaboration: create invite (owner issues a view/edit token)
+  fastify.post('/api/collab/:graphId/invite', {
+    schema: {
+      params: { type: 'object', properties: { graphId: { type: 'string' } } },
+      body: {
+        type: 'object',
+        required: ['role'],
+        properties: {
+          role: { type: 'string', enum: ['view', 'edit'] },
+          expiresAt: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const ownerId = request.user.id;
+    const graphId = request.params.graphId;
+    const { role, expiresAt } = request.body;
+    try {
+      // Ensure owner actually owns the graph
+      const registry = await dataStore.getGraphRegistry(ownerId);
+      const graphInfo = registry.find(g => g.id === graphId);
+      if (!graphInfo) {
+        reply.code(404).send({ error: 'Graph not found' });
+        return;
+      }
+      const invite = await dataStore.addCollabInvite(ownerId, graphId, role, expiresAt || null);
+      reply.code(201).send({ token: invite.token, role: invite.role });
+    } catch (e) {
+      reply.code(400).send({ error: e.message });
+    }
+  });
+
+  // Collaboration: resolve invite token to owner/graph/role (no auth)
+  fastify.get('/api/collab/resolve/:token', async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const { token } = request.params;
+    const result = await dataStore.findCollabByToken(token);
+    if (!result) {
+      reply.code(404).send({ error: 'Invalid or expired invite' });
+      return;
+    }
+    reply.send(result);
+  });
+
+  // Collaboration: read graph via invite (no auth; token-scoped)
+  fastify.get('/api/collab/:token/graphs/:graphId/graph', async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const { token, graphId } = request.params;
+    const resolved = await dataStore.findCollabByToken(token);
+    if (!resolved || resolved.graphId !== graphId) {
+      reply.code(403).send({ error: 'Invalid invite' });
+      return;
+    }
+    const { ownerId } = resolved;
+    // Return graph JSON using owner’s storage
+    const graph = await dataStore.getGraph(ownerId, graphId);
+    if (!graph) {
+      reply.code(404).send({ error: 'Graph not found' });
+      return;
+    }
+    // Include mode for frontend
+    const manifest = await dataStore.getManifest(ownerId, graphId);
+    const mode = manifest?.mode || 'richgraph';
+    reply.send({
+      nodes: (graph.nodes || []).filter(n => !n.isDeleted),
+      relations: (graph.relations || []).filter(r => !r.isDeleted),
+      attributes: (graph.attributes || []).filter(a => !a.isDeleted),
+      mode
+    });
+  });
+
+  // Collaboration: read CNL via invite (no auth; token-scoped)
+  fastify.get('/api/collab/:token/graphs/:graphId/cnl', async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const { token, graphId } = request.params;
+    const resolved = await dataStore.findCollabByToken(token);
+    if (!resolved || resolved.graphId !== graphId) {
+      reply.code(403).send({ error: 'Invalid invite' });
+      return;
+    }
+    const { ownerId } = resolved;
+    const cnl = await dataStore.getCnl(ownerId, graphId).catch(() => '');
+    reply.send({ cnl });
+  });
+
+  // Collaboration: submit CNL via invite (edit role required)
+  fastify.post('/api/collab/:token/graphs/:graphId/cnl', {
+    schema: {
+      params: { type: 'object', properties: { token: { type: 'string' }, graphId: { type: 'string' } } },
+      body: { type: 'object', required: ['cnlText'], properties: { cnlText: { type: 'string' } } }
+    }
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const { token, graphId } = request.params;
+    const { cnlText } = request.body;
+    const resolved = await dataStore.findCollabByToken(token);
+    if (!resolved || resolved.graphId !== graphId) {
+      reply.code(403).send({ error: 'Invalid invite' });
+      return;
+    }
+    if (resolved.role !== 'edit') {
+      reply.code(403).send({ error: 'Invite is view-only' });
+      return;
+    }
+    const ownerId = resolved.ownerId;
+    try {
+      // StrictGraph validation if needed
+      const manifest = await dataStore.getManifest(ownerId, graphId);
+      const mode = manifest?.mode || 'richgraph';
+      if (mode === 'strictgraph') {
+        const operations = getOperationsFromCnl(cnlText, mode);
+        const errors = await validateOperations(operations);
+        if (errors.length > 0) {
+          reply.code(400).send({ errors });
+          return;
+        }
+      }
+      // Regenerate and save under owner
+      const newGraphData = await dataStore.regenerateGraphFromCnl(ownerId, graphId, cnlText);
+      await dataStore.saveCnl(ownerId, graphId, cnlText);
+      reply.send({ message: 'CNL processed successfully.' });
+    } catch (e) {
+      reply.code(400).send({ errors: [{ message: e.message }] });
+    }
+  });
   fastify.get('/api/graphs/:graphId/graph', {
     schema: {
       params: {

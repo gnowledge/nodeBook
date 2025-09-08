@@ -309,6 +309,50 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
               { label: 'WordNet Definitions', icon: '📚', onClick: handleWordNetAutoDescription, disabled: disabled || isWordNetLoading || !value.trim() },
               { label: 'Parse Descriptions', icon: '🧠', onClick: handleNLPParse, disabled: disabled || isNLPLoading || !value.trim() },
               { label: '— Collaboration —', icon: '', onClick: () => {}, disabled: true },
+              { label: enableCollaboration ? 'Disable Live' : 'Enable Live', icon: '👥', onClick: () => { if (onCollaborationToggle) onCollaborationToggle(!enableCollaboration); }, disabled: !(graphId && userId) },
+              { label: 'Share (View link)', icon: '🔗', onClick: async () => {
+                  if (!graphId) return;
+                  try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`/api/collab/${graphId}/invite`, {
+                      method: 'POST',
+                      headers: token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ role: 'view' })
+                    });
+                    if (res.ok) {
+                      const { token: inviteToken } = await res.json();
+                      const link = `${window.location.origin}/#collab:${inviteToken}:${graphId}`;
+                      await navigator.clipboard.writeText(link);
+                      alert('View link copied to clipboard');
+                    } else {
+                      alert('Failed to create view link');
+                    }
+                  } catch (e) {
+                    alert('Error creating view link');
+                  }
+                }, disabled: !graphId },
+              { label: 'Share (Edit link)', icon: '✍️', onClick: async () => {
+                  if (!graphId) return;
+                  try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`/api/collab/${graphId}/invite`, {
+                      method: 'POST',
+                      headers: token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ role: 'edit' })
+                    });
+                    if (res.ok) {
+                      const { token: inviteToken } = await res.json();
+                      const link = `${window.location.origin}/#collab:${inviteToken}:${graphId}`;
+                      await navigator.clipboard.writeText(link);
+                      alert('Edit link copied to clipboard');
+                    } else {
+                      alert('Failed to create edit link');
+                    }
+                  } catch (e) {
+                    alert('Error creating edit link');
+                  }
+                }, disabled: !graphId },
+              { label: '— Collaboration —', icon: '', onClick: () => {}, disabled: true },
               { label: enableCollaboration ? 'Disable Live' : 'Enable Live', icon: '👥', onClick: () => { if (onCollaborationToggle) onCollaborationToggle(!enableCollaboration); }, disabled: !(graphId && userId) }
             ]}
           />
