@@ -11,6 +11,7 @@ interface GraphCardProps {
   onPublicationStateChange?: (graphId: string, newState: 'Private' | 'P2P' | 'Public') => void;
   onDelete?: (graphId: string) => void;
   showDeleteButton?: boolean;
+  onExport?: (graph: Graph | PublicGraph) => void;
 }
 
 export function GraphCard({ 
@@ -20,7 +21,8 @@ export function GraphCard({
   showPublicationControls = false,
   onPublicationStateChange,
   onDelete,
-  showDeleteButton = false
+  showDeleteButton = false,
+  onExport
 }: GraphCardProps) {
   
   const handlePublicationToggle = () => {
@@ -110,8 +112,21 @@ export function GraphCard({
       
       {/* Publication state changes are managed within the Workspace, not on the Dashboard */}
       
-      {showDeleteButton && onDelete && !isPublic && (
+      {(onExport || (showDeleteButton && onDelete)) && !isPublic && (
         <div className={styles.graphCardActions}>
+          {onExport && (
+            <button
+              className={styles.deleteBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExport(graph);
+              }}
+              title="Export this graph as NDF"
+            >
+              💾 Export (NDF)
+            </button>
+          )}
+          {showDeleteButton && onDelete && (
           <button 
             className={styles.deleteBtn}
             onClick={(e) => {
@@ -124,6 +139,7 @@ export function GraphCard({
           >
             🗑️ Delete
           </button>
+          )}
         </div>
       )}
       

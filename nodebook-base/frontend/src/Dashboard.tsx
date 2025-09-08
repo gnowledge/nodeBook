@@ -168,6 +168,63 @@ export default function Dashboard({
     }
   };
 
+  const handleExportGraph = async (g: any) => {
+    const defaultName = `${g.name || 'graph'}.ndf`;
+    const name = prompt('Enter export name (without extension):', (g.name || 'graph')) || 'graph';
+    try {
+      const resp = await fetch(`/api/graphs/${g.id}/export?name=${encodeURIComponent(name)}`, {
+        method: 'GET',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+      });
+      if (!resp.ok) {
+        alert('Failed to export graph');
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.ndf.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Export failed');
+    }
+  };
+
+  const handleImportGraph = async () => {
+    if (!token) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip,.ndf.zip';
+    input.onchange = async () => {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const name = prompt('Enter name for imported graph:', file.name.replace(/\.ndf\.zip$/i, '').replace(/\.zip$/i, '')) || 'Imported Graph';
+      const form = new FormData();
+      form.append('file', file);
+      form.append('name', name);
+      try {
+        const resp = await fetch('/api/graphs/import', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form
+        });
+        if (!resp.ok) {
+          alert('Import failed');
+          return;
+        }
+        await fetchGraphs();
+        alert('Graph imported successfully');
+      } catch (e) {
+        alert('Import error');
+      }
+    };
+    input.click();
+  };
+
   useEffect(() => {
     fetchGraphs();
     fetchPublicGraphs();
@@ -252,6 +309,13 @@ export default function Dashboard({
                   >
                     Create Graph
                   </button>
+                  <button
+                    onClick={handleImportGraph}
+                    className={styles.createGraphButton}
+                    title="Import graph (.ndf.zip)"
+                  >
+                    Import NDF
+                  </button>
                 </div>
               </div>
               
@@ -289,6 +353,7 @@ export default function Dashboard({
                       showPublicationControls={true}
                       onPublicationStateChange={updatePublicationState}
                       showDeleteButton={true}
+                      onExport={handleExportGraph}
                       onDelete={deleteGraph}
                     />
                   ))}

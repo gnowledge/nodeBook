@@ -2,6 +2,10 @@ import Fastify from 'fastify';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { promises as fs } from 'fs';
+import os from 'os';
+import archiver from 'archiver';
+import extract from 'extract-zip';
+import { pipeline } from 'stream/promises';
 import crypto from 'crypto';
 import GraphManager from './graph-manager.js';
 import * as schemaManager from './schema-manager.js';
@@ -1651,6 +1655,253 @@ Another service or function
     }
   });
 
+  // --- Graph Export (NDF) ---
+  // Creates a zip containing the graph folder contents, including .git, with a magic header file
+  fastify.get('/api/graphs/:graphId/export', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: { graphId: { type: 'string' } }
+      },
+      querystring: {
+        type: 'object',
+        properties: { name: { type: 'string' } }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    const name = (request.query.name || 'graph').toString().replace(/[^a-zA-Z0-9-_\.]/g, '_');
+    const ds = fastify.dataStore;
+    try {
+      const graphDir = ds.getGraphDataDir(userId, graphId);
+      // Verify graph exists
+      await fs.access(graphDir);
+
+      // Ensure manifest.description is present by hydrating from registry or graph.json
+      try {
+        const manifestPath = path.join(graphDir, 'manifest.json');
+        let manifest = {};
+        try {
+          const m = await fs.readFile(manifestPath, 'utf-8');
+          manifest = JSON.parse(m || '{}');
+        } catch {}
+        if (!manifest.description || String(manifest.description).trim() === '') {
+          let description = '';
+          try {
+            const registry = await ds.getGraphRegistry(userId);
+            const entry = Array.isArray(registry) ? registry.find(g => g && g.id === graphId) : null;
+            if (entry && entry.description) description = entry.description;
+          } catch {}
+          if (!description) {
+            try {
+              const gjson = await fs.readFile(path.join(graphDir, 'graph.json'), 'utf-8');
+              const parsed = JSON.parse(gjson || '{}');
+              if (parsed && parsed.description) description = parsed.description;
+            } catch {}
+          }
+          if (description) {
+            manifest.description = description;
+            await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+          }
+        }
+      } catch (e) {
+        request.log.warn({ err: e }, 'Failed to hydrate manifest description before export');
+      }
+
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ndf-'));
+      const outPath = path.join(tmpDir, `${name}.ndf.zip`);
+      const output = (await import('fs')).createWriteStream(outPath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      archive.on('error', (err) => { throw err; });
+      archive.pipe(output);
+
+      // Add magic file (clearly states it's a ZIP container)
+      archive.append('NodeBook NDF v1 (ZIP)\n', { name: 'NDF.MAGIC' });
+
+      // Add thumbnail/preview for OS file managers
+      try {
+        let previewBuffer = null;
+        let thumbName = 'thumbnail.svg';
+        // Check registry for preview_url
+        try {
+          const registry = await ds.getGraphRegistry(userId);
+          const entry = Array.isArray(registry) ? registry.find(g => g && g.id === graphId) : null;
+          const previewUrl = entry?.preview_url;
+          if (previewUrl) {
+            const headers = {};
+            const authHeader = request.headers['authorization'];
+            if (authHeader) headers['Authorization'] = authHeader;
+            // If preview URL points to localhost from a container, rewrite to internal media host
+            let fetchUrl = previewUrl;
+            try {
+              const u = new URL(previewUrl);
+              if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+                const internalMedia = process.env.MEDIA_BACKEND_INTERNAL_URL || 'http://media-backend:3001';
+                const iu = new URL(internalMedia);
+                u.protocol = iu.protocol;
+                u.hostname = iu.hostname;
+                u.port = iu.port;
+                fetchUrl = u.toString();
+              }
+            } catch {}
+            const resp = await fetch(fetchUrl, { headers });
+            if (resp.ok) {
+              const ct = resp.headers.get('content-type') || '';
+              if (ct.includes('svg')) thumbName = 'thumbnail.svg';
+              else if (ct.includes('png')) thumbName = 'thumbnail.png';
+              else if (ct.includes('jpeg') || ct.includes('jpg')) thumbName = 'thumbnail.jpg';
+              previewBuffer = Buffer.from(await resp.arrayBuffer());
+            }
+          }
+        } catch {}
+        // Fallback simple SVG
+        if (!previewBuffer) {
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="100%" height="100%" fill="#eef2ff"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#1e3a8a">NodeBook Graph Preview</text></svg>`;
+          previewBuffer = Buffer.from(svg, 'utf-8');
+          thumbName = 'thumbnail.svg';
+        }
+        // Add at root
+        archive.append(previewBuffer, { name: thumbName });
+        // Also include inside the graph folder for portability
+        archive.append(previewBuffer, { name: `graph/${thumbName}` });
+      } catch (e) {
+        request.log.warn({ err: e }, 'Failed to add thumbnail to NDF');
+      }
+      // Add graph folder recursively, including .git
+      archive.directory(graphDir, 'graph');
+
+      // If strictgraph, include global schemas directory
+      try {
+        const manifest = await ds.getManifest(userId, graphId);
+        const mode = manifest?.mode || 'richgraph';
+        if (mode === 'strictgraph') {
+          const dataPath = process.env.DATA_PATH || './user_data';
+          const schemasDir = path.join(dataPath, 'schemas');
+          await fs.access(schemasDir).then(() => {
+            archive.directory(schemasDir, 'schemas');
+          }).catch(() => {});
+        }
+      } catch {}
+
+      await archive.finalize();
+
+      // Stream file to client
+      reply.header('Content-Type', 'application/zip');
+      reply.header('Content-Disposition', `attachment; filename="${name}.ndf.zip"`);
+      const readStream = (await import('fs')).createReadStream(outPath);
+      return reply.send(readStream);
+    } catch (error) {
+      console.error(`[GET /api/graphs/${graphId}/export] Error:`, error);
+      reply.code(400).send({ error: error.message });
+    }
+  });
+
+  // --- Graph Import (NDF) ---
+  // Accepts multipart upload of an NDF zip, extracts into a new graph folder, returns new graph id
+  fastify.post('/api/graphs/import', {
+    schema: {
+      consumes: ['multipart/form-data']
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const ds = fastify.dataStore;
+    try {
+      const data = await request.file();
+      if (!data) {
+        reply.code(400).send({ error: 'No file uploaded' });
+        return;
+      }
+      // Write upload to temp file
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ndf-imp-'));
+      const uploadPath = path.join(tmpDir, data.filename || 'graph.ndf.zip');
+      const writeStream = (await import('fs')).createWriteStream(uploadPath);
+      await pipeline(data.file, writeStream);
+
+      // Verify magic
+      // extract to temp folder first to read magic
+      const extractDir = path.join(tmpDir, 'extracted');
+      await extract(uploadPath, { dir: extractDir });
+      const magicPath = path.join(extractDir, 'NDF.MAGIC');
+      const magic = await fs.readFile(magicPath, 'utf-8').catch(() => '');
+      if (!magic.startsWith('NodeBook NDF')) {
+        reply.code(400).send({ error: 'Invalid NDF package' });
+        return;
+      }
+
+      // Determine new graph id and optional name
+      const graphId = crypto.randomUUID();
+      const providedName = data.fields?.name?.value || 'Imported Graph';
+      const graphFolder = path.join(extractDir, 'graph');
+
+      // Move extracted graph to user graphs directory under new id
+      const destDir = ds.getGraphDataDir(userId, graphId);
+      await fs.mkdir(path.dirname(destDir), { recursive: true });
+      // Use rename; if cross-device (EXDEV), fallback to copy+remove
+      try {
+        await fs.rename(graphFolder, destDir);
+      } catch (err) {
+        if (err && err.code === 'EXDEV') {
+          // Cross-device: copy recursively then remove source
+          if (typeof fs.cp === 'function') {
+            await fs.cp(graphFolder, destDir, { recursive: true });
+          } else {
+            // Fallback simple copy via archiver/extract: zip then unzip to dest
+            // Create a temp zip
+            const tmpZip = path.join(tmpDir, 'graph-copy.zip');
+            const zipOut = (await import('fs')).createWriteStream(tmpZip);
+            const zip = archiver('zip', { zlib: { level: 9 } });
+            await new Promise((resolve, reject) => {
+              zip.on('error', reject);
+              zip.pipe(zipOut);
+              zip.directory(graphFolder, false);
+              zip.finalize();
+              zipOut.on('close', resolve);
+              zipOut.on('error', reject);
+            });
+            await extract(tmpZip, { dir: destDir });
+          }
+          // Remove source folder
+          await fs.rm(graphFolder, { recursive: true, force: true });
+        } else {
+          throw err;
+        }
+      }
+
+      // Update manifest with new id/name
+      const manifestPath = path.join(destDir, 'manifest.json');
+      let manifest = {};
+      try {
+        const m = await fs.readFile(manifestPath, 'utf-8');
+        manifest = JSON.parse(m);
+      } catch {}
+      manifest.id = graphId;
+      manifest.name = providedName;
+      manifest.modified_at = new Date().toISOString();
+      manifest.modified_by = request.user.username || 'Unknown';
+      manifest.modified_by_id = userId;
+      await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+
+      // Ensure registry entry
+      await ds.updateGraphRegistry(userId, graphId, {
+        id: graphId,
+        name: providedName,
+        author: manifest.author || request.user.username || 'Unknown',
+        email: manifest.email || request.user.email || '',
+        mode: manifest.mode || 'richgraph',
+        created_at: manifest.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      reply.code(201).send({ id: graphId, name: providedName });
+    } catch (error) {
+      console.error('[POST /api/graphs/import] Error:', error);
+      reply.code(400).send({ error: error.message });
+    }
+  });
 
 
   // --- Media Management API ---
