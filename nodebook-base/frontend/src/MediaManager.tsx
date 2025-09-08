@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './MediaManager.module.css';
 
 // Media backend configuration
-const MEDIA_BACKEND_URL = import.meta.env.VITE_MEDIA_BACKEND_URL || 'http://localhost:3001';
+const MEDIA_BACKEND_URL = (import.meta as any).env?.VITE_MEDIA_BACKEND_URL || '';
 
 interface MediaFile {
   id: string;

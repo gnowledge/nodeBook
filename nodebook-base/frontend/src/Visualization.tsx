@@ -20,7 +20,7 @@ interface VisualizationProps {
 export function Visualization({ nodes, relations, attributes, onNodeSelect, graphMode = 'richgraph' }: VisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
-  const MEDIA_BACKEND_URL = (import.meta as any).env?.VITE_MEDIA_BACKEND_URL || 'http://localhost:3001';
+  const MEDIA_BACKEND_URL = (import.meta as any).env?.VITE_MEDIA_BACKEND_URL || '';
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFilename, setExportFilename] = useState('');

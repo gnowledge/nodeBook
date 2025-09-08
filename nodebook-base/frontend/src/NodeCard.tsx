@@ -119,7 +119,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
         alert('Preview not ready yet. Try again in a moment.');
         return;
       }
-      const MEDIA_BACKEND_URL = import.meta.env.VITE_MEDIA_BACKEND_URL || 'http://localhost:3001';
+      const MEDIA_BACKEND_URL = (import.meta as any).env?.VITE_MEDIA_BACKEND_URL || '';
       const targetGraphId = graphId || (node as any).graphId;
       if (!targetGraphId) {
         throw new Error('Missing graphId for preview update');

@@ -226,20 +226,22 @@ export function CollaborativeCNLEditor({
     if (!graphId || !userId) return;
 
     // Clean up any existing instances first
-    if (providerRef.current) {
-      try {
+    try {
+      if (providerRef.current) {
         providerRef.current.destroy();
-      } catch (error) {
-        console.warn('Error destroying provider:', error);
       }
+    } catch (error) {
+      console.warn('Error destroying provider:', error);
+    } finally {
       providerRef.current = null;
     }
-    if (ydocRef.current) {
-      try {
+    try {
+      if (ydocRef.current) {
         ydocRef.current.destroy();
-      } catch (error) {
-        console.warn('Error destroying ydoc:', error);
       }
+    } catch (error) {
+      console.warn('Error destroying ydoc:', error);
+    } finally {
       ydocRef.current = null;
     }
 
@@ -251,9 +253,14 @@ export function CollaborativeCNLEditor({
     const signalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL || (window.location.protocol === 'https:'
       ? `wss://${window.location.host}/signaling`
       : 'ws://localhost:4444');
-    const provider = new WebrtcProvider(`nodebook-graph-${graphId}`, ydoc, {
+    const room = `nodebook-graph-${graphId}`;
+    const provider = new WebrtcProvider(room, ydoc, {
       signaling: [signalingUrl],
       password: null, // No password for now
+    });
+    provider.on('destroy', () => {
+      // ensure room cleanup
+      try { provider.disconnect(); } catch {}
     });
 
     providerRef.current = provider;
