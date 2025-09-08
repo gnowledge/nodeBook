@@ -11,6 +11,7 @@ import { autocompletion } from '@codemirror/autocomplete';
 // Y.js imports
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
+import { yCollab } from 'y-codemirror.next';
 
 interface CollaborativeCNLEditorProps {
   value: string;
@@ -285,24 +286,7 @@ export function CollaborativeCNLEditor({
     // Set up Y.js text synchronization
     const yText = ydoc.getText('content');
     
-    // Listen for remote changes (apply to editor; ignore local transactions)
-    yText.observe((event: any) => {
-      if (event?.transaction?.local) return;
-      const newValue = yText.toString();
-      const view = viewRef.current;
-      if (!view) return;
-      const currentDoc = view.state.doc.toString();
-      if (newValue !== currentDoc) {
-        isApplyingRemoteRef.current = true;
-        // Preserve selection head where possible
-        const sel = view.state.selection;
-        const head = sel.main.head;
-        const nextHead = Math.min(head, newValue.length);
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue }, selection: { anchor: nextHead } });
-        isApplyingRemoteRef.current = false;
-        setLocalValue(newValue);
-      }
-    });
+    // yCollab handles remote changes and selection; no manual observer needed
 
     // Set initial content
     if (value && yText.length === 0) {
@@ -382,23 +366,7 @@ export function CollaborativeCNLEditor({
           fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
         }
       }),
-      EditorView.updateListener.of((update) => {
-        if (!update.docChanged) return;
-        const newValue = update.state.doc.toString();
-        setLocalValue(newValue);
-        // Update Y document only for local edits
-        if (!isApplyingRemoteRef.current && ydocRef.current) {
-          const yText = ydocRef.current.getText('content');
-          const currentY = yText.toString();
-          if (newValue !== currentY) {
-            // Apply diff-like replace to reduce selection jumps
-            yText.delete(0, yText.length);
-            yText.insert(0, newValue);
-          }
-          // Notify outer handlers (auto-save) only for local edits
-          onChange(newValue);
-        }
-      }),
+      yCollab(yText, provider.awareness, { user: { name: userName }, undoManager: false }),
       readOnly ? EditorView.editable.of(false) : []
     ];
 
