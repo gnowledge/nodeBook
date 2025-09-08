@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { indentWithTab } from '@codemirror/commands';
@@ -255,12 +255,7 @@ export function CollaborativeCNLEditor({
       : 'ws://localhost:4444');
     const room = `nodebook-graph-${graphId}`;
     const provider = new WebrtcProvider(room, ydoc, {
-      signaling: [signalingUrl],
-      password: null, // No password for now
-    });
-    provider.on('destroy', () => {
-      // ensure room cleanup
-      try { provider.disconnect(); } catch {}
+      signaling: [signalingUrl]
     });
 
     providerRef.current = provider;
@@ -289,12 +284,15 @@ export function CollaborativeCNLEditor({
     // Set up Y.js text synchronization
     const yText = ydoc.getText('content');
     
-    // Listen for remote changes
-    yText.observe((event: any) => {
+    // Listen for remote changes (apply to editor directly to avoid onChange loops)
+    yText.observe(() => {
       const newValue = yText.toString();
-      if (newValue !== localValue) {
+      const view = viewRef.current;
+      if (!view) return;
+      const currentDoc = view.state.doc.toString();
+      if (newValue !== currentDoc) {
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: newValue } });
         setLocalValue(newValue);
-        onChange(newValue);
       }
     });
 
@@ -306,9 +304,8 @@ export function CollaborativeCNLEditor({
     // Cleanup function
     return () => {
       if (provider) {
-        try {
-          provider.destroy();
-        } catch (error) {
+        try { provider.disconnect(); } catch {}
+        try { provider.destroy(); } catch (error) {
           console.warn('Error destroying provider in cleanup:', error);
         }
       }
@@ -320,7 +317,7 @@ export function CollaborativeCNLEditor({
         }
       }
     };
-  }, [graphId, userId, userName, value, onChange, localValue]);
+  }, [graphId, userId, userName]);
 
   // Initialize CodeMirror editor
   useEffect(() => {
@@ -337,8 +334,10 @@ export function CollaborativeCNLEditor({
         break;
       case 'json':
         languageSupport = json();
-        default:
+        break;
+      default:
         languageSupport = cnl();
+        break;
     }
 
     // Create editor state with minimal extensions
@@ -376,26 +375,21 @@ export function CollaborativeCNLEditor({
         }
       }),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          const newValue = update.state.doc.toString();
-          setLocalValue(newValue);
-          onChange(newValue);
-          
-          // Auto-save if callback provided
-          if (onAutoSave) {
-            onAutoSave(newValue);
-          }
-          
-          // Update Y.js document if available
-          if (ydocRef.current) {
-            const yText = ydocRef.current.getText('content');
-            const currentYText = yText.toString();
-            if (newValue !== currentYText) {
-              yText.delete(0, yText.length);
-              yText.insert(0, newValue);
-            }
+        if (!update.docChanged) return;
+        const newValue = update.state.doc.toString();
+        setLocalValue(newValue);
+        // Update Y document; suppress re-entrancy by comparing content
+        if (ydocRef.current) {
+          const yText = ydocRef.current.getText('content');
+          const currentY = yText.toString();
+          if (newValue !== currentY) {
+            yText.delete(0, yText.length);
+            yText.insert(0, newValue);
           }
         }
+        // Notify outer handlers (auto-save) without re-applying back
+        onChange(newValue);
+        if (onAutoSave) onAutoSave(newValue);
       }),
       readOnly ? EditorView.editable.of(false) : []
     ];
