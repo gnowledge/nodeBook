@@ -10,7 +10,7 @@
   },
   "keywords": ["nlp", "natural-language-processing", "grammar", "graph-building", "education", "microservice"],
   "author": "NodeBook Team",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "fastify": "^4.26.2",
     "@fastify/cors": "^8.5.0",

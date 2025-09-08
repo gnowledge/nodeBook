@@ -9,7 +9,7 @@
   },
   "keywords": ["media", "file-storage", "fastify"],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "fastify": "^4.26.2",
     "@fastify/multipart": "^8.0.0",
