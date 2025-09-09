@@ -27,6 +27,7 @@ import { SlideShow } from './SlideShow';
 import { calculateGraphScore } from './utils/graphScoring';
 import type { Node, Edge, RelationType, AttributeType } from './types';
 import { API_BASE_URL } from './api-config';
+import { keycloakAuth } from './services/keycloakAuth';
 
 type ViewMode = 'editor' | 'visualization' | 'slideshow' | 'jsonData' | 'nodes' | 'schema' | 'peers' | 'media' | 'score';
 
@@ -37,23 +38,29 @@ interface AppProps {
 }
 
 function App({ onLogout, onGoToDashboard, user }: AppProps) {
-  // Helper function for authenticated API calls
-  const authenticatedFetch = (url: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('token');
+  // Helper function for authenticated API calls with token refresh
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    // Ensure access token is valid (refresh if near expiry)
+    await keycloakAuth.ensureValidToken();
+    let token = localStorage.getItem('token');
     const headers: Record<string, string> = {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
+      ...options.headers as Record<string, string>,
     };
-    
-    // Only set Content-Type for requests that have a body
-    if (options.body) {
-      headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (options.body) headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+
+    let res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      // Try to refresh and retry once
+      const refreshed = await keycloakAuth.refreshAccessToken();
+      token = localStorage.getItem('token');
+      const retryHeaders: Record<string, string> = { ...headers };
+      if (refreshed && token) {
+        retryHeaders['Authorization'] = `Bearer ${token}`;
+        res = await fetch(url, { ...options, headers: retryHeaders });
+      }
     }
-    
-    return fetch(url, {
-      ...options,
-      headers,
-    });
+    return res;
   };
 
   // Collab-aware fetch: if a collaboration token exists, route to collab endpoints for graph reads/writes

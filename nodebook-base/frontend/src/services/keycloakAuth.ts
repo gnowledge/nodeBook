@@ -55,6 +55,15 @@ class KeycloakAuthService {
       
       // Get user info from the token
       const userInfo = await this.getUserInfo(tokenData.access_token);
+
+      // Persist tokens with expiry for refresh
+      this.storeAuth(
+        tokenData.access_token,
+        userInfo,
+        tokenData.refresh_token,
+        typeof tokenData.expires_in === 'number' ? tokenData.expires_in : undefined,
+        typeof tokenData.refresh_expires_in === 'number' ? tokenData.refresh_expires_in : undefined
+      );
       
       return {
         token: tokenData.access_token,
@@ -131,6 +140,15 @@ class KeycloakAuthService {
       
       // Get user info from the token
       const userInfo = await this.getUserInfo(tokenData.access_token);
+
+      // Persist tokens with expiry for refresh
+      this.storeAuth(
+        tokenData.access_token,
+        userInfo,
+        tokenData.refresh_token,
+        typeof tokenData.expires_in === 'number' ? tokenData.expires_in : undefined,
+        typeof tokenData.refresh_expires_in === 'number' ? tokenData.refresh_expires_in : undefined
+      );
       
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -206,6 +224,9 @@ class KeycloakAuthService {
   logout(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token_expires_at');
+    localStorage.removeItem('refresh_expires_at');
     // Optionally redirect to Keycloak logout
     // window.location.href = `${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/logout?client_id=${this.clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
   }
@@ -223,6 +244,77 @@ class KeycloakAuthService {
    */
   getToken(): string | null {
     return localStorage.getItem('token');
+  }
+
+  /**
+   * Get stored refresh token
+   */
+  getRefreshToken(): string | null {
+    return localStorage.getItem('refresh_token');
+  }
+
+  /**
+   * Return ms timestamp of when access token expires
+   */
+  getTokenExpiresAt(): number | null {
+    const v = localStorage.getItem('token_expires_at');
+    return v ? parseInt(v, 10) : null;
+  }
+
+  /**
+   * Ensure we have a valid (non-expired) token. Refresh if needed.
+   */
+  async ensureValidToken(): Promise<string | null> {
+    const token = this.getToken();
+    if (!token) return null;
+    const expiresAt = this.getTokenExpiresAt();
+    const now = Date.now();
+    // Refresh if expiring within 30s
+    if (!expiresAt || expiresAt - now < 30_000) {
+      const refreshed = await this.refreshAccessToken();
+      if (!refreshed) return this.getToken();
+      return this.getToken();
+    }
+    return token;
+  }
+
+  /**
+   * Attempt to refresh access token using stored refresh token.
+   */
+  async refreshAccessToken(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${this.keycloakUrl}/realms/${this.realm}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          refresh_token: refreshToken
+        })
+      });
+      if (!res.ok) {
+        // Refresh token may be expired/revoked
+        this.logout();
+        return false;
+      }
+      const tokenData = await res.json();
+      // Keep existing user info in storage
+      const user = this.getStoredUser();
+      this.storeAuth(
+        tokenData.access_token,
+        user || { id: '', username: '' },
+        tokenData.refresh_token,
+        typeof tokenData.expires_in === 'number' ? tokenData.expires_in : undefined,
+        typeof tokenData.refresh_expires_in === 'number' ? tokenData.refresh_expires_in : undefined
+      );
+      return true;
+    } catch (e) {
+      console.error('Failed to refresh access token', e);
+      return false;
+    }
   }
 
   /**
@@ -244,9 +336,22 @@ class KeycloakAuthService {
   /**
    * Store authentication data
    */
-  storeAuth(token: string, user: User): void {
+  storeAuth(token: string, user: User, refreshToken?: string, expiresInSeconds?: number, refreshExpiresInSeconds?: number): void {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
+    if (refreshToken) {
+      localStorage.setItem('refresh_token', refreshToken);
+    }
+    const now = Date.now();
+    if (typeof expiresInSeconds === 'number') {
+      // Subtract 30s as safety margin
+      const expiresAt = now + Math.max(0, (expiresInSeconds - 30) * 1000);
+      localStorage.setItem('token_expires_at', String(expiresAt));
+    }
+    if (typeof refreshExpiresInSeconds === 'number') {
+      const refreshAt = now + Math.max(0, (refreshExpiresInSeconds - 30) * 1000);
+      localStorage.setItem('refresh_expires_at', String(refreshAt));
+    }
   }
 }
 
