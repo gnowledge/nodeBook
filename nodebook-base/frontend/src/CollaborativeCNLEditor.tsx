@@ -202,9 +202,9 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
 export function CollaborativeCNLEditor({
   value,
   onChange,
-  onAutoSave,
+  /* onAutoSave intentionally not used in live mode */
   language = 'cnl',
-  placeholder = 'Start typing...',
+  /* placeholder unused */
   readOnly = false,
   className = '',
   nodeTypes = [],
@@ -314,6 +314,9 @@ export function CollaborativeCNLEditor({
   // Initialize CodeMirror editor
   useEffect(() => {
     if (!editorRef.current) return;
+    const ydoc = ydocRef.current;
+    const provider = providerRef.current;
+    if (!ydoc || !provider) return;
 
     // Create language support
     let languageSupport;
@@ -332,7 +335,8 @@ export function CollaborativeCNLEditor({
         break;
     }
 
-    // Create editor state with minimal extensions
+    // Create editor state with collab binding
+    const yText = ydoc.getText('content');
     const extensions = [
       lineNumbers(),
       languageSupport,
@@ -366,7 +370,7 @@ export function CollaborativeCNLEditor({
           fontFamily: '"Fira Code", "JetBrains Mono", "Consolas", monospace'
         }
       }),
-      yCollab(yText, provider.awareness, { user: { name: userName }, undoManager: false }),
+      yCollab(yText, provider.awareness as any, { undoManager: false }),
       readOnly ? EditorView.editable.of(false) : []
     ];
 
@@ -393,7 +397,7 @@ export function CollaborativeCNLEditor({
         }
       }
     };
-  }, [language, nodeTypes, relationTypes, attributeTypes, readOnly, onChange, onAutoSave, localValue]);
+  }, [language, nodeTypes, relationTypes, attributeTypes, readOnly, onChange, localValue]);
 
   // Update editor content when value prop changes (from external sources)
   useEffect(() => {

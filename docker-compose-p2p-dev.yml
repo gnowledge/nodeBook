@@ -166,7 +166,7 @@ services:
       - VITE_WORDNET_SERVICE_URL=http://localhost:3003
       - VITE_P2P_ENABLED=true
       - VITE_DEV_MODE=true
-      - VITE_SIGNALING_URL=ws://localhost:4444
+      - VITE_SIGNALING_URL=ws://127.0.0.1:4444
     networks:
       - nodebook-p2p-net
     depends_on:
