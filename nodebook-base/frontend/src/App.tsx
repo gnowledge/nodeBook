@@ -25,7 +25,7 @@ import { GraphScore } from './GraphScore';
 import { CompactScoreDisplay } from './CompactScoreDisplay';
 import { SlideShow } from './SlideShow';
 import { calculateGraphScore } from './utils/graphScoring';
-import type { Node, Edge, RelationType, AttributeType } from './types';
+import type { Node, Edge, RelationType, AttributeType, Attribute } from './types';
 import { API_BASE_URL } from './api-config';
 import { keycloakAuth } from './services/keycloakAuth';
 
@@ -117,7 +117,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [activeGraphKey, setActiveGraphKey] = useState<string | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [relations, setRelations] = useState<Edge[]>([]);
-  const [attributes, setAttributes] = useState<AttributeType[]>([]);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
@@ -577,25 +577,42 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           
                           <div className={styles.graphSection}>
                             <div className={styles.graphHeader}>
-                              <h3>Graph Visualization</h3>
+                              <h3>{graphMode === 'markdown' ? 'Markdown Preview' : 'Graph Visualization'}</h3>
                             </div>
                             <div className={styles.visualizationWrapper}>
-                              <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode} />
-                              {selectedNode && (
-                                <div className={styles.selectedNodeCard}>
-                                  <NodeCard
-                                    node={selectedNode}
-                                    allNodes={nodes}
-                                    allRelations={relations}
-                                    attributes={attributeTypes}
-                                    isActive={false}
-                                    onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
-                                    onImportContext={(nodeId) => console.log('Import context:', nodeId)}
-                                    nodeRegistry={{}}
-                                    isPublic={false}
-                                    graphId={activeGraphId || undefined}
-                                  />
-                                </div>
+                              {graphMode === 'markdown' ? (
+                                <DataView 
+                                  activeGraphId={activeGraphId} 
+                                  nodes={nodes} 
+                                  relations={relations} 
+                                  attributes={attributeTypes} 
+                                  onDataChange={() => fetchGraph(activeGraphId)} 
+                                  cnlText={cnlText || ''} 
+                                  onCnlChange={handleCnlChange} 
+                                  publication_state={publicationState}
+                                  onPublicationStateChange={handlePublicationStateChange}
+                                  graphMode={graphMode}
+                                />
+                              ) : (
+                                <>
+                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
+                                  {selectedNode && (
+                                    <div className={styles.selectedNodeCard}>
+                                      <NodeCard
+                                        node={selectedNode}
+                                        allNodes={nodes}
+                                        allRelations={relations}
+                                        attributes={attributeTypes}
+                                        isActive={false}
+                                        onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
+                                        onImportContext={(nodeId) => console.log('Import context:', nodeId)}
+                                        nodeRegistry={{}}
+                                        isPublic={false}
+                                        graphId={activeGraphId || undefined}
+                                      />
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -666,7 +683,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     )}
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
-                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode} />
+                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
                         {selectedNode && (
                           <div className={styles.selectedNodeCard}>
                             <NodeCard
@@ -697,7 +714,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       activeGraphId={activeGraphId} 
                       nodes={nodes} 
                       relations={relations} 
-                      attributes={attributes} 
+                      attributes={attributeTypes} 
                       onDataChange={() => fetchGraph(activeGraphId)} 
                       cnlText={cnlText || ''} 
                       onCnlChange={handleCnlChange} 
