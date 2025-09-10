@@ -25,6 +25,8 @@ export interface Node {
   name: string;
   role?: string;
   description?: string;
+  adjective?: string | null;
+  quantifier?: string | null;
 }
 
 export interface Edge {
@@ -110,12 +112,18 @@ export function calculateGraphScore(nodes: Node[], relations: Edge[], attributes
   const relationTexts = relations.map(r => r.name.toLowerCase());
   const attributeTexts = attributes.map(a => `${a.name} ${a.value}`.toLowerCase());
   
-  // Find adjectives in node titles
+  // Find adjectives from the parsed JSON data
   const adjectivesFound: string[] = [];
-  nodeTitles.forEach(title => {
-    const words = title.split(/\s+/);
+  nodes.forEach(node => {
+    // Use the adjective field from the parsed JSON data
+    if (node.adjective && node.adjective.trim()) {
+      adjectivesFound.push(node.adjective.trim());
+    }
+    
+    // Also check for common adjectives in the display name (for backward compatibility)
+    const words = node.name.toLowerCase().split(/\s+/);
     words.forEach(word => {
-      if (COMMON_ADJECTIVES.includes(word)) {
+      if (word && COMMON_ADJECTIVES.includes(word)) {
         adjectivesFound.push(word);
       }
     });
