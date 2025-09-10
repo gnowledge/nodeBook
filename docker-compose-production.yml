@@ -1,0 +1,29 @@
+services:
+  # Nginx Proxy Manager for SSL certificate management and reverse proxy
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nodebook-nginx-proxy-manager
+    ports:
+      - '80:80'      # HTTP (for Let's Encrypt challenges)
+      - '443:443'    # HTTPS
+      # Port 81 removed - admin interface not accessible
+    volumes:
+      - nginx-proxy-data:/data
+      - nginx-letsencrypt:/etc/letsencrypt
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+    networks:
+      - nodebook-p2p-net
+    restart: unless-stopped
+
+networks:
+  nodebook-p2p-net:
+    driver: bridge
+
+volumes:
+  # Let's Encrypt certificates
+  nginx-letsencrypt:
+    driver: local
+  # Nginx Proxy Manager data
+  nginx-proxy-data:
+    driver: local
