@@ -185,6 +185,9 @@ export class FileSystemStore extends DataStore {
         // Parse CNL completely to get all operations
         const operations = getOperationsFromCnl(cnlText, graphMode);
         
+        // Get the current node registry to check for existing nodes
+        const nodeRegistry = await this.getNodeRegistry(userId);
+        
         // Initialize empty graph data
         const graphData = {
             nodes: [],
@@ -192,31 +195,146 @@ export class FileSystemStore extends DataStore {
             attributes: []
         };
 
-        // First pass: create all nodes
-        for (const op of operations) {
-            if (op.type === 'addNode') {
-                // Create node with custom name if provided in options
-                const nodeOptions = { ...op.payload.options };
-                if (op.payload.displayName) {
-                    nodeOptions.customName = op.payload.displayName;
+        // SYSTEMATIC APPROACH:
+        // 1. First pass: Create only explicit nodes from CNL headings (not relation targets)
+        console.log(`[DataStore] First pass: Creating explicit nodes from CNL headings`);
+        const explicitNodeOps = operations.filter(op => op.type === 'addNode' && op.payload.role !== 'class');
+        
+        for (const op of explicitNodeOps) {
+            const nodeId = op.id;
+            const baseName = op.payload.base_name;
+            const displayName = op.payload.displayName;
+            const adjective = op.payload.options?.adjective;
+            
+            // Check if node already exists in the global registry
+            let existingNode = null;
+            if (nodeRegistry[nodeId]) {
+                // Node exists globally, check if it's already in this graph
+                const isInCurrentGraph = nodeRegistry[nodeId].graph_ids.includes(graphId);
+                if (isInCurrentGraph) {
+                    // Node already exists in this graph, reuse it
+                    console.log(`[DataStore] Reusing existing node ${nodeId} in graph ${graphId}`);
+                    existingNode = nodeRegistry[nodeId];
+                } else {
+                    // Node exists in other graphs, register it in this graph too
+                    console.log(`[DataStore] Registering existing node ${nodeId} in graph ${graphId}`);
+                    await this.registerNodeInGraph(userId, nodeId, graphId);
                 }
-                const node = new PolyNode(op.payload.base_name, nodeOptions);
+            } else {
+                // Node doesn't exist globally, create and register it
+                console.log(`[DataStore] Creating new explicit node ${nodeId} and registering globally`);
+                await this.addNodeToRegistry(userId, {
+                    id: nodeId,
+                    base_name: baseName,
+                    name: displayName || baseName,
+                    adjective: adjective,
+                    role: op.payload.role || 'individual',
+                    description: null,
+                    parent_types: op.payload.parent_types || [],
+                    publication_mode: 'Private'
+                });
+                await this.registerNodeInGraph(userId, nodeId, graphId);
+            }
+            
+            // Create the actual node instance
+            const nodeOptions = { ...op.payload.options };
+            if (displayName) {
+                nodeOptions.customName = displayName;
+            }
+            const node = new PolyNode(baseName, nodeOptions);
+            
+            // Override the name if we have a custom display name
+            if (displayName) {
+                node.name = displayName;
+            }
+            
+            // Set adjective if provided
+            if (adjective) {
+                node.adjective = adjective;
+            }
+            
+            graphData.nodes.push(node);
+        }
+
+        // 2. Second pass: Read relations, extract target nodes, and create missing target nodes
+        console.log(`[DataStore] Second pass: Processing relations and creating missing target nodes`);
+        const relationOps = operations.filter(op => op.type === 'addRelation');
+        
+        // Collect all unique target nodes from relations
+        const targetNodeIds = new Set();
+        for (const op of relationOps) {
+            targetNodeIds.add(op.payload.target);
+        }
+        
+        // Create missing target nodes (only once per unique target)
+        for (const targetId of targetNodeIds) {
+            // Check if target node exists in current graph
+            const targetExists = graphData.nodes.some(n => n.id === targetId);
+            
+            if (!targetExists) {
+                console.log(`[DataStore] Creating missing target node: ${targetId}`);
                 
-                // Override the name if we have a custom display name
-                if (op.payload.displayName) {
-                    node.name = op.payload.displayName;
+                // Parse target ID to extract adjective and base name (reverse of ID generation)
+                let adjective = null;
+                let baseName = targetId;
+                
+                // Check if target ID contains an underscore (indicating adjective_baseName format)
+                const underscoreIndex = targetId.lastIndexOf('_');
+                if (underscoreIndex > 0) {
+                    const potentialAdjective = targetId.substring(0, underscoreIndex);
+                    const potentialBaseName = targetId.substring(underscoreIndex + 1);
+                    
+                    // Check if this looks like adjective_baseName (baseName should be plural or common)
+                    if (potentialBaseName.endsWith('s') || potentialBaseName === 'node' || potentialBaseName === 'edge' || 
+                        potentialBaseName === 'attribute' || potentialBaseName === 'relation' || 
+                        potentialBaseName === 'language' || potentialBaseName === 'state') {
+                        adjective = potentialAdjective;
+                        baseName = potentialBaseName;
+                    }
                 }
                 
-                // Set adjective if provided
-                if (op.payload.options && op.payload.options.adjective) {
-                    node.adjective = op.payload.options.adjective;
+                // Generate display name from parsed components
+                const displayName = adjective ? `*${adjective}* ${baseName.charAt(0).toUpperCase() + baseName.slice(1)}` : baseName.charAt(0).toUpperCase() + baseName.slice(1);
+                const formattedBaseName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+                
+                // Check if target node exists globally
+                if (nodeRegistry[targetId]) {
+                    // Target exists globally, register it in this graph
+                    console.log(`[DataStore] Registering existing target node ${targetId} in graph ${graphId}`);
+                    await this.registerNodeInGraph(userId, targetId, graphId);
+                } else {
+                    // Target doesn't exist globally, create and register it
+                    console.log(`[DataStore] Creating new target node ${targetId} and registering globally`);
+                    await this.addNodeToRegistry(userId, {
+                        id: targetId,
+                        base_name: formattedBaseName,
+                        name: displayName,
+                        adjective: adjective,
+                        role: 'class', // Default role for implicit target nodes
+                        description: null,
+                        parent_types: [],
+                        publication_mode: 'Private'
+                    });
+                    await this.registerNodeInGraph(userId, targetId, graphId);
                 }
                 
-                graphData.nodes.push(node);
+                // Create the actual target node instance
+                const targetNode = new PolyNode(formattedBaseName, {
+                    role: 'class',
+                    customName: displayName
+                });
+                targetNode.id = targetId;
+                targetNode.name = displayName;
+                if (adjective) {
+                    targetNode.adjective = adjective;
+                }
+                
+                graphData.nodes.push(targetNode);
             }
         }
 
-        // Second pass: create relations and attributes, and link them to nodes
+        // 3. Third pass: Create relations and attributes, and link them to nodes
+        console.log(`[DataStore] Third pass: Creating relations and attributes`);
         for (const op of operations) {
             if (op.type === 'addRelation') {
                 const relation = new RelationNode(op.payload.source, op.payload.target, op.payload.name, op.payload.options || {});
@@ -354,18 +472,18 @@ export class FileSystemStore extends DataStore {
         const registryPath = path.join(this.getUserDataDir(userId), 'node_registry.json');
         try {
             const data = await fsp.readFile(registryPath, 'utf-8');
-            if (!data || data.trim() === '') return [];
+            if (!data || data.trim() === '') return {};
             const parsed = JSON.parse(data);
-            // Ensure we always return an array
-            if (Array.isArray(parsed)) {
+            // Ensure we always return an object
+            if (typeof parsed === 'object' && !Array.isArray(parsed)) {
                 return parsed;
             } else {
-                // If it's not an array, initialize with empty array and save it
-                await this.saveNodeRegistry(userId, []);
-                return [];
+                // If it's not an object, initialize with empty object and save it
+                await this.saveNodeRegistry(userId, {});
+                return {};
             }
         } catch (error) {
-            if (error.code === 'ENOENT') return [];
+            if (error.code === 'ENOENT') return {};
             throw error;
         }
     }
@@ -378,7 +496,6 @@ export class FileSystemStore extends DataStore {
 
     async addNodeToRegistry(userId, node) {
         const registry = await this.getNodeRegistry(userId);
-        const existingIndex = registry.findIndex(n => n.id === node.id);
         
         // Extract relevant fields for registry storage
         const registryEntry = {
@@ -390,17 +507,34 @@ export class FileSystemStore extends DataStore {
             role: node.role,
             description: node.description,
             parent_types: node.parent_types || [],
-            publication_mode: node.publication_mode || 'Private'
+            publication_mode: node.publication_mode || 'Private',
+            graph_ids: [] // Initialize empty graph_ids array
         };
         
-        if (existingIndex >= 0) {
-            registry[existingIndex] = { ...registry[existingIndex], ...registryEntry };
+        if (registry[node.id]) {
+            // Node exists, update it but preserve graph_ids
+            registry[node.id] = { ...registry[node.id], ...registryEntry, graph_ids: registry[node.id].graph_ids || [] };
         } else {
-            registry.push(registryEntry);
+            // New node
+            registry[node.id] = registryEntry;
         }
         
         await this.saveNodeRegistry(userId, registry);
-        return registryEntry;
+        return registry[node.id];
+    }
+
+    async registerNodeInGraph(userId, nodeId, graphId) {
+        const registry = await this.getNodeRegistry(userId);
+        
+        if (registry[nodeId]) {
+            if (!registry[nodeId].graph_ids) {
+                registry[nodeId].graph_ids = [];
+            }
+            if (!registry[nodeId].graph_ids.includes(graphId)) {
+                registry[nodeId].graph_ids.push(graphId);
+                await this.saveNodeRegistry(userId, registry);
+            }
+        }
     }
 
     async getGraphRegistry(userId) {
@@ -526,37 +660,35 @@ export class FileSystemStore extends DataStore {
             const nodeId = node.id;
             console.log(`[DataStore] Processing node: ${nodeId}`);
             
-            // Check if this node exists in other graphs
+            // Check if this node exists in other graphs using the node registry
             let nodeExistsInOtherGraphs = false;
             
-            for (const graph of graphRegistry) {
-                if (graph.id !== graphId) {
-                    try {
-                        const otherGraphData = await this.getGraph(userId, graph.id);
-                        if (otherGraphData && otherGraphData.nodes && Array.isArray(otherGraphData.nodes)) {
-                            const nodeExists = otherGraphData.nodes.some(n => n && n.id === nodeId);
-                            if (nodeExists) {
-                                nodeExistsInOtherGraphs = true;
-                                console.log(`[DataStore] Node ${nodeId} found in graph ${graph.id}`);
-                                break;
-                            }
-                        }
-                    } catch (error) {
-                        console.warn(`[DataStore] Could not check graph ${graph.id} for node ${nodeId}:`, error);
-                    }
+            if (nodeRegistry[nodeId] && nodeRegistry[nodeId].graph_ids) {
+                // Check if the node is used in any graph other than the one being deleted
+                const otherGraphIds = nodeRegistry[nodeId].graph_ids.filter(gid => gid !== graphId);
+                if (otherGraphIds.length > 0) {
+                    nodeExistsInOtherGraphs = true;
+                    console.log(`[DataStore] Node ${nodeId} found in graphs: ${otherGraphIds.join(', ')}`);
                 }
             }
             
             // If node doesn't exist in other graphs, remove it from registry
             if (!nodeExistsInOtherGraphs) {
-                const nodeIndex = nodeRegistry.findIndex(n => n && n.id === nodeId);
-                if (nodeIndex >= 0) {
+                if (nodeRegistry[nodeId]) {
                     console.log(`[DataStore] Removing node ${nodeId} from registry (not used in other graphs)`);
-                    nodeRegistry.splice(nodeIndex, 1);
+                    delete nodeRegistry[nodeId];
                 } else {
                     console.log(`[DataStore] Node ${nodeId} not found in registry`);
                 }
             } else {
+                // Remove this graph from the node's graph_ids list
+                if (nodeRegistry[nodeId] && nodeRegistry[nodeId].graph_ids) {
+                    const graphIndex = nodeRegistry[nodeId].graph_ids.indexOf(graphId);
+                    if (graphIndex >= 0) {
+                        nodeRegistry[nodeId].graph_ids.splice(graphIndex, 1);
+                        console.log(`[DataStore] Removed graph ${graphId} from node ${nodeId}'s graph list`);
+                    }
+                }
                 console.log(`[DataStore] Keeping node ${nodeId} in registry (used in other graphs)`);
             }
         }
@@ -681,12 +813,6 @@ export class FileSystemStore extends DataStore {
         }
     }
 
-    async registerNodeInGraph(userId, nodeId, graphId) {
-        // This method is a stub for now - in a real implementation,
-        // it would track which nodes belong to which graphs
-        console.log(`[DataStore] Registering node ${nodeId} in graph ${graphId} for user ${userId}`);
-        return true;
-    }
 
     // Create a graph object with methods that use DataStore internally
     async createGraphObject(userId, graphId, graphData = null) {

@@ -341,9 +341,10 @@ function processNodeHeading(heading) {
         }
     }
     
-    // For ID generation, use the clean base name (without type brackets)
-    const cleanName = baseName.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
-    const id = cleanName; // Always use the clean name for ID, regardless of adjective
+    // For ID generation, include adjective if present, otherwise use clean base name
+    const cleanBaseName = baseName.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+    const cleanAdjective = adjective ? adjective.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
+    const id = cleanAdjective ? `${cleanAdjective}_${cleanBaseName}` : cleanBaseName;
     
     return { 
         id, 
@@ -471,8 +472,10 @@ function processNeighborhood(nodeId, lines) {
                 targetDisplayName = target; // Keep the original formatting
             }
             
-            // Generate clean ID from base name
-            const targetId = targetBaseName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            // Generate clean ID from base name and adjective if present
+            const cleanTargetBaseName = targetBaseName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            const cleanTargetAdjective = targetAdjective ? targetAdjective.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
+            const targetId = cleanTargetAdjective ? `${cleanTargetAdjective}_${cleanTargetBaseName}` : cleanTargetBaseName;
             const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;
             
             // Create target node if it doesn't exist (for implicit nodes like "Country", "Asia")

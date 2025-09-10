@@ -158,13 +158,28 @@ class GraphManager {
             throw new Error('User ID is required for data segregation');
         }
         const registry = await this.getNodeRegistry(userId);
+        
+        // Extract relevant fields for registry storage
+        const registryEntry = {
+            id: node.id,
+            base_name: node.base_name,
+            name: node.name,
+            adjective: node.adjective,
+            quantifier: node.quantifier,
+            role: node.role,
+            description: node.description,
+            parent_types: node.parent_types || [],
+            publication_mode: node.publication_mode || 'Private',
+            graph_ids: []
+        };
+        
         if (!registry[node.id]) {
-            registry[node.id] = {
-                base_name: node.base_name,
-                description: node.description,
-                graph_ids: [],
-            };
+            registry[node.id] = registryEntry;
+        } else {
+            // Update existing node but preserve graph_ids
+            registry[node.id] = { ...registry[node.id], ...registryEntry, graph_ids: registry[node.id].graph_ids || [] };
         }
+        
         await this.saveNodeRegistry(userId, registry);
         return registry[node.id];
     }
@@ -174,9 +189,15 @@ class GraphManager {
             throw new Error('User ID is required for data segregation');
         }
         const registry = await this.getNodeRegistry(userId);
-        if (registry[nodeId] && !registry[nodeId].graph_ids.includes(graphId)) {
-            registry[nodeId].graph_ids.push(graphId);
-            await this.saveNodeRegistry(userId, registry);
+        
+        if (registry[nodeId]) {
+            if (!registry[nodeId].graph_ids) {
+                registry[nodeId].graph_ids = [];
+            }
+            if (!registry[nodeId].graph_ids.includes(graphId)) {
+                registry[nodeId].graph_ids.push(graphId);
+                await this.saveNodeRegistry(userId, registry);
+            }
         }
     }
 
