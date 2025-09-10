@@ -138,7 +138,7 @@ services:
       - VITE_KEYCLOAK_REALM=nodebook
       - VITE_KEYCLOAK_CLIENT_ID=nodebook-frontend
       - VITE_KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-      - VITE_MEDIA_BACKEND_URL=https://${DOMAIN_NAME}/media/api
+      - VITE_MEDIA_BACKEND_URL=https://${DOMAIN_NAME}/media
       - VITE_NLP_SERVICE_URL=https://${DOMAIN_NAME}/nlp
       - VITE_WORDNET_SERVICE_URL=https://${DOMAIN_NAME}/wordnet
       - VITE_P2P_ENABLED=true

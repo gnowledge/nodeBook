@@ -216,6 +216,56 @@ fastify.get('/api/media/files/:fileId/info', async (request, reply) => {
   }
 });
 
+// Update file metadata endpoint
+fastify.put('/api/media/files/:fileId/metadata', async (request, reply) => {
+  try {
+    if (!mediaDataPath) {
+      reply.code(503).send({ error: 'Media storage not ready' });
+      return;
+    }
+
+    const { fileId } = request.params;
+    const { description, tags } = request.body;
+    
+    console.log(`📝 Updating metadata for file: ${fileId}`);
+
+    // Read existing metadata
+    const metadataPath = path.join(mediaDataPath, 'metadata', `${fileId}.json`);
+    let metadata;
+    try {
+      const metadataData = await fs.readFile(metadataPath, 'utf8');
+      metadata = JSON.parse(metadataData);
+    } catch (e) {
+      reply.code(404).send({ error: 'File not found' });
+      return;
+    }
+
+    // Update metadata
+    if (description !== undefined) {
+      metadata.description = description;
+    }
+    if (tags !== undefined) {
+      metadata.tags = tags;
+    }
+
+    // Save updated metadata
+    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+    
+    // Update file index
+    await updateFileIndex(fileId, metadata);
+
+    console.log(`✅ File metadata updated successfully: ${metadata.name}`);
+    return {
+      success: true,
+      fileInfo: metadata
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to update file metadata:', error);
+    reply.code(500).send({ error: error.message });
+  }
+});
+
 // Delete file endpoint
 fastify.delete('/api/media/files/:fileId', async (request, reply) => {
   try {

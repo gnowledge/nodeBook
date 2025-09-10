@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './MediaManager.module.css';
+import { MediaViewer } from './MediaViewer';
+import { MediaEditModal } from './MediaEditModal';
 
 // Media backend configuration
 const MEDIA_BACKEND_URL = (import.meta as any).env?.VITE_MEDIA_BACKEND_URL || '';
+
+// Helper function to construct URLs safely
+const getMediaUrl = (path: string) => {
+  const baseUrl = MEDIA_BACKEND_URL.endsWith('/') ? MEDIA_BACKEND_URL.slice(0, -1) : MEDIA_BACKEND_URL;
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+};
 
 interface MediaFile {
   id: string;
@@ -40,6 +48,10 @@ export function MediaManager({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
   const [showUsageModal, setShowUsageModal] = useState(false);
+  const [viewerFile, setViewerFile] = useState<MediaFile | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [editFile, setEditFile] = useState<MediaFile | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragAreaRef = useRef<HTMLDivElement>(null);
@@ -56,7 +68,7 @@ export function MediaManager({
     setError(null);
     
     try {
-      const url = `${MEDIA_BACKEND_URL}/api/media/files`;
+      const url = getMediaUrl('/api/media/files');
       console.log('🔍 MediaManager: Loading files from media backend:', url);
       
       const response = await fetch(url);
@@ -104,7 +116,7 @@ export function MediaManager({
           formData.append('tags', tags);
         }
 
-        const uploadUrl = `${MEDIA_BACKEND_URL}/api/media/upload`;
+        const uploadUrl = getMediaUrl('/api/media/upload');
         console.log('🔍 MediaManager: Uploading to media backend:', uploadUrl);
         
         const response = await fetch(uploadUrl, {
@@ -141,7 +153,7 @@ export function MediaManager({
     if (!confirm('Are you sure you want to delete this file?')) return;
 
     try {
-      const response = await fetch(`${MEDIA_BACKEND_URL}/api/media/files/${fileId}`, {
+      const response = await fetch(getMediaUrl(`/api/media/files/${fileId}`), {
         method: 'DELETE'
       });
 
@@ -167,12 +179,50 @@ export function MediaManager({
   };
 
   const viewFile = (file: MediaFile) => {
-    const fileUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
-    window.open(fileUrl, '_blank');
+    setViewerFile(file);
+    setIsViewerOpen(true);
+  };
+
+  const handleEditFile = (file: MediaFile) => {
+    setEditFile(file);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveFile = async (fileId: string, updates: { description?: string; tags?: string[] }) => {
+    try {
+      const response = await fetch(getMediaUrl(`/api/media/files/${fileId}/metadata`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update file: ${response.statusText}`);
+      }
+
+      // Update the file in local state
+      setFiles(files.map(f => 
+        f.id === fileId 
+          ? { ...f, description: updates.description, tags: updates.tags }
+          : f
+      ));
+
+      // Update selected file if it's the one being edited
+      if (selectedFile && selectedFile.id === fileId) {
+        setSelectedFile({ ...selectedFile, description: updates.description, tags: updates.tags });
+      }
+
+      console.log(`✅ File metadata updated successfully: ${fileId}`);
+    } catch (err) {
+      console.error('❌ MediaManager: Update error:', err);
+      throw err;
+    }
   };
 
   const downloadFile = (file: MediaFile) => {
-    const fileUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
+    const fileUrl = getMediaUrl(`/api/media/files/${file.id}`);
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = file.name;
@@ -182,7 +232,7 @@ export function MediaManager({
   };
 
   const copyImageUrl = async (file: MediaFile) => {
-    const imageUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
+    const imageUrl = getMediaUrl(`/api/media/files/${file.id}`);
     try {
       await navigator.clipboard.writeText(imageUrl);
       alert('Image URL copied to clipboard!');
@@ -199,7 +249,7 @@ export function MediaManager({
   };
 
   const copyImageMarkdown = async (file: MediaFile) => {
-    const imageUrl = `${MEDIA_BACKEND_URL}/api/media/files/${file.id}`;
+    const imageUrl = getMediaUrl(`/api/media/files/${file.id}`);
     const markdown = `![${file.name}](${imageUrl})`;
     try {
       await navigator.clipboard.writeText(markdown);
@@ -272,7 +322,8 @@ export function MediaManager({
   const filteredFiles = files.filter(file => {
     const matchesSearch = !searchTerm || 
       file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (file.description && file.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      (file.description && file.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (file.tags && file.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
     
     const matchesType = !selectedType || file.type.startsWith(selectedType);
     
@@ -365,7 +416,7 @@ export function MediaManager({
             <div className={styles.controls}>
               <input
                 type="text"
-                placeholder="Search files..."
+                placeholder="Search files, descriptions, or tags..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={styles.searchInput}
@@ -425,7 +476,7 @@ export function MediaManager({
                   {/* Inline preview for images including SVG */}
                   {file.type.startsWith('image/') && (
                     <img
-                      src={`${MEDIA_BACKEND_URL}/api/media/files/${file.id}`}
+                      src={getMediaUrl(`/api/media/files/${file.id}`)}
                       alt={file.name}
                       style={{ width: '100%', height: 180, objectFit: 'contain', background: '#fff' }}
                     />
@@ -565,6 +616,28 @@ export function MediaManager({
           </div>
         </div>
       )}
+
+      {/* Media Viewer Modal */}
+      <MediaViewer
+        file={viewerFile}
+        isOpen={isViewerOpen}
+        onClose={() => {
+          setIsViewerOpen(false);
+          setViewerFile(null);
+        }}
+        onEdit={handleEditFile}
+      />
+
+      {/* Media Edit Modal */}
+      <MediaEditModal
+        file={editFile}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditFile(null);
+        }}
+        onSave={handleSaveFile}
+      />
     </div>
   );
 }
