@@ -569,11 +569,15 @@ Another service or function
     try {
       const graphs = await dataStore.getGraphRegistry(userId);
       // Add publication state if not present (for backward compatibility)
+      // Also normalize date field names to camelCase for frontend consistency
       const graphsWithPublicationState = graphs.map(graph => ({
         ...graph,
         publication_state: graph.publication_state || 'Private',
         description: graph.description || null,
-        preview_url: graph.preview_url || null
+        preview_url: graph.preview_url || null,
+        // Map snake_case date fields to camelCase for frontend consistency
+        createdAt: graph.createdAt || graph.created_at,
+        updatedAt: graph.updatedAt || graph.updated_at
       }));
       return graphsWithPublicationState;
     } catch (error) {
@@ -619,8 +623,8 @@ Another service or function
         author,
         email,
         mode,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         nodes: [],
         relations: [],
         attributes: [],
@@ -642,8 +646,8 @@ Another service or function
         author,
         email,
         mode,
-        created_at: newGraph.created_at,
-        updated_at: newGraph.updated_at
+        createdAt: newGraph.createdAt,
+        updatedAt: newGraph.updatedAt
       });
       
       reply.code(201);
@@ -2023,8 +2027,8 @@ Another service or function
         author: manifest.author || request.user.username || 'Unknown',
         email: manifest.email || request.user.email || '',
         mode: manifest.mode || 'richgraph',
-        created_at: manifest.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        createdAt: manifest.created_at || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
       reply.code(201).send({ id: graphId, name: providedName });
