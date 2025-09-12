@@ -325,6 +325,7 @@
 .dropdown-container {
   position: relative;
   display: inline-block;
+  z-index: 1000;
 }
 
 .dropdown-trigger {
@@ -361,7 +362,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 10000;
   min-width: 200px;
   margin-top: 4px;
 }
@@ -385,6 +386,8 @@
   text-align: left;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  position: relative;
+  z-index: 10001;
 }
 
 .dropdown-item:hover:not(.disabled) {
@@ -395,6 +398,7 @@
   color: #9ca3af;
   cursor: not-allowed;
   opacity: 0.6;
+  z-index: 10002;
 }
 
 /* Primary action buttons */
@@ -439,7 +443,7 @@
     max-width: none;
     max-height: 80vh;
     overflow-y: auto;
-    z-index: 1001;
+    z-index: 10001;
   }
   
   .dropdown-trigger {
