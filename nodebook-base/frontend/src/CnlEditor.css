@@ -20,6 +20,8 @@
   flex-shrink: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
+  position: relative;
+  z-index: 1000;
 }
 
 .toolbar-left {
