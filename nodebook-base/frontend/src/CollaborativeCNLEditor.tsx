@@ -614,7 +614,7 @@ export function CollaborativeCNLEditor({
       // Call the onInsertText function with our insert function
       onInsertText(insertText);
     }
-  }, [onInsertText, viewRef.current]);
+  }, [onInsertText]);
 
   return (
     <div className={`collaborative-cnl-editor ${className}`}>

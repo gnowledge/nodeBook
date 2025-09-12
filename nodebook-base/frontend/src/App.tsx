@@ -535,9 +535,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
-  const handleInsertTextFunction = (insertFunction: (text: string) => void) => {
+  const handleInsertTextFunction = useCallback((insertFunction: (text: string) => void) => {
     setInsertTextFunction(() => insertFunction);
-  };
+  }, []);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 

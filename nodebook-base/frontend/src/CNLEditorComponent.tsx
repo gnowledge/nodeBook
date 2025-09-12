@@ -288,7 +288,7 @@ export function CNLEditor({
       // Call the onInsertText function with our insert function
       onInsertText(insertText);
     }
-  }, [onInsertText, viewRef.current]);
+  }, [onInsertText]);
 
   useEffect(() => {
     if (!editorRef.current) return;
