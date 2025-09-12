@@ -20,6 +20,7 @@ interface CNLEditorProps {
   nodeTypes?: any[];
   relationTypes?: any[];
   attributeTypes?: any[];
+  onInsertText?: (insertFunction: (text: string) => void) => void;
 }
 
 // CNL Auto-completion
@@ -223,7 +224,8 @@ export function CNLEditor({
   className = '',
   nodeTypes = [],
   relationTypes = [],
-  attributeTypes = []
+  attributeTypes = [],
+  onInsertText
 }: CNLEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -266,6 +268,27 @@ export function CNLEditor({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSectionControls]);
+
+  // Handle external text insertion
+  useEffect(() => {
+    if (onInsertText && viewRef.current) {
+      const insertText = (text: string) => {
+        const view = viewRef.current;
+        if (!view) return;
+        
+        const state = view.state;
+        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+        
+        view.dispatch({
+          changes: { from: fromPos, to: fromPos, insert: text },
+          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
+        });
+      };
+      
+      // Call the onInsertText function with our insert function
+      onInsertText(insertText);
+    }
+  }, [onInsertText, viewRef.current]);
 
   useEffect(() => {
     if (!editorRef.current) return;

@@ -34,9 +34,11 @@ interface CnlEditorProps {
   isVersionControlOpen?: boolean;
   onVersionControlOpen?: () => void;
   onVersionControlClose?: () => void;
+  // Text insertion prop
+  onInsertText?: (text: string) => void;
 }
 
-export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle, editorLanguage = 'cnl', graphMode = 'richgraph', onGraphModeChange, isVersionControlOpen = false, onVersionControlOpen, onVersionControlClose }: CnlEditorProps) {
+export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClose, disabled, nodeTypes, relationTypes, attributeTypes, graphId, editStatus, enableCollaboration = false, userId, userName, onCollaborationToggle, editorLanguage = 'cnl', graphMode = 'richgraph', onGraphModeChange, isVersionControlOpen = false, onVersionControlOpen, onVersionControlClose, onInsertText }: CnlEditorProps) {
   // Debug logging
   console.log('[CnlEditor] Props:', { value, valueLength: value?.length, disabled, graphId });
   
@@ -249,6 +251,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             graphId={graphId}
             userId={userId}
             userName={userName || 'Anonymous'}
+            onInsertText={onInsertText}
           />
         ) : (
           <CNLEditor
@@ -261,6 +264,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             nodeTypes={nodeTypes}
             relationTypes={relationTypes}
             attributeTypes={attributeTypes}
+            onInsertText={onInsertText}
           />
         )}
       </div>

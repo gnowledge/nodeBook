@@ -150,6 +150,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [isWordNetLoading, setIsWordNetLoading] = useState(false);
   const [wordNetError, setWordNetError] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState<boolean>(false);
+  const [insertTextFunction, setInsertTextFunction] = useState<((text: string) => void) | null>(null);
   const [defaultGraphMode, setDefaultGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(() => {
     const saved = localStorage.getItem('defaultGraphMode');
     return (saved as any) || 'richgraph';
@@ -534,6 +535,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
+  const handleInsertTextFunction = (insertFunction: (text: string) => void) => {
+    setInsertTextFunction(() => insertFunction);
+  };
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
@@ -668,6 +673,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               isVersionControlOpen={isVersionControlOpen}
                               onVersionControlOpen={() => setIsVersionControlOpen(true)}
                               onVersionControlClose={() => setIsVersionControlOpen(false)}
+                              onInsertText={handleInsertTextFunction}
                             />
                             
                             {/* Score widget at bottom of Editor */}
@@ -775,6 +781,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             isVersionControlOpen={isVersionControlOpen}
                             onVersionControlOpen={() => setIsVersionControlOpen(true)}
                             onVersionControlClose={() => setIsVersionControlOpen(false)}
+                            onInsertText={handleInsertTextFunction}
                           />
                         </div>
                         )}
@@ -882,8 +889,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
             onClose={() => setIsWordNetPanelOpen(false)}
             terms={wordNetTerms}
             onDefinitionSelect={(term, definition) => {
-              // Handle definition selection - could insert into CNL
-              console.log('Selected definition:', term, definition);
+              // Insert the definition text into the CNL editor
+              if (insertTextFunction) {
+                const textToInsert = `\n${term}: ${definition}\n`;
+                insertTextFunction(textToInsert);
+              } else {
+                console.warn('Insert text function not available');
+              }
             }}
             isLoading={isWordNetLoading}
           />

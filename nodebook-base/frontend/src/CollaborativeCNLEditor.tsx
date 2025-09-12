@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection } from '@codemirror/state';
 import { indentWithTab } from '@codemirror/commands';
 import { cnl } from './cnl-language';
 import { markdown } from '@codemirror/lang-markdown';
@@ -27,6 +27,7 @@ interface CollaborativeCNLEditorProps {
   graphId: string; // Required for room identification
   userId: string; // Required for user awareness
   userName?: string; // Optional user display name
+  onInsertText?: (insertFunction: (text: string) => void) => void;
 }
 
 // CNL Auto-completion (same as original)
@@ -249,7 +250,8 @@ export function CollaborativeCNLEditor({
   attributeTypes = [],
   graphId,
   userId,
-  userName = 'Anonymous'
+  userName = 'Anonymous',
+  onInsertText
 }: CollaborativeCNLEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -592,6 +594,27 @@ export function CollaborativeCNLEditor({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSectionControls]);
+
+  // Handle external text insertion
+  useEffect(() => {
+    if (onInsertText && viewRef.current) {
+      const insertText = (text: string) => {
+        const view = viewRef.current;
+        if (!view) return;
+        
+        const state = view.state;
+        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+        
+        view.dispatch({
+          changes: { from: fromPos, to: fromPos, insert: text },
+          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
+        });
+      };
+      
+      // Call the onInsertText function with our insert function
+      onInsertText(insertText);
+    }
+  }, [onInsertText, viewRef.current]);
 
   return (
     <div className={`collaborative-cnl-editor ${className}`}>
