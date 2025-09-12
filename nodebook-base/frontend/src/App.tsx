@@ -15,6 +15,7 @@ import { Menu } from './Menu';
 import { DataView } from './DataView';
 import { SchemaView } from './SchemaView';
 import { CnlEditor } from './CnlEditor';
+import { EditorHeader } from './EditorHeader';
 import { PeerTab } from './PeerTab';
 import { JsonView } from './JsonView';
 import { PageView } from './PageView';
@@ -25,6 +26,11 @@ import { GraphScore } from './GraphScore';
 import { CompactScoreDisplay } from './CompactScoreDisplay';
 import { SlideShow } from './SlideShow';
 import { calculateGraphScore } from './utils/graphScoring';
+import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescriptions } from './utils/cnlProcessor';
+import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
+import { WordNetService } from './services/wordnetService';
+import { WordNetDefinitionsPanel } from './WordNetDefinitionsPanel';
+import { NLPSidePanel } from './NLPSidePanel';
 import type { Node, Edge, RelationType, AttributeType, Attribute } from './types';
 import { API_BASE_URL } from './api-config';
 import { keycloakAuth } from './services/keycloakAuth';
@@ -131,6 +137,18 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [isMobile, setIsMobile] = useState(false);
   const [activePage, setActivePage] = useState<string | null>(null);
+  const [isVersionControlOpen, setIsVersionControlOpen] = useState(false);
+  
+  // Editor-specific state for tools
+  const [isNLPPanelOpen, setIsNLPPanelOpen] = useState(false);
+  const [nlpAnalysisResults, setNlpAnalysisResults] = useState<Array<any>>([]);
+  const [isNLPLoading, setIsNLPLoading] = useState(false);
+  const [nlpError, setNlpError] = useState<string | null>(null);
+  
+  const [isWordNetPanelOpen, setIsWordNetPanelOpen] = useState(false);
+  const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
+  const [isWordNetLoading, setIsWordNetLoading] = useState(false);
+  const [wordNetError, setWordNetError] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState<boolean>(false);
   const [defaultGraphMode, setDefaultGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>(() => {
     const saved = localStorage.getItem('defaultGraphMode');
@@ -443,6 +461,79 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     console.log(`Collaboration ${enabled ? 'enabled' : 'disabled'}`);
   };
 
+  // Editor-specific handler functions
+  const handleAutoInsertDescriptions = () => {
+    const enhancedCnl = ensureDescriptionBlocks(cnlText || '');
+    
+    if (enhancedCnl !== cnlText) {
+      setCnlText(enhancedCnl);
+    }
+  };
+
+  const handleNLPParse = async () => {
+    if (!cnlText || !cnlText.trim()) {
+      setNlpError('No CNL text to analyze');
+      return;
+    }
+
+    setIsNLPLoading(true);
+    setNlpError(null);
+    setNlpAnalysisResults([]);
+
+    try {
+      // First, ensure description blocks are present
+      const enhancedCnl = ensureDescriptionBlocks(cnlText);
+      
+      // Debug: Show what we're extracting
+      debugDescriptions(enhancedCnl);
+      
+      // Extract descriptions for analysis
+      const descriptions = extractDescriptionsForAnalysis(enhancedCnl);
+      
+      if (descriptions.length === 0) {
+        setNlpError('No descriptions found in the CNL text. Please add description blocks to your nodes.');
+        setIsNLPLoading(false);
+        return;
+      }
+
+      // Analyze all descriptions
+      const analysisResult = await analyzeMultipleTexts(descriptions);
+      
+      if (analysisResult.results.length > 0) {
+        // Store all analysis results
+        setNlpAnalysisResults(analysisResult.results);
+        setIsNLPPanelOpen(true);
+      } else {
+        setNlpError('Failed to analyze the text. Please try again.');
+      }
+    } catch (error) {
+      setNlpError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsNLPLoading(false);
+    }
+  };
+
+  const handleWordNetAutoDescription = async () => {
+    if (!cnlText || !cnlText.trim()) {
+      setWordNetError('No CNL text to analyze');
+      return;
+    }
+
+    setIsWordNetLoading(true);
+    setWordNetError(null);
+    setWordNetTerms([]);
+
+    try {
+      const terms = await WordNetService.extractTerms(cnlText);
+      setWordNetTerms(terms);
+      setIsWordNetPanelOpen(true);
+    } catch (error) {
+      setWordNetError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsWordNetLoading(false);
+    }
+  };
+
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
@@ -512,17 +603,29 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                         {!isMobile && (
                         <div className={styles.desktopLayout}>
                           <div className={styles.editorSection}>
-                            <div className={styles.editorHeader}>
-                              <div className={styles.editorTitle}>
-                                <h3>Working on: {(() => {
-                                  const collabToken = localStorage.getItem('collabToken');
-                                  if (collabToken) {
-                                    return activeGraph?.name || 'Shared Graph';
-                                  }
-                                  return graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph';
-                                })()}</h3>
-                              </div>
-                            </div>
+                            <EditorHeader
+                              graphName={(() => {
+                                const collabToken = localStorage.getItem('collabToken');
+                                if (collabToken) {
+                                  return activeGraph?.name || 'Shared Graph';
+                                }
+                                return graphs.find(g => g.id === activeGraphId)?.name || 'Unknown Graph';
+                              })()}
+                              graphId={activeGraphId}
+                              graphMode={graphMode}
+                              onGraphModeChange={setGraphMode}
+                              onVersionControlOpen={() => setIsVersionControlOpen(true)}
+                              enableCollaboration={enableCollaboration}
+                              onCollaborationToggle={setEnableCollaboration}
+                              userId={user?.id}
+                              disabled={!activeGraphId || collabRole === 'view'}
+                              isWordNetLoading={isWordNetLoading}
+                              isNLPLoading={isNLPLoading}
+                              value={cnlText || ''}
+                              onAutoInsertDescriptions={handleAutoInsertDescriptions}
+                              onWordNetAutoDescription={handleWordNetAutoDescription}
+                              onNLPParse={handleNLPParse}
+                            />
                             <CnlEditor
                               value={cnlText || ''}
                               onChange={handleCnlChange}
@@ -562,6 +665,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                   alert('Network error while setting mode');
                                 }
                               }}
+                              isVersionControlOpen={isVersionControlOpen}
+                              onVersionControlOpen={() => setIsVersionControlOpen(true)}
+                              onVersionControlClose={() => setIsVersionControlOpen(false)}
                             />
                             
                             {/* Score widget at bottom of Editor */}
@@ -666,6 +772,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 console.error('Failed to change mode', e);
                               }
                             }}
+                            isVersionControlOpen={isVersionControlOpen}
+                            onVersionControlOpen={() => setIsVersionControlOpen(true)}
+                            onVersionControlClose={() => setIsVersionControlOpen(false)}
                           />
                         </div>
                         )}
@@ -753,6 +862,31 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           />
         ) : activePage && (
           <PageView page={activePage} onClose={() => setActivePage(null)} />
+        )}
+
+        {/* NLP Analysis Panel */}
+        {isNLPPanelOpen && (
+          <NLPSidePanel
+            isOpen={isNLPPanelOpen}
+            onClose={() => setIsNLPPanelOpen(false)}
+            analysisResults={nlpAnalysisResults}
+            isLoading={isNLPLoading}
+            error={nlpError}
+          />
+        )}
+
+        {/* WordNet Definitions Panel */}
+        {isWordNetPanelOpen && (
+          <WordNetDefinitionsPanel
+            isOpen={isWordNetPanelOpen}
+            onClose={() => setIsWordNetPanelOpen(false)}
+            terms={wordNetTerms}
+            onDefinitionSelect={(term, definition) => {
+              // Handle definition selection - could insert into CNL
+              console.log('Selected definition:', term, definition);
+            }}
+            isLoading={isWordNetLoading}
+          />
         )}
       </div>
     </div>

@@ -599,7 +599,7 @@ export function CollaborativeCNLEditor({
       <div style={{
         position: 'sticky',
         top: 0,
-        zIndex: 10,
+        zIndex: 1,
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #e5e7eb',
         padding: '6px 8px',
