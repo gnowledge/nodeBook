@@ -541,8 +541,8 @@ export function CollaborativeCNLEditor({
           console.log('Inserting after line:', descriptionLineMatch[0]);
           
           view.dispatch({
-            changes: { from: insertPos, to: insertPos, insert: definition },
-            selection: EditorSelection.single(insertPos + definition.length, insertPos + definition.length)
+            changes: { from: insertPos, to: insertPos, insert: definition + '\n' },
+            selection: EditorSelection.single(insertPos + definition.length + 1, insertPos + definition.length + 1)
           });
         } else {
           // Create new description block
