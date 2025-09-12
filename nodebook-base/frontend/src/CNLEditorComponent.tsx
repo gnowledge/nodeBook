@@ -271,6 +271,7 @@ export function CNLEditor({
 
   // Handle external text insertion
   useEffect(() => {
+    console.log('CNLEditorComponent: useEffect running, onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
     if (onInsertText && viewRef.current) {
       console.log('CNLEditorComponent: Setting up text insertion function');
       const insertText = (text: string) => {
@@ -289,6 +290,8 @@ export function CNLEditor({
       
       // Call the onInsertText function with our insert function
       onInsertText(insertText);
+    } else {
+      console.log('CNLEditorComponent: Not setting up text insertion - onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
     }
   }, [onInsertText]);
 

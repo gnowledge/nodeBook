@@ -597,6 +597,7 @@ export function CollaborativeCNLEditor({
 
   // Handle external text insertion
   useEffect(() => {
+    console.log('CollaborativeCNLEditor: useEffect running, onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
     if (onInsertText && viewRef.current) {
       console.log('CollaborativeCNLEditor: Setting up text insertion function');
       const insertText = (text: string) => {
@@ -615,6 +616,8 @@ export function CollaborativeCNLEditor({
       
       // Call the onInsertText function with our insert function
       onInsertText(insertText);
+    } else {
+      console.log('CollaborativeCNLEditor: Not setting up text insertion - onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
     }
   }, [onInsertText]);
 
