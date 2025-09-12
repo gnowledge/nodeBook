@@ -610,24 +610,23 @@ export function CNLEditor({
         
         console.log('After heading text:', afterHeading.substring(0, 200) + '...');
         
-        // Look for description block after the heading
-        const descriptionBlockRegex = /```description\s*\n([\s\S]*?)\n```/;
-        const descriptionMatch = afterHeading.match(descriptionBlockRegex);
+        // Look for description block after the heading - find the line starting with ```description
+        const descriptionLineRegex = /```description\s*\n/;
+        const descriptionLineMatch = afterHeading.match(descriptionLineRegex);
         
-        console.log('Description block match:', descriptionMatch);
+        console.log('Description line match:', descriptionLineMatch);
         
-        if (descriptionMatch) {
-          // Insert into existing description block
+        if (descriptionLineMatch) {
+          // Insert into existing description block - right after the ```description line
           const descriptionStartIndex = afterHeading.indexOf('```description');
-          const descriptionStart = nodeHeadingIndex + nodeMatch[0].length + descriptionStartIndex + '```description\n'.length;
-          const insertPos = descriptionStart + descriptionMatch[1].length;
+          const insertPos = nodeHeadingIndex + nodeMatch[0].length + descriptionStartIndex + descriptionLineMatch[0].length;
           
           console.log('Inserting into existing description block at position:', insertPos);
-          console.log('Description content:', descriptionMatch[1]);
+          console.log('Inserting after line:', descriptionLineMatch[0]);
           
           view.dispatch({
-            changes: { from: insertPos, to: insertPos, insert: `\n${definition}` },
-            selection: EditorSelection.single(insertPos + definition.length + 1, insertPos + definition.length + 1)
+            changes: { from: insertPos, to: insertPos, insert: definition },
+            selection: EditorSelection.single(insertPos + definition.length, insertPos + definition.length)
           });
         } else {
           // Create new description block
