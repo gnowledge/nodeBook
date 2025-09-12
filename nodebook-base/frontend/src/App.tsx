@@ -536,6 +536,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   };
 
   const handleInsertTextFunction = useCallback((insertFunction: (text: string) => void) => {
+    console.log('handleInsertTextFunction called, setting insertTextFunction');
     setInsertTextFunction(() => insertFunction);
   }, []);
 
@@ -890,8 +891,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
             terms={wordNetTerms}
             onDefinitionSelect={(term, definition) => {
               // Insert the definition text into the CNL editor
+              console.log('WordNet onDefinitionSelect called:', { term, definition, insertTextFunction: !!insertTextFunction });
               if (insertTextFunction) {
                 const textToInsert = `\n${term}: ${definition}\n`;
+                console.log('Inserting text:', textToInsert);
                 insertTextFunction(textToInsert);
               } else {
                 console.warn('Insert text function not available');

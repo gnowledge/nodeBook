@@ -272,7 +272,9 @@ export function CNLEditor({
   // Handle external text insertion
   useEffect(() => {
     if (onInsertText && viewRef.current) {
+      console.log('CNLEditorComponent: Setting up text insertion function');
       const insertText = (text: string) => {
+        console.log('CNLEditorComponent: insertText called with:', text);
         const view = viewRef.current;
         if (!view) return;
         
