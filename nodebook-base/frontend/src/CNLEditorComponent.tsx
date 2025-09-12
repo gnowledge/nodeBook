@@ -602,14 +602,22 @@ export function CNLEditor({
         const nodeHeadingIndex = doc.indexOf(nodeMatch[0]);
         const afterHeading = doc.substring(nodeHeadingIndex + nodeMatch[0].length);
         
+        console.log('After heading text:', afterHeading.substring(0, 200) + '...');
+        
         // Look for description block after the heading
         const descriptionBlockRegex = /```description\s*\n([\s\S]*?)\n```/;
         const descriptionMatch = afterHeading.match(descriptionBlockRegex);
         
+        console.log('Description block match:', descriptionMatch);
+        
         if (descriptionMatch) {
           // Insert into existing description block
-          const descriptionStart = nodeHeadingIndex + nodeMatch[0].length + afterHeading.indexOf('```description\n') + '```description\n'.length;
+          const descriptionStartIndex = afterHeading.indexOf('```description');
+          const descriptionStart = nodeHeadingIndex + nodeMatch[0].length + descriptionStartIndex + '```description\n'.length;
           const insertPos = descriptionStart + descriptionMatch[1].length;
+          
+          console.log('Inserting into existing description block at position:', insertPos);
+          console.log('Description content:', descriptionMatch[1]);
           
           view.dispatch({
             changes: { from: insertPos, to: insertPos, insert: `\n${definition}` },
@@ -619,6 +627,8 @@ export function CNLEditor({
           // Create new description block
           const insertPos = nodeHeadingIndex + nodeMatch[0].length;
           const descriptionBlock = `\n\`\`\`description\n${definition}\n\`\`\`\n`;
+          
+          console.log('Creating new description block at position:', insertPos);
           
           view.dispatch({
             changes: { from: insertPos, to: insertPos, insert: descriptionBlock },
