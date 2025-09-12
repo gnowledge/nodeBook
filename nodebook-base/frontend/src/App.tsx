@@ -513,7 +513,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     }
   };
 
-  const handleWordNetAutoDescription = async () => {
+  const handleWordNetAutoDescription = () => {
     if (!cnlText || !cnlText.trim()) {
       setWordNetError('No CNL text to analyze');
       return;
@@ -524,7 +524,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     setWordNetTerms([]);
 
     try {
-      const terms = await WordNetService.extractTerms(cnlText);
+      const terms = WordNetService.extractTermsFromCNL(cnlText);
       setWordNetTerms(terms);
       setIsWordNetPanelOpen(true);
     } catch (error) {
