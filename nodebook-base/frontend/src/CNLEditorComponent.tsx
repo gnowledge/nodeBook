@@ -587,6 +587,10 @@ export function CNLEditor({
         const nodeHeadingRegex = new RegExp(`^#+\\s+${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+\\[.*\\])?\\s*$`, 'm');
         const nodeMatch = doc.match(nodeHeadingRegex);
         
+        console.log('Looking for node heading with regex:', nodeHeadingRegex);
+        console.log('Document content:', doc);
+        console.log('Node match result:', nodeMatch);
+        
         if (!nodeMatch) {
           console.warn('Could not find node heading for term:', term);
           // Fallback to current cursor position
@@ -597,6 +601,8 @@ export function CNLEditor({
           });
           return;
         }
+        
+        console.log('Found node heading:', nodeMatch[0]);
         
         // Find the description block for this node
         const nodeHeadingIndex = doc.indexOf(nodeMatch[0]);
