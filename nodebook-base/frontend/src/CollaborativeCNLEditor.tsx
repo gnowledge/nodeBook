@@ -485,13 +485,62 @@ export function CollaborativeCNLEditor({
       console.log('CollaborativeCNLEditor: Setting up text insertion function after view creation');
       const insertText = (text: string) => {
         console.log('CollaborativeCNLEditor: insertText called with:', text);
-        const state = view.state;
-        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
         
-        view.dispatch({
-          changes: { from: fromPos, to: fromPos, insert: text },
-          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
-        });
+        // Parse the text to extract term and definition
+        const match = text.match(/^\n?([^:]+):\s*(.+)\n?$/);
+        if (!match) {
+          console.warn('Could not parse text format:', text);
+          return;
+        }
+        
+        const [, term, definition] = match;
+        console.log('Parsed term:', term, 'definition:', definition);
+        
+        const state = view.state;
+        const doc = state.doc.toString();
+        
+        // Find the node heading for this term
+        const nodeHeadingRegex = new RegExp(`^#+\\s+${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+\\[.*\\])?\\s*$`, 'm');
+        const nodeMatch = doc.match(nodeHeadingRegex);
+        
+        if (!nodeMatch) {
+          console.warn('Could not find node heading for term:', term);
+          // Fallback to current cursor position
+          const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+          view.dispatch({
+            changes: { from: fromPos, to: fromPos, insert: text },
+            selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
+          });
+          return;
+        }
+        
+        // Find the description block for this node
+        const nodeHeadingIndex = doc.indexOf(nodeMatch[0]);
+        const afterHeading = doc.substring(nodeHeadingIndex + nodeMatch[0].length);
+        
+        // Look for description block after the heading
+        const descriptionBlockRegex = /```description\s*\n([\s\S]*?)\n```/;
+        const descriptionMatch = afterHeading.match(descriptionBlockRegex);
+        
+        if (descriptionMatch) {
+          // Insert into existing description block
+          const descriptionStart = nodeHeadingIndex + nodeMatch[0].length + afterHeading.indexOf('```description\n') + '```description\n'.length;
+          const insertPos = descriptionStart + descriptionMatch[1].length;
+          
+          view.dispatch({
+            changes: { from: insertPos, to: insertPos, insert: `\n${definition}` },
+            selection: EditorSelection.single(insertPos + definition.length + 1, insertPos + definition.length + 1)
+          });
+        } else {
+          // Create new description block
+          const insertPos = nodeHeadingIndex + nodeMatch[0].length;
+          const descriptionBlock = `\n\`\`\`description\n${definition}\n\`\`\`\n`;
+          
+          view.dispatch({
+            changes: { from: insertPos, to: insertPos, insert: descriptionBlock },
+            selection: EditorSelection.single(insertPos + descriptionBlock.length, insertPos + descriptionBlock.length)
+          });
+        }
       };
       
       // Call the onInsertText function with our insert function
