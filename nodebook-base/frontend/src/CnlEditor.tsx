@@ -244,21 +244,37 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
   }, [onSubmit, handleUndo, handleRedo]);
 
   // Dropdown menu component
-  const DropdownMenu = ({ title, icon, items, isOpen, onToggle, align = 'left' }: {
+  const DropdownMenu = ({ title, icon, items, isOpen, onToggle, align = 'left', compact = false }: {
     title: string;
     icon: string;
     items: Array<{ label: string; icon: string; onClick: () => void; disabled?: boolean; title?: string }>;
     isOpen: boolean;
     onToggle: () => void;
     align?: 'left' | 'right';
+    compact?: boolean;
   }) => (
     <div className={`dropdown-container ${align === 'right' ? 'align-right' : ''}`}>
       <button
         className={`dropdown-trigger ${isOpen ? 'active' : ''}`}
         onClick={onToggle}
         title={title}
+        style={compact ? {
+          padding: '6px',
+          width: '32px',
+          height: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '16px',
+          marginRight: '4px',
+          borderRadius: '6px',
+          border: '1px solid #d1d5db',
+          background: '#fff',
+          cursor: 'pointer',
+          color: '#333'
+        } : {}}
       >
-        {icon} {title} ▼
+        {icon} {!compact && `${title} ▼`}
       </button>
       {isOpen && (
         <div className="dropdown-menu">
@@ -295,6 +311,7 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             isOpen={activeDropdown === 'menu'}
             onToggle={() => setActiveDropdown(activeDropdown === 'menu' ? null : 'menu')}
             align="left"
+            compact={true}
             items={[
               { label: '— Mode —', icon: '', onClick: () => {}, disabled: true },
               { label: `${graphMode === 'markdown' ? '✓ ' : ''}Markdown`, icon: '📝', onClick: () => onGraphModeChange && onGraphModeChange('markdown'), disabled: !graphId },
@@ -388,10 +405,8 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
               ↪️
             </button>
           </div>
-        </div>
 
-        <div className="toolbar-right">
-          {/* Primary Actions */}
+          {/* Primary Actions - now inside toolbar-left for horizontal layout */}
           {onSave && (
             <button 
               className="toolbar-btn primary-btn save-btn"
@@ -401,8 +416,23 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
               }}
               disabled={disabled || !value.trim()}
               title="Save CNL changes (Ctrl+S)"
+              style={{
+                padding: '6px',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                marginRight: '4px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                background: '#fff',
+                cursor: 'pointer',
+                color: '#333'
+              }}
             >
-              💾 Save
+              💾
             </button>
           )}
           
@@ -414,8 +444,23 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
             }}
             disabled={disabled}
             title="Submit CNL to build graph (Ctrl+Enter)"
+            style={{
+              padding: '6px',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              marginRight: '4px',
+              borderRadius: '6px',
+              border: '1px solid #d1d5db',
+              background: '#fff',
+              cursor: 'pointer',
+              color: '#333'
+            }}
           >
-            🚀 Submit
+            🚀
           </button>
           
           {onClose && (
@@ -426,8 +471,23 @@ export function CnlEditor({ value, onChange, onSubmit, onSave, onAutoSave, onClo
                 onClose();
               }}
               title="Close and return to Dashboard"
+              style={{
+                padding: '6px',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                marginRight: '4px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                background: '#fff',
+                cursor: 'pointer',
+                color: '#333'
+              }}
             >
-              🏠 Close
+              🏠
             </button>
           )}
         </div>

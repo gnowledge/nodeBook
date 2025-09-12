@@ -97,10 +97,6 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
     const safeRelationTypes = relationTypes || [];
     const safeAttributeTypes = attributeTypes || [];
     
-    // Debug logging
-    console.log('Auto-completion props:', { language, nodeTypes, relationTypes, attributeTypes });
-    console.log('Safe arrays:', { safeNodeTypes, safeRelationTypes, safeAttributeTypes });
-    
     const line = context.state.doc.lineAt(context.pos);
     const lineText = line.text;
     const cursorPos = context.pos - line.from;
@@ -108,7 +104,7 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
     // Check if we're at the first column (or very beginning of line)
     const isFirstColumn = cursorPos <= 1;
     
-    // Get the word being typed
+    // Get the word being typed - only trigger on meaningful input
     let word = context.matchBefore(/\w*/);
     if (!word) return null;
     
@@ -118,15 +114,35 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
       const hasSemicolon = lineText.includes(';');
       if (hasSemicolon) return null; // Stop auto-completion for completed statements
       
+      // Detect context for context-sensitive completions
+      const docText = context.state.doc.toString();
+      const beforeCursor = docText.substring(0, context.pos);
+      const isInDescription = beforeCursor.match(/```description\s*$/) && !docText.substring(context.pos).match(/^[\s\S]*?```/);
+      const isInGraphDescription = beforeCursor.match(/```graph-description\s*$/) && !docText.substring(context.pos).match(/^[\s\S]*?```/);
+      const hasGraphDesc = docText.includes('```graph-description');
+      
       // CNL context-aware suggestions
       if (isFirstColumn) {
-        const firstColumnSuggestions = [
+        const firstColumnSuggestions = [];
+        
+        // Only show graph description if none exists
+        if (!hasGraphDesc) {
+          firstColumnSuggestions.push({ label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Add graph description block' });
+        }
+        
+        // Always show other options
+        firstColumnSuggestions.push(
           { label: '#', type: 'node', apply: '# ', info: 'Start a node heading' },
-          { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
-          { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' },
-          { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Add description block' },
-          { label: '```graph-description', type: 'block', apply: '```graph-description\n\n```', info: 'Add graph description block' }
-        ];
+          { label: '```description', type: 'block', apply: '```description\n\n```', info: 'Add description block' }
+        );
+        
+        // Only show relation and attribute if not in description blocks
+        if (!isInDescription && !isInGraphDescription) {
+          firstColumnSuggestions.push(
+            { label: '<', type: 'relation', apply: '<', info: 'Start a relation' },
+            { label: 'has', type: 'attribute', apply: 'has ', info: 'Start an attribute' }
+          );
+        }
         
         const filtered = firstColumnSuggestions.filter(suggestion => 
           suggestion.label.toLowerCase().startsWith(word.text.toLowerCase())
@@ -143,10 +159,22 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
         };
       }
       
-      // CNL completions for other contexts
-      const filtered = cnlCompletions.filter(completion => 
+      // CNL completions for other contexts - context-sensitive filtering
+      let filtered = cnlCompletions.filter(completion => 
         completion.label.toLowerCase().includes(word.text.toLowerCase())
       );
+      
+      // Filter out relation and attribute suggestions if in description blocks
+      if (isInDescription || isInGraphDescription) {
+        filtered = filtered.filter(completion => 
+          !['is a', 'located in', 'works for', 'has'].includes(completion.label)
+        );
+      }
+      
+      // Limit completions to avoid overwhelming the user
+      if (filtered.length > 5) {
+        filtered.splice(5); // Only show first 5 matches
+      }
       
       return {
         from: word.from,
@@ -201,6 +229,11 @@ export function CNLEditor({
   const viewRef = useRef<EditorView | null>(null);
   const [showMarkdownToolbar, setShowMarkdownToolbar] = useState(true);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
+  const [showSectionControls, setShowSectionControls] = useState(false);
+  const [currentSectionLevel, setCurrentSectionLevel] = useState(0);
+  const [editorContext, setEditorContext] = useState<'graph' | 'description' | 'graph-description'>('graph');
+  const [hasGraphDescription, setHasGraphDescription] = useState(false);
+  const [hasNodeDescription, setHasNodeDescription] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Graph ID tracking removed - App is single-graph only
 
@@ -219,6 +252,20 @@ export function CNLEditor({
       }
     };
   }, [value, language]);
+
+  // Click outside handler to close section controls
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSectionControls && editorRef.current && !editorRef.current.contains(event.target as Node)) {
+        setShowSectionControls(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSectionControls]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -263,13 +310,49 @@ export function CNLEditor({
         
         // Keymaps
         keymap.of([
-          indentWithTab,
+          // Tab for normal indentation
+          { key: 'Tab', run: indentWithTab },
+          
+          
+          // Enter key behavior - prevent unwanted autocompletion
+          { key: 'Enter', run: (view) => {
+            // Check if completion is active and user wants to select it
+            const completion = view.state.facet(autocompletion);
+            if (completion.length > 0) {
+              // Let the default Enter handler work for completion selection
+              return false;
+            }
+            
+            // Normal Enter behavior - just insert newline
+            const { from, to } = view.state.selection;
+            const line = view.state.doc.lineAt(from);
+            const lineText = line.text;
+            const cursorPos = from - line.from;
+            
+            // Check if we're at the end of a line
+            if (cursorPos === line.length) {
+              // Get current indentation to maintain it on new line
+              const indentMatch = lineText.match(/^(\s*)/);
+              const currentIndent = indentMatch ? indentMatch[1] : '';
+              
+              // Insert newline with same indentation
+              view.dispatch({
+                changes: { from, to, insert: '\n' + currentIndent }
+              });
+              return true;
+            }
+            
+            // Default Enter behavior
+            return false;
+          }},
+          
           // Ctrl+Space for auto-completion
           { key: 'Ctrl-Space', run: (view) => {
             // Simple approach: just show the completion dropdown
             // This will work with the existing autocompletion setup
             return false; // Let the default handler deal with it
           }},
+          
           // Markdown shortcuts
           { key: 'Ctrl-b', run: (view) => { insertMarkdown('**', '**'); return true; }},
           { key: 'Ctrl-i', run: (view) => { insertMarkdown('*', '*'); return true; }},
@@ -304,6 +387,23 @@ export function CNLEditor({
               }, 2000);
             }
           }
+          
+          // Update section level and context when cursor moves
+          if (update.selectionSet) {
+            const level = getCurrentSectionLevel();
+            setCurrentSectionLevel(level);
+            
+            const context = detectEditorContext();
+            setEditorContext(context);
+            
+            const hasGraphDesc = checkForGraphDescription();
+            setHasGraphDescription(hasGraphDesc);
+            
+            const hasNodeDesc = checkForNodeDescription();
+            setHasNodeDescription(hasNodeDesc);
+            
+            // Section controls are now always visible when currentSectionLevel > 0
+          }
         }),
         
         // Docked toolbar: no click listener needed
@@ -332,6 +432,8 @@ export function CNLEditor({
           activateOnTyping: true, // Show automatically as you type
           defaultKeymap: true, // Enable default keyboard navigation
           maxRenderedOptions: 10, // Limit dropdown size
+          closeOnBlur: true, // Close completion when editor loses focus
+          activateOnTypingDelay: 300, // Delay before showing completions when typing
             renderCompletionItem: (completion, state, view) => {
               const dom = document.createElement('li');
               dom.setAttribute('role', 'option');
@@ -358,34 +460,6 @@ export function CNLEditor({
               return dom;
             }
           }),
-          // Custom keymap for Tab selection instead of Enter
-          keymap.of([
-            { key: 'Tab', run: (view) => {
-              // Check if completion is active
-              const completion = view.state.facet(autocompletion);
-              if (completion.length > 0) {
-                // Use Tab to select completion
-                return false; // Let the default Tab handler work for completion
-              }
-              // Normal Tab indentation when no completion
-              return indentWithTab(view);
-            }},
-            // Keep Shift+Tab for outdent
-            { key: 'Shift-Tab', run: (view) => {
-              // Outdent logic
-              const { from, to } = view.state.selection;
-              const line = view.state.doc.lineAt(from);
-              const indent = line.text.match(/^\s*/)[0];
-              if (indent.length > 0) {
-                const newIndent = indent.slice(2); // Remove 2 spaces
-                view.dispatch({
-                  changes: { from: line.from, to: line.from + indent.length, insert: newIndent }
-                });
-                return true;
-              }
-              return false;
-            }}
-          ]),
         
         // Custom light theme
         EditorView.theme({
@@ -526,6 +600,169 @@ export function CNLEditor({
     }
   }, [value]);
 
+  // Context detection functions
+  const detectEditorContext = () => {
+    const view = viewRef.current;
+    if (!view) return 'graph';
+    
+    const state = view.state;
+    const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+    const line = state.doc.lineAt(fromPos);
+    const lineText = line.text;
+    const cursorPos = fromPos - line.from;
+    
+    // Check if cursor is inside a description block
+    const docText = state.doc.toString();
+    const beforeCursor = docText.substring(0, fromPos);
+    
+    // Look for description blocks
+    const descriptionMatch = beforeCursor.match(/```description\s*$/);
+    const graphDescriptionMatch = beforeCursor.match(/```graph-description\s*$/);
+    
+    if (descriptionMatch || graphDescriptionMatch) {
+      // Check if we're still inside the block (not past the closing ```)
+      const afterCursor = docText.substring(fromPos);
+      const closingMatch = afterCursor.match(/^[\s\S]*?```/);
+      
+      if (closingMatch) {
+        if (graphDescriptionMatch) {
+          return 'graph-description';
+        } else {
+          return 'description';
+        }
+      }
+    }
+    
+    return 'graph';
+  };
+
+  const checkForGraphDescription = () => {
+    const view = viewRef.current;
+    if (!view) return false;
+    
+    const docText = view.state.doc.toString();
+    return docText.includes('```graph-description');
+  };
+
+  const checkForNodeDescription = () => {
+    const view = viewRef.current;
+    if (!view) return false;
+    
+    const docText = view.state.doc.toString();
+    return docText.includes('```description');
+  };
+
+  const isBlankLine = () => {
+    const view = viewRef.current;
+    if (!view) return false;
+    
+    const state = view.state;
+    const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+    const line = state.doc.lineAt(fromPos);
+    const lineText = line.text;
+    
+    return lineText.trim() === '';
+  };
+
+  const isSectionLine = () => {
+    const view = viewRef.current;
+    if (!view) return false;
+    
+    const state = view.state;
+    const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+    const line = state.doc.lineAt(fromPos);
+    const lineText = line.text;
+    
+    return /^#+\s/.test(lineText);
+  };
+
+  // Section level detection and control functions
+  const getCurrentSectionLevel = () => {
+    const view = viewRef.current;
+    if (!view) return 0;
+    
+    const state = view.state;
+    const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+    const line = state.doc.lineAt(fromPos);
+    const lineText = line.text;
+    
+    // Check if cursor is on a line with section markup
+    const sectionMatch = lineText.match(/^(#+)/);
+    const level = sectionMatch ? sectionMatch[1].length : 0;
+    
+    // Update state if it changed
+    if (level !== currentSectionLevel) {
+      setCurrentSectionLevel(level);
+    }
+    
+    return level;
+  };
+
+  const insertSectionLevel = (level: number) => {
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    
+    try {
+      const state = view.state;
+      const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const line = state.doc.lineAt(fromPos);
+      const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
+      const lineText = line.text;
+      
+      // Get current section level
+      const sectionMatch = lineText.match(/^(#+)/);
+      const currentLevel = sectionMatch ? sectionMatch[1].length : 0;
+      
+      // Calculate new section level
+      const newLevel = Math.max(0, Math.min(level, 8)); // Max 8 levels
+      
+      // Simple approach: go to beginning of line and modify the # characters
+      if (sectionMatch) {
+        // Replace existing section markup
+        const newSectionMarkup = newLevel > 0 ? '#'.repeat(newLevel) + ' ' : '';
+        view.dispatch({
+          changes: { 
+            from: lineStart, 
+            to: lineStart + sectionMatch[1].length, 
+            insert: newSectionMarkup 
+          }
+        });
+      } else {
+        // Insert new section markup at beginning of line
+        const newSectionMarkup = newLevel > 0 ? '#'.repeat(newLevel) + ' ' : '';
+        view.dispatch({
+          changes: { 
+            from: lineStart, 
+            to: lineStart, 
+            insert: newSectionMarkup 
+          }
+        });
+      }
+      
+      // Update the current section level state immediately
+      setCurrentSectionLevel(newLevel);
+      
+      // Section controls are now always visible when currentSectionLevel > 0
+    } catch (err) {
+      console.error('Failed to insert section level', err);
+    }
+  };
+
+  const handleSectionButtonClick = () => {
+    // Only allow section buttons on blank lines or existing section lines
+    if (!isBlankLine() && !isSectionLine()) {
+      return;
+    }
+    
+    const currentLevel = getCurrentSectionLevel();
+    
+    if (currentLevel === 0) {
+      // No section markup - insert single #
+      insertSectionLevel(1);
+    }
+    // No need to toggle controls anymore - buttons are always visible when currentSectionLevel > 0
+  };
+
   // Markdown formatting functions
   const insertMarkdown = (before: string, after: string = '') => {
     const view = viewRef.current;
@@ -548,6 +785,52 @@ export function CNLEditor({
     }
   };
 
+  const insertRelation = () => {
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    try {
+      view.focus();
+      const state = view.state;
+      const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const line = state.doc.lineAt(fromPos);
+      const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
+      
+      const insertText = '<rel name> target;\n';
+      const cursorPos = lineStart + 1; // Position after "<"
+      const selectionFrom = lineStart + 1; // Start of "rel name"
+      const selectionTo = lineStart + 9; // End of "rel name" (8 characters: "rel name")
+      
+      view.dispatch({
+        changes: { from: lineStart, to: lineStart, insert: insertText },
+        selection: EditorSelection.single(selectionFrom, selectionTo)
+      });
+    } catch (err) {
+      console.error('Failed to insert relation', err);
+    }
+  };
+
+  const insertAttribute = () => {
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    try {
+      view.focus();
+      const state = view.state;
+      const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const line = state.doc.lineAt(fromPos);
+      const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
+      
+      const insertText = 'has attribute: value;\n';
+      const cursorPos = lineStart + 13; // Position before ":"
+      
+      view.dispatch({
+        changes: { from: lineStart, to: lineStart, insert: insertText },
+        selection: EditorSelection.single(cursorPos, cursorPos)
+      });
+    } catch (err) {
+      console.error('Failed to insert attribute', err);
+    }
+  };
+
   const insertMarkdownBlock = (blockType: string) => {
     const view = viewRef.current;
     if (!view || readOnly) return;
@@ -558,42 +841,79 @@ export function CNLEditor({
       const line = state.doc.lineAt(fromPos);
       const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
       let insertText = '';
+      let cursorPos = 0;
+      let selectionRange = null;
+      
       switch (blockType) {
+        case 'description':
+          insertText = '```description\n\n```';
+          cursorPos = lineStart + 15; // Position at beginning of blank line (after "```description\n")
+          break;
+        case 'graph-description':
+          insertText = '```graph-description\n\n```';
+          cursorPos = lineStart + 20; // Position at beginning of blank line (after "```graph-description\n")
+          break;
         case 'heading':
           insertText = '## Section Heading';
+          cursorPos = lineStart + insertText.length;
           break;
         case 'bold':
           insertText = '**bold text**';
+          cursorPos = lineStart + 2; // Position after "**"
+          selectionRange = { from: cursorPos, to: cursorPos + 9 }; // Select "bold text"
           break;
         case 'italic':
           insertText = '*italic text*';
+          cursorPos = lineStart + 1; // Position after "*"
+          selectionRange = { from: cursorPos, to: cursorPos + 10 }; // Select "italic text"
           break;
         case 'code':
           insertText = '`code`';
+          cursorPos = lineStart + 1; // Position after "`"
+          selectionRange = { from: cursorPos, to: cursorPos + 4 }; // Select "code"
           break;
         case 'link':
           insertText = '[link text](url)';
+          cursorPos = lineStart + 1; // Position after "["
+          selectionRange = { from: cursorPos, to: cursorPos + 9 }; // Select "link text"
           break;
         case 'list':
           insertText = '- list item';
+          cursorPos = lineStart + insertText.length;
           break;
         case 'numbered':
           insertText = '1. numbered item';
+          cursorPos = lineStart + insertText.length;
           break;
         case 'quote':
           insertText = '> quoted text';
+          cursorPos = lineStart + insertText.length;
           break;
         case 'codeblock':
           insertText = '```\ncode block\n```';
+          cursorPos = lineStart + 4; // Position after "```\n"
+          selectionRange = { from: cursorPos, to: cursorPos + 10 }; // Select "code block"
           break;
       }
+      
       const insertWithNewline = insertText + '\n';
-      const sel = lineStart + insertText.length;
-      const safeSel = Math.max(0, Math.min(sel, view.state.doc.length));
-      view.dispatch({
-        changes: { from: lineStart, to: lineStart, insert: insertWithNewline },
-        selection: EditorSelection.single(safeSel, safeSel)
-      });
+      const safeCursorPos = Math.max(0, Math.min(cursorPos, view.state.doc.length));
+      
+      if (selectionRange) {
+        // Insert with text selection
+        const safeSelectionFrom = Math.max(0, Math.min(selectionRange.from, view.state.doc.length));
+        const safeSelectionTo = Math.max(0, Math.min(selectionRange.to, view.state.doc.length));
+        view.dispatch({
+          changes: { from: lineStart, to: lineStart, insert: insertWithNewline },
+          selection: EditorSelection.single(safeSelectionFrom, safeSelectionTo)
+        });
+      } else {
+        // Insert with cursor positioning
+        view.dispatch({
+          changes: { from: lineStart, to: lineStart, insert: insertWithNewline },
+          selection: EditorSelection.single(safeCursorPos, safeCursorPos)
+        });
+      }
     } catch (err) {
       console.error('Failed to apply markdown block insertion', err);
     }
@@ -601,10 +921,10 @@ export function CNLEditor({
 
   return (
     <div className="cnl-editor-wrapper" style={{ position: 'relative', height: '100%' }}>
-      {/* Markdown Toolbar */}
+      {/* Context-Sensitive Toolbar */}
       {showMarkdownToolbar && (
         <div 
-          className="markdown-toolbar"
+          className="context-toolbar"
           style={{
             position: 'sticky',
             top: 0,
@@ -619,78 +939,330 @@ export function CNLEditor({
             borderTopRightRadius: '8px'
           }}
         >
-          {/* Text Formatting */}
-          <button
-            onClick={() => insertMarkdown('**', '**')}
-            title="Bold (Ctrl+B)"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            onClick={() => insertMarkdown('*', '*')}
-            title="Italic (Ctrl+I)"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            <em>I</em>
-          </button>
-          <button
-            onClick={() => insertMarkdown('`', '`')}
-            title="Inline Code"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            <code>code</code>
-          </button>
+          {/* CNL Toolbar - shown when building graph */}
+          {editorContext === 'graph' && (
+            <>
+              {/* Graph Description Button */}
+              {!hasGraphDescription && (
+                <button
+                  onClick={() => insertMarkdownBlock('graph-description')}
+                  title="Add Graph Description"
+                  style={{ 
+                    padding: '6px', 
+                    border: '1px solid #d1d5db', 
+                    borderRadius: '4px', 
+                    background: '#fff', 
+                    cursor: 'pointer', 
+                    color: '#333',
+                    fontSize: '16px',
+                    minWidth: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '4px'
+                  }}
+                >
+                  📊
+                </button>
+              )}
+              
+              {/* Section Heading - Context Aware */}
+              <button
+                onClick={handleSectionButtonClick}
+                title={`Section Heading${currentSectionLevel > 0 ? ` (Level ${currentSectionLevel})` : ''}`}
+                disabled={!isBlankLine() && !isSectionLine()}
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: (!isBlankLine() && !isSectionLine()) ? '#f3f4f6' : '#fff', 
+                  cursor: (!isBlankLine() && !isSectionLine()) ? 'not-allowed' : 'pointer', 
+                  color: (!isBlankLine() && !isSectionLine()) ? '#9ca3af' : '#333',
+                  opacity: (!isBlankLine() && !isSectionLine()) ? 0.5 : 1,
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px'
+                }}
+              >
+                #
+              </button>
+              
+              {/* Simple Section Level Controls */}
+              {currentSectionLevel > 0 && (
+                <>
+                  <button
+                    onClick={() => insertSectionLevel(currentSectionLevel - 1)}
+                    title="Decrease section level"
+                    style={{
+                      padding: '6px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      background: '#fff',
+                      cursor: 'pointer',
+                      color: '#333',
+                      fontSize: '16px',
+                      minWidth: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '4px'
+                    }}
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => insertSectionLevel(currentSectionLevel + 1)}
+                    title="Increase section level"
+                    style={{
+                      padding: '6px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      background: '#fff',
+                      cursor: 'pointer',
+                      color: '#333',
+                      fontSize: '16px',
+                      minWidth: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '4px'
+                    }}
+                  >
+                    →
+                  </button>
+                </>
+              )}
+              
+              {/* Node Description Button */}
+              <button
+                onClick={() => insertMarkdownBlock('description')}
+                title="Add Node Description"
+                disabled={hasNodeDescription}
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: hasNodeDescription ? '#f3f4f6' : '#fff', 
+                  cursor: hasNodeDescription ? 'not-allowed' : 'pointer', 
+                  color: hasNodeDescription ? '#9ca3af' : '#333',
+                  opacity: hasNodeDescription ? 0.6 : 1,
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px'
+                }}
+              >
+                📝
+              </button>
+              
+              {/* Relation Button */}
+              <button
+                onClick={() => insertRelation()}
+                title="Add Relation"
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: '#fff', 
+                  cursor: 'pointer', 
+                  color: '#333',
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px'
+                }}
+              >
+                ↔️
+              </button>
+              
+              {/* Attribute Button */}
+              <button
+                onClick={() => insertAttribute()}
+                title="Add Attribute"
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: '#fff', 
+                  cursor: 'pointer', 
+                  color: '#333',
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px'
+                }}
+              >
+                🏷️
+              </button>
+            </>
+          )}
           
-          {/* Section Heading */}
-          <button
-            onClick={() => insertMarkdownBlock('heading')}
-            title="Section Heading"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            # Heading
-          </button>
+          {/* Markdown Toolbar - shown when inside description blocks */}
+          {editorContext === 'description' && (
+            <>
+              {/* Text Formatting */}
+              <button
+                onClick={() => insertMarkdown('**', '**')}
+                title="Bold (Ctrl+B)"
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: '#fff', 
+                  cursor: 'pointer', 
+                  color: '#333',
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  marginRight: '4px'
+                }}
+              >
+                B
+              </button>
+              <button
+                onClick={() => insertMarkdown('*', '*')}
+                title="Italic (Ctrl+I)"
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: '#fff', 
+                  cursor: 'pointer', 
+                  color: '#333',
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontStyle: 'italic',
+                  marginRight: '4px'
+                }}
+              >
+                I
+              </button>
+              <button
+                onClick={() => insertMarkdown('`', '`')}
+                title="Inline Code"
+                style={{ 
+                  padding: '6px', 
+                  border: '1px solid #d1d5db', 
+                  borderRadius: '4px', 
+                  background: '#fff', 
+                  cursor: 'pointer', 
+                  color: '#333',
+                  fontSize: '16px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'monospace',
+                  marginRight: '4px'
+                }}
+              >
+                &lt;/&gt;
+              </button>
+              
+              {/* Lists */}
+              <button
+                onClick={() => insertMarkdownBlock('list')}
+                title="Unordered List"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                • List
+              </button>
+              <button
+                onClick={() => insertMarkdownBlock('numbered')}
+                title="Ordered List"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                1. List
+              </button>
+              
+              {/* Links */}
+              <button
+                onClick={() => insertMarkdownBlock('link')}
+                title="Link"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                🔗
+              </button>
+            </>
+          )}
           
-          {/* Block Elements */}
-          <button
-            onClick={() => insertMarkdownBlock('list')}
-            title="Unordered List"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            • List
-          </button>
-          <button
-            onClick={() => insertMarkdownBlock('numbered')}
-            title="Ordered List"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            1. List
-          </button>
-          <button
-            onClick={() => insertMarkdownBlock('quote')}
-            title="Blockquote"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            Quote
-          </button>
-          <button
-            onClick={() => insertMarkdownBlock('codeblock')}
-            title="Code Block"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            Code
-          </button>
-          
-          {/* Links and Media */}
-          <button
-            onClick={() => insertMarkdownBlock('link')}
-            title="Link"
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
-          >
-            🔗
-          </button>
-          
-          {/* Docked toolbar stays visible; no close button */}
+          {/* Graph Description Toolbar - shown when inside graph description block */}
+          {editorContext === 'graph-description' && (
+            <>
+              {/* Text Formatting */}
+              <button
+                onClick={() => insertMarkdown('**', '**')}
+                title="Bold (Ctrl+B)"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                onClick={() => insertMarkdown('*', '*')}
+                title="Italic (Ctrl+I)"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                <em>I</em>
+              </button>
+              <button
+                onClick={() => insertMarkdown('`', '`')}
+                title="Inline Code"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                <code>code</code>
+              </button>
+              
+              {/* Lists */}
+              <button
+                onClick={() => insertMarkdownBlock('list')}
+                title="Unordered List"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                • List
+              </button>
+              <button
+                onClick={() => insertMarkdownBlock('numbered')}
+                title="Ordered List"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                1. List
+              </button>
+              
+              {/* Links */}
+              <button
+                onClick={() => insertMarkdownBlock('link')}
+                title="Link"
+                style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#333' }}
+              >
+                🔗
+              </button>
+            </>
+          )}
         </div>
       )}
       

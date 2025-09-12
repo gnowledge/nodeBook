@@ -95,6 +95,11 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
     const beforeCursor = lineText.slice(0, pos - line.from);
+    const cursorPos = pos - line.from;
+    
+    // Get the word being typed - only trigger on meaningful input
+    let word = context.matchBefore(/\w+/);
+    if (!word || word.text.length < 2) return null; // Require at least 2 characters
     
     // Get completions based on language
     let completions = language === 'cnl' ? cnlCompletions : markdownCompletions;
@@ -136,6 +141,38 @@ function createCompletion(language: string, nodeTypes: any[] | null = [], relati
           )
         };
       }
+    }
+    
+    // Language-specific logic
+    if (language === 'cnl') {
+      // CNL-specific logic
+      const hasSemicolon = lineText.includes(';');
+      if (hasSemicolon) return null; // Stop auto-completion for completed statements
+      
+      // Don't trigger completion if user is just typing at end of line
+      if (cursorPos === line.length && lineText.trim() !== '') {
+        return null;
+      }
+      
+      // CNL completions for other contexts - only show if user is actively typing a word
+      const filtered = cnlCompletions.filter(completion => 
+        completion.label.toLowerCase().includes(word.text.toLowerCase()) &&
+        word.text.length >= 2 // Only show if user has typed at least 2 characters
+      );
+      
+      // Limit completions to avoid overwhelming the user
+      if (filtered.length > 5) {
+        filtered.splice(5); // Only show first 5 matches
+      }
+      
+      return {
+        from: word.from,
+        options: filtered.map(completion => ({
+          label: completion.label,
+          type: completion.type,
+          apply: completion.apply
+        }))
+      };
     }
     
     // Context-specific suggestions based on what user is typing
@@ -221,6 +258,8 @@ export function CollaborativeCNLEditor({
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<Array<{ name: string; color: string }>>([]);
   const [localValue, setLocalValue] = useState(value);
+  const [showSectionControls, setShowSectionControls] = useState(false);
+  const [currentSectionLevel, setCurrentSectionLevel] = useState(0);
   const isApplyingRemoteRef = useRef(false);
 
   // Initialize Y.js document and WebRTC provider
@@ -342,11 +381,63 @@ export function CollaborativeCNLEditor({
       languageSupport,
       autocompletion({ 
         override: [createCompletion(language, nodeTypes, relationTypes, attributeTypes)],
-        activateOnTyping: true,
+        activateOnTyping: true, // Show automatically as you type
         defaultKeymap: true,
-        maxRenderedOptions: 10
+        maxRenderedOptions: 10,
+        closeOnBlur: true, // Close completion when editor loses focus
+        activateOnTypingDelay: 300, // Delay before showing completions when typing
       }),
-      keymap.of([indentWithTab]),
+      keymap.of([
+        // Tab for normal indentation
+        { key: 'Tab', run: indentWithTab },
+        
+        
+        // Enter key behavior - prevent unwanted autocompletion
+        { key: 'Enter', run: (view) => {
+          // Check if completion is active and user wants to select it
+          const completion = view.state.facet(autocompletion);
+          if (completion.length > 0) {
+            // Let the default Enter handler work for completion selection
+            return false;
+          }
+          
+          // Normal Enter behavior - just insert newline
+          const { from, to } = view.state.selection;
+          const line = view.state.doc.lineAt(from);
+          const lineText = line.text;
+          const cursorPos = from - line.from;
+          
+          // Check if we're at the end of a line
+          if (cursorPos === line.length) {
+            // Get current indentation to maintain it on new line
+            const indentMatch = lineText.match(/^(\s*)/);
+            const currentIndent = indentMatch ? indentMatch[1] : '';
+            
+            // Insert newline with same indentation
+            view.dispatch({
+              changes: { from, to, insert: '\n' + currentIndent }
+            });
+            return true;
+          }
+          
+          // Default Enter behavior
+          return false;
+        }},
+        
+        // Ctrl+Space for auto-completion
+        { key: 'Ctrl-Space', run: (view) => {
+          return false; // Let the default handler deal with it
+        }}
+      ]),
+      
+      // Update listener for section level tracking
+      EditorView.updateListener.of((update) => {
+        // Update section level when cursor moves
+        if (update.selectionSet) {
+          const level = getCurrentSectionLevel();
+          setCurrentSectionLevel(level);
+        }
+      }),
       EditorView.theme({
         '&': {
           fontSize: '14px',
@@ -406,8 +497,210 @@ export function CollaborativeCNLEditor({
     }
   }, [value, localValue]);
 
+  // Section level detection and control functions
+  const getCurrentSectionLevel = () => {
+    const view = viewRef.current;
+    if (!view) return 0;
+    
+    const state = view.state;
+    const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+    const line = state.doc.lineAt(fromPos);
+    const lineText = line.text;
+    
+    // Check if cursor is on a line with section markup
+    const sectionMatch = lineText.match(/^(#+)/);
+    const level = sectionMatch ? sectionMatch[1].length : 0;
+    
+    // Update state if it changed
+    if (level !== currentSectionLevel) {
+      setCurrentSectionLevel(level);
+    }
+    
+    return level;
+  };
+
+  const insertSectionLevel = (level: number) => {
+    const view = viewRef.current;
+    if (!view || readOnly) return;
+    
+    try {
+      view.focus();
+      const state = view.state;
+      const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+      const line = state.doc.lineAt(fromPos);
+      const lineStart = Math.max(0, Math.min(line.from, state.doc.length));
+      const lineText = line.text;
+      
+      // Get current section level
+      const sectionMatch = lineText.match(/^(#+)/);
+      const currentLevel = sectionMatch ? sectionMatch[1].length : 0;
+      
+      // Calculate new section level
+      const newLevel = Math.max(0, Math.min(level, 8)); // Max 8 levels
+      const sectionMarkup = newLevel > 0 ? '#'.repeat(newLevel) + ' ' : '';
+      
+      // Replace existing section markup or insert new
+      if (sectionMatch) {
+        // Replace existing section markup
+        view.dispatch({
+          changes: { 
+            from: lineStart, 
+            to: lineStart + sectionMatch[1].length, 
+            insert: sectionMarkup 
+          }
+        });
+      } else {
+        // Insert new section markup at beginning of line
+        view.dispatch({
+          changes: { 
+            from: lineStart, 
+            to: lineStart, 
+            insert: sectionMarkup 
+          }
+        });
+      }
+      
+      // Hide section controls after action
+      setShowSectionControls(false);
+    } catch (err) {
+      console.error('Failed to insert section level', err);
+    }
+  };
+
+  const handleSectionButtonClick = () => {
+    const currentLevel = getCurrentSectionLevel();
+    
+    if (currentLevel === 0) {
+      // No section markup - insert single #
+      insertSectionLevel(1);
+    } else {
+      // Has section markup - show controls
+      setShowSectionControls(!showSectionControls);
+    }
+  };
+
+  // Click outside handler to close section controls
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSectionControls && editorRef.current && !editorRef.current.contains(event.target as Node)) {
+        setShowSectionControls(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSectionControls]);
+
   return (
     <div className={`collaborative-cnl-editor ${className}`}>
+      {/* Section Control Toolbar */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e5e7eb',
+        padding: '6px 8px',
+        display: 'flex',
+        gap: '6px',
+        alignItems: 'center',
+        borderTopLeftRadius: '8px',
+        borderTopRightRadius: '8px'
+      }}>
+        {/* Section Heading - Context Aware */}
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            onClick={handleSectionButtonClick}
+            title="Section Heading (Click for level controls)"
+            style={{ 
+              padding: '4px 8px', 
+              border: '1px solid #d1d5db', 
+              borderRadius: '4px', 
+              background: showSectionControls ? '#3b82f6' : '#fff', 
+              cursor: 'pointer', 
+              color: showSectionControls ? '#fff' : '#333' 
+            }}
+            >
+              # Heading {currentSectionLevel > 0 && `(${currentSectionLevel})`}
+            </button>
+          
+          {/* Section Level Controls Dropdown */}
+          {showSectionControls && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: '0',
+              zIndex: 1000,
+              backgroundColor: '#fff',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              padding: '4px',
+              display: 'flex',
+              gap: '4px',
+              marginTop: '2px'
+            }}>
+              <button
+                onClick={() => insertSectionLevel(currentSectionLevel - 1)}
+                title="Decrease section level"
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: '#333',
+                  fontSize: '12px'
+                }}
+              >
+                -
+              </button>
+              <span style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                color: '#666',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                Level {currentSectionLevel}
+              </span>
+              <button
+                onClick={() => insertSectionLevel(currentSectionLevel + 1)}
+                title="Increase section level"
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: '#333',
+                  fontSize: '12px'
+                }}
+              >
+                +
+              </button>
+              <button
+                onClick={() => insertSectionLevel(0)}
+                title="Remove section markup"
+                style={{
+                  padding: '4px 8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                  fontSize: '12px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Collaboration Status Bar */}
       <div className="collaboration-status" style={{
         padding: '8px 12px',

@@ -667,16 +667,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               }
                             }}
                           />
-                          
-                          {/* Score widget at bottom of Editor */}
-                          {activeGraphId && graphScore && (
-                            <div className={styles.editorScoreWidget}>
-                              <CompactScoreDisplay 
-                                score={graphScore}
-                                isVisible={true}
-                              />
-                            </div>
-                          )}
                         </div>
                         )}
                       </div>
