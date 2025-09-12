@@ -480,6 +480,24 @@ export function CollaborativeCNLEditor({
 
     viewRef.current = view;
 
+    // Set up text insertion function if onInsertText prop is provided
+    if (onInsertText) {
+      console.log('CollaborativeCNLEditor: Setting up text insertion function after view creation');
+      const insertText = (text: string) => {
+        console.log('CollaborativeCNLEditor: insertText called with:', text);
+        const state = view.state;
+        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+        
+        view.dispatch({
+          changes: { from: fromPos, to: fromPos, insert: text },
+          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
+        });
+      };
+      
+      // Call the onInsertText function with our insert function
+      onInsertText(insertText);
+    }
+
     // Cleanup function
     return () => {
       if (view) {
@@ -595,31 +613,6 @@ export function CollaborativeCNLEditor({
     };
   }, [showSectionControls]);
 
-  // Handle external text insertion
-  useEffect(() => {
-    console.log('CollaborativeCNLEditor: useEffect running, onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
-    if (onInsertText && viewRef.current) {
-      console.log('CollaborativeCNLEditor: Setting up text insertion function');
-      const insertText = (text: string) => {
-        console.log('CollaborativeCNLEditor: insertText called with:', text);
-        const view = viewRef.current;
-        if (!view) return;
-        
-        const state = view.state;
-        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
-        
-        view.dispatch({
-          changes: { from: fromPos, to: fromPos, insert: text },
-          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
-        });
-      };
-      
-      // Call the onInsertText function with our insert function
-      onInsertText(insertText);
-    } else {
-      console.log('CollaborativeCNLEditor: Not setting up text insertion - onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
-    }
-  }, [onInsertText]);
 
   return (
     <div className={`collaborative-cnl-editor ${className}`}>

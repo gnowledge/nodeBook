@@ -537,6 +537,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
 
   const handleInsertTextFunction = useCallback((insertFunction: (text: string) => void) => {
     console.log('handleInsertTextFunction called, setting insertTextFunction');
+    console.log('insertFunction:', insertFunction);
     setInsertTextFunction(() => insertFunction);
   }, []);
 

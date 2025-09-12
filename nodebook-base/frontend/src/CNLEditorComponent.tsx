@@ -269,31 +269,6 @@ export function CNLEditor({
     };
   }, [showSectionControls]);
 
-  // Handle external text insertion
-  useEffect(() => {
-    console.log('CNLEditorComponent: useEffect running, onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
-    if (onInsertText && viewRef.current) {
-      console.log('CNLEditorComponent: Setting up text insertion function');
-      const insertText = (text: string) => {
-        console.log('CNLEditorComponent: insertText called with:', text);
-        const view = viewRef.current;
-        if (!view) return;
-        
-        const state = view.state;
-        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
-        
-        view.dispatch({
-          changes: { from: fromPos, to: fromPos, insert: text },
-          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
-        });
-      };
-      
-      // Call the onInsertText function with our insert function
-      onInsertText(insertText);
-    } else {
-      console.log('CNLEditorComponent: Not setting up text insertion - onInsertText:', !!onInsertText, 'viewRef.current:', !!viewRef.current);
-    }
-  }, [onInsertText]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -588,6 +563,24 @@ export function CNLEditor({
 
     viewRef.current = view;
     console.log('[CNLEditor] Editor view created and attached to DOM');
+
+    // Set up text insertion function if onInsertText prop is provided
+    if (onInsertText) {
+      console.log('CNLEditorComponent: Setting up text insertion function after view creation');
+      const insertText = (text: string) => {
+        console.log('CNLEditorComponent: insertText called with:', text);
+        const state = view.state;
+        const fromPos = Math.max(0, Math.min(state.selection.main.from, state.doc.length));
+        
+        view.dispatch({
+          changes: { from: fromPos, to: fromPos, insert: text },
+          selection: EditorSelection.single(fromPos + text.length, fromPos + text.length)
+        });
+      };
+      
+      // Call the onInsertText function with our insert function
+      onInsertText(insertText);
+    }
 
     return () => {
       console.log('[CNLEditor] Cleaning up editor view');
