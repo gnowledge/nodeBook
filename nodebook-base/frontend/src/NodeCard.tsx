@@ -31,6 +31,9 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
   const [nlpAnalysis, setNlpAnalysis] = useState(null);
   const [isNLPLoading, setIsNLPLoading] = useState(false);
   
+  // Morph change state
+  const [isChangingMorph, setIsChangingMorph] = useState(false);
+  
   // Helper function for authenticated API calls
   const authenticatedFetch = (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
@@ -147,6 +150,32 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     }
   };
 
+  const handleMorphChange = async (morphId: string) => {
+    if (!graphId || isChangingMorph) return;
+
+    setIsChangingMorph(true);
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/nodes/${node.id}/morph`, {
+        method: 'POST',
+        body: JSON.stringify({ morphId })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`Changed to morph: ${result.morphName}`);
+        // Refresh the page to show the updated morph
+        window.location.reload();
+      } else {
+        throw new Error('Failed to change morph');
+      }
+    } catch (error) {
+      console.error('Error changing morph:', error);
+      alert('Failed to change morph. See console for details.');
+    } finally {
+      setIsChangingMorph(false);
+    }
+  };
+
   const renderMorphSection = (morph: Morph) => {
     const morphRelations = allRelations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
     const morphAttributes = attributes.filter(a => a.source_id === node.id && a.morph_ids.includes(morph.morph_id));
@@ -247,6 +276,26 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
               </button>
             </>
           )}
+        </div>
+      )}
+      
+      {/* Morph Selector */}
+      {node.morphs && node.morphs.length > 1 && !isPublic && (
+        <div className="morph-selector">
+          <label htmlFor="morph-select">Current State:</label>
+          <select 
+            id="morph-select"
+            value={node.nbh || node.morphs[0]?.morph_id}
+            onChange={(e) => handleMorphChange(e.target.value)}
+            disabled={isChangingMorph}
+          >
+            {node.morphs.map(morph => (
+              <option key={morph.morph_id} value={morph.morph_id}>
+                {morph.name}
+              </option>
+            ))}
+          </select>
+          {isChangingMorph && <span className="morph-changing">Changing...</span>}
         </div>
       )}
       

@@ -37,8 +37,34 @@ function getOperationsFromCnl(cnlText, mode = 'richgraph') {
         const { id: nodeId, payload: nodePayload } = processNodeHeading(nodeBlock.heading);
         operations.push({ type: 'addNode', payload: nodePayload, id: nodeId });
 
+        // Process main node content
         const neighborhoodOps = processNeighborhood(nodeId, nodeBlock.content);
         operations.push(...neighborhoodOps);
+        
+        // Process morphs
+        for (const morph of nodeBlock.morphs || []) {
+            const morphId = `${nodeId}_morph_${morph.name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+            
+            // Add morph operation
+            operations.push({
+                type: 'addMorph',
+                payload: {
+                    nodeId: nodeId,
+                    morph: {
+                        morph_id: morphId,
+                        node_id: nodeId,
+                        name: morph.name,
+                        relationNode_ids: [],
+                        attributeNode_ids: []
+                    }
+                },
+                id: `${nodeId}_morph_${morph.name}`
+            });
+            
+            // Process morph content
+            const morphOps = processMorphNeighborhood(nodeId, morphId, morph.content);
+            operations.push(...morphOps);
+        }
     }
     
     console.log(`[CNL Debug] Generated operations:`, operations.map(op => ({ type: op.type, id: op.id })));
@@ -281,12 +307,28 @@ function buildStructuralTree(cnlText) {
 
     for (const line of lines) {
         if (!line.trim()) continue;
-        const headingMatch = line.match(HEADING_REGEX) || line.match(SIMPLE_HEADING_REGEX);
-        if (headingMatch) {
-            currentNodeBlock = { heading: line.trim(), content: [] };
+        
+        // Check if this is a main heading (#) or a morph heading (##)
+        const mainHeadingMatch = line.match(/^\s*(#)\s+(.+)$/);
+        const morphHeadingMatch = line.match(/^\s*(##)\s+(.+)$/);
+        
+        if (mainHeadingMatch) {
+            // This is a main node heading
+            currentNodeBlock = { heading: line.trim(), content: [], morphs: [] };
             tree.push(currentNodeBlock);
+        } else if (morphHeadingMatch && currentNodeBlock) {
+            // This is a morph definition - add it to the current node block
+            const morphName = morphHeadingMatch[2].trim();
+            currentNodeBlock.morphs.push({ name: morphName, content: [] });
         } else if (currentNodeBlock) {
-            currentNodeBlock.content.push(line);
+            // This is content - add it to the current context
+            if (currentNodeBlock.morphs.length > 0) {
+                // Add to the last morph
+                currentNodeBlock.morphs[currentNodeBlock.morphs.length - 1].content.push(line);
+            } else {
+                // Add to the main node content
+                currentNodeBlock.content.push(line);
+            }
         }
     }
     return tree;
@@ -365,8 +407,6 @@ function processNodeHeading(heading) {
 function processNeighborhood(nodeId, lines) {
     const neighborhoodOps = [];
     let content = lines.join('\n');
-    
-
     
     const descriptionMatch = content.match(DESCRIPTION_REGEX);
     if (descriptionMatch) {
@@ -492,14 +532,17 @@ function processNeighborhood(nodeId, lines) {
                 id: targetId 
             });
             
+            // Build relation payload
+            const relationPayload = { 
+                source: nodeId, 
+                target: targetId, 
+                name: relationName.trim() 
+            };
+            
             // Create relation to the target node
             neighborhoodOps.push({ 
                 type: 'addRelation', 
-                payload: { 
-                    source: nodeId, 
-                    target: targetId, 
-                    name: relationName.trim() 
-                }, 
+                payload: relationPayload, 
                 id 
             });
         }
@@ -508,6 +551,152 @@ function processNeighborhood(nodeId, lines) {
     return neighborhoodOps;
 }
 
+function processMorphNeighborhood(nodeId, morphId, lines) {
+    const neighborhoodOps = [];
+    let content = lines.join('\n');
+    
+    const descriptionMatch = content.match(DESCRIPTION_REGEX);
+    if (descriptionMatch) {
+        const description = descriptionMatch[1].trim();
+        const id = `attr_${nodeId}_description_${crypto.createHash('sha1').update(description).digest('hex').slice(0, 6)}`;
+        neighborhoodOps.push({ type: 'updateNode', payload: { id: nodeId, fields: { description } }, id: `${nodeId}_description` });
+        content = content.replace(DESCRIPTION_REGEX, '').trim();
+    }
 
+    // Process attributes with priority on unit extraction
+    const attributeLines = content.split('\n').filter(line => line.trim().startsWith('has '));
+    
+    for (const line of attributeLines) {
+        // Simple regex to extract basic parts
+        const basicMatch = line.match(/^\s*has\s+([^:]+):\s*([^;]+);?/);
+        if (!basicMatch) continue;
+        
+        const [, name, fullValue] = basicMatch;
+        let value = fullValue.trim();
+        let unit = null;
+        let adverb = null;
+        let modality = null;
+        let quantifier = null;
+        
+        // Priority 1: Extract units (*unit*)
+        const unitMatch = value.match(/\*([^*]+)\*/);
+        if (unitMatch) {
+            unit = unitMatch[1].trim();
+            value = value.replace(/\*[^*]+\*/, '').trim();
+        }
+        
+        // Priority 2: Extract quantifiers (*quantifier*)
+        const quantifierMatch = value.match(/\*([^*]+)\*/);
+        if (quantifierMatch) {
+            quantifier = quantifierMatch[1].trim();
+            value = value.replace(/\*[^*]+\*/, '').trim();
+        }
+        
+        // Priority 3: Extract adverbs (++adverb++)
+        const adverbMatch = value.match(/\+\+([^+]+)\+\+/);
+        if (adverbMatch) {
+            adverb = adverbMatch[1].trim();
+            value = value.replace(/\+\+[^+]+\+\+/, '').trim();
+        }
+        
+        // Priority 4: Extract modalities [modality]
+        const modalityMatch = value.match(/\[([^\]]+)\]/);
+        if (modalityMatch) {
+            modality = modalityMatch[1].trim();
+            value = value.replace(/\[[^\]]+\]/, '').trim();
+        }
+        
+        // Clean up the final value
+        value = value.trim();
+        
+        console.log(`[Morph Attribute Debug] Parsed:`, { name, value, unit, quantifier, adverb, modality });
+        
+        const valueHash = crypto.createHash('sha1').update(String(value)).digest('hex').slice(0, 6);
+        const id = `attr_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}_${valueHash}`;
+        
+        // Build enhanced attribute payload with modifiers
+        const attributePayload = { 
+            source: nodeId, 
+            name: name.trim(), 
+            value: value,
+            morphId: morphId
+        };
+        
+        // Add modifiers in priority order
+        if (unit) attributePayload.unit = unit;
+        if (quantifier) attributePayload.quantifier = quantifier;
+        if (adverb) attributePayload.adverb = adverb;
+        if (modality) attributePayload.modality = modality;
+        
+        neighborhoodOps.push({ type: 'addAttribute', payload: attributePayload, id });
+    }
+
+    const functionMatches = [...content.matchAll(FUNCTION_REGEX)];
+
+    for (const match of functionMatches) {
+        const [, name] = match;
+
+        const id = `func_${nodeId}_${name.trim().toLowerCase().replace(/\s+/g, '_')}`;
+        neighborhoodOps.push({ type: 'applyFunction', payload: { source: nodeId, name: name.trim() }, id });
+    }
+
+    const relationMatches = [...content.matchAll(RELATION_REGEX)];
+
+    for (const match of relationMatches) {
+        const [, relationName, targets] = match;
+
+        for (const target of targets.split(';').map(t => t.trim()).filter(Boolean)) {
+            // Parse target for adjectives and base name (similar to node headings)
+            let targetAdjective = null;
+            let targetBaseName = target;
+            let targetDisplayName = target;
+            
+            // Check if target has adjective formatting (*adjective* baseName)
+            const adjectiveMatch = target.match(/\*\*?([^*]+)\*\*?\s+(.+)/);
+            if (adjectiveMatch) {
+                targetAdjective = adjectiveMatch[1].trim();
+                targetBaseName = adjectiveMatch[2].trim();
+                targetDisplayName = target; // Keep the original formatting
+            }
+            
+            // Generate clean ID from base name and adjective if present
+            const cleanTargetBaseName = targetBaseName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_');
+            const cleanTargetAdjective = targetAdjective ? targetAdjective.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '_') : null;
+            const targetId = cleanTargetAdjective ? `${cleanTargetAdjective}_${cleanTargetBaseName}` : cleanTargetBaseName;
+            const id = `rel_${nodeId}_${relationName.trim().toLowerCase().replace(/\s+/g, '_')}_${targetId}`;
+            
+            // Create target node if it doesn't exist (for implicit nodes like "Country", "Asia")
+            neighborhoodOps.push({ 
+                type: 'addNode', 
+                payload: { 
+                    base_name: targetBaseName, 
+                    displayName: targetDisplayName,
+                    role: 'class', // Default role for implicit nodes
+                    options: {
+                        adjective: targetAdjective
+                    }
+                }, 
+                id: targetId 
+            });
+            
+            // Build relation payload
+            const relationPayload = { 
+                source: nodeId, 
+                target: targetId, 
+                name: relationName.trim(),
+                morphId: morphId
+            };
+            
+            // Create relation to the target node
+            neighborhoodOps.push({ 
+                type: 'addRelation', 
+                payload: relationPayload, 
+                id 
+            });
+        }
+    }
+    
+    return neighborhoodOps;
+}
 
 export { diffCnl, validateOperations, getNodeOrderFromCnl, getOperationsFromCnl };

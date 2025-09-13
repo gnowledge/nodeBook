@@ -198,3 +198,42 @@
 .parse-btn-small:active {
   transform: translateY(0);
 }
+
+/* Morph Selector Styles */
+.morph-selector {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.morph-selector label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.morph-selector select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.morph-selector select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.morph-changing {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: #007bff;
+  font-size: 0.8rem;
+  font-style: italic;
+}

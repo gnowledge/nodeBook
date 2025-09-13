@@ -2410,6 +2410,48 @@ Another service or function
     }
   });
 
+  // --- Morph Management ---
+  fastify.post('/api/graphs/:graphId/nodes/:nodeId/morph', {
+    preHandler: [authenticateJWT],
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' },
+          nodeId: { type: 'string' }
+        },
+        required: ['graphId', 'nodeId']
+      },
+      body: {
+        type: 'object',
+        properties: {
+          morphId: { type: 'string' }
+        },
+        required: ['morphId']
+      }
+    }
+  }, async (request, reply) => {
+    const { graphId, nodeId } = request.params;
+    const { morphId } = request.body;
+    const userId = request.user?.sub;
+
+    if (!userId) {
+      reply.code(401).send({ error: 'Authentication required' });
+      return;
+    }
+
+    try {
+      console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] Changing morph for user ${userId}`);
+      const result = await dataStore.changeMorph(userId, graphId, nodeId, morphId);
+      reply.code(200).send(result);
+      return;
+    } catch (error) {
+      console.error(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] Error:`, error);
+      reply.code(500).send({ error: error.message });
+      return;
+    }
+  });
+
   // --- WebSocket for real-time communication ---
   const wss = new WebSocketServer({ server: fastify.server });
   

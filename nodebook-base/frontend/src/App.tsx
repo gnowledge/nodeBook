@@ -147,6 +147,28 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   
   const [isWordNetPanelOpen, setIsWordNetPanelOpen] = useState(false);
   const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
+  
+  // Morph change handler
+  const handleMorphChange = async (nodeId: string, morphId: string) => {
+    if (!activeGraphId) return;
+    
+    try {
+      const response = await authenticatedFetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/morph`, {
+        method: 'POST',
+        body: JSON.stringify({ morphId })
+      });
+      
+      if (response.ok) {
+        // Refresh the graph data to show the updated morph
+        await loadGraphData(activeGraphId);
+      } else {
+        throw new Error('Failed to change morph');
+      }
+    } catch (error) {
+      console.error('Error changing morph:', error);
+      alert('Failed to change morph. See console for details.');
+    }
+  };
   const [isWordNetLoading, setIsWordNetLoading] = useState(false);
   const [wordNetError, setWordNetError] = useState<string | null>(null);
   const [strictMode, setStrictMode] = useState<boolean>(false);
@@ -709,7 +731,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 />
                               ) : (
                                 <>
-                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
+                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
                                   {selectedNode && (
                                     <div className={styles.selectedNodeCard}>
                                       <NodeCard
@@ -791,7 +813,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     )}
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
-                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
+                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
                         {selectedNode && (
                           <div className={styles.selectedNodeCard}>
                             <NodeCard

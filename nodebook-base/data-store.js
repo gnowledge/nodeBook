@@ -336,14 +336,30 @@ export class FileSystemStore extends DataStore {
         // 3. Third pass: Create relations and attributes, and link them to nodes
         console.log(`[DataStore] Third pass: Creating relations and attributes`);
         for (const op of operations) {
-            if (op.type === 'addRelation') {
+            if (op.type === 'addMorph') {
+                // Add morph to the specified node
+                const node = graphData.nodes.find(n => n.id === op.payload.nodeId);
+                if (node) {
+                    node.morphs.push(op.payload.morph);
+                    console.log(`[DataStore] Added morph ${op.payload.morph.name} to node ${op.payload.nodeId}`);
+                }
+            } else if (op.type === 'addRelation') {
                 const relation = new RelationNode(op.payload.source, op.payload.target, op.payload.name, op.payload.options || {});
                 graphData.relations.push(relation);
                 
                 // Link relation to source node's morph
                 const sourceNode = graphData.nodes.find(n => n.id === op.payload.source);
-                if (sourceNode && sourceNode.morphs.length > 0) {
-                    sourceNode.morphs[0].relationNode_ids.push(relation.id);
+                if (sourceNode) {
+                    // If morphId is specified, link to that specific morph
+                    if (op.payload.morphId) {
+                        const targetMorph = sourceNode.morphs.find(m => m.morph_id === op.payload.morphId);
+                        if (targetMorph) {
+                            targetMorph.relationNode_ids.push(relation.id);
+                        }
+                    } else if (sourceNode.morphs.length > 0) {
+                        // Default to first morph if no specific morph ID
+                        sourceNode.morphs[0].relationNode_ids.push(relation.id);
+                    }
                 }
             } else if (op.type === 'addAttribute') {
                 // Build options object with modifiers
@@ -358,8 +374,17 @@ export class FileSystemStore extends DataStore {
                 
                 // Link attribute to source node's morph
                 const sourceNode = graphData.nodes.find(n => n.id === op.payload.source);
-                if (sourceNode && sourceNode.morphs.length > 0) {
-                    sourceNode.morphs[0].attributeNode_ids.push(attribute.id);
+                if (sourceNode) {
+                    // If morphId is specified, link to that specific morph
+                    if (op.payload.morphId) {
+                        const targetMorph = sourceNode.morphs.find(m => m.morph_id === op.payload.morphId);
+                        if (targetMorph) {
+                            targetMorph.attributeNode_ids.push(attribute.id);
+                        }
+                    } else if (sourceNode.morphs.length > 0) {
+                        // Default to first morph if no specific morph ID
+                        sourceNode.morphs[0].attributeNode_ids.push(attribute.id);
+                    }
                 }
             } else if (op.type === 'updateNode') {
                 // Handle node updates (like descriptions)
@@ -370,6 +395,16 @@ export class FileSystemStore extends DataStore {
             } else if (op.type === 'updateGraphDescription') {
                 // Handle graph description updates
                 graphData.description = op.payload.description;
+            } else if (op.type === 'changeMorph') {
+                // Handle morph transitions - update nbh reference
+                const node = graphData.nodes.find(n => n.id === op.payload.nodeId);
+                if (node) {
+                    const targetMorph = node.morphs.find(m => m.morph_id === op.payload.morphId);
+                    if (targetMorph) {
+                        node.nbh = op.payload.morphId;
+                        console.log(`[DataStore] Changed node ${op.payload.nodeId} to morph ${targetMorph.name}`);
+                    }
+                }
             }
         }
 
@@ -567,6 +602,32 @@ export class FileSystemStore extends DataStore {
         
         await this.saveGraphRegistry(userId, registry);
         return registry;
+    }
+    
+    async changeMorph(userId, graphId, nodeId, morphId) {
+        const graphData = await this.getGraph(userId, graphId);
+        if (!graphData) {
+            throw new Error('Graph not found');
+        }
+        
+        const node = graphData.nodes.find(n => n.id === nodeId);
+        if (!node) {
+            throw new Error('Node not found');
+        }
+        
+        const targetMorph = node.morphs.find(m => m.morph_id === morphId);
+        if (!targetMorph) {
+            throw new Error('Morph not found');
+        }
+        
+        // Update the nbh reference
+        node.nbh = morphId;
+        
+        // Save the updated graph
+        await this.saveGraph(userId, graphId, graphData);
+        
+        console.log(`[DataStore] Changed node ${nodeId} to morph ${targetMorph.name}`);
+        return { success: true, morphName: targetMorph.name };
     }
 
     // --- Collaboration (Invites) ---
