@@ -161,9 +161,9 @@ services:
       - VITE_KEYCLOAK_REALM=nodebook
       - VITE_KEYCLOAK_CLIENT_ID=nodebook-frontend
       - VITE_KEYCLOAK_CLIENT_SECRET=nodebook-frontend-secret
-      - VITE_MEDIA_BACKEND_URL=http://localhost:3001
-      - VITE_NLP_SERVICE_URL=http://localhost:3002
-      - VITE_WORDNET_SERVICE_URL=http://localhost:3003
+      - VITE_MEDIA_BACKEND_URL=http://nodebook-media-backend-p2p-dev:3001
+      - VITE_NLP_SERVICE_URL=http://nodebook-nlp-service-p2p-dev:3002
+      - VITE_WORDNET_SERVICE_URL=http://nodebook-wordnet-service-p2p-dev:3003
       - VITE_P2P_ENABLED=true
       - VITE_DEV_MODE=true
       - VITE_SIGNALING_URL=ws://127.0.0.1:4444
