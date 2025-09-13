@@ -137,9 +137,9 @@ export class WordNetService {
       
       // Check if this is a node definition (markdown heading)
       if (trimmedLine.startsWith('#')) {
-        // Extract the node name (remove all # and optional type)
-        // Updated regex to handle multiple # characters and be more robust
-        const nodeMatch = trimmedLine.match(/^#+\s*(.+?)(?:\s*\[.*?\])?\s*$/);
+        // Extract the node name (remove all # but preserve square brackets)
+        // Updated regex to handle multiple # characters and preserve square brackets
+        const nodeMatch = trimmedLine.match(/^#+\s*(.+?)\s*$/);
         if (nodeMatch) {
           const nodeName = nodeMatch[1].trim();
           
