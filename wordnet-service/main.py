@@ -511,9 +511,9 @@ async def get_related_terms(term: str):
 if __name__ == "__main__":
     logger.info("🚀 Starting WordNet Service (Python/NLTK)")
     logger.info("📚 Capabilities: WordNet definitions and relations")
-    logger.info("🔗 Health check: http://localhost:3003/health")
-    logger.info("📖 Definitions: http://localhost:3003/api/wordnet/definitions/:term")
-    logger.info("🔄 Batch lookup: http://localhost:3003/api/wordnet/definitions/batch")
-    logger.info("🔗 Related terms: http://localhost:3003/api/wordnet/related/:term")
-    
-    uvicorn.run(app, host="0.0.0.0", port=3003)
+    port = int(os.getenv("PORT", 3003))
+    logger.info(f"🔗 Health check: http://localhost:{port}/health")
+    logger.info(f"📖 Definitions: http://localhost:{port}/api/wordnet/definitions/:term")
+    logger.info(f"🔄 Batch lookup: http://localhost:{port}/api/wordnet/definitions/batch")
+    logger.info(f"🔗 Related terms: http://localhost:{port}/api/wordnet/related/:term")
+    uvicorn.run(app, host="0.0.0.0", port=port)
