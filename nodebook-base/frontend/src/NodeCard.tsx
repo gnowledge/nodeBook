@@ -163,14 +163,18 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
 
     setIsChangingMorph(true);
     try {
+      console.log(`[NodeCard] Changing morph for node ${node.id} to ${morphId}`);
+      
       // Update the node's nbh property locally for immediate UI update
       node.nbh = morphId;
       
       // Notify parent component to handle the API call and refresh graph data
       await onMorphChange(node.id, morphId);
+      
+      console.log(`[NodeCard] Morph change completed successfully`);
     } catch (error) {
-      console.error('Error changing morph:', error);
-      alert('Failed to change morph. See console for details.');
+      console.error('[NodeCard] Error changing morph:', error);
+      alert(`Failed to change morph: ${error.message}`);
     } finally {
       setIsChangingMorph(false);
     }
@@ -272,6 +276,44 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
           onReady={({ exportSvg }) => { subgraphSvgRef.current = exportSvg(); }}
         />
       </div>
+
+      {/* HTML display of relations and attributes for current morph */}
+      {!isPublic && (filteredRelations.length > 0 || filteredAttributes.length > 0) && (
+        <div className="node-morph-data">
+          <h4>Current Morph Data</h4>
+          
+          {filteredAttributes.length > 0 && (
+            <div className="morph-attributes">
+              <h5>Attributes:</h5>
+              <ul>
+                {filteredAttributes.map(attr => (
+                  <li key={attr.id}>
+                    <strong>{attr.name}:</strong> {attr.value}
+                    {attr.unit && <span> {attr.unit}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {filteredRelations.length > 0 && (
+            <div className="morph-relations">
+              <h5>Relations:</h5>
+              <ul>
+                {filteredRelations.map(rel => {
+                  const otherNodeId = rel.source_id === node.id ? rel.target_id : rel.source_id;
+                  const otherNode = allNodes.find(n => n.id === otherNodeId);
+                  return (
+                    <li key={rel.id}>
+                      <strong>{rel.name}</strong> → {otherNode?.name || otherNodeId}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {node.description && (
         <div className="node-description">

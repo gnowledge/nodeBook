@@ -237,3 +237,46 @@
   font-size: 0.8rem;
   font-style: italic;
 }
+
+/* Morph data display */
+.node-morph-data {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.node-morph-data h4 {
+  margin: 0 0 0.75rem 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.node-morph-data h5 {
+  margin: 0.5rem 0 0.25rem 0;
+  color: #6c757d;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.morph-attributes ul,
+.morph-relations ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.morph-attributes li,
+.morph-relations li {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.morph-attributes strong,
+.morph-relations strong {
+  color: #495057;
+  font-weight: 500;
+}

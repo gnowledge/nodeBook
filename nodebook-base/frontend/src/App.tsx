@@ -153,20 +153,29 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     if (!activeGraphId) return;
     
     try {
+      console.log(`[App] Changing morph for node ${nodeId} to ${morphId}`);
+      
       const response = await authenticatedFetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/morph`, {
         method: 'POST',
         body: JSON.stringify({ morphId })
       });
       
+      console.log(`[App] Morph change response:`, { status: response.status, ok: response.ok });
+      
       if (response.ok) {
+        const result = await response.json();
+        console.log(`[App] Morph change successful:`, result);
+        
         // Refresh the graph data to show the updated morph
-        await loadGraphData(activeGraphId);
+        fetchGraph(activeGraphId);
       } else {
-        throw new Error('Failed to change morph');
+        const errorText = await response.text();
+        console.error(`[App] Morph change failed:`, { status: response.status, error: errorText });
+        throw new Error(`Failed to change morph: ${response.status} ${errorText}`);
       }
     } catch (error) {
-      console.error('Error changing morph:', error);
-      alert('Failed to change morph. See console for details.');
+      console.error('[App] Error changing morph:', error);
+      alert(`Failed to change morph: ${error.message}`);
     }
   };
   const [isWordNetLoading, setIsWordNetLoading] = useState(false);
