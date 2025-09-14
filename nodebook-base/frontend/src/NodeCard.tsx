@@ -161,25 +161,25 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     }
   };
 
-  const handleMorphChange = async (morphId: string) => {
-    if (!graphId || isChangingMorph || !onMorphChange) return;
-
-    setIsChangingMorph(true);
-    try {
-      console.log(`[NodeCard] Changing morph for node ${node.id} to ${morphId}`);
-      
-      // Update the node's nbh property locally for immediate UI update
-      node.nbh = morphId;
-      
-      // Notify parent component to handle the API call and refresh graph data
-      await onMorphChange(node.id, morphId);
-      
-      console.log(`[NodeCard] Morph change completed successfully`);
-    } catch (error) {
-      console.error('[NodeCard] Error changing morph:', error);
-      alert(`Failed to change morph: ${error.message}`);
-    } finally {
-      setIsChangingMorph(false);
+  const handleMorphChange = (morphId: string) => {
+    if (!isChangingMorph && onMorphChange) {
+      setIsChangingMorph(true);
+      try {
+        console.log(`[NodeCard] Changing morph for node ${node.id} to ${morphId}`);
+        
+        // Update the node's nbh property locally for immediate UI update
+        node.nbh = morphId;
+        
+        // Notify parent component to update the state
+        onMorphChange(node.id, morphId);
+        
+        console.log(`[NodeCard] Morph change completed successfully`);
+      } catch (error) {
+        console.error('[NodeCard] Error changing morph:', error);
+        alert(`Failed to change morph: ${error.message}`);
+      } finally {
+        setIsChangingMorph(false);
+      }
     }
   };
 

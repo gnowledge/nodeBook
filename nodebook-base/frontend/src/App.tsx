@@ -150,36 +150,20 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [isWordNetPanelOpen, setIsWordNetPanelOpen] = useState(false);
   const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
   
-  // Morph change handler
-  const handleMorphChange = async (nodeId: string, morphId: string) => {
-    if (!activeGraphId) return;
+  // Morph change handler - now purely in-memory operation
+  const handleMorphChange = (nodeId: string, morphId: string) => {
+    console.log(`[App] Changing morph for node ${nodeId} to ${morphId} (in-memory)`);
     
-    try {
-      console.log(`[App] Changing morph for node ${nodeId} to ${morphId}`);
-      
-      const response = await authenticatedFetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/morph`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ morphId })
-      });
-      
-      console.log(`[App] Morph change response:`, { status: response.status, ok: response.ok });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log(`[App] Morph change successful:`, result);
-        
-        // Refresh the graph data to show the updated morph
-        fetchGraph(activeGraphId);
-      } else {
-        const errorText = await response.text();
-        console.error(`[App] Morph change failed:`, { status: response.status, error: errorText });
-        throw new Error(`Failed to change morph: ${response.status} ${errorText}`);
-      }
-    } catch (error) {
-      console.error('[App] Error changing morph:', error);
-      alert(`Failed to change morph: ${error.message}`);
-    }
+    // Update the node's morph state in memory
+    setNodes(prevNodes => 
+      prevNodes.map(node => 
+        node.id === nodeId 
+          ? { ...node, nbh: morphId }
+          : node
+      )
+    );
+    
+    console.log(`[App] Morph change completed successfully (in-memory)`);
   };
 
   // Transition simulation handler

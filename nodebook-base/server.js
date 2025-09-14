@@ -26,36 +26,20 @@ const DISABLE_AUTH = process.env.DISABLE_AUTH === 'true';
 const auth = {
   async verifyToken(token) {
     try {
-      console.log(`[auth.verifyToken] Verifying token with Keycloak`);
-      console.log(`[auth.verifyToken] KEYCLOAK_URL: ${KEYCLOAK_URL}`);
-      console.log(`[auth.verifyToken] KEYCLOAK_REALM: ${KEYCLOAK_REALM}`);
-      
-      const keycloakUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`;
-      console.log(`[auth.verifyToken] Requesting: ${keycloakUrl}`);
-      
       // Verify JWT token with Keycloak
-      const response = await fetch(keycloakUrl, {
+      const response = await fetch(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
-      console.log(`[auth.verifyToken] Keycloak response status: ${response.status} ${response.statusText}`);
-      
       if (!response.ok) {
-        const errorText = await response.text();
         console.warn(`Keycloak token verification failed: ${response.status} ${response.statusText}`);
-        console.warn(`Keycloak error response: ${errorText}`);
         return null;
       }
       
       const userInfo = await response.json();
-      console.log(`[auth.verifyToken] User info received:`, { 
-        sub: userInfo.sub, 
-        username: userInfo.preferred_username || userInfo.email,
-        email: userInfo.email 
-      });
       
       return {
         id: userInfo.sub,
@@ -121,9 +105,6 @@ fastify.register(import('@fastify/multipart'), {
   
   // Custom authentication hook
   async function authenticateJWT(request, reply) {
-    console.log(`[authenticateJWT] DISABLE_AUTH: ${DISABLE_AUTH}`);
-    console.log(`[authenticateJWT] Authorization header: ${request.headers.authorization ? 'Present' : 'Missing'}`);
-    
     if (DISABLE_AUTH) {
       request.user = {
         id: 'dev-user-id',
@@ -135,27 +116,21 @@ fastify.register(import('@fastify/multipart'), {
     }
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log(`[authenticateJWT] No valid Bearer token found`);
       reply.code(401).send({ error: 'No token provided' });
       return reply;
     }
     
     const token = authHeader.substring(7);
-    console.log(`[authenticateJWT] Token length: ${token.length}`);
     try {
       // Verify token with Keycloak
       const user = await auth.verifyToken(token);
-      console.log(`[authenticateJWT] User verification result:`, user ? 'Success' : 'Failed');
       if (!user || !user.username) {
-        console.log(`[authenticateJWT] Invalid user or missing username`);
         reply.code(401).send({ error: 'Invalid token' });
         return reply;
       }
       
       request.user = user;
-      console.log(`[authenticateJWT] User authenticated: ${user.username} (${user.id})`);
     } catch (error) {
-      console.error(`[authenticateJWT] Token verification error:`, error);
       reply.code(401).send({ error: 'Invalid token' });
       return reply;
     }
@@ -2512,18 +2487,10 @@ Another service or function
     const { graphId, nodeId } = request.params;
     const { morphId } = request.body;
     
-    console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] Request received`);
-    console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] DISABLE_AUTH: ${DISABLE_AUTH}`);
-    console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] request.user:`, request.user);
-    console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] morphId: ${morphId}`);
-    
     // In dev mode, use a default user ID; otherwise use authenticated user
     const userId = DISABLE_AUTH ? 'dev-user-id' : request.user?.sub;
 
-    console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] userId: ${userId}`);
-
     if (!userId) {
-      console.log(`[POST /api/graphs/${graphId}/nodes/${nodeId}/morph] No userId found, sending 401`);
       reply.code(401).send({ error: 'Authentication required' });
       return;
     }
