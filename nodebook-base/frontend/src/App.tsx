@@ -159,6 +159,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       
       const response = await authenticatedFetch(`/api/graphs/${activeGraphId}/nodes/${nodeId}/morph`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ morphId })
       });
       
@@ -400,6 +401,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     try {
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cnlText: cnlText }),
       });
       
@@ -435,6 +437,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       
       const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/cnl`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cnlText: value })
       });
       
@@ -731,6 +734,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 try {
                                   const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
                                     method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ mode: newMode })
                                   });
                                   if (res.ok) {
@@ -847,6 +851,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               try {
                                 const res = await authenticatedFetch(`/api/graphs/${activeGraphId}/mode`, {
                                   method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ mode: newMode })
                                 });
                                 if (res.ok) {

@@ -121,6 +121,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
 
     await authenticatedFetch(`${API_BASE_URL}/api/graphs/${node.graphId}/nodes/${node.id}/publication`, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publication_mode: nextMode }),
     });
   };
@@ -149,6 +150,7 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
 
       const res = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${targetGraphId}/preview`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preview_url: previewUrl, node_id: node.id })
       });
       if (!res.ok) throw new Error('Failed to set preview');
