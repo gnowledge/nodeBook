@@ -20,6 +20,7 @@ interface DataViewProps {
   publication_state?: 'Private' | 'P2P' | 'Public';
   onPublicationStateChange?: (newState: 'Private' | 'P2P' | 'Public') => void;
   graphMode?: 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph';
+  onMorphChange?: (nodeId: string, morphId: string) => void;
 }
 
 export function DataView({ 
@@ -32,7 +33,8 @@ export function DataView({
   onCnlChange,
   publication_state = 'Private',
   onPublicationStateChange,
-  graphMode = 'richgraph'
+  graphMode = 'richgraph',
+  onMorphChange
 }: DataViewProps) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -350,6 +352,7 @@ export function DataView({
               onImportContext={handleImportContext}
               nodeRegistry={nodeRegistry}
               graphId={activeGraphId}
+              onMorphChange={onMorphChange}
             />
           ))}
         </div>

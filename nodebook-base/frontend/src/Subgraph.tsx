@@ -22,6 +22,7 @@ export function Subgraph({ nodes, relations, attributes = [], onReady }: Subgrap
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return;
 
+
     const attributeValueNodes = (attributes || []).map(a => ({
       data: {
         id: a.id,

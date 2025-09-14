@@ -1351,16 +1351,66 @@ Another service or function
     const relations = await graph.listAll('relations');
     const attributes = await graph.listAll('attributes');
     
+    // Use morph registry for efficient filtering
+    let filteredRelations = relations.filter(rel => !rel.isDeleted);
+    let filteredAttributes = attributes.filter(attr => !attr.isDeleted);
+    
+    // Filter by active morphs using the morph registry
+    const activeMorphs = new Set();
+    nodes.forEach(node => {
+      if (node.nbh) {
+        activeMorphs.add(node.nbh);
+      }
+    });
+    
+    if (activeMorphs.size > 0) {
+      // Filter relations and attributes using morph registry
+      filteredRelations = dataStore.getFilteredRelations(relations, Array.from(activeMorphs));
+      filteredAttributes = dataStore.getFilteredAttributes(attributes, Array.from(activeMorphs));
+    }
+    
     // Get the graph mode from the manifest
     const manifest = await dataStore.getManifest(userId, graphId);
     const mode = manifest?.mode || 'richgraph';
     
-    return {
+    // Debug: Log the JSON being sent to Cytoscape
+    const responseData = {
       nodes: nodes.filter(node => !node.isDeleted),
-      relations: relations.filter(rel => !rel.isDeleted),
-      attributes: attributes.filter(attr => !attr.isDeleted),
+      relations: filteredRelations,
+      attributes: filteredAttributes,
       mode: mode
     };
+    
+    console.log(`\n=== CYTOSCAPE JSON FOR GRAPH ${graphId} ===`);
+    console.log('Total nodes:', responseData.nodes.length);
+    console.log('Total relations:', responseData.relations.length);
+    console.log('Total attributes:', responseData.attributes.length);
+    console.log('Filtered relations:', filteredRelations.length);
+    console.log('Filtered attributes:', filteredAttributes.length);
+    
+    // Log each node with its morph info
+    responseData.nodes.forEach(node => {
+      console.log(`\nNode: ${node.name} (${node.id})`);
+      console.log(`  Active morph (nbh): ${node.nbh}`);
+      console.log(`  Morphs:`, node.morphs?.map(m => ({
+        name: m.name,
+        morph_id: m.morph_id,
+        relationCount: m.relationNode_ids?.length || 0,
+        attributeCount: m.attributeNode_ids?.length || 0
+      })));
+      
+      // Show which relations belong to this node
+      const nodeRelations = responseData.relations.filter(r => r.source_id === node.id || r.target_id === node.id);
+      console.log(`  Relations (${nodeRelations.length}):`, nodeRelations.map(r => r.name));
+      
+      // Show which attributes belong to this node
+      const nodeAttributes = responseData.attributes.filter(a => a.source_id === node.id);
+      console.log(`  Attributes (${nodeAttributes.length}):`, nodeAttributes.map(a => `${a.name}: ${a.value}`));
+    });
+    
+    console.log('=== END CYTOSCAPE JSON ===\n');
+    
+    return responseData;
   });
 
   fastify.get('/api/graphs/:graphId/key', {
@@ -2415,7 +2465,7 @@ Another service or function
 
   // --- Morph Management ---
   fastify.post('/api/graphs/:graphId/nodes/:nodeId/morph', {
-    preHandler: [authenticateJWT],
+    preHandler: DISABLE_AUTH ? [] : [authenticateJWT],
     schema: {
       params: {
         type: 'object',
@@ -2436,7 +2486,9 @@ Another service or function
   }, async (request, reply) => {
     const { graphId, nodeId } = request.params;
     const { morphId } = request.body;
-    const userId = request.user?.sub;
+    
+    // In dev mode, use a default user ID; otherwise use authenticated user
+    const userId = DISABLE_AUTH ? 'dev-user-id' : request.user?.sub;
 
     if (!userId) {
       reply.code(401).send({ error: 'Authentication required' });
@@ -2453,6 +2505,27 @@ Another service or function
       reply.code(500).send({ error: error.message });
       return;
     }
+  });
+
+  // --- Debug endpoint for morph registry ---
+  fastify.get('/api/debug/morph-registry', {
+    preHandler: [authenticateJWT, loadGraph]
+  }, async (request, reply) => {
+    const dataStore = fastify.dataStore;
+    const stats = dataStore.morphRegistry.getStats();
+    const allMorphs = dataStore.morphRegistry.getAllMorphs();
+    const hydrogenMorphs = dataStore.morphRegistry.getNodeMorphs('hydrogen');
+    
+    return {
+      stats,
+      totalMorphs: allMorphs.length,
+      hydrogenMorphs: hydrogenMorphs.map(m => ({
+        morphId: m.morphId,
+        name: m.morphName,
+        relations: m.relationIds.length,
+        attributes: m.attributeIds.length
+      }))
+    };
   });
 
   // --- WebSocket for real-time communication ---

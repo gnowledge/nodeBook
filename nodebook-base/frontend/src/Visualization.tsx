@@ -32,14 +32,26 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect, onMo
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const cyNodes = nodes.map(node => ({
-      data: { 
-        id: node.id, 
-        label: node.name, 
-        type: node.role === 'Transition' ? 'transition' : 'polynode' 
+    const cyNodes = nodes.map(node => {
+      // For polynodes, show morph name if active morph is not basic
+      let displayName = node.name;
+      if (node.role !== 'Transition' && node.morphs && node.nbh) {
+        const activeMorph = node.morphs.find(m => m.morph_id === node.nbh);
+        if (activeMorph && activeMorph.name !== 'basic') {
+          displayName = `${node.name} (${activeMorph.name})`;
+        }
       }
-    }));
+      
+      return {
+        data: { 
+          id: node.id, 
+          label: displayName, 
+          type: node.role === 'Transition' ? 'transition' : 'polynode' 
+        }
+      };
+    });
 
+    // Backend should already filter attributes and relations by active morph
     const attributeValueNodes = attributes.map(attr => ({
         data: {
             id: attr.id,

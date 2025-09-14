@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { PolyNode, RelationNode, AttributeNode, FunctionNode } from './models.js';
 import { getOperationsFromCnl } from './cnl-parser.js';
 import { GitVersionControl } from './version-control.js';
+import { MorphRegistry } from './morph-registry.js';
 
 /**
  * Abstract Data Store Interface
@@ -40,6 +41,7 @@ export class FileSystemStore extends DataStore {
         super('file-system', { dataPath });
         this.dataPath = dataPath;
         this.gitVersionControl = new GitVersionControl(dataPath);
+        this.morphRegistry = new MorphRegistry();
     }
 
     async initialize() {
@@ -79,7 +81,12 @@ export class FileSystemStore extends DataStore {
         const graphPath = path.join(this.getGraphDataDir(userId, graphId), 'graph.json');
         try {
             const data = await fsp.readFile(graphPath, 'utf-8');
-            return JSON.parse(data);
+            const graphData = JSON.parse(data);
+            
+            // Build morph registry when loading graph
+            this.buildMorphRegistry(graphData);
+            
+            return graphData;
         } catch (error) {
             if (error.code === 'ENOENT') return null;
             throw error;
@@ -626,8 +633,77 @@ export class FileSystemStore extends DataStore {
         // Save the updated graph
         await this.saveGraph(userId, graphId, graphData);
         
+        // Rebuild morph registry after morph change
+        this.buildMorphRegistry(graphData);
+        
         console.log(`[DataStore] Changed node ${nodeId} to morph ${targetMorph.name}`);
         return { success: true, morphName: targetMorph.name };
+    }
+
+    // --- Morph Registry Methods ---
+    
+    /**
+     * Build morph registry from graph data
+     * @param {Object} graphData - Graph data object
+     */
+    buildMorphRegistry(graphData) {
+        this.morphRegistry.clear();
+        
+        // Process each node and its morphs
+        graphData.nodes.forEach(node => {
+            if (node.morphs && node.morphs.length > 0) {
+                node.morphs.forEach(morph => {
+                    this.morphRegistry.addMorph(
+                        morph.morph_id,
+                        node.id,
+                        morph.name,
+                        morph.relationNode_ids || [],
+                        morph.attributeNode_ids || []
+                    );
+                });
+            }
+        });
+        
+        const stats = this.morphRegistry.getStats();
+        console.log(`[DataStore] Built morph registry with ${stats.totalMorphs} morphs for ${stats.totalNodes} nodes`);
+    }
+
+    /**
+     * Get filtered relations for a specific morph
+     * @param {Array} relations - All relations
+     * @param {string} morphId - Active morph ID
+     * @returns {Array} Filtered relations
+     */
+    getFilteredRelations(relations, morphId) {
+        return this.morphRegistry.filterRelationsForMorph(relations, morphId);
+    }
+
+    /**
+     * Get filtered attributes for a specific morph
+     * @param {Array} attributes - All attributes
+     * @param {string} morphId - Active morph ID
+     * @returns {Array} Filtered attributes
+     */
+    getFilteredAttributes(attributes, morphId) {
+        return this.morphRegistry.filterAttributesForMorph(attributes, morphId);
+    }
+
+    /**
+     * Get morph data by ID
+     * @param {string} morphId - Morph ID
+     * @returns {Object|null} Morph data
+     */
+    getMorphData(morphId) {
+        return this.morphRegistry.getMorph(morphId);
+    }
+
+    /**
+     * Get all morphs for a node
+     * @param {string} nodeId - Node ID
+     * @returns {Array} Array of morph data
+     */
+    getNodeMorphs(nodeId) {
+        return this.morphRegistry.getNodeMorphs(nodeId);
     }
 
     // --- Collaboration (Invites) ---

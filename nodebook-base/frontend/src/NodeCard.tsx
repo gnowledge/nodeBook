@@ -20,9 +20,10 @@ interface NodeCardProps {
   nodeRegistry: any;
   isPublic?: boolean; // Optional prop for public view mode
   graphId?: string; // Explicit graph id for actions
+  onMorphChange?: (nodeId: string, morphId: string) => void; // Callback for morph changes
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId, onMorphChange }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const subgraphSvgRef = React.useRef<string | null>(null);
   const registryEntry = nodeRegistry[node.id];
@@ -158,23 +159,15 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
   };
 
   const handleMorphChange = async (morphId: string) => {
-    if (!graphId || isChangingMorph) return;
+    if (!graphId || isChangingMorph || !onMorphChange) return;
 
     setIsChangingMorph(true);
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/api/graphs/${graphId}/nodes/${node.id}/morph`, {
-        method: 'POST',
-        body: JSON.stringify({ morphId })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log(`Changed to morph: ${result.morphName}`);
-        // Refresh the page to show the updated morph
-        window.location.reload();
-      } else {
-        throw new Error('Failed to change morph');
-      }
+      // Update the node's nbh property locally for immediate UI update
+      node.nbh = morphId;
+      
+      // Notify parent component to handle the API call and refresh graph data
+      await onMorphChange(node.id, morphId);
     } catch (error) {
       console.error('Error changing morph:', error);
       alert('Failed to change morph. See console for details.');
@@ -226,10 +219,16 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     );
   };
 
-  // Calculate subgraph data
+  // Backend should already filter attributes and relations by active morph
+  // Use all attributes and relations since backend filtering is now handled by morph registry
+  const filteredAttributes = attributes.filter(attr => attr.source_id === node.id);
+  const filteredRelations = allRelations.filter(rel => rel.source_id === node.id || rel.target_id === node.id);
+
+  // Calculate subgraph data using Cytoscape's neighborhood concept
   const subgraphNodes = [node];
-  const subgraphRelations = allRelations.filter(r => r.source_id === node.id || r.target_id === node.id);
-  for (const rel of subgraphRelations) {
+  
+  // Add related nodes (targets of outgoing relations and sources of incoming relations)
+  for (const rel of filteredRelations) {
     const otherNodeId = rel.source_id === node.id ? rel.target_id : rel.source_id;
     if (!subgraphNodes.find(n => n.id === otherNodeId)) {
       const otherNode = allNodes.find(n => n.id === otherNodeId);
@@ -240,7 +239,18 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
   return (
     <div ref={cardRef} className={`node-card ${isActive ? 'active' : ''}`}>
       <div className="node-card-header">
-        <h3>{node.name}</h3>
+        <h3>
+          {(() => {
+            // Show morph name if active morph is not basic
+            if (node.morphs && node.nbh) {
+              const activeMorph = node.morphs.find(m => m.morph_id === node.nbh);
+              if (activeMorph && activeMorph.name !== 'basic') {
+                return `${node.name} (${activeMorph.name})`;
+              }
+            }
+            return node.name;
+          })()}
+        </h3>
         <div className="node-card-header-actions">
           <button 
             className={`publication-toggle ${node.publication_mode?.toLowerCase()}`}
@@ -255,9 +265,10 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       
       <div className="node-card-image">
         <Subgraph 
+          key={`subgraph-${node.id}-${node.nbh || 'default'}`}
           nodes={subgraphNodes} 
-          relations={subgraphRelations} 
-          attributes={attributes.filter(a => a.source_id === node.id)}
+          relations={filteredRelations} 
+          attributes={filteredAttributes}
           onReady={({ exportSvg }) => { subgraphSvgRef.current = exportSvg(); }}
         />
       </div>

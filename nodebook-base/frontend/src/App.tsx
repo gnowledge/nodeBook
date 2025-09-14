@@ -728,6 +728,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                   publication_state={publicationState}
                                   onPublicationStateChange={handlePublicationStateChange}
                                   graphMode={graphMode}
+                                  onMorphChange={handleMorphChange}
                                 />
                               ) : (
                                 <>
@@ -745,6 +746,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                         nodeRegistry={{}}
                                         isPublic={false}
                                         graphId={activeGraphId || undefined}
+                                        onMorphChange={handleMorphChange}
                                       />
                                     </div>
                                   )}
@@ -852,6 +854,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                       publication_state={publicationState}
                       onPublicationStateChange={handlePublicationStateChange}
                       graphMode={graphMode}
+                      onMorphChange={handleMorphChange}
                     />}
                     {viewMode === 'schema' && <SchemaView onSchemaChange={fetchSchemas} />}
                     {viewMode === 'peers' && <PeerTab activeGraphId={activeGraphId} graphKey={activeGraphKey} />}
