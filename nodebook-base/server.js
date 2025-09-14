@@ -17,7 +17,7 @@ import { createDataStore } from './data-store.js';
 import CNLSuggestionService from './cnl-suggestion-service.js';
 
 // Keycloak authentication integration
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://keycloak:8080';
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
 const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'nodebook';
 const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'nodebook-frontend';
 const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'nodebook-frontend-secret';
@@ -35,6 +35,7 @@ const auth = {
       });
       
       if (!response.ok) {
+        console.warn(`Keycloak token verification failed: ${response.status} ${response.statusText}`);
         return null;
       }
       
@@ -48,6 +49,8 @@ const auth = {
       };
     } catch (error) {
       console.error('Keycloak token verification error:', error);
+      // In development, if Keycloak is not available, we could fall back to a dev mode
+      // For now, return null to maintain security
       return null;
     }
   },
