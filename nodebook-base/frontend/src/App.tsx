@@ -150,6 +150,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [isWordNetPanelOpen, setIsWordNetPanelOpen] = useState(false);
   const [wordNetTerms, setWordNetTerms] = useState<string[]>([]);
   
+  // In-memory graph data that gets updated when morphs change
+  const [inMemoryGraph, setInMemoryGraph] = useState<{
+    nodes: Node[];
+    relations: Edge[];
+    attributes: Attribute[];
+  } | null>(null);
+  
   // Morph change handler - now purely in-memory operation
   const handleMorphChange = (nodeId: string, morphId: string) => {
     console.log(`[App] Changing morph for node ${nodeId} to ${morphId} (in-memory)`);
@@ -162,6 +169,19 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           : node
       )
     );
+    
+    // Also update the in-memory graph data
+    setInMemoryGraph(prevGraph => {
+      if (!prevGraph) return prevGraph;
+      return {
+        ...prevGraph,
+        nodes: prevGraph.nodes.map(node => 
+          node.id === nodeId 
+            ? { ...node, nbh: morphId }
+            : node
+        )
+      };
+    });
     
     console.log(`[App] Morph change completed successfully (in-memory)`);
   };
@@ -272,6 +292,13 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         setRelations(graphRelations);
         setAttributes(graphAttributes);
         setGraphMode(graphMode);
+        
+        // Create in-memory graph copy for morph changes
+        setInMemoryGraph({
+          nodes: graphNodes,
+          relations: graphRelations,
+          attributes: graphAttributes
+        });
         
         // Calculate graph score
         const score = calculateGraphScore(graphNodes, graphRelations, graphAttributes);
@@ -770,7 +797,14 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 />
                               ) : (
                                 <>
-                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={handleNodeSelect} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
+                                  <Visualization 
+                                    nodes={inMemoryGraph?.nodes || nodes} 
+                                    relations={inMemoryGraph?.relations || relations} 
+                                    attributes={inMemoryGraph?.attributes || attributes} 
+                                    onNodeSelect={handleNodeSelect} 
+                                    onMorphChange={handleMorphChange} 
+                                    graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} 
+                                  />
                                   <DraggableModal
                                     isOpen={isNodeCardOpen && !!selectedNode}
                                     onClose={handleCloseNodeCard}
@@ -780,9 +814,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                     {selectedNode && (
                                       <NodeCard
                                         node={selectedNode}
-                                        allNodes={nodes}
-                                        allRelations={relations}
-                                        attributes={attributes}
+                                        allNodes={inMemoryGraph?.nodes || nodes}
+                                        allRelations={inMemoryGraph?.relations || relations}
+                                        attributes={attributeTypes}
                                         isActive={false}
                                         onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                                         onImportContext={(nodeId) => console.log('Import context:', nodeId)}
@@ -860,7 +894,14 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     )}
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
-                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={handleNodeSelect} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
+                        <Visualization 
+                          nodes={inMemoryGraph?.nodes || nodes} 
+                          relations={inMemoryGraph?.relations || relations} 
+                          attributes={inMemoryGraph?.attributes || attributes} 
+                          onNodeSelect={handleNodeSelect} 
+                          onMorphChange={handleMorphChange} 
+                          graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} 
+                        />
                         <DraggableModal
                           isOpen={isNodeCardOpen && !!selectedNode}
                           onClose={handleCloseNodeCard}
@@ -870,9 +911,9 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                           {selectedNode && (
                             <NodeCard
                               node={selectedNode}
-                              allNodes={nodes}
-                              allRelations={relations}
-                              attributes={attributes}
+                              allNodes={inMemoryGraph?.nodes || nodes}
+                              allRelations={inMemoryGraph?.relations || relations}
+                              attributes={attributeTypes}
                               isActive={false}
                               onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                               onImportContext={(nodeId) => console.log('Import context:', nodeId)}
