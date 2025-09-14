@@ -57,6 +57,15 @@ export interface FunctionType {
   category: string;
 }
 
+export interface Transition {
+  id: string;
+  name: string;
+  description?: string;
+  prior_states: string[]; // Node IDs that are inputs/conditions
+  post_states: string[]; // Node IDs that are outputs/results
+  triggers?: string[]; // Optional trigger conditions
+}
+
 export interface Graph {
   id: string;
   name: string;

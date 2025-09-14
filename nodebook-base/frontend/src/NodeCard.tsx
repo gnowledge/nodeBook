@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Subgraph } from './Subgraph';
 import { NLPParsingModal } from './NLPParsingModal';
-import type { Node, Edge, AttributeType, Morph } from './types';
+import type { Node, Edge, AttributeType, Morph, Transition } from './types';
 import { API_BASE_URL } from './api-config';
 import { keycloakAuth } from './services/keycloakAuth';
 import './NodeCard.css';
@@ -21,9 +21,10 @@ interface NodeCardProps {
   isPublic?: boolean; // Optional prop for public view mode
   graphId?: string; // Explicit graph id for actions
   onMorphChange?: (nodeId: string, morphId: string) => void; // Callback for morph changes
+  onTransitionSimulate?: (transitionId: string) => void; // Callback for transition simulation
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId, onMorphChange }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId, onMorphChange, onTransitionSimulate }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const subgraphSvgRef = React.useRef<string | null>(null);
   const registryEntry = nodeRegistry[node.id];
@@ -180,6 +181,12 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     }
   };
 
+  const handleTransitionSimulate = () => {
+    if (onTransitionSimulate) {
+      onTransitionSimulate(node.id);
+    }
+  };
+
   const renderMorphSection = (morph: Morph) => {
     const morphRelations = allRelations.filter(r => r.source_id === node.id && r.morph_ids.includes(morph.morph_id));
     const morphAttributes = attributes.filter(a => a.source_id === node.id && a.morph_ids.includes(morph.morph_id));
@@ -267,6 +274,67 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
         </div>
       </div>
       
+      {/* Transition-specific content */}
+      {node.role === 'Transition' && (
+        <div className="transition-content">
+          <div className="transition-info">
+            <h4>Transition Process</h4>
+            <p>This transition represents a process that transforms inputs to outputs.</p>
+            
+            {/* Prior States */}
+            <div className="transition-states">
+              <h5>Prior States (Inputs/Conditions):</h5>
+              <ul>
+                {allRelations
+                  .filter(rel => rel.target_id === node.id && rel.name === 'has prior_state')
+                  .map(rel => {
+                    const priorNode = allNodes.find(n => n.id === rel.source_id);
+                    return (
+                      <li key={rel.id}>
+                        <span className="state-node" onClick={() => onSelectNode(rel.source_id)}>
+                          {priorNode?.name || rel.source_id}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+
+            {/* Post States */}
+            <div className="transition-states">
+              <h5>Post States (Outputs/Results):</h5>
+              <ul>
+                {allRelations
+                  .filter(rel => rel.target_id === node.id && rel.name === 'has post_state')
+                  .map(rel => {
+                    const postNode = allNodes.find(n => n.id === rel.source_id);
+                    return (
+                      <li key={rel.id}>
+                        <span className="state-node" onClick={() => onSelectNode(rel.source_id)}>
+                          {postNode?.name || rel.source_id}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+
+            {/* Simulation Button */}
+            {!isPublic && (
+              <div className="transition-actions">
+                <button 
+                  className="transition-simulate-btn"
+                  onClick={handleTransitionSimulate}
+                  title="Simulate this transition process"
+                >
+                  ⚡ Simulate Transition
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="node-card-image">
         <Subgraph 
           key={`subgraph-${node.id}-${node.nbh || 'default'}`}
@@ -342,19 +410,22 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       {/* Morph Selector */}
       {node.morphs && node.morphs.length > 1 && !isPublic && (
         <div className="morph-selector">
-          <label htmlFor="morph-select">Current State:</label>
-          <select 
-            id="morph-select"
-            value={node.nbh || node.morphs[0]?.morph_id}
-            onChange={(e) => handleMorphChange(e.target.value)}
-            disabled={isChangingMorph}
-          >
+          <div className="morph-selector-label">Current State:</div>
+          <div className="morph-radio-group">
             {node.morphs.map(morph => (
-              <option key={morph.morph_id} value={morph.morph_id}>
-                {morph.name}
-              </option>
+              <label key={morph.morph_id} className="morph-radio-option">
+                <input
+                  type="radio"
+                  name={`morph-${node.id}`}
+                  value={morph.morph_id}
+                  checked={(node.nbh || node.morphs[0]?.morph_id) === morph.morph_id}
+                  onChange={(e) => handleMorphChange(e.target.value)}
+                  disabled={isChangingMorph}
+                />
+                <span className="morph-radio-label">{morph.name}</span>
+              </label>
             ))}
-          </select>
+          </div>
           {isChangingMorph && <span className="morph-changing">Changing...</span>}
         </div>
       )}

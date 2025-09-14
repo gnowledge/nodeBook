@@ -25,6 +25,7 @@ import { MediaManager } from './MediaManager';
 import { GraphScore } from './GraphScore';
 import { CompactScoreDisplay } from './CompactScoreDisplay';
 import { SlideShow } from './SlideShow';
+import { DraggableModal } from './DraggableModal';
 import { calculateGraphScore } from './utils/graphScoring';
 import { ensureDescriptionBlocks, extractDescriptionsForAnalysis, debugDescriptions } from './utils/cnlProcessor';
 import { analyzeMultipleTexts, type NLPAnalysisResult, type NLPAnalysisError } from './services/nlpAnalysisService';
@@ -128,6 +129,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([]);
   const [nodeTypes, setNodeTypes] = useState<any[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isNodeCardOpen, setIsNodeCardOpen] = useState<boolean>(false);
   const [graphMode, setGraphMode] = useState<'markdown' | 'mindmap' | 'richgraph' | 'strictgraph'>('richgraph');
   // Single CNL text for the current graph
   const [cnlText, setCnlText] = useState<string>('');
@@ -177,6 +179,45 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       console.error('[App] Error changing morph:', error);
       alert(`Failed to change morph: ${error.message}`);
     }
+  };
+
+  // Transition simulation handler
+  const handleTransitionSimulate = async (transitionId: string) => {
+    try {
+      console.log(`[App] Simulating transition ${transitionId}`);
+      
+      // For now, we'll just show an alert. In the future, this could:
+      // 1. Call a backend API to simulate the transition
+      // 2. Update node states based on the transition
+      // 3. Show animation or visual feedback
+      
+      const transitionNode = nodes.find(n => n.id === transitionId);
+      if (transitionNode) {
+        alert(`Simulating transition: ${transitionNode.name}\n\nThis would transform the prior states into post states according to the transition rules.`);
+      }
+      
+    } catch (error) {
+      console.error('[App] Error simulating transition:', error);
+      alert('Failed to simulate transition. See console for details.');
+    }
+  };
+
+  // Enhanced node selection handler
+  const handleNodeSelect = (nodeId: string | null) => {
+    if (nodeId) {
+      // Clicking on a node: select it and open/keep modal open
+      setSelectedNodeId(nodeId);
+      setIsNodeCardOpen(true);
+    } else {
+      // Clicking on empty space: close modal but keep selected node for reference
+      setIsNodeCardOpen(false);
+    }
+  };
+
+  // Handler for closing the modal
+  const handleCloseNodeCard = () => {
+    setIsNodeCardOpen(false);
+    setSelectedNodeId(null);
   };
   const [isWordNetLoading, setIsWordNetLoading] = useState(false);
   const [wordNetError, setWordNetError] = useState<string | null>(null);
@@ -741,14 +782,19 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                 />
                               ) : (
                                 <>
-                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
-                                  {selectedNode && (
-                                    <div className={styles.selectedNodeCard}>
+                                  <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={handleNodeSelect} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} />
+                                  <DraggableModal
+                                    isOpen={isNodeCardOpen && !!selectedNode}
+                                    onClose={handleCloseNodeCard}
+                                    title={selectedNode ? `${selectedNode.name} ${selectedNode.role === 'Transition' ? '(Transition)' : ''}` : ''}
+                                    initialPosition={{ x: 100, y: 100 }}
+                                  >
+                                    {selectedNode && (
                                       <NodeCard
                                         node={selectedNode}
                                         allNodes={nodes}
                                         allRelations={relations}
-                                        attributes={attributeTypes}
+                                        attributes={attributes}
                                         isActive={false}
                                         onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                                         onImportContext={(nodeId) => console.log('Import context:', nodeId)}
@@ -756,9 +802,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                         isPublic={false}
                                         graphId={activeGraphId || undefined}
                                         onMorphChange={handleMorphChange}
+                                        onTransitionSimulate={handleTransitionSimulate}
                                       />
-                                    </div>
-                                  )}
+                                    )}
+                                  </DraggableModal>
                                 </>
                               )}
                             </div>
@@ -824,22 +871,30 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     )}
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
-                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={setSelectedNodeId} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
-                        {selectedNode && (
-                          <div className={styles.selectedNodeCard}>
+                        <Visualization nodes={nodes} relations={relations} attributes={attributes} onNodeSelect={handleNodeSelect} onMorphChange={handleMorphChange} graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} />
+                        <DraggableModal
+                          isOpen={isNodeCardOpen && !!selectedNode}
+                          onClose={handleCloseNodeCard}
+                          title={selectedNode ? `${selectedNode.name} ${selectedNode.role === 'Transition' ? '(Transition)' : ''}` : ''}
+                          initialPosition={{ x: 150, y: 150 }}
+                        >
+                          {selectedNode && (
                             <NodeCard
                               node={selectedNode}
                               allNodes={nodes}
                               allRelations={relations}
-                              attributes={attributeTypes}
+                              attributes={attributes}
                               isActive={false}
                               onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                               onImportContext={(nodeId) => console.log('Import context:', nodeId)}
                               nodeRegistry={{}}
                               isPublic={false}
+                              graphId={activeGraphId || undefined}
+                              onMorphChange={handleMorphChange}
+                              onTransitionSimulate={handleTransitionSimulate}
                             />
-                          </div>
-                        )}
+                          )}
+                        </DraggableModal>
                       </div>
                     )}
                     {viewMode === 'slideshow' && (

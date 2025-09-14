@@ -35,12 +35,13 @@ export const cytoscapeStylesheet = [
       "text-valign": "center",
       "text-halign": "center",
       "background-color": "#a855f7",
-      "color": "white",
+      "color": "#000000",
+      "text-outline-width": 0,
       "shape": "diamond",
       'width': 40,
       'height': 40,
       "font-size": 12,
-      "text-outline-width": 0
+      "font-weight": "bold"
     }
   },
   // Attribute value node styling - MUST come before default node selector

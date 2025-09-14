@@ -94,22 +94,8 @@ export function Visualization({ nodes, relations, attributes, onNodeSelect, onMo
         const nodeId = event.target.id();
         const nodeType = event.target.data('type');
         
-        // Handle transition nodes differently
-        if (nodeType === 'transition' && onMorphChange) {
-            // For transition nodes, we need to find the target morph
-            // This is a simplified implementation - in practice, you'd need to
-            // determine which morph to transition to based on the transition logic
-            const node = nodes.find(n => n.id === nodeId);
-            if (node && node.morphs && node.morphs.length > 1) {
-                // For now, cycle through morphs - in practice, this would be more sophisticated
-                const currentMorphIndex = node.morphs.findIndex(m => m.morph_id === node.nbh);
-                const nextMorphIndex = (currentMorphIndex + 1) % node.morphs.length;
-                const nextMorph = node.morphs[nextMorphIndex];
-                onMorphChange(nodeId, nextMorph.morph_id);
-            }
-        } else {
-            onNodeSelect(nodeId);
-        }
+        // All nodes (including transitions) should open the NodeCard modal
+        onNodeSelect(nodeId);
     });
     
     cyRef.current.on('tap', (event) => {

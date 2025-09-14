@@ -208,25 +208,182 @@
   border-radius: 6px;
 }
 
-.morph-selector label {
+.morph-selector-label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   font-weight: 600;
   color: var(--text-color);
+  font-size: 0.9rem;
 }
 
-.morph-selector select {
-  width: 100%;
+.morph-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Transition-specific styles */
+.transition-content {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f0f4ff;
+  border: 1px solid #a855f7;
+  border-radius: 8px;
+}
+
+.transition-info h4 {
+  color: #7c3aed;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.transition-info p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.transition-states {
+  margin: 1rem 0;
+}
+
+.transition-states h5 {
+  color: #7c3aed;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.transition-states ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.transition-states li {
+  margin: 0.25rem 0;
   padding: 0.5rem;
-  border: 1px solid #ced4da;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.transition-states li:hover {
+  border-color: #a855f7;
+  background-color: #faf5ff;
+}
+
+.state-node {
+  cursor: pointer;
+  color: #7c3aed;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.state-node:hover {
+  color: #5b21b6;
+  text-decoration: underline;
+}
+
+.transition-actions {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.transition-simulate-btn {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(168, 85, 247, 0.3);
+}
+
+.transition-simulate-btn:hover {
+  background: linear-gradient(135deg, #9333ea, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(168, 85, 247, 0.4);
+}
+
+.transition-simulate-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(168, 85, 247, 0.3);
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+  .morph-radio-group {
+    gap: 0.25rem;
+  }
+  
+  .morph-radio-option {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+  }
+  
+  .transition-content {
+    padding: 0.75rem;
+  }
+  
+  .transition-simulate-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+}
+
+.morph-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
   background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
   font-size: 0.9rem;
+  color: #333; /* Ensure text is visible */
+}
+
+.morph-radio-option:hover {
+  background-color: #f8f9fa;
+  border-color: #007bff;
+  color: #333; /* Ensure text remains visible on hover */
+}
+
+.morph-radio-option input[type="radio"] {
+  margin: 0;
   cursor: pointer;
 }
 
-.morph-selector select:disabled {
+.morph-radio-option input[type="radio"]:checked + .morph-radio-label {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.morph-radio-option:has(input[type="radio"]:checked) {
+  background-color: #e3f2fd;
+  border-color: #007bff;
+}
+
+.morph-radio-label {
+  cursor: pointer;
+  flex: 1;
+  color: inherit; /* Inherit color from parent */
+}
+
+.morph-radio-option:has(input[type="radio"]:disabled) {
   background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.morph-radio-option:has(input[type="radio"]:disabled) .morph-radio-label {
   cursor: not-allowed;
 }
 
