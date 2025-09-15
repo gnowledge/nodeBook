@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "jest",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "dev": "npx nest start --watch",
     "build": "npx nest build",
     "start:legacy": "node server.js",
