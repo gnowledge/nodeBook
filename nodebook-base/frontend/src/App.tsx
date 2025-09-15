@@ -1,5 +1,5 @@
 import p2pIcon from './assets/p2p.svg';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import editorIcon from './assets/editor.svg';
 import visualizationIcon from './assets/visualization.svg';
 import jsonDataIcon from './assets/jsonData.svg';
@@ -246,6 +246,62 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
 
     return { relations: morphRelations, attributes: morphAttributes };
   };
+
+  // Memoized function to build complete graph data based on current morph states
+  const graphDataFromMorphStates = useMemo(() => {
+    console.log(`[App] Building graph data from morph states (memoized)`);
+    
+    // Use raw data if available, otherwise fall back to main graph data
+    const allNodes = rawGraphData ? rawGraphData.nodes : nodes;
+    const allRelations = rawGraphData ? rawGraphData.relations : relations;
+    const allAttributes = rawGraphData ? rawGraphData.attributes : attributes;
+    
+    const filteredRelations: Edge[] = [];
+    const filteredAttributes: Attribute[] = [];
+    
+    // Get all relations and attributes that belong to active morphs
+    allNodes.forEach(node => {
+      if (node.nbh && node.morphs) {
+        const activeMorph = node.morphs.find(m => m.morph_id === node.nbh);
+        if (activeMorph) {
+          // Add relations for this morph
+          if (activeMorph.relationNode_ids) {
+            const morphRelations = activeMorph.relationNode_ids
+              .map(relId => allRelations.find(rel => rel.id === relId))
+              .filter(Boolean) as Edge[];
+            filteredRelations.push(...morphRelations);
+          }
+          
+          // Add attributes for this morph
+          if (activeMorph.attributeNode_ids) {
+            const morphAttributes = activeMorph.attributeNode_ids
+              .map(attrId => allAttributes.find(attr => attr.id === attrId))
+              .filter(Boolean) as Attribute[];
+            filteredAttributes.push(...morphAttributes);
+          }
+        }
+      }
+    });
+    
+    // Remove duplicates
+    const uniqueRelations = filteredRelations.filter((rel, index, self) => 
+      index === self.findIndex(r => r.id === rel.id)
+    );
+    const uniqueAttributes = filteredAttributes.filter((attr, index, self) => 
+      index === self.findIndex(a => a.id === attr.id)
+    );
+    
+    console.log(`[App] Built graph data from morph states:`, {
+      relationsCount: uniqueRelations.length,
+      attributesCount: uniqueAttributes.length
+    });
+    
+    return {
+      nodes: allNodes,
+      relations: uniqueRelations,
+      attributes: uniqueAttributes
+    };
+  }, [rawGraphData, nodes, relations, attributes]);
   
   // Debug effect to log data being passed to components
   useEffect(() => {
@@ -285,7 +341,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     
     setNodes(updatedNodes);
     
-    // Update the in-memory graph nodes (but keep relations/attributes unchanged)
+    // Update the in-memory graph with filtered relations and attributes based on new morph states
     setInMemoryGraph(prevGraph => {
       if (!prevGraph) {
         console.log('[App] No in-memory graph to update, creating new one');
@@ -296,23 +352,64 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         };
       }
       
-      console.log('[App] Updating in-memory graph with morph change');
+      console.log('[App] Updating in-memory graph with morph change and filtering relations/attributes');
       
-      // Only update the specific node's morph, keep everything else unchanged
+      // Update the specific node's morph
       const updatedInMemoryNodes = prevGraph.nodes.map(node => 
         node.id === nodeId 
           ? { ...node, nbh: morphId }
           : node
       );
       
+      // Filter relations and attributes based on all nodes' current morph states
+      const filteredRelations: Edge[] = [];
+      const filteredAttributes: Attribute[] = [];
+      
+      // Get all relations and attributes that belong to active morphs
+      updatedInMemoryNodes.forEach(node => {
+        if (node.nbh && node.morphs) {
+          const activeMorph = node.morphs.find(m => m.morph_id === node.nbh);
+          if (activeMorph) {
+            // Add relations for this morph
+            if (activeMorph.relationNode_ids) {
+              const morphRelations = activeMorph.relationNode_ids
+                .map(relId => relations.find(rel => rel.id === relId))
+                .filter(Boolean) as Edge[];
+              filteredRelations.push(...morphRelations);
+            }
+            
+            // Add attributes for this morph
+            if (activeMorph.attributeNode_ids) {
+              const morphAttributes = activeMorph.attributeNode_ids
+                .map(attrId => attributes.find(attr => attr.id === attrId))
+                .filter(Boolean) as Attribute[];
+              filteredAttributes.push(...morphAttributes);
+            }
+          }
+        }
+      });
+      
+      // Remove duplicates
+      const uniqueRelations = filteredRelations.filter((rel, index, self) => 
+        index === self.findIndex(r => r.id === rel.id)
+      );
+      const uniqueAttributes = filteredAttributes.filter((attr, index, self) => 
+        index === self.findIndex(a => a.id === attr.id)
+      );
+      
+      console.log(`[App] Filtered relations/attributes for morph change:`, {
+        relationsCount: uniqueRelations.length,
+        attributesCount: uniqueAttributes.length
+      });
+      
       return {
         nodes: updatedInMemoryNodes,
-        relations: prevGraph.relations,  // Keep relations unchanged
-        attributes: prevGraph.attributes  // Keep attributes unchanged
+        relations: uniqueRelations,
+        attributes: uniqueAttributes
       };
     });
     
-    console.log(`[App] Morph change completed successfully (node-specific update)`);
+    console.log(`[App] Morph change completed successfully (with relation/attribute filtering)`);
   };
 
   /**
@@ -437,19 +534,18 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       
       setNodes(updatedNodes);
 
-      // Update in-memory graph with morph changes and proper filtering
+      // Update in-memory graph with morph changes using direct retrieval (no filtering)
       setInMemoryGraph(prevGraph => {
         if (!prevGraph) {
-          // Create new in-memory graph from current state with filtering
-          const filtered = filterByActiveMorphs(updatedNodes);
+          console.log('[App] Creating new in-memory graph for transition simulation');
           return {
             nodes: updatedNodes,
-            relations: filtered.relations,
-            attributes: filtered.attributes
+            relations: relations,  // Keep original relations
+            attributes: attributes  // Keep original attributes
           };
         }
 
-        // Update nodes with new morph states and apply filtering
+        // Update nodes with new morph states
         const updatedInMemoryNodes = prevGraph.nodes.map(node => {
           const mapping = stateMapping.find(m => m.priorNode === node.id);
           if (mapping && mapping.targetMorph) {
@@ -458,12 +554,51 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
           return node;
         });
 
-        const filtered = filterByActiveMorphs(updatedInMemoryNodes);
+        // Filter relations and attributes based on all nodes' current morph states
+        const filteredRelations: Edge[] = [];
+        const filteredAttributes: Attribute[] = [];
+        
+        // Get all relations and attributes that belong to active morphs
+        updatedInMemoryNodes.forEach(node => {
+          if (node.nbh && node.morphs) {
+            const activeMorph = node.morphs.find(m => m.morph_id === node.nbh);
+            if (activeMorph) {
+              // Add relations for this morph
+              if (activeMorph.relationNode_ids) {
+                const morphRelations = activeMorph.relationNode_ids
+                  .map(relId => relations.find(rel => rel.id === relId))
+                  .filter(Boolean) as Edge[];
+                filteredRelations.push(...morphRelations);
+              }
+              
+              // Add attributes for this morph
+              if (activeMorph.attributeNode_ids) {
+                const morphAttributes = activeMorph.attributeNode_ids
+                  .map(attrId => attributes.find(attr => attr.id === attrId))
+                  .filter(Boolean) as Attribute[];
+                filteredAttributes.push(...morphAttributes);
+              }
+            }
+          }
+        });
+        
+        // Remove duplicates
+        const uniqueRelations = filteredRelations.filter((rel, index, self) => 
+          index === self.findIndex(r => r.id === rel.id)
+        );
+        const uniqueAttributes = filteredAttributes.filter((attr, index, self) => 
+          index === self.findIndex(a => a.id === attr.id)
+        );
+        
+        console.log(`[App] Transition simulation filtered relations/attributes:`, {
+          relationsCount: uniqueRelations.length,
+          attributesCount: uniqueAttributes.length
+        });
 
         return {
           nodes: updatedInMemoryNodes,
-          relations: filtered.relations,
-          attributes: filtered.attributes
+          relations: uniqueRelations,
+          attributes: uniqueAttributes
         };
       });
 
@@ -723,7 +858,26 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
   // Recalculate score when graph data changes
   useEffect(() => {
     if (nodes.length > 0 || relations.length > 0 || attributes.length > 0) {
-      const score = calculateGraphScore(nodes, relations, attributes);
+      // Convert Attribute instances to graphScoring AttributeType format
+      const attributeTypes = attributes.map(attr => ({
+        id: attr.id,
+        name: attr.name,
+        value: String(attr.value),
+        unit: undefined, // Attribute interface doesn't have unit property
+        source_id: attr.source_id
+      }));
+      
+      // Convert Node instances to graphScoring Node format
+      const scoringNodes = nodes.map(node => ({
+        id: node.id,
+        name: node.name,
+        role: node.role,
+        description: node.description || undefined, // Convert null to undefined
+        adjective: node.adjective,
+        quantifier: node.quantifier
+      }));
+      
+      const score = calculateGraphScore(scoringNodes, relations, attributeTypes);
       setGraphScore(score);
     }
   }, [nodes, relations, attributes]);
@@ -1046,7 +1200,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               })()}
                               graphId={activeGraphId}
                               graphMode={graphMode}
-                              onGraphModeChange={setGraphMode}
+                              onGraphModeChange={(mode: string) => setGraphMode(mode as 'markdown' | 'mindmap' | 'richgraph' | 'strictgraph')}
                               onVersionControlOpen={() => setIsVersionControlOpen(true)}
                               enableCollaboration={enableCollaboration}
                               onCollaborationToggle={setEnableCollaboration}
@@ -1102,7 +1256,11 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               isVersionControlOpen={isVersionControlOpen}
                               onVersionControlOpen={() => setIsVersionControlOpen(true)}
                               onVersionControlClose={() => setIsVersionControlOpen(false)}
-                              onInsertText={handleInsertTextFunction}
+                              onInsertText={(text: string) => {
+                                if (insertTextFunction) {
+                                  insertTextFunction(text);
+                                }
+                              }}
                             />
                             
                             {/* Score widget at bottom of Editor */}
@@ -1138,10 +1296,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               ) : (
                                 <>
                                   <Visualization 
-                                    key={`viz-${activeGraphId}-${(inMemoryGraph?.nodes || nodes).map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
-                                    nodes={inMemoryGraph?.nodes || nodes} 
-                                    relations={inMemoryGraph?.relations || relations} 
-                                    attributes={inMemoryGraph?.attributes || attributes} 
+                                    key={`viz-${activeGraphId}-${nodes.map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
+                                    nodes={graphDataFromMorphStates.nodes} 
+                                    relations={graphDataFromMorphStates.relations} 
+                                    attributes={graphDataFromMorphStates.attributes} 
                                     onNodeSelect={handleNodeSelect} 
                                     onMorphChange={handleMorphChange} 
                                     graphMode={graphMode === 'strictgraph' ? 'richgraph' : graphMode} 
@@ -1228,7 +1386,11 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                             isVersionControlOpen={isVersionControlOpen}
                             onVersionControlOpen={() => setIsVersionControlOpen(true)}
                             onVersionControlClose={() => setIsVersionControlOpen(false)}
-                            onInsertText={handleInsertTextFunction}
+                            onInsertText={(text: string) => {
+                              if (insertTextFunction) {
+                                insertTextFunction(text);
+                              }
+                            }}
                           />
                         </div>
                         )}
@@ -1237,10 +1399,10 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
                         <Visualization 
-                          key={`viz-full-${activeGraphId}-${(inMemoryGraph?.nodes || nodes).map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
-                          nodes={inMemoryGraph?.nodes || nodes} 
-                          relations={inMemoryGraph?.relations || relations} 
-                          attributes={inMemoryGraph?.attributes || attributes} 
+                          key={`viz-full-${activeGraphId}-${nodes.map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
+                          nodes={graphDataFromMorphStates.nodes} 
+                          relations={graphDataFromMorphStates.relations} 
+                          attributes={graphDataFromMorphStates.attributes} 
                           onNodeSelect={handleNodeSelect} 
                           onMorphChange={handleMorphChange} 
                           graphMode={graphMode === 'strictgraph' ? 'richgraph' : (graphMode === 'markdown' ? 'richgraph' : graphMode)} 
@@ -1343,7 +1505,6 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
             onClose={() => setIsNLPPanelOpen(false)}
             analysisResults={nlpAnalysisResults}
             isLoading={isNLPLoading}
-            error={nlpError}
           />
         )}
 
