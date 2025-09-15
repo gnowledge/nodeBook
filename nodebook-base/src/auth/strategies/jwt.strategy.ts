@@ -28,12 +28,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     }
 
-    // For production, validate with Keycloak
-    const user = await this.authService.verifyToken(payload.access_token || payload.token);
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    return user;
+    // For production, this should not be called since we handle validation in the guard
+    // But if it is called, return the payload as user
+    return {
+      id: payload.sub || payload.id,
+      username: payload.preferred_username || payload.username,
+      email: payload.email,
+      isAdmin: payload.realm_access?.roles?.includes('admin') || false,
+    };
   }
 }
 
