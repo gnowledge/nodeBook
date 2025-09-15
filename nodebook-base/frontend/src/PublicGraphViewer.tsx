@@ -31,8 +31,8 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
         if (!graphResponse.ok) {
           throw new Error('Failed to fetch graph metadata');
         }
-        const graphData = await graphResponse.json();
-        setGraph(graphData);
+        const graphMetadata = await graphResponse.json();
+        setGraph(graphMetadata);
 
         // Fetch CNL content
         const cnlResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
@@ -47,11 +47,11 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
         if (!dataResponse.ok) {
           throw new Error('Failed to fetch graph data');
         }
-        const graphData = await dataResponse.json();
+        const graphStructure = await dataResponse.json();
         
-        setNodes(graphData.nodes || []);
-        setRelations(graphData.relations || []);
-        setAttributes(graphData.attributes || []);
+        setNodes(graphStructure.nodes || []);
+        setRelations(graphStructure.relations || []);
+        setAttributes(graphStructure.attributes || []);
 
       } catch (err) {
         console.error('Error fetching public graph:', err);
