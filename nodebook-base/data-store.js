@@ -1184,6 +1184,130 @@ export class FileSystemStore extends DataStore {
             throw error;
         }
     }
+
+    // Method to get graph.json data for a specific public graph
+    async getPublicGraphData(graphId) {
+        try {
+            const usersDir = path.join(this.dataPath, 'users');
+            
+            // Check if users directory exists
+            try {
+                await fsp.access(usersDir);
+            } catch (error) {
+                throw new Error('No users directory found');
+            }
+
+            // Get all user directories
+            const userDirs = await fsp.readdir(usersDir);
+            
+            for (const userId of userDirs) {
+                const userPath = path.join(usersDir, userId);
+                const userStat = await fsp.stat(userPath);
+                
+                if (!userStat.isDirectory()) continue;
+                
+                const registryPath = path.join(userPath, 'registry.json');
+                
+                try {
+                    const registryContent = await fsp.readFile(registryPath, 'utf8');
+                    const registry = JSON.parse(registryContent);
+                    
+                    // Check if this user has the graph and it's public
+                    const graph = registry.find(g => g.id === graphId && g.publication_state === 'Public');
+                    
+                    if (graph) {
+                        // Found the graph, now get the graph.json data
+                        const graphJsonPath = path.join(userPath, 'graphs', graphId, 'graph.json');
+                        
+                        try {
+                            const graphJsonContent = await fsp.readFile(graphJsonPath, 'utf8');
+                            return JSON.parse(graphJsonContent);
+                        } catch (error) {
+                            // If graph.json doesn't exist, return empty structure
+                            return {
+                                nodes: [],
+                                relations: [],
+                                attributes: []
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to read registry for user ${userId}:`, error.message);
+                    continue;
+                }
+            }
+            
+            throw new Error('Public graph not found');
+        } catch (error) {
+            console.error('Error getting public graph data:', error);
+            throw error;
+        }
+    }
+
+    // Method to get manifest.json data for a specific public graph
+    async getPublicGraphManifest(graphId) {
+        try {
+            const usersDir = path.join(this.dataPath, 'users');
+            
+            // Check if users directory exists
+            try {
+                await fsp.access(usersDir);
+            } catch (error) {
+                throw new Error('No users directory found');
+            }
+
+            // Get all user directories
+            const userDirs = await fsp.readdir(usersDir);
+            
+            for (const userId of userDirs) {
+                const userPath = path.join(usersDir, userId);
+                const userStat = await fsp.stat(userPath);
+                
+                if (!userStat.isDirectory()) continue;
+                
+                const registryPath = path.join(userPath, 'registry.json');
+                
+                try {
+                    const registryContent = await fsp.readFile(registryPath, 'utf8');
+                    const registry = JSON.parse(registryContent);
+                    
+                    // Check if this user has the graph and it's public
+                    const graph = registry.find(g => g.id === graphId && g.publication_state === 'Public');
+                    
+                    if (graph) {
+                        // Found the graph, now get the manifest.json data
+                        const manifestPath = path.join(userPath, 'graphs', graphId, 'manifest.json');
+                        
+                        try {
+                            const manifestContent = await fsp.readFile(manifestPath, 'utf8');
+                            return JSON.parse(manifestContent);
+                        } catch (error) {
+                            // If manifest.json doesn't exist, return basic structure
+                            return {
+                                id: graphId,
+                                name: graph.name || 'Unknown Graph',
+                                author: graph.author || 'Unknown Author',
+                                email: graph.email || '',
+                                mode: graph.mode || 'richgraph',
+                                publication_mode: 'Public',
+                                created_at: graph.created_at || new Date().toISOString(),
+                                modified_at: graph.updated_at || graph.updatedAt || new Date().toISOString(),
+                                description: graph.description || ''
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to read registry for user ${userId}:`, error.message);
+                    continue;
+                }
+            }
+            
+            throw new Error('Public graph not found');
+        } catch (error) {
+            console.error('Error getting public graph manifest:', error);
+            throw error;
+        }
+    }
 }
 
 /**

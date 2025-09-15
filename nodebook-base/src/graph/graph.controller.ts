@@ -57,6 +57,24 @@ export class GraphController {
     return this.graphService.getPublicGraphCnl(graphId);
   }
 
+  @Get('public/:graphId/data')
+  @ApiOperation({ summary: 'Get graph data (nodes, relations, attributes) for public graph' })
+  @ApiParam({ name: 'graphId', description: 'Graph ID' })
+  @ApiResponse({ status: 200, description: 'Graph data' })
+  @ApiResponse({ status: 404, description: 'Graph not found' })
+  async getPublicGraphData(@Param('graphId') graphId: string) {
+    return this.graphService.getPublicGraphData(graphId);
+  }
+
+  @Get('public/:graphId/manifest')
+  @ApiOperation({ summary: 'Get manifest for public graph' })
+  @ApiParam({ name: 'graphId', description: 'Graph ID' })
+  @ApiResponse({ status: 200, description: 'Graph manifest' })
+  @ApiResponse({ status: 404, description: 'Graph not found' })
+  async getPublicGraphManifest(@Param('graphId') graphId: string) {
+    return this.graphService.getPublicGraphManifest(graphId);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

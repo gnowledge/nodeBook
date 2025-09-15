@@ -85,6 +85,46 @@ export class GraphService {
     }
   }
 
+  async getPublicGraphData(graphId: string) {
+    try {
+      // First verify the graph is public
+      const publicGraphs = await this.dataStoreService.getAllPublicGraphs();
+      const graph = publicGraphs.find(g => g.id === graphId);
+      
+      if (!graph) {
+        throw new NotFoundException('Public graph not found');
+      }
+
+      // Get the graph data (nodes, relations, attributes)
+      return await this.dataStoreService.getPublicGraphData(graphId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getPublicGraphManifest(graphId: string) {
+    try {
+      // First verify the graph is public
+      const publicGraphs = await this.dataStoreService.getAllPublicGraphs();
+      const graph = publicGraphs.find(g => g.id === graphId);
+      
+      if (!graph) {
+        throw new NotFoundException('Public graph not found');
+      }
+
+      // Get the manifest data
+      return await this.dataStoreService.getPublicGraphManifest(graphId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
   async createGraph(userId: string, createGraphDto: CreateGraphDto) {
     const { name, author, email, mode = 'richgraph' } = createGraphDto;
     

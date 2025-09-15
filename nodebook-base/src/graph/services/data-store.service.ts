@@ -130,4 +130,14 @@ export class DataStoreService {
     await this.ensureInitialized();
     return this.dataStore.getPublicGraphCnl(graphId);
   }
+
+  async getPublicGraphData(graphId: string) {
+    await this.ensureInitialized();
+    return this.dataStore.getPublicGraphData(graphId);
+  }
+
+  async getPublicGraphManifest(graphId: string) {
+    await this.ensureInitialized();
+    return this.dataStore.getPublicGraphManifest(graphId);
+  }
 }
