@@ -34,17 +34,24 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
         const graphData = await graphResponse.json();
         setGraph(graphData);
 
-        // Fetch graph content (CNL, nodes, relations, attributes)
-        const contentResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
-        if (!contentResponse.ok) {
-          throw new Error('Failed to fetch graph content');
+        // Fetch CNL content
+        const cnlResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
+        if (!cnlResponse.ok) {
+          throw new Error('Failed to fetch CNL content');
         }
-        const contentData = await contentResponse.json();
+        const cnlData = await cnlResponse.json();
+        setCnlText(cnlData.cnl || '');
+
+        // Fetch graph data (nodes, relations, attributes)
+        const dataResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/data`);
+        if (!dataResponse.ok) {
+          throw new Error('Failed to fetch graph data');
+        }
+        const graphData = await dataResponse.json();
         
-        setNodes(contentData.nodes || []);
-        setRelations(contentData.relations || []);
-        setAttributes(contentData.attributes || []);
-        setCnlText(contentData.cnl || '');
+        setNodes(graphData.nodes || []);
+        setRelations(graphData.relations || []);
+        setAttributes(graphData.attributes || []);
 
       } catch (err) {
         console.error('Error fetching public graph:', err);
