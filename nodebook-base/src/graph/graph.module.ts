@@ -6,9 +6,10 @@ import { DataStoreService } from './services/data-store.service.js';
 import { GraphManagerService } from './services/graph-manager.service.js';
 import { CNLParserService } from './services/cnl-parser.service.js';
 import { CNLSuggestionService } from './services/cnl-suggestion.service.js';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, AuthModule],
   controllers: [GraphController],
   providers: [
     GraphService,
