@@ -52,8 +52,30 @@
 }
 
 .node-description {
-  color: var(--text-color);
+  color: #212529 !important;
   margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.node-description p {
+  color: #212529 !important;
+}
+
+.node-description h1,
+.node-description h2,
+.node-description h3,
+.node-description h4,
+.node-description h5,
+.node-description h6 {
+  color: #212529 !important;
+}
+
+.node-description strong {
+  color: #212529 !important;
+}
+
+.node-description em {
+  color: #212529 !important;
 }
 
 .node-card-section {
@@ -216,6 +238,18 @@
   font-size: 0.9rem;
 }
 
+.transition-indicator {
+  margin-left: 0.5rem;
+  color: #a855f7;
+  font-size: 1rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .morph-radio-group {
   display: flex;
   flex-direction: column;
@@ -289,6 +323,9 @@
 .transition-actions {
   margin-top: 1rem;
   text-align: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .transition-simulate-btn {
@@ -315,6 +352,30 @@
   box-shadow: 0 2px 4px rgba(168, 85, 247, 0.3);
 }
 
+.transition-reset-btn {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+}
+
+.transition-reset-btn:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(107, 114, 128, 0.4);
+}
+
+.transition-reset-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+}
+
 /* Responsive design for mobile */
 @media (max-width: 768px) {
   .morph-radio-group {
@@ -330,9 +391,15 @@
     padding: 0.75rem;
   }
   
-  .transition-simulate-btn {
+  .transition-simulate-btn,
+  .transition-reset-btn {
     padding: 0.6rem 1.2rem;
     font-size: 0.85rem;
+  }
+  
+  .transition-actions {
+    flex-direction: column;
+    gap: 0.25rem;
   }
 }
 

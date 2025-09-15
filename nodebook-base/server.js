@@ -1413,6 +1413,53 @@ Another service or function
     return responseData;
   });
 
+  // Endpoint to get complete, unfiltered graph data by reading graph.json directly
+  fastify.get('/api/graphs/:graphId/raw', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          graphId: { type: 'string' }
+        }
+      }
+    },
+    preHandler: [authenticateJWT]
+  }, async (request, reply) => {
+    const userId = request.user.id;
+    const graphId = request.params.graphId;
+    
+    try {
+      // Read graph.json directly from the file system
+      const graphPath = path.join(fastify.dataStore.getGraphDataDir(userId, graphId), 'graph.json');
+      const graphData = await fs.readFile(graphPath, 'utf-8');
+      const parsedData = JSON.parse(graphData);
+      
+      // Get the graph mode from the manifest
+      const manifest = await fastify.dataStore.getManifest(userId, graphId);
+      const mode = manifest?.mode || 'richgraph';
+      
+      // Return data in the same format as the original /graph endpoint
+      const responseData = {
+        nodes: parsedData.nodes || [],
+        relations: parsedData.relations || [],
+        attributes: parsedData.attributes || [],
+        mode: mode
+      };
+      
+      console.log(`\n=== RAW GRAPH DATA FOR ${graphId} ===`);
+      console.log('Total nodes:', responseData.nodes.length);
+      console.log('Total relations:', responseData.relations.length);
+      console.log('Total attributes:', responseData.attributes.length);
+      console.log('Mode:', responseData.mode);
+      console.log('=====================================\n');
+      
+      return responseData;
+    } catch (error) {
+      console.error('Error reading raw graph data:', error);
+      reply.code(404).send({ error: 'Graph not found or could not be read' });
+    }
+  });
+
   fastify.get('/api/graphs/:graphId/key', {
     schema: {
       params: {

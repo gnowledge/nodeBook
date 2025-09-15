@@ -43,11 +43,18 @@ export function PublicWorkspace({ graphId, onGoToDashboard, onShowAuth }: Public
         if (!isMounted) return;
         setCnlText(cnlData.cnl || '');
         
-        // Fetch graph data (nodes, relations, attributes)
+        // Fetch complete, unfiltered graph data (nodes, relations, attributes)
         const dataRes = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/data`);
         if (!dataRes.ok) throw new Error('Failed to load graph data');
         const graphData = await dataRes.json();
         if (!isMounted) return;
+        
+        console.log('[PublicWorkspace] Loaded complete graph data:', { 
+          nodes: graphData.nodes?.length || 0, 
+          relations: graphData.relations?.length || 0, 
+          attributes: graphData.attributes?.length || 0
+        });
+        
         setNodes(graphData.nodes || []);
         setRelations(graphData.relations || []);
         setAttributes(graphData.attributes || []);

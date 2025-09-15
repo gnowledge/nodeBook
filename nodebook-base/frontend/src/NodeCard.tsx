@@ -22,9 +22,10 @@ interface NodeCardProps {
   graphId?: string; // Explicit graph id for actions
   onMorphChange?: (nodeId: string, morphId: string) => void; // Callback for morph changes
   onTransitionSimulate?: (transitionId: string) => void; // Callback for transition simulation
+  getPolyNodeMorphState?: (nodeId: string, nbh: string) => { relations: Edge[]; attributes: Attribute[] }; // Function to get morph state
 }
 
-export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId, onMorphChange, onTransitionSimulate }: NodeCardProps) {
+export function NodeCard({ node, allNodes, allRelations, attributes, isActive, onSelectNode, onImportContext, nodeRegistry, isPublic = false, graphId, onMorphChange, onTransitionSimulate, getPolyNodeMorphState }: NodeCardProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
   const subgraphSvgRef = React.useRef<string | null>(null);
   const registryEntry = nodeRegistry[node.id];
@@ -242,28 +243,48 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     currentMorph: currentMorph,
     morphsCount: node.morphs?.length || 0,
     allAttributesCount: attributes.length,
-    allRelationsCount: allRelations.length
+    allRelationsCount: allRelations.length,
+    morphsData: node.morphs?.map(m => ({
+      id: m.morph_id,
+      name: m.name,
+      attributeCount: m.attributeNode_ids?.length || 0,
+      relationCount: m.relationNode_ids?.length || 0
+    }))
   });
   
-  const filteredAttributes = attributes.filter(attr => {
-    if (attr.source_id !== node.id) return false;
-    // If the node has a morph, use the morph's attributeNode_ids
-    if (currentMorph) {
-      return currentMorph.attributeNode_ids?.includes(attr.id) || false;
-    }
-    // If no morph, show all attributes for this node
-    return true;
+  // Get morph state for this polynode
+  let filteredAttributes: Attribute[] = [];
+  let filteredRelations: Edge[] = [];
+  
+  console.log('[NodeCard] Getting morph state for:', {
+    nodeId: node.id,
+    nodeName: node.name,
+    nbh: node.nbh,
+    hasGetPolyNodeMorphState: !!getPolyNodeMorphState,
+    hasNbh: !!node.nbh
   });
   
-  const filteredRelations = allRelations.filter(rel => {
-    if (rel.source_id !== node.id && rel.target_id !== node.id) return false;
-    // If the node has a morph, use the morph's relationNode_ids
-    if (currentMorph) {
-      return currentMorph.relationNode_ids?.includes(rel.id) || false;
-    }
-    // If no morph, show all relations for this node
-    return true;
-  });
+  if (getPolyNodeMorphState && node.nbh) {
+    // Use the morph state retrieval function
+    console.log('[NodeCard] Calling getPolyNodeMorphState with:', { nodeId: node.id, nbh: node.nbh });
+    const morphState = getPolyNodeMorphState(node.id, node.nbh);
+    console.log('[NodeCard] Function returned:', morphState);
+    filteredAttributes = morphState.attributes;
+    filteredRelations = morphState.relations;
+    console.log('[NodeCard] Received morph state:', {
+      attributesCount: morphState.attributes.length,
+      relationsCount: morphState.relations.length,
+      attributes: morphState.attributes.map(a => ({ id: a.id, name: a.name, value: a.value })),
+      relations: morphState.relations.map(r => ({ id: r.id, name: r.name }))
+    });
+  } else {
+    // Fallback to showing all attributes/relations for this node
+    console.log('[NodeCard] Using fallback - showing all attributes/relations for node');
+    filteredAttributes = attributes.filter(attr => attr.source_id === node.id);
+    filteredRelations = allRelations.filter(rel => 
+      rel.source_id === node.id || rel.target_id === node.id
+    );
+  }
   
   console.log('[NodeCard] Filtered results:', {
     filteredAttributesCount: filteredAttributes.length,
@@ -356,18 +377,35 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
               </ul>
             </div>
 
-            {/* Simulation Button */}
-            {!isPublic && (
-              <div className="transition-actions">
-                <button 
-                  className="transition-simulate-btn"
-                  onClick={handleTransitionSimulate}
-                  title="Simulate this transition process"
-                >
-                  ⚡ Simulate Transition
-                </button>
-              </div>
-            )}
+            {/* Simulation Button - Available in both public and private modes */}
+            <div className="transition-actions">
+              <button 
+                className="transition-simulate-btn"
+                onClick={handleTransitionSimulate}
+                title="Simulate this transition process (in-memory)"
+              >
+                ⚡ Simulate Transition
+              </button>
+              <button 
+                className="transition-reset-btn"
+                onClick={() => {
+                  // Reset all nodes to their basic morph
+                  if (onMorphChange) {
+                    allNodes.forEach(node => {
+                      if (node.morphs && node.morphs.length > 0) {
+                        const basicMorph = node.morphs.find(m => m.name === 'basic') || node.morphs[0];
+                        if (basicMorph && node.nbh !== basicMorph.morph_id) {
+                          onMorphChange(node.id, basicMorph.morph_id);
+                        }
+                      }
+                    });
+                  }
+                }}
+                title="Reset all nodes to their basic morphs"
+              >
+                🔄 Reset
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -445,9 +483,16 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
       )}
       
       {/* Morph Selector */}
-      {node.morphs && node.morphs.length > 1 && !isPublic && (
+      {node.morphs && node.morphs.length > 1 && (
         <div className="morph-selector">
-          <div className="morph-selector-label">Current State:</div>
+          <div className="morph-selector-label">
+            Current State:
+            {node.nbh && node.morphs.find(m => m.morph_id === node.nbh)?.name !== 'basic' && (
+              <span className="transition-indicator" title="This morph was changed by a transition simulation">
+                ⚡
+              </span>
+            )}
+          </div>
           <div className="morph-radio-group">
             {node.morphs.map(morph => (
               <label key={morph.morph_id} className="morph-radio-option">

@@ -223,6 +223,7 @@ export class GraphService {
     }
   }
 
+
   async getCNL(userId: string, graphId: string) {
     try {
       const cnlData = await this.dataStoreService.getCnl(userId, graphId);

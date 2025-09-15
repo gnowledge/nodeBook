@@ -156,6 +156,96 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     relations: Edge[];
     attributes: Attribute[];
   } | null>(null);
+
+  // Raw data for transition simulation lookups
+  const [rawGraphData, setRawGraphData] = useState<{
+    nodes: Node[];
+    relations: Edge[];
+    attributes: Attribute[];
+  } | null>(null);
+
+  /**
+   * Get the morph state for a specific polynode
+   * Returns the attributes and relations for the specified morph
+   * Uses raw data if available, falls back to main graph data
+   */
+  const getPolyNodeMorphState = (nodeId: string, nbh: string) => {
+    console.log(`[App] getPolyNodeMorphState called with:`, { nodeId, nbh });
+    console.log(`[App] rawGraphData available:`, rawGraphData ? 'yes' : 'no');
+    
+    // Use raw data if available, otherwise fall back to main graph data
+    const allNodes = rawGraphData ? rawGraphData.nodes : nodes;
+    const allRelations = rawGraphData ? rawGraphData.relations : relations;
+    const allAttributes = rawGraphData ? rawGraphData.attributes : attributes;
+    
+    console.log(`[App] Using data:`, {
+      source: rawGraphData ? 'raw' : 'main',
+      nodesCount: allNodes.length,
+      relationsCount: allRelations.length,
+      attributesCount: allAttributes.length
+    });
+
+    // Find the node in main data
+    const node = allNodes.find(n => n.id === nodeId);
+    if (!node) {
+      console.warn(`[App] Node ${nodeId} not found in main data`);
+      console.log(`[App] Available node IDs:`, allNodes.map(n => n.id));
+      return { relations: [], attributes: [] };
+    }
+
+    console.log(`[App] Found node:`, {
+      id: node.id,
+      name: node.name,
+      nbh: node.nbh,
+      morphsCount: node.morphs?.length || 0,
+      morphs: node.morphs?.map(m => ({
+        id: m.morph_id,
+        name: m.name,
+        attributeIds: m.attributeNode_ids?.length || 0,
+        relationIds: m.relationNode_ids?.length || 0
+      }))
+    });
+
+    // Find the specific morph
+    const morph = node.morphs?.find(m => m.morph_id === nbh);
+    if (!morph) {
+      console.warn(`[App] Morph ${nbh} not found for node ${nodeId}`);
+      console.log(`[App] Available morph IDs for this node:`, node.morphs?.map(m => m.morph_id));
+      return { relations: [], attributes: [] };
+    }
+
+    console.log(`[App] Found morph:`, {
+      id: morph.morph_id,
+      name: morph.name,
+      attributeNode_ids: morph.attributeNode_ids,
+      relationNode_ids: morph.relationNode_ids
+    });
+
+    // Get attributes for this morph - DIRECT RETRIEVAL, no filtering
+    const morphAttributes = morph.attributeNode_ids 
+      ? morph.attributeNode_ids.map(attrId => allAttributes.find(attr => attr.id === attrId)).filter(Boolean) as Attribute[]
+      : [];
+
+    // Get relations for this morph - DIRECT RETRIEVAL, no filtering  
+    const morphRelations = morph.relationNode_ids 
+      ? morph.relationNode_ids.map(relId => allRelations.find(rel => rel.id === relId)).filter(Boolean) as Edge[]
+      : [];
+
+    console.log(`[App] Retrieved morph state for ${nodeId} (${morph.name}):`, {
+      morphId: nbh,
+      morphName: morph.name,
+      expectedAttributeIds: morph.attributeNode_ids,
+      expectedRelationIds: morph.relationNode_ids,
+      attributesCount: morphAttributes.length,
+      relationsCount: morphRelations.length,
+      attributeIds: morphAttributes.map(a => a.id),
+      relationIds: morphRelations.map(r => r.id),
+      attributes: morphAttributes.map(a => ({ id: a.id, name: a.name, value: a.value })),
+      relations: morphRelations.map(r => ({ id: r.id, name: r.name, source: r.source_id, target: r.target_id }))
+    });
+
+    return { relations: morphRelations, attributes: morphAttributes };
+  };
   
   // Debug effect to log data being passed to components
   useEffect(() => {
@@ -166,68 +256,227 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
       attributesCount: attributes.length,
       inMemoryNodesCount: inMemoryGraph?.nodes?.length || 0,
       inMemoryRelationsCount: inMemoryGraph?.relations?.length || 0,
-      inMemoryAttributesCount: inMemoryGraph?.attributes?.length || 0
+      inMemoryAttributesCount: inMemoryGraph?.attributes?.length || 0,
+      sampleNodeMorphs: nodes.slice(0, 2).map(node => ({
+        id: node.id,
+        name: node.name,
+        nbh: node.nbh,
+        morphsCount: node.morphs?.length || 0,
+        morphs: node.morphs?.map(m => ({
+          id: m.morph_id,
+          name: m.name,
+          attributeIds: m.attributeNode_ids?.length || 0,
+          relationIds: m.relationNode_ids?.length || 0
+        }))
+      }))
     });
   }, [inMemoryGraph, nodes, relations, attributes]);
   
-  // Morph change handler - now purely in-memory operation
+  // Morph change handler - updates only the specific node's morph
   const handleMorphChange = (nodeId: string, morphId: string) => {
     console.log(`[App] Changing morph for node ${nodeId} to ${morphId} (in-memory)`);
-    console.log(`[App] Current inMemoryGraph state:`, inMemoryGraph ? 'exists' : 'null');
     
-    // Update the in-memory graph data first
+    // Update the main nodes state - this will trigger re-renders
+    const updatedNodes = nodes.map(node => 
+      node.id === nodeId 
+        ? { ...node, nbh: morphId }
+        : node
+    );
+    
+    setNodes(updatedNodes);
+    
+    // Update the in-memory graph nodes (but keep relations/attributes unchanged)
     setInMemoryGraph(prevGraph => {
       if (!prevGraph) {
         console.log('[App] No in-memory graph to update, creating new one');
-        // If no in-memory graph exists, create one from current state
         return {
-          nodes: nodes.map(node => 
-            node.id === nodeId 
-              ? { ...node, nbh: morphId }
-              : node
-          ),
-          relations: relations,
-          attributes: attributes
+          nodes: updatedNodes,
+          relations: relations,  // Keep original relations
+          attributes: attributes  // Keep original attributes
         };
       }
+      
       console.log('[App] Updating in-memory graph with morph change');
       
-      return {
-        ...prevGraph,
-        nodes: prevGraph.nodes.map(node => 
-          node.id === nodeId 
-            ? { ...node, nbh: morphId }
-            : node
-        )
-      };
-    });
-    
-    // Also update the main state for consistency
-    setNodes(prevNodes => 
-      prevNodes.map(node => 
+      // Only update the specific node's morph, keep everything else unchanged
+      const updatedInMemoryNodes = prevGraph.nodes.map(node => 
         node.id === nodeId 
           ? { ...node, nbh: morphId }
           : node
-      )
-    );
+      );
+      
+      return {
+        nodes: updatedInMemoryNodes,
+        relations: prevGraph.relations,  // Keep relations unchanged
+        attributes: prevGraph.attributes  // Keep attributes unchanged
+      };
+    });
     
-    console.log(`[App] Morph change completed successfully (in-memory)`);
+    console.log(`[App] Morph change completed successfully (node-specific update)`);
   };
 
-  // Transition simulation handler
+  /**
+   * Transition simulation handler - In-memory simulation
+   * 
+   * This function simulates transitions by:
+   * 1. Finding the transition node and its prior/post state relations
+   * 2. Mapping prior states to post states (by name similarity or order)
+   * 3. Updating node morphs in-memory to reflect the transition
+   * 4. Providing visual feedback to the user
+   * 
+   * The simulation works entirely in-memory and does not persist changes to the backend,
+   * making it suitable for both private and public graphs.
+   */
   const handleTransitionSimulate = async (transitionId: string) => {
     try {
-      console.log(`[App] Simulating transition ${transitionId}`);
+      console.log(`[App] Simulating transition ${transitionId} (in-memory)`);
+      console.log(`[App] Raw graph data available:`, rawGraphData ? 'yes' : 'no');
       
-      // For now, we'll just show an alert. In the future, this could:
-      // 1. Call a backend API to simulate the transition
-      // 2. Update node states based on the transition
-      // 3. Show animation or visual feedback
-      
-      const transitionNode = nodes.find(n => n.id === transitionId);
-      if (transitionNode) {
-        alert(`Simulating transition: ${transitionNode.name}\n\nThis would transform the prior states into post states according to the transition rules.`);
+      if (!rawGraphData) {
+        alert('Raw graph data not loaded. Please refresh the page.');
+        return;
       }
+      
+      // Find the transition node in raw data (for complete morph information)
+      const transitionNode = rawGraphData.nodes.find(n => n.id === transitionId);
+      if (!transitionNode) {
+        console.error(`[App] Transition node ${transitionId} not found`);
+        return;
+      }
+
+      // Find prior and post states from relations in raw data
+      const priorStateRelations = rawGraphData.relations.filter(rel => 
+        rel.target_id === transitionId && rel.name === 'has prior_state'
+      );
+      const postStateRelations = rawGraphData.relations.filter(rel => 
+        rel.target_id === transitionId && rel.name === 'has post_state'
+      );
+
+      console.log(`[App] Found ${priorStateRelations.length} prior states and ${postStateRelations.length} post states`);
+      console.log(`[App] Prior state relations:`, priorStateRelations);
+      console.log(`[App] Post state relations:`, postStateRelations);
+
+      if (priorStateRelations.length === 0 || postStateRelations.length === 0) {
+        alert(`Transition "${transitionNode.name}" is missing prior or post states. Please check the transition definition.`);
+        return;
+      }
+
+      // Check if all prior state nodes exist and have the required morphs (use raw data for complete morph info)
+      const priorStateNodes = priorStateRelations.map(rel => 
+        rawGraphData.nodes.find(n => n.id === rel.source_id)
+      ).filter(Boolean);
+
+      const postStateNodes = postStateRelations.map(rel => 
+        rawGraphData.nodes.find(n => n.id === rel.source_id)
+      ).filter(Boolean);
+
+      if (priorStateNodes.length !== priorStateRelations.length || postStateNodes.length !== postStateRelations.length) {
+        alert(`Some nodes referenced in transition "${transitionNode.name}" are missing from the graph.`);
+        return;
+      }
+
+      // Create a mapping of prior states to post states
+      // For transitions, we need to map the actual morphs, not just nodes
+      // The logic: if a node has morphs, we need to find the appropriate morph for the transition
+      const stateMapping: Array<{priorNode: string, postNode: string, targetMorph?: string}> = [];
+      
+      // For each prior state, find the corresponding post state
+      // We'll try to match by node name similarity or use order-based mapping
+      for (const priorNode of priorStateNodes) {
+        if (!priorNode) continue;
+        
+        // Try to find a post node with similar name (for polynodes)
+        let postNode = postStateNodes.find(p => 
+          p && p.name === priorNode.name || 
+          (p && p.name.toLowerCase().includes(priorNode.name.toLowerCase())) ||
+          (priorNode.name.toLowerCase().includes(p?.name.toLowerCase() || ''))
+        );
+        
+        // If no match found, use order-based mapping
+        if (!postNode && postStateNodes.length > 0) {
+          const priorIndex = priorStateNodes.indexOf(priorNode);
+          postNode = postStateNodes[priorIndex % postStateNodes.length];
+        }
+        
+        if (postNode) {
+          // Find the appropriate morph for the post state
+          let targetMorph: string | undefined;
+          if (postNode.morphs && postNode.morphs.length > 0) {
+            // Look for a morph that represents the post state
+            // For example, if post node is "Hydrogen" and has "Hydrogen ion" morph, use that
+            const postMorph = postNode.morphs.find(m => 
+              m.name.toLowerCase().includes('ion') || 
+              m.name.toLowerCase().includes('oxide') ||
+              m.name !== 'basic'
+            ) || postNode.morphs[0];
+            
+            targetMorph = postMorph.morph_id;
+          }
+          
+          stateMapping.push({
+            priorNode: priorNode.id,
+            postNode: postNode.id,
+            targetMorph
+          });
+        }
+      }
+
+      console.log(`[App] State mapping:`, stateMapping);
+      console.log(`[App] Prior state nodes:`, priorStateNodes.map(n => ({ id: n?.id, name: n?.name, morphs: n?.morphs?.length || 0 })));
+      console.log(`[App] Post state nodes:`, postStateNodes.map(n => ({ id: n?.id, name: n?.name, morphs: n?.morphs?.length || 0 })));
+
+      // Update the main state first
+      const updatedNodes = nodes.map(node => {
+        const mapping = stateMapping.find(m => m.priorNode === node.id);
+        if (mapping && mapping.targetMorph) {
+          console.log(`[App] Changing node ${node.name} morph to ${mapping.targetMorph}`);
+          return { ...node, nbh: mapping.targetMorph };
+        }
+        return node;
+      });
+      
+      setNodes(updatedNodes);
+
+      // Update in-memory graph with morph changes and proper filtering
+      setInMemoryGraph(prevGraph => {
+        if (!prevGraph) {
+          // Create new in-memory graph from current state with filtering
+          const filtered = filterByActiveMorphs(updatedNodes);
+          return {
+            nodes: updatedNodes,
+            relations: filtered.relations,
+            attributes: filtered.attributes
+          };
+        }
+
+        // Update nodes with new morph states and apply filtering
+        const updatedInMemoryNodes = prevGraph.nodes.map(node => {
+          const mapping = stateMapping.find(m => m.priorNode === node.id);
+          if (mapping && mapping.targetMorph) {
+            return { ...node, nbh: mapping.targetMorph };
+          }
+          return node;
+        });
+
+        const filtered = filterByActiveMorphs(updatedInMemoryNodes);
+
+        return {
+          nodes: updatedInMemoryNodes,
+          relations: filtered.relations,
+          attributes: filtered.attributes
+        };
+      });
+
+      // Show success message with more details
+      const priorNames = priorStateNodes.filter(n => n).map(n => n!.name).join(', ');
+      const postNames = postStateNodes.filter(n => n).map(n => n!.name).join(', ');
+      const changedNodes = stateMapping.filter(m => m.targetMorph).map(m => {
+        const node = nodes.find(n => n.id === m.priorNode);
+        const morph = node?.morphs?.find(morph => morph.morph_id === m.targetMorph);
+        return `${node?.name} → ${morph?.name || 'unknown morph'}`;
+      }).join(', ');
+      
+      alert(`⚡ Transition "${transitionNode.name}" simulated successfully!\n\nPrior states: ${priorNames}\nPost states: ${postNames}\n\nChanged morphs: ${changedNodes || 'None'}\n\nNote: Changes are in-memory only and will not persist to the backend.`);
       
     } catch (error) {
       console.error('[App] Error simulating transition:', error);
@@ -304,13 +553,62 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     localStorage.setItem('userEmail', email);
   }, [email]);
 
-  const fetchGraph = (graphId: string) => {
+  // Load raw data for transition simulation lookups
+  const fetchRawGraphData = (graphId: string) => {
     if (!graphId) return;
     
-    // Fetch graph data (nodes, relations, attributes)
-            collabFetch(`/api/graphs/${graphId}/graph`)
-      .then(res => res.json())
+    console.log('[App] Starting to fetch raw graph data for:', graphId);
+    
+    // Try the public endpoint first (it reads graph.json directly)
+    fetch(`/api/graphs/public/${graphId}/data`)
+      .then(res => {
+        console.log('[App] Public data endpoint response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then(data => {
+        console.log('[App] Public data endpoint returned data:', data);
+        console.log('[App] Loaded raw graph data for transition simulation:', { 
+          nodes: data.nodes?.length || 0, 
+          relations: data.relations?.length || 0, 
+          attributes: data.attributes?.length || 0,
+          sampleNode: data.nodes?.[0] ? {
+            id: data.nodes[0].id,
+            name: data.nodes[0].name,
+            morphsCount: data.nodes[0].morphs?.length || 0
+          } : null
+        });
+        setRawGraphData({
+          nodes: data.nodes || [],
+          relations: data.relations || [],
+          attributes: data.attributes || []
+        });
+      })
+      .catch(error => {
+        console.error('[App] Error loading raw graph data:', error);
+        // Don't show error to user, just log it
+      });
+  };
+
+  const fetchGraph = (graphId: string) => {
+    console.log('[App] fetchGraph called with:', graphId);
+    if (!graphId) {
+      console.log('[App] No graphId provided, returning');
+      return;
+    }
+    
+    console.log('[App] Starting to fetch main graph data...');
+    
+    // Fetch graph data (nodes, relations, attributes) - filtered for UI components
+    collabFetch(`/api/graphs/${graphId}/graph`)
+      .then(res => {
+        console.log('[App] Main graph endpoint response status:', res.status);
+        return res.json();
+      })
+      .then(data => {
+        console.log('[App] Main graph data received:', data);
         const graphNodes = data.nodes || [];
         const graphRelations = data.relations || [];
         const graphAttributes = data.attributes || [];
@@ -336,7 +634,16 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         // Calculate graph score
         const score = calculateGraphScore(graphNodes, graphRelations, graphAttributes);
         setGraphScore(score);
+        
+        console.log('[App] Main graph data processing completed');
+      })
+      .catch(error => {
+        console.error('[App] Error loading main graph data:', error);
       });
+
+    // Also load raw data for transition simulation
+    console.log('[App] About to call fetchRawGraphData for:', graphId);
+    fetchRawGraphData(graphId);
     
     // Fetch graph key
             authenticatedFetch(`/api/graphs/${graphId}/key`)
@@ -831,6 +1138,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               ) : (
                                 <>
                                   <Visualization 
+                                    key={`viz-${activeGraphId}-${(inMemoryGraph?.nodes || nodes).map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
                                     nodes={inMemoryGraph?.nodes || nodes} 
                                     relations={inMemoryGraph?.relations || relations} 
                                     attributes={inMemoryGraph?.attributes || attributes} 
@@ -858,6 +1166,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                         graphId={activeGraphId || undefined}
                                         onMorphChange={handleMorphChange}
                                         onTransitionSimulate={handleTransitionSimulate}
+                                        getPolyNodeMorphState={getPolyNodeMorphState}
                                       />
                                     )}
                                   </DraggableModal>
@@ -928,6 +1237,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                     {viewMode === 'visualization' && (
                       <div className={styles.visualizationWrapper}>
                         <Visualization 
+                          key={`viz-full-${activeGraphId}-${(inMemoryGraph?.nodes || nodes).map(n => `${n.id}-${n.nbh || 'default'}`).join('-')}`}
                           nodes={inMemoryGraph?.nodes || nodes} 
                           relations={inMemoryGraph?.relations || relations} 
                           attributes={inMemoryGraph?.attributes || attributes} 
@@ -955,6 +1265,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               graphId={activeGraphId || undefined}
                               onMorphChange={handleMorphChange}
                               onTransitionSimulate={handleTransitionSimulate}
+                              getPolyNodeMorphState={getPolyNodeMorphState}
                             />
                           )}
                         </DraggableModal>
