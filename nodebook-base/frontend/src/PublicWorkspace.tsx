@@ -35,14 +35,23 @@ export function PublicWorkspace({ graphId, onGoToDashboard, onShowAuth }: Public
       try {
         setLoading(true);
         setError('');
-        const res = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
-        if (!res.ok) throw new Error('Failed to load public graph data');
-        const data = await res.json();
+        
+        // Fetch CNL content
+        const cnlRes = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
+        if (!cnlRes.ok) throw new Error('Failed to load CNL content');
+        const cnlData = await cnlRes.json();
         if (!isMounted) return;
-        setNodes(data.nodes || []);
-        setRelations(data.relations || []);
-        setAttributes(data.attributes || []);
-        setCnlText(data.cnl || '');
+        setCnlText(cnlData.cnl || '');
+        
+        // Fetch graph data (nodes, relations, attributes)
+        const dataRes = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/data`);
+        if (!dataRes.ok) throw new Error('Failed to load graph data');
+        const graphData = await dataRes.json();
+        if (!isMounted) return;
+        setNodes(graphData.nodes || []);
+        setRelations(graphData.relations || []);
+        setAttributes(graphData.attributes || []);
+        
       } catch (e: any) {
         if (!isMounted) return;
         setError(e?.message || 'Failed to load');

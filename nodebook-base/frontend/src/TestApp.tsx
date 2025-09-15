@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
 import App from './App';
 import AuthModal from './AuthModal';
-import { PublicGraphViewer } from './PublicGraphViewer';
 import PublicWorkspace from './PublicWorkspace';
 import { keycloakAuth } from './services/keycloakAuth';
 import styles from './TestApp.module.css';
@@ -20,7 +19,7 @@ function TestApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'app' | 'public-graph' | 'public-workspace'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'app' | 'public-workspace'>('dashboard');
   const [publicGraphId, setPublicGraphId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -205,16 +204,6 @@ function TestApp() {
     );
   }
 
-  // Show Public Graph Viewer for anonymous users
-  if (currentView === 'public-graph' && publicGraphId) {
-    return (
-      <PublicGraphViewer
-        graphId={publicGraphId}
-        onGoToDashboard={handleGoToDashboard}
-        onShowAuth={() => setShowAuthModal(true)}
-      />
-    );
-  }
 
   if (currentView === 'public-workspace' && publicGraphId) {
     return (
