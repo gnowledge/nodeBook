@@ -86,3 +86,4 @@ export class CNLValidateDto {
   @IsString()
   cnlText: string;
 }
+

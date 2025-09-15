@@ -14,8 +14,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
-import { GraphService } from './graph.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GraphService } from './graph.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { 
   CreateGraphDto, 
   UpdateGraphModeDto, 
@@ -25,7 +25,7 @@ import {
   SaveCNLDto,
   CNLSuggestDto,
   CNLValidateDto
-} from './dto/graph.dto';
+} from './dto/graph.dto.js';
 
 @ApiTags('graphs')
 @Controller('api/graphs')
@@ -33,6 +33,31 @@ import {
 @ApiBearerAuth('JWT-auth')
 export class GraphController {
   constructor(private readonly graphService: GraphService) {}
+
+  @Get('public')
+  @ApiOperation({ summary: 'Get all public graphs' })
+  @ApiResponse({ status: 200, description: 'List of public graphs' })
+  async getPublicGraphs() {
+    return this.graphService.getPublicGraphs();
+  }
+
+  @Get('public/:graphId')
+  @ApiOperation({ summary: 'Get public graph by ID' })
+  @ApiParam({ name: 'graphId', description: 'Graph ID' })
+  @ApiResponse({ status: 200, description: 'Public graph data' })
+  @ApiResponse({ status: 404, description: 'Graph not found' })
+  async getPublicGraph(@Param('graphId') graphId: string) {
+    return this.graphService.getPublicGraph(graphId);
+  }
+
+  @Get('public/:graphId/cnl')
+  @ApiOperation({ summary: 'Get CNL for public graph' })
+  @ApiParam({ name: 'graphId', description: 'Graph ID' })
+  @ApiResponse({ status: 200, description: 'CNL data' })
+  @ApiResponse({ status: 404, description: 'Graph not found' })
+  async getPublicGraphCnl(@Param('graphId') graphId: string) {
+    return this.graphService.getPublicGraphCnl(graphId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get all graphs for the authenticated user' })
@@ -138,11 +163,14 @@ export class GraphController {
   @ApiResponse({ status: 200, description: 'NDF package file' })
   async exportGraph(@Request() req, @Param('graphId') graphId: string, @Query('name') name?: string, @Res() res?: Response) {
     const stream = await this.graphService.exportGraph(req.user.id, graphId, name);
-    res.set({
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${name || 'graph'}.ndf.zip"`,
-    });
-    return stream.pipe(res);
+    if (res) {
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${name || 'graph'}.ndf.zip"`,
+      });
+      return (stream as any).pipe(res);
+    }
+    return stream;
   }
 
   @Post('import')

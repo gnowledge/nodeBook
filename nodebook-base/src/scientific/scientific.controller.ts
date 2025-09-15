@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { ScientificService } from './scientific.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ScientificService } from './scientific.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @ApiTags('scientific')
 @Controller('api/scientific')
@@ -54,3 +54,4 @@ export class ScientificController {
     return this.scientificService.evaluateExpression(body.expression, body.scope);
   }
 }
+

@@ -35,7 +35,7 @@ export function PublicWorkspace({ graphId, onGoToDashboard, onShowAuth }: Public
       try {
         setLoading(true);
         setError('');
-        const res = await fetch(`${API_BASE_URL}/api/public/graphs/${graphId}/cnl`);
+        const res = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
         if (!res.ok) throw new Error('Failed to load public graph data');
         const data = await res.json();
         if (!isMounted) return;

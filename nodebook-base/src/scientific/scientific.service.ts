@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-
-// Import the existing scientific-library-manager.js module
-const ScientificLibraryManager = require('../../../../scientific-library-manager.js');
+import ScientificLibraryManager from '../../scientific-library-manager.js';
 
 @Injectable()
 export class ScientificService {
@@ -11,11 +9,11 @@ export class ScientificService {
     this.scientificManager = new ScientificLibraryManager();
   }
 
-  getLibraries() {
+  async getLibraries() {
     return this.scientificManager.getAvailableLibraries();
   }
 
-  getLibraryInfo(library: string) {
+  async getLibraryInfo(library: string) {
     const info = this.scientificManager.getLibraryInfo(library);
     if (!info) {
       throw new Error('Library not found');
@@ -23,7 +21,7 @@ export class ScientificService {
     return info;
   }
 
-  getFunctions(library?: string, category?: string, search?: string) {
+  async getFunctions(library?: string, category?: string, search?: string) {
     if (library) {
       return this.scientificManager.getFunctionsByLibrary(library);
     } else if (category) {
@@ -35,7 +33,7 @@ export class ScientificService {
     }
   }
 
-  getFunctionInfo(library: string, name: string) {
+  async getFunctionInfo(library: string, name: string) {
     const info = this.scientificManager.getFunctionInfo(library, name);
     if (!info) {
       throw new Error('Function not found');
@@ -43,11 +41,11 @@ export class ScientificService {
     return info;
   }
 
-  validateExpression(expression: string) {
+  async validateExpression(expression: string) {
     return this.scientificManager.validateExpression(expression);
   }
 
-  evaluateExpression(expression: string, scope: any = {}) {
+  async evaluateExpression(expression: string, scope: any = {}) {
     try {
       const result = this.scientificManager.executeExpression(expression, scope);
       return { result, expression, scope };
@@ -56,3 +54,4 @@ export class ScientificService {
     }
   }
 }
+

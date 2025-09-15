@@ -157,22 +157,41 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     attributes: Attribute[];
   } | null>(null);
   
+  // Debug effect to log data being passed to components
+  useEffect(() => {
+    console.log('[App] Debug - Data state:', {
+      inMemoryGraph: inMemoryGraph ? 'exists' : 'null',
+      nodesCount: nodes.length,
+      relationsCount: relations.length,
+      attributesCount: attributes.length,
+      inMemoryNodesCount: inMemoryGraph?.nodes?.length || 0,
+      inMemoryRelationsCount: inMemoryGraph?.relations?.length || 0,
+      inMemoryAttributesCount: inMemoryGraph?.attributes?.length || 0
+    });
+  }, [inMemoryGraph, nodes, relations, attributes]);
+  
   // Morph change handler - now purely in-memory operation
   const handleMorphChange = (nodeId: string, morphId: string) => {
     console.log(`[App] Changing morph for node ${nodeId} to ${morphId} (in-memory)`);
+    console.log(`[App] Current inMemoryGraph state:`, inMemoryGraph ? 'exists' : 'null');
     
-    // Update the node's morph state in memory
-    setNodes(prevNodes => 
-      prevNodes.map(node => 
-        node.id === nodeId 
-          ? { ...node, nbh: morphId }
-          : node
-      )
-    );
-    
-    // Also update the in-memory graph data
+    // Update the in-memory graph data first
     setInMemoryGraph(prevGraph => {
-      if (!prevGraph) return prevGraph;
+      if (!prevGraph) {
+        console.log('[App] No in-memory graph to update, creating new one');
+        // If no in-memory graph exists, create one from current state
+        return {
+          nodes: nodes.map(node => 
+            node.id === nodeId 
+              ? { ...node, nbh: morphId }
+              : node
+          ),
+          relations: relations,
+          attributes: attributes
+        };
+      }
+      console.log('[App] Updating in-memory graph with morph change');
+      
       return {
         ...prevGraph,
         nodes: prevGraph.nodes.map(node => 
@@ -182,6 +201,15 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         )
       };
     });
+    
+    // Also update the main state for consistency
+    setNodes(prevNodes => 
+      prevNodes.map(node => 
+        node.id === nodeId 
+          ? { ...node, nbh: morphId }
+          : node
+      )
+    );
     
     console.log(`[App] Morph change completed successfully (in-memory)`);
   };
@@ -294,6 +322,11 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
         setGraphMode(graphMode);
         
         // Create in-memory graph copy for morph changes
+        console.log('[App] Creating in-memory graph copy:', { 
+          nodes: graphNodes.length, 
+          relations: graphRelations.length, 
+          attributes: graphAttributes.length 
+        });
         setInMemoryGraph({
           nodes: graphNodes,
           relations: graphRelations,
@@ -627,7 +660,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
     setInsertTextFunction(() => insertFunction);
   }, []);
 
-  const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  const selectedNode = (inMemoryGraph?.nodes || nodes).find(n => n.id === selectedNodeId);
 
   return (
     <div className={styles.container}>
@@ -816,7 +849,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                                         node={selectedNode}
                                         allNodes={inMemoryGraph?.nodes || nodes}
                                         allRelations={inMemoryGraph?.relations || relations}
-                                        attributes={attributeTypes}
+                                        attributes={inMemoryGraph?.attributes || attributes}
                                         isActive={false}
                                         onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                                         onImportContext={(nodeId) => console.log('Import context:', nodeId)}
@@ -913,7 +946,7 @@ function App({ onLogout, onGoToDashboard, user }: AppProps) {
                               node={selectedNode}
                               allNodes={inMemoryGraph?.nodes || nodes}
                               allRelations={inMemoryGraph?.relations || relations}
-                              attributes={attributeTypes}
+                              attributes={inMemoryGraph?.attributes || attributes}
                               isActive={false}
                               onSelectNode={(nodeId) => console.log('Node selected:', nodeId)}
                               onImportContext={(nodeId) => console.log('Import context:', nodeId)}

@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { CollaborationService } from './collaboration.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CollaborationService } from './collaboration.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @ApiTags('collaboration')
 @Controller('api/collab')
@@ -50,3 +50,4 @@ export class CollaborationController {
     return this.collaborationService.submitCNLViaInvite(token, graphId, cnlData);
   }
 }
+

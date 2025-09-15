@@ -27,6 +27,8 @@ services:
       context: ./nodebook-base
       dockerfile: Dockerfile.dev
     container_name: nodebook-p2p-dev
+    ports:
+      - "3000:3000"
     volumes:
       - ./nodebook-base:/app
       - /app/node_modules

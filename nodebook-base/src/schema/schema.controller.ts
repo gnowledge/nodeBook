@@ -10,8 +10,8 @@ import {
   Request
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { SchemaService } from './schema.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SchemaService } from './schema.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { 
   CreateRelationTypeDto, 
   UpdateRelationTypeDto,
@@ -21,7 +21,7 @@ import {
   UpdateNodeTypeDto,
   CreateFunctionTypeDto,
   UpdateFunctionTypeDto
-} from './dto/schema.dto';
+} from './dto/schema.dto.js';
 
 @ApiTags('schemas')
 @Controller('api/schema')
@@ -202,3 +202,4 @@ export class SchemaController {
     return this.schemaService.deleteFunctionType(name);
   }
 }
+

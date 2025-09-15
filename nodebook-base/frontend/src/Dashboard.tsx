@@ -76,7 +76,7 @@ export default function Dashboard({
     setPublicError('');
     
     try {
-      const response = await fetch('/api/public/graphs');
+      const response = await fetch('/api/graphs/public');
       
       if (response.ok) {
         const data = await response.json();

@@ -7,6 +7,16 @@ export interface Node {
   role: string;
   description: string | null;
   parent_types: string[];
+  morphs?: Morph[];
+  nbh?: string;
+}
+
+export interface Morph {
+  morph_id: string;
+  node_id: string;
+  name: string;
+  relationNode_ids: string[];
+  attributeNode_ids: string[];
 }
 
 export interface Edge {
@@ -14,6 +24,7 @@ export interface Edge {
   source_id: string;
   target_id: string;
   name: string;
+  morph_ids?: string[];
 }
 
 export interface Attribute {
@@ -21,6 +32,7 @@ export interface Attribute {
   source_id: string;
   name: string;
   value: any;
+  morph_ids?: string[];
 }
 
 export interface NodeType {

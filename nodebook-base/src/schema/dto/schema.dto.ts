@@ -98,3 +98,4 @@ export class UpdateFunctionTypeDto {
   @IsString({ each: true })
   required_attributes: string[];
 }
+

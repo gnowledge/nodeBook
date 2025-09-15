@@ -1,33 +1,46 @@
 import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-oauth2';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class KeycloakStrategy extends PassportStrategy(Strategy, 'keycloak') {
-  constructor(private configService: ConfigService) {
-    const keycloakUrl = configService.get<string>('KEYCLOAK_URL', 'http://localhost:8080');
-    const realm = configService.get<string>('KEYCLOAK_REALM', 'nodebook');
-    const clientId = configService.get<string>('KEYCLOAK_CLIENT_ID', 'nodebook-frontend');
-    const clientSecret = configService.get<string>('KEYCLOAK_CLIENT_SECRET', 'nodebook-frontend-secret');
+export class KeycloakStrategy {
+  constructor(private configService: ConfigService) {}
 
-    super({
-      authorizationURL: `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth`,
-      tokenURL: `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
-      clientID: clientId,
-      clientSecret: clientSecret,
-      callbackURL: '/api/auth/callback',
-    });
-  }
+  async validateToken(token: string) {
+    // In development with auth disabled, return a mock admin user
+    if (this.configService.get('DISABLE_AUTH') === 'true') {
+      return {
+        id: 'dev-user-id',
+        username: 'dev-user',
+        email: 'dev@example.com',
+        isAdmin: true
+      };
+    }
 
-  async validate(accessToken: string, refreshToken: string, profile: any) {
-    // This would be called after successful OAuth flow
-    // In a real implementation, you'd fetch user info from Keycloak
-    return {
-      id: profile.id,
-      username: profile.username,
-      email: profile.email,
-      isAdmin: profile.roles?.includes('admin') || false,
-    };
+    // In production, validate the token with Keycloak
+    // This would typically involve making a request to Keycloak's userinfo endpoint
+    try {
+      const keycloakUrl = this.configService.get('KEYCLOAK_URL');
+      const realm = this.configService.get('KEYCLOAK_REALM');
+      
+      const response = await fetch(`${keycloakUrl}/realms/${realm}/protocol/openid-connect/userinfo`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid token');
+      }
+
+      const userInfo = await response.json();
+      return {
+        id: userInfo.sub,
+        username: userInfo.preferred_username,
+        email: userInfo.email,
+        isAdmin: userInfo.realm_access?.roles?.includes('admin') || false
+      };
+    } catch (error) {
+      throw new Error('Token validation failed');
+    }
   }
 }

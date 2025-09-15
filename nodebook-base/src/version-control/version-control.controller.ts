@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { VersionControlService } from './version-control.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { VersionControlService } from './version-control.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @ApiTags('version-control')
 @Controller('api/graphs/:graphId/versions')
@@ -47,3 +47,4 @@ export class VersionControlController {
     return this.versionControlService.compareVersions(req.user.id, graphId, commit1, commit2);
   }
 }
+

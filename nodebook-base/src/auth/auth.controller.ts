@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, CallbackDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto, ResendVerificationDto } from './dto/auth.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthService } from './auth.service.js';
+import { LoginDto, RegisterDto, CallbackDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto, ResendVerificationDto } from './dto/auth.dto.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 @ApiTags('auth')
 @Controller('api/auth')
@@ -77,3 +77,4 @@ export class AuthController {
     return this.authService.resendVerification(resendVerificationDto);
   }
 }
+

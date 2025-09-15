@@ -1,16 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-// Import the existing graph-manager.js module
-const GraphManager = require('../../../../graph-manager.js');
+import GraphManager from '../../../graph-manager.js';
 
 @Injectable()
 export class GraphManagerService {
   private graphManager: any;
 
   constructor(private configService: ConfigService) {
-    this.graphManager = new GraphManager();
-    this.initialize();
+    this.initializeGraphManager();
+  }
+
+  private async initializeGraphManager() {
+    try {
+      // Direct ES module import
+      this.graphManager = new GraphManager();
+      await this.initialize();
+    } catch (error) {
+      console.error('Failed to initialize graph manager:', error);
+      throw error; // Don't fallback to mock, let the error propagate
+    }
   }
 
   private async initialize() {
@@ -38,3 +46,4 @@ export class GraphManagerService {
     return this.graphManager.publishGraph(userId, graphId);
   }
 }
+

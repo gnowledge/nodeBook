@@ -41,7 +41,7 @@ export function GraphViewPublic({
   // Fetch graph details
   useEffect(() => {
     if (activeGraphId) {
-      fetch(`${API_BASE_URL}/api/public/graphs/${activeGraphId}`)
+      fetch(`${API_BASE_URL}/api/graphs/public/${activeGraphId}`)
         .then(res => res.json())
         .then((graph: Graph) => {
           setActiveGraph(graph);

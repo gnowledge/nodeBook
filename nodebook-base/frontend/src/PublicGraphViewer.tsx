@@ -27,7 +27,7 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
         setError('');
 
         // Fetch graph metadata
-        const graphResponse = await fetch(`${API_BASE_URL}/api/public/graphs/${graphId}`);
+        const graphResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}`);
         if (!graphResponse.ok) {
           throw new Error('Failed to fetch graph metadata');
         }
@@ -35,7 +35,7 @@ export function PublicGraphViewer({ graphId, onGoToDashboard, onShowAuth }: Publ
         setGraph(graphData);
 
         // Fetch graph content (CNL, nodes, relations, attributes)
-        const contentResponse = await fetch(`${API_BASE_URL}/api/public/graphs/${graphId}/cnl`);
+        const contentResponse = await fetch(`${API_BASE_URL}/api/graphs/public/${graphId}/cnl`);
         if (!contentResponse.ok) {
           throw new Error('Failed to fetch graph content');
         }

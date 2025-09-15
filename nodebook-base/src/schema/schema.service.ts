@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-
-// Import the existing schema-manager.js module
-const schemaManager = require('../../../../schema-manager.js');
+import { ConfigService } from '@nestjs/config';
+import * as schemaManager from '../../schema-manager.js';
 
 @Injectable()
 export class SchemaService {
+  constructor(private configService: ConfigService) {}
   // Relation Types
   async getRelationTypes() {
     return schemaManager.getRelationTypes();
@@ -109,3 +109,4 @@ export class SchemaService {
     return schemaManager.deleteFunctionType(name);
   }
 }
+

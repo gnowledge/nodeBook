@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { DataStoreService } from './services/data-store.service';
-import { GraphManagerService } from './services/graph-manager.service';
-import { CNLParserService } from './services/cnl-parser.service';
-import { CNLSuggestionService } from './services/cnl-suggestion.service';
-import { CreateGraphDto, UpdateGraphModeDto, UpdateGraphPreviewDto, UpdateGraphPublicationDto, ProcessCNLDto, SaveCNLDto, CNLSuggestDto, CNLValidateDto } from './dto/graph.dto';
+import { DataStoreService } from './services/data-store.service.js';
+import { GraphManagerService } from './services/graph-manager.service.js';
+import { CNLParserService } from './services/cnl-parser.service.js';
+import { CNLSuggestionService } from './services/cnl-suggestion.service.js';
+import { CreateGraphDto, UpdateGraphModeDto, UpdateGraphPreviewDto, UpdateGraphPublicationDto, ProcessCNLDto, SaveCNLDto, CNLSuggestDto, CNLValidateDto } from './dto/graph.dto.js';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class GraphService {
@@ -28,6 +29,51 @@ export class GraphService {
         updatedAt: graph.updatedAt || graph.updated_at
       }));
       return graphsWithPublicationState;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getPublicGraphs() {
+    try {
+      // For development, return empty array for public graphs
+      // In production, this would query for graphs with publication_state = 'Public'
+      return [];
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getPublicGraph(graphId: string) {
+    try {
+      // For development, return mock data
+      // In production, this would query for a specific public graph
+      return {
+        id: graphId,
+        name: 'Public Graph',
+        description: 'A public graph for development',
+        author: 'public-user',
+        email: 'public@example.com',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        mode: 'richgraph',
+        publication_state: 'Public'
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getPublicGraphCnl(graphId: string) {
+    try {
+      // For development, return mock CNL data
+      // In production, this would query for the CNL content of a public graph
+      return {
+        cnl: 'This is a sample CNL text for a public graph.',
+        nodes: [],
+        relations: [],
+        attributes: []
+      };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -106,20 +152,23 @@ export class GraphService {
       
       if (activeMorphs.size > 0) {
         // Filter relations and attributes using morph registry
-        filteredRelations = this.dataStoreService.getFilteredRelations(relations, Array.from(activeMorphs));
-        filteredAttributes = this.dataStoreService.getFilteredAttributes(attributes, Array.from(activeMorphs));
+        filteredRelations = this.dataStoreService.getFilteredRelations(relations, Array.from(activeMorphs) as string[]);
+        filteredAttributes = this.dataStoreService.getFilteredAttributes(attributes, Array.from(activeMorphs) as string[]);
       }
       
       // Get the graph mode from the manifest
       const manifest = await this.dataStoreService.getManifest(userId, graphId);
-      const mode = manifest?.mode || 'richgraph';
+      const mode = manifest?.manifest?.mode || 'richgraph';
       
-      return {
+      const result = {
         nodes: nodes.filter(node => !node.isDeleted),
         relations: filteredRelations,
         attributes: filteredAttributes,
         mode: mode
       };
+      
+      console.log('GraphService.getGraph returning:', JSON.stringify(result, null, 2));
+      return result;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -130,8 +179,10 @@ export class GraphService {
 
   async getCNL(userId: string, graphId: string) {
     try {
-      const cnl = await this.dataStoreService.getCnl(userId, graphId);
-      return { cnl };
+      const cnlData = await this.dataStoreService.getCnl(userId, graphId);
+      // The data store returns the CNL text directly as a string
+      // Frontend expects { cnl: "text" } format
+      return { cnl: cnlData || '' };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -158,7 +209,7 @@ export class GraphService {
       
       // StrictGraph mode: validate against schema definitions before processing
       if (mode === 'strictgraph') {
-        const operations = this.cnlParserService.getOperationsFromCnl(cnlText, mode);
+        const operations = await this.cnlParserService.getOperationsFromCnl(cnlText, mode);
         const errors = await this.cnlParserService.validateOperations(operations);
         if (errors.length > 0) {
           throw new BadRequestException('Validation errors', { cause: errors });

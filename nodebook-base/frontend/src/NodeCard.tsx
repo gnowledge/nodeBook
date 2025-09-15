@@ -13,7 +13,7 @@ interface NodeCardProps {
   node: Node;
   allNodes: Node[];
   allRelations: Edge[];
-  attributes: AttributeType[];
+  attributes: Attribute[];
   isActive: boolean;
   onSelectNode: (nodeId: string) => void;
   onImportContext: (nodeId: string) => void;
@@ -232,10 +232,45 @@ export function NodeCard({ node, allNodes, allRelations, attributes, isActive, o
     );
   };
 
-  // Backend should already filter attributes and relations by active morph
-  // Use all attributes and relations since backend filtering is now handled by morph registry
-  const filteredAttributes = attributes.filter(attr => attr.source_id === node.id);
-  const filteredRelations = allRelations.filter(rel => rel.source_id === node.id || rel.target_id === node.id);
+  // Filter attributes and relations by current morph using morph data
+  const currentMorph = node.morphs?.find(morph => morph.morph_id === node.nbh);
+  
+  console.log('[NodeCard] Debug morph filtering:', {
+    nodeId: node.id,
+    nodeName: node.name,
+    nbh: node.nbh,
+    currentMorph: currentMorph,
+    morphsCount: node.morphs?.length || 0,
+    allAttributesCount: attributes.length,
+    allRelationsCount: allRelations.length
+  });
+  
+  const filteredAttributes = attributes.filter(attr => {
+    if (attr.source_id !== node.id) return false;
+    // If the node has a morph, use the morph's attributeNode_ids
+    if (currentMorph) {
+      return currentMorph.attributeNode_ids?.includes(attr.id) || false;
+    }
+    // If no morph, show all attributes for this node
+    return true;
+  });
+  
+  const filteredRelations = allRelations.filter(rel => {
+    if (rel.source_id !== node.id && rel.target_id !== node.id) return false;
+    // If the node has a morph, use the morph's relationNode_ids
+    if (currentMorph) {
+      return currentMorph.relationNode_ids?.includes(rel.id) || false;
+    }
+    // If no morph, show all relations for this node
+    return true;
+  });
+  
+  console.log('[NodeCard] Filtered results:', {
+    filteredAttributesCount: filteredAttributes.length,
+    filteredRelationsCount: filteredRelations.length,
+    filteredAttributeIds: filteredAttributes.map(a => a.id),
+    filteredRelationIds: filteredRelations.map(r => r.id)
+  });
 
   // Calculate subgraph data using Cytoscape's neighborhood concept
   const subgraphNodes = [node];

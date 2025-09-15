@@ -30,3 +30,4 @@ export class CollaborationService {
     throw new Error('Collaboration features not yet fully implemented in NestJS version');
   }
 }
+
