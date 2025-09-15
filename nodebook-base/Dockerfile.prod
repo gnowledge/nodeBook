@@ -1,0 +1,67 @@
+# NodeBook NestJS Production Dockerfile
+# Multi-stage build for optimized production image
+
+# Stage 1: Base image with Node.js 20 LTS
+FROM node:20-alpine AS base
+
+# Install system dependencies for libp2p and crypto
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Stage 2: Development dependencies
+FROM base AS development
+
+# Install development dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build NestJS application
+RUN npm run build
+
+# Create necessary directories with proper permissions
+RUN mkdir -p user_data logs media data && \
+    chmod -R 755 user_data logs media data
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start NestJS application
+CMD ["npm", "run", "start"]
+
+# Stage 3: Production build
+FROM development AS production
+
+# No additional steps needed - build was done in development stage
+
+# Create necessary directories with proper permissions
+RUN mkdir -p user_data logs media data && \
+    chmod -R 755 user_data logs media data
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start NestJS application
+CMD ["npm", "run", "start"]

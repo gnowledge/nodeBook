@@ -2,7 +2,7 @@ services:
   # Keycloak Authentication Service
   keycloak:
     image: quay.io/keycloak/keycloak:25.0.0
-    container_name: nodebook-keycloak-p2p-dev
+    container_name: nodebook-keycloak-prod
     # No external ports - only accessible via nginx proxy
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN_USER:-admin}
@@ -24,25 +24,28 @@ services:
     restart: unless-stopped
     command: ["start-dev"]
 
-  # P2P NodeBook Backend Service
+  # P2P NodeBook Backend Service (NestJS)
   nodebook-p2p:
     build:
       context: ./nodebook-base
-      dockerfile: Dockerfile.p2p
-    container_name: nodebook-p2p-dev
+      dockerfile: Dockerfile.prod
+      target: production
+    container_name: nodebook-p2p-prod
     # No external ports - only accessible via nginx proxy
     volumes:
-      - ./nodebook-base:/app
-      - /app/node_modules
       - ./data:/app/data
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - P2P_ENABLED=true
       - COLLABORATION_ENABLED=true
       - LOG_LEVEL=info
       - KEYCLOAK_URL=https://auth.${DOMAIN_NAME}
       - KEYCLOAK_REALM=nodebook
+      - KEYCLOAK_CLIENT_ID=nodebook-frontend
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
       - DATA_PATH=/app/data
+      - DISABLE_AUTH=false
+      - JWT_SECRET=${JWT_SECRET}
     networks:
       - nodebook-p2p-net
     depends_on:
@@ -56,7 +59,7 @@ services:
     build:
       context: ./media-backend
       dockerfile: Dockerfile
-    container_name: nodebook-media-backend-p2p-dev
+    container_name: nodebook-media-backend-prod
     # No external ports - only accessible via nginx proxy
     volumes:
       - ./data/media:/app/media-data
@@ -72,14 +75,14 @@ services:
   signaling-server:
     build:
       context: ./nodebook-base
-      dockerfile: Dockerfile.p2p
-    container_name: nodebook-signaling-server-dev
+      dockerfile: Dockerfile.prod
+      target: production
+    container_name: nodebook-signaling-server-prod
     # No external ports - only accessible via nginx proxy
     volumes:
-      - ./nodebook-base:/app
-      - /app/node_modules
+      - ./data:/app/data
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=4444
     networks:
       - nodebook-p2p-net
@@ -97,7 +100,7 @@ services:
     build:
       context: ./nlp-service
       dockerfile: Dockerfile
-    container_name: nodebook-nlp-service-p2p-dev
+    container_name: nodebook-nlp-service-prod
     # No external ports - only accessible via nginx proxy
     environment:
       - NODE_ENV=development
@@ -111,7 +114,7 @@ services:
     build:
       context: ./wordnet-service
       dockerfile: Dockerfile
-    container_name: nodebook-wordnet-service-p2p-dev
+    container_name: nodebook-wordnet-service-prod
     # No external ports - only accessible via nginx proxy
     environment:
       - NODE_ENV=development
@@ -125,7 +128,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    container_name: nodebook-frontend-p2p-dev
+    container_name: nodebook-frontend-prod
     command: sh -c "cd nodebook-base/frontend && npm run build && npx serve -s dist -l 3004"
     working_dir: /app
     volumes:
