@@ -119,4 +119,15 @@ export class DataStoreService {
   getGraphDataDir(userId: string, graphId: string) {
     return this.dataStore.getGraphDataDir(userId, graphId);
   }
+
+  // Public graphs methods
+  async getAllPublicGraphs() {
+    await this.ensureInitialized();
+    return this.dataStore.getAllPublicGraphs();
+  }
+
+  async getPublicGraphCnl(graphId: string) {
+    await this.ensureInitialized();
+    return this.dataStore.getPublicGraphCnl(graphId);
+  }
 }

@@ -1060,6 +1060,130 @@ export class FileSystemStore extends DataStore {
             return 'Updated graph structure';
         }
     }
+
+    // Method to get all public graphs across all users
+    async getAllPublicGraphs() {
+        try {
+            const publicGraphs = [];
+            const usersDir = path.join(this.dataPath, 'users');
+            
+            // Check if users directory exists
+            try {
+                await fsp.access(usersDir);
+            } catch (error) {
+                console.log('No users directory found, returning empty public graphs list');
+                return [];
+            }
+
+            // Get all user directories
+            const userDirs = await fsp.readdir(usersDir);
+            
+            for (const userId of userDirs) {
+                const userPath = path.join(usersDir, userId);
+                const userStat = await fsp.stat(userPath);
+                
+                if (!userStat.isDirectory()) continue;
+                
+                const registryPath = path.join(userPath, 'registry.json');
+                
+                try {
+                    const registryContent = await fsp.readFile(registryPath, 'utf8');
+                    const registry = JSON.parse(registryContent);
+                    
+                    // Filter for public graphs
+                    const userPublicGraphs = registry.filter(graph => graph.publication_state === 'Public');
+                    
+                    // Add to public graphs list
+                    publicGraphs.push(...userPublicGraphs.map(graph => ({
+                        id: graph.id,
+                        name: graph.name,
+                        author: graph.author,
+                        email: graph.email,
+                        mode: graph.mode,
+                        createdAt: graph.created_at,
+                        updatedAt: graph.updated_at || graph.updatedAt,
+                        publication_state: 'Public',
+                        description: graph.description || null,
+                        preview_url: graph.preview_url || null
+                    })));
+                    
+                } catch (error) {
+                    console.warn(`Failed to read registry for user ${userId}:`, error.message);
+                    continue;
+                }
+            }
+            
+            return publicGraphs;
+        } catch (error) {
+            console.error('Error getting public graphs:', error);
+            return [];
+        }
+    }
+
+    // Method to get CNL data for a specific public graph
+    async getPublicGraphCnl(graphId) {
+        try {
+            const usersDir = path.join(this.dataPath, 'users');
+            
+            // Check if users directory exists
+            try {
+                await fsp.access(usersDir);
+            } catch (error) {
+                throw new Error('No users directory found');
+            }
+
+            // Get all user directories
+            const userDirs = await fsp.readdir(usersDir);
+            
+            for (const userId of userDirs) {
+                const userPath = path.join(usersDir, userId);
+                const userStat = await fsp.stat(userPath);
+                
+                if (!userStat.isDirectory()) continue;
+                
+                const registryPath = path.join(userPath, 'registry.json');
+                
+                try {
+                    const registryContent = await fsp.readFile(registryPath, 'utf8');
+                    const registry = JSON.parse(registryContent);
+                    
+                    // Check if this user has the graph and it's public
+                    const graph = registry.find(g => g.id === graphId && g.publication_state === 'Public');
+                    
+                    if (graph) {
+                        // Found the graph, now get the CNL data
+                        const cnlPath = path.join(userPath, 'graphs', graphId, 'graph.cnl');
+                        
+                        try {
+                            const cnlContent = await fsp.readFile(cnlPath, 'utf8');
+                            return {
+                                cnl: cnlContent,
+                                nodes: [],
+                                relations: [],
+                                attributes: []
+                            };
+                        } catch (error) {
+                            // If CNL file doesn't exist, return empty CNL
+                            return {
+                                cnl: '',
+                                nodes: [],
+                                relations: [],
+                                attributes: []
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to read registry for user ${userId}:`, error.message);
+                    continue;
+                }
+            }
+            
+            throw new Error('Public graph not found');
+        } catch (error) {
+            console.error('Error getting public graph CNL:', error);
+            throw error;
+        }
+    }
 }
 
 /**

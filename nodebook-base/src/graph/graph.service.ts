@@ -36,34 +36,8 @@ export class GraphService {
 
   async getPublicGraphs() {
     try {
-      // For development, return some mock public graphs
-      // In production, this would query for graphs with publication_state = 'Public'
-      return [
-        {
-          id: 'public-graph-1',
-          name: 'Sample Public Graph',
-          description: 'A sample public graph for demonstration',
-          author: 'public-user',
-          email: 'public@example.com',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          mode: 'richgraph',
-          publication_state: 'Public',
-          preview_url: null
-        },
-        {
-          id: 'public-graph-2',
-          name: 'Another Public Graph',
-          description: 'Another example of a public graph',
-          author: 'demo-user',
-          email: 'demo@example.com',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          mode: 'richgraph',
-          publication_state: 'Public',
-          preview_url: null
-        }
-      ];
+      // Get all public graphs from the data store
+      return await this.dataStoreService.getAllPublicGraphs();
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -71,34 +45,10 @@ export class GraphService {
 
   async getPublicGraph(graphId: string) {
     try {
-      // For development, return mock data based on graphId
-      // In production, this would query for a specific public graph
-      const mockGraphs = {
-        'public-graph-1': {
-          id: 'public-graph-1',
-          name: 'Sample Public Graph',
-          description: 'A sample public graph for demonstration',
-          author: 'public-user',
-          email: 'public@example.com',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          mode: 'richgraph',
-          publication_state: 'Public'
-        },
-        'public-graph-2': {
-          id: 'public-graph-2',
-          name: 'Another Public Graph',
-          description: 'Another example of a public graph',
-          author: 'demo-user',
-          email: 'demo@example.com',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          mode: 'richgraph',
-          publication_state: 'Public'
-        }
-      };
-
-      const graph = mockGraphs[graphId];
+      // Get all public graphs and find the one with matching ID
+      const publicGraphs = await this.dataStoreService.getAllPublicGraphs();
+      const graph = publicGraphs.find(g => g.id === graphId);
+      
       if (!graph) {
         throw new NotFoundException('Public graph not found');
       }
@@ -114,37 +64,17 @@ export class GraphService {
 
   async getPublicGraphCnl(graphId: string) {
     try {
-      // For development, return mock CNL data based on graphId
-      // In production, this would query for the CNL content of a public graph
-      const mockCnlData = {
-        'public-graph-1': {
-          cnl: 'This is a sample CNL text for the first public graph.\n\nIt contains some example nodes and relations to demonstrate the public graph functionality.',
-          nodes: [
-            { id: 'node1', name: 'Sample Node 1', type: 'concept' },
-            { id: 'node2', name: 'Sample Node 2', type: 'concept' }
-          ],
-          relations: [
-            { id: 'rel1', from: 'node1', to: 'node2', type: 'relates_to' }
-          ],
-          attributes: []
-        },
-        'public-graph-2': {
-          cnl: 'This is another sample CNL text for the second public graph.\n\nIt shows different content to demonstrate variety in public graphs.',
-          nodes: [
-            { id: 'node3', name: 'Demo Node 1', type: 'concept' },
-            { id: 'node4', name: 'Demo Node 2', type: 'concept' }
-          ],
-          relations: [
-            { id: 'rel2', from: 'node3', to: 'node4', type: 'connected_to' }
-          ],
-          attributes: []
-        }
-      };
-
-      const cnlData = mockCnlData[graphId];
-      if (!cnlData) {
-        throw new NotFoundException('Public graph CNL not found');
+      // First verify the graph is public
+      const publicGraphs = await this.dataStoreService.getAllPublicGraphs();
+      const graph = publicGraphs.find(g => g.id === graphId);
+      
+      if (!graph) {
+        throw new NotFoundException('Public graph not found');
       }
+
+      // Find the user who owns this graph and get the CNL data
+      // We need to scan through user registries to find which user owns this graph
+      const cnlData = await this.dataStoreService.getPublicGraphCnl(graphId);
       
       return cnlData;
     } catch (error) {
