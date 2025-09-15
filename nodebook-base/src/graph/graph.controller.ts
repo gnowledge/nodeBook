@@ -29,8 +29,6 @@ import {
 
 @ApiTags('graphs')
 @Controller('api/graphs')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class GraphController {
   constructor(private readonly graphService: GraphService) {}
 
@@ -60,6 +58,8 @@ export class GraphController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get all graphs for the authenticated user' })
   @ApiResponse({ status: 200, description: 'List of graphs' })
   async getGraphs(@Request() req) {
@@ -67,6 +67,8 @@ export class GraphController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Create a new graph' })
   @ApiResponse({ status: 201, description: 'Graph created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid graph data' })
@@ -75,6 +77,8 @@ export class GraphController {
   }
 
   @Get(':graphId/graph')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get graph data by ID' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Graph data' })
@@ -84,6 +88,8 @@ export class GraphController {
   }
 
   @Get(':graphId/cnl')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get CNL content for a graph' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'CNL content' })
@@ -92,6 +98,8 @@ export class GraphController {
   }
 
   @Put(':graphId/cnl')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Save CNL content without processing' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'CNL saved successfully' })
@@ -100,6 +108,8 @@ export class GraphController {
   }
 
   @Post(':graphId/cnl')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Process CNL content and update graph' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'CNL processed successfully' })
@@ -109,6 +119,8 @@ export class GraphController {
   }
 
   @Get(':graphId/key')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get graph key' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Graph key' })
@@ -117,6 +129,8 @@ export class GraphController {
   }
 
   @Get(':graphId/publication')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get graph publication state' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Publication state' })
@@ -125,6 +139,8 @@ export class GraphController {
   }
 
   @Put(':graphId/publication')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update graph publication state' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Publication state updated' })
@@ -133,6 +149,8 @@ export class GraphController {
   }
 
   @Put(':graphId/mode')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Update graph mode' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Graph mode updated' })
@@ -141,6 +159,8 @@ export class GraphController {
   }
 
   @Put(':graphId/preview')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Set graph preview' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Preview updated' })
@@ -149,6 +169,8 @@ export class GraphController {
   }
 
   @Post(':graphId/publish')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Publish graph' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 200, description: 'Graph published successfully' })
@@ -157,6 +179,8 @@ export class GraphController {
   }
 
   @Get(':graphId/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Export graph as NDF package' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiQuery({ name: 'name', required: false, description: 'Export filename' })
@@ -174,6 +198,8 @@ export class GraphController {
   }
 
   @Post('import')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Import graph from NDF package' })
   @ApiResponse({ status: 201, description: 'Graph imported successfully' })
   async importGraph(@Request() req, @Body() file: any) {
@@ -181,6 +207,8 @@ export class GraphController {
   }
 
   @Delete(':graphId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Delete graph' })
   @ApiParam({ name: 'graphId', description: 'Graph ID' })
   @ApiResponse({ status: 204, description: 'Graph deleted successfully' })
@@ -189,6 +217,8 @@ export class GraphController {
   }
 
   @Post('cnl/suggest')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get CNL suggestions' })
   @ApiResponse({ status: 200, description: 'CNL suggestions' })
   async suggestCNL(@Request() req, @Body() suggestDto: CNLSuggestDto) {
@@ -196,6 +226,8 @@ export class GraphController {
   }
 
   @Post('cnl/validate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Validate CNL content' })
   @ApiResponse({ status: 200, description: 'CNL validation result' })
   async validateCNL(@Request() req, @Body() validateDto: CNLValidateDto) {
