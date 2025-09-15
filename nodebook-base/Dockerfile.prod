@@ -24,6 +24,21 @@ COPY . .
 # Build NestJS application
 RUN npm run build
 
+# Debug: Check what was built
+RUN echo "=== Build Output ===" && \
+    find . -name "*.js" -path "./dist/*" | head -10 && \
+    echo "=== Main files ===" && \
+    ls -la dist/ && \
+    echo "=== Checking main.js ===" && \
+    if [ -f "dist/main.js" ]; then \
+        echo "main.js exists"; \
+        head -5 dist/main.js; \
+    else \
+        echo "main.js NOT FOUND"; \
+        echo "Available files:"; \
+        find dist -type f -name "*.js" | head -10; \
+    fi
+
 # Remove dev dependencies to reduce image size
 RUN npm prune --production
 
@@ -38,5 +53,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start NestJS application (ES modules)
-CMD ["node", "dist/main.js"]
+# Start NestJS application using npm script (which handles ES modules better)
+CMD ["npm", "run", "start"]
