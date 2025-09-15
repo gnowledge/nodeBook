@@ -29,7 +29,6 @@ services:
     build:
       context: ./nodebook-base
       dockerfile: Dockerfile.prod
-      target: production
     container_name: nodebook-p2p-prod
     # No external ports - only accessible via nginx proxy
     volumes:
@@ -76,7 +75,6 @@ services:
     build:
       context: ./nodebook-base
       dockerfile: Dockerfile.prod
-      target: production
     container_name: nodebook-signaling-server-prod
     # No external ports - only accessible via nginx proxy
     volumes:
